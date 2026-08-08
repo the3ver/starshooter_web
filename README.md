@@ -21,4 +21,3 @@ Ein klassisches "Space Shooter"-Browserspiel, das komplett **ohne HTML5-Canvas**
 
 ## GitHub Pages
 [https://the3ver.github.io/starshooter_web/](https://the3ver.github.io/starshooter_web/)
-Ich 
