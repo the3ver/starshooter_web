@@ -20,4 +20,5 @@ Ein klassisches "Space Shooter"-Browserspiel, das komplett **ohne HTML5-Canvas**
   - **Leertaste** - Bombe abwerfen
 
 ## GitHub Pages
-Dieses Projekt ist für das Hosting über GitHub Pages vorbereitet.
+[https://the3ver.github.io/starshooter_web/](https://the3ver.github.io/starshooter_web/)
+Ich 
