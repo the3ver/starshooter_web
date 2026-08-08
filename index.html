@@ -1,0 +1,1863 @@
+<!DOCTYPE html>
+<html lang="de">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Spielfeld: Level-System & Boss-Skalierung</title>
+    <style>
+        /* ==========================================================================
+           1. LAYOUT & GLOBALE STYLES
+           ========================================================================== */
+        body {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+            background-color: #2c3e50;
+            font-family: Arial, sans-serif;
+            touch-action: none;
+            overflow: hidden;
+        }
+
+        #game-wrapper {
+            display: flex;
+            align-items: center;
+            gap: 20px;
+        }
+
+        #spielfeld {
+            width: 400px;
+            height: 600px;
+            background-color: #0b1319;
+            position: relative;
+            border: 4px solid #34495e;
+            border-radius: 8px;
+            overflow: hidden;
+            transition: background-color 0.1s;
+        }
+
+        /* ==========================================================================
+           2. USER INTERFACE (UI) & HUD
+           ========================================================================== */
+        #steuerung-anzeige {
+            background-color: #1a252f;
+            color: #ecf0f1;
+            padding: 20px;
+            border-radius: 8px;
+            font-size: 14px;
+            line-height: 1.6;
+            border: 4px solid #34495e;
+            pointer-events: none;
+        }
+
+        .steuerung-titel {
+            color: #1abc9c;
+            font-weight: bold;
+            text-transform: uppercase;
+            font-size: 12px;
+            letter-spacing: 1px;
+            margin-bottom: 10px;
+            border-bottom: 1px solid #34495e;
+            padding-bottom: 5px;
+            margin-top: 15px;
+        }
+
+        .steuerung-titel:first-child {
+            margin-top: 0;
+        }
+
+        #ui-container {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            z-index: 20;
+        }
+
+        #leben-anzeige {
+            color: #e74c3c;
+            font-size: 24px;
+            font-weight: bold;
+            letter-spacing: 2px;
+            margin-bottom: 5px;
+        }
+
+        #energie-container {
+            width: 80px;
+            height: 8px;
+            background-color: #1a252f;
+            border-radius: 4px;
+            overflow: hidden;
+            border: 1px solid #1abc9c;
+            position: relative;
+        }
+
+        #energie-balken {
+            width: 50%;
+            height: 100%;
+            background-color: #1abc9c;
+            transition: background-color 0.2s;
+        }
+
+        .cooldown-container {
+            width: 80px;
+            height: 4px;
+            background-color: #1a252f;
+            border-radius: 2px;
+            overflow: hidden;
+            margin-top: 2px;
+        }
+
+        .cooldown-balken {
+            width: 100%;
+            height: 100%;
+            background-color: #e74c3c;
+            transition: width 0.1s linear;
+        }
+
+        #max-energie-marker {
+            position: absolute;
+            top: 0;
+            bottom: 0;
+            width: 2px;
+            background-color: #f1c40f;
+            z-index: 2;
+            transition: left 0.3s ease;
+        }
+
+        #aktive-powerups {
+            margin-top: 8px;
+            display: flex;
+            gap: 5px;
+        }
+
+        .active-pu-icon {
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            display: inline-flex;
+            justify-content: center;
+            align-items: center;
+            font-size: 11px;
+            font-weight: bold;
+        }
+
+        #score-anzeige {
+            position: absolute;
+            top: 10px;
+            right: 15px;
+            color: #f1c40f;
+            font-size: 22px;
+            font-weight: bold;
+            font-family: 'Courier New', Courier, monospace;
+            letter-spacing: 2px;
+            z-index: 20;
+        }
+
+        #level-anzeige {
+            position: absolute;
+            top: 40px;
+            right: 15px;
+            color: #ecf0f1;
+            font-size: 14px;
+            font-weight: bold;
+            font-family: 'Courier New', Courier, monospace;
+            letter-spacing: 1px;
+            z-index: 20;
+        }
+
+        #boss-hp-container {
+            position: absolute;
+            top: 15px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 200px;
+            height: 6px;
+            background-color: rgba(26, 37, 47, 0.5);
+            border: 1px solid rgba(231, 76, 60, 0.5);
+            border-radius: 3px;
+            z-index: 20;
+            display: none;
+            opacity: 0.8;
+        }
+
+        #boss-hp-balken {
+            width: 100%;
+            height: 100%;
+            background-color: #e74c3c;
+            transition: width 0.1s, background-color 0.3s;
+        }
+
+        /* ==========================================================================
+           3. GAME OBJECTS (Sterne, Asteroiden, Feinde, Boss, Powerups, Laser)
+           ========================================================================== */
+        .stern {
+            position: absolute;
+            background-color: white;
+            border-radius: 50%;
+            z-index: 1;
+        }
+
+        .asteroid {
+            position: absolute;
+            z-index: 5;
+            transition: filter 0.05s;
+        }
+
+        .riss-layer {
+            width: 100%;
+            height: 100%;
+            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Cpath d='M30,0 L40,30 L20,50 L45,65 L35,100 M70,0 L50,25 L75,40 L55,70 L65,100 M0,40 L30,30 L45,50' stroke='%23000' stroke-width='4' fill='none' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+            background-size: cover;
+            opacity: 0;
+        }
+
+        @keyframes pulsieren {
+            0% {
+                transform: scale(1);
+                filter: brightness(1);
+            }
+
+            100% {
+                transform: scale(1.08);
+                filter: brightness(1.3);
+            }
+        }
+
+        .unzerstoerbar {
+            animation: pulsieren 0.8s infinite alternate;
+        }
+
+        .feind-schiff {
+            position: absolute;
+            width: 30px;
+            height: 30px;
+            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 30 30'%3E%3Cpath d='M15 30L25 5H5z' fill='%239b59b6'/%3E%3Ccircle cx='15' cy='15' r='3' fill='%23f1c40f'/%3E%3C/svg%3E");
+            background-size: cover;
+            z-index: 9;
+            transition: filter 0.1s;
+        }
+
+        .feind-laser {
+            position: absolute;
+            width: 4px;
+            height: 15px;
+            background-color: #ff3333;
+            box-shadow: 0 0 8px #ff0000;
+            z-index: 8;
+        }
+
+        /* Boss SVG wird nun per JS generiert für dynamische Farben */
+        @keyframes bossHover {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(-5px); }
+        }
+
+        .boss-schiff {
+            position: absolute;
+            background-size: cover;
+            z-index: 9;
+            transition: filter 0.1s;
+            animation: bossHover 3s ease-in-out infinite;
+        }
+
+        @keyframes warnBlink {
+            0%, 100% { opacity: 1; color: #ff0000; text-shadow: 0 0 20px #ff0000; }
+            50% { opacity: 0; }
+        }
+
+        #game-over-screen {
+            position: absolute;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background-color: rgba(0, 0, 0, 0.85);
+            display: none;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            z-index: 50;
+            color: #ecf0f1;
+            font-family: 'Courier New', Courier, monospace;
+        }
+
+        .game-over-title {
+            color: #e74c3c;
+            font-size: 40px;
+            font-weight: bold;
+            text-shadow: 0 0 15px #e74c3c;
+            margin-bottom: 20px;
+        }
+
+        .score-display {
+            font-size: 24px;
+            margin-bottom: 30px;
+            color: #f1c40f;
+        }
+
+        #highscore-form {
+            display: none;
+            margin-bottom: 30px;
+            text-align: center;
+        }
+
+        #highscore-name {
+            background-color: #1a252f;
+            border: 2px solid #3498db;
+            color: #ecf0f1;
+            font-family: 'Courier New', Courier, monospace;
+            font-size: 20px;
+            width: 60px;
+            text-align: center;
+            text-transform: uppercase;
+            padding: 5px;
+            margin-right: 10px;
+        }
+
+        .btn {
+            background-color: #3498db;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            font-size: 16px;
+            font-family: 'Courier New', Courier, monospace;
+            cursor: pointer;
+            font-weight: bold;
+            transition: background-color 0.2s;
+        }
+
+        .btn:hover {
+            background-color: #2980b9;
+        }
+
+        #highscore-tabelle {
+            margin-bottom: 30px;
+            border-collapse: collapse;
+            width: 200px;
+        }
+
+        #highscore-tabelle th {
+            color: #1abc9c;
+            border-bottom: 1px solid #1abc9c;
+            padding-bottom: 5px;
+            margin-bottom: 10px;
+        }
+
+        #highscore-tabelle td {
+            padding: 5px;
+            text-align: center;
+        }
+
+        #warning-overlay {
+            position: absolute;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background-color: rgba(0, 0, 0, 0.7);
+            display: none;
+            justify-content: center;
+            align-items: center;
+            text-align: center;
+            z-index: 50;
+            font-size: 32px;
+            font-weight: bold;
+            font-family: 'Courier New', Courier, monospace;
+            animation: warnBlink 0.5s infinite;
+        }
+
+        .boss-laser {
+            position: absolute;
+            width: 8px;
+            height: 25px;
+            background-color: #f39c12;
+            box-shadow: 0 0 12px #f1c40f;
+            z-index: 8;
+            border-radius: 4px;
+        }
+
+        .powerup {
+            position: absolute;
+            width: 24px;
+            height: 24px;
+            background-color: rgba(255, 255, 255, 0.1);
+            border-radius: 50%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-size: 14px;
+            font-weight: bold;
+            z-index: 6;
+        }
+
+        .hitscan-strahl {
+            position: absolute;
+            background-color: #ff00ff;
+            box-shadow: 0 0 15px #ff00ff, 0 0 5px #ffffff inset;
+            display: none;
+            z-index: 7;
+            width: 6px;
+            border-radius: 3px;
+        }
+
+        .laser-strahl {
+            position: absolute;
+            background-color: #00ffff;
+            box-shadow: 0 0 8px #00ffff;
+            display: none;
+            z-index: 8;
+            width: 4px;
+            height: 12px;
+            border-radius: 2px;
+        }
+
+        .laser-projektil {
+            position: absolute;
+            z-index: 8;
+            border-radius: 2px;
+        }
+        
+        .raketen-projektil {
+            position: absolute;
+            width: 10px;
+            height: 24px;
+            z-index: 8;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+        
+        .rakete-sensor {
+            width: 4px;
+            height: 4px;
+            background-color: #ff3333;
+            border-radius: 50%;
+            box-shadow: 0 0 6px #ff0000;
+            z-index: 2;
+        }
+        
+        .rakete-rumpf {
+            width: 6px;
+            height: 16px;
+            background-color: #bdc3c7;
+            margin-top: -1px;
+            z-index: 1;
+        }
+        
+        .rakete-fluegel {
+            position: absolute;
+            bottom: 4px;
+            width: 14px;
+            height: 6px;
+            background-color: #7f8c8d;
+            clip-path: polygon(20% 0%, 80% 0%, 100% 100%, 0% 100%);
+            z-index: 0;
+        }
+        
+        .rakete-feuer {
+            width: 4px;
+            height: 10px;
+            background-color: #f1c40f;
+            border-radius: 0 0 4px 4px;
+            box-shadow: 0 0 8px #e74c3c;
+            animation: flackerFeuer 0.1s infinite alternate;
+        }
+        
+        @keyframes flackerFeuer {
+            0% { height: 8px; background-color: #f1c40f; }
+            100% { height: 12px; background-color: #e74c3c; }
+        }
+
+        .bomben-projektil {
+            position: absolute;
+            width: 14px;
+            height: 30px;
+            z-index: 7;
+            transform-origin: center center;
+        }
+
+        .bombe-body {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(to right, #2c3e50, #34495e, #2c3e50);
+            border-radius: 4px;
+            border: 1px solid #1a252f;
+        }
+
+        .bombe-licht {
+            position: absolute;
+            width: 4px;
+            height: 4px;
+            background-color: #e74c3c;
+            border-radius: 50%;
+            left: 4px;
+            box-shadow: 0 0 5px #e74c3c;
+        }
+
+        @keyframes bombeBlink {
+            0%, 100% { opacity: 1; transform: scale(1); box-shadow: 0 0 8px #e74c3c; }
+            50% { opacity: 0.3; transform: scale(0.8); box-shadow: 0 0 2px #e74c3c; }
+        }
+
+        @keyframes repulsorPulse {
+            0% { box-shadow: 0 0 0 0 rgba(0, 255, 255, 0.4); }
+            70% { box-shadow: 0 0 0 60px rgba(0, 255, 255, 0); }
+            100% { box-shadow: 0 0 0 0 rgba(0, 255, 255, 0); }
+        }
+        
+        .repulsor-aktiv {
+            border-radius: 50%;
+            animation: repulsorPulse 1s infinite;
+        }
+
+        .boss-laser {
+            position: absolute;
+            background-color: #f1c40f;
+            box-shadow: 0 0 10px #f1c40f;
+            z-index: 7;
+            width: 8px;
+            height: 25px;
+            border-radius: 4px;
+            transform-origin: center center;
+        }
+
+        #autolaser {
+            position: absolute;
+            background-color: #a8ff00;
+            box-shadow: 0 0 10px #a8ff00;
+            display: none;
+            z-index: 7;
+            width: 4px;
+            transform-origin: bottom center;
+        }
+
+        #spieler {
+            width: 30px;
+            height: 30px;
+            position: absolute;
+            top: 285px;
+            left: 185px;
+            z-index: 10;
+        }
+
+        .ship-flame {
+            position: absolute;
+            top: 26px;
+            width: 3px;
+            height: 12px;
+            background-color: #f1c40f;
+            border-radius: 0 0 3px 3px;
+            box-shadow: 0 0 8px #e74c3c;
+            z-index: 1;
+            transform-origin: top center;
+            transition: transform 0.1s;
+            animation: flackerFeuer 0.1s infinite alternate;
+        }
+
+        #spieler.schild-aktiv::after {
+            content: '';
+            position: absolute;
+            top: -5px; left: -5px; right: -5px; bottom: -5px;
+            border-radius: 50%;
+            box-shadow: 0 0 15px 5px rgba(52, 152, 219, 0.7);
+            border: 2px solid rgba(52, 152, 219, 0.8);
+            z-index: 5;
+        }
+
+        .partikel {
+            position: absolute;
+            width: 4px;
+            height: 4px;
+            background-color: white;
+            border-radius: 50%;
+            z-index: 6;
+            pointer-events: none;
+        }
+    </style>
+</head>
+
+<body>
+
+    <div id="game-wrapper">
+        <div id="spielfeld">
+            <div id="ui-container">
+                <div id="leben-anzeige"></div>
+                <div id="energie-container">
+                    <div id="energie-balken"></div>
+                    <div id="max-energie-marker"></div>
+                </div>
+                <div id="raketen-cd-container" class="cooldown-container">
+                    <div id="raketen-cd-balken" class="cooldown-balken"></div>
+                </div>
+                <div id="bomben-cd-container" class="cooldown-container">
+                    <div id="bomben-cd-balken" class="cooldown-balken" style="background-color: #f39c12;"></div>
+                </div>
+                <div id="aktive-powerups"></div>
+            </div>
+            
+            <div id="warning-overlay">WARNING<br>BOSS APPROACHING</div>
+
+            <div id="game-over-screen">
+                <div class="game-over-title">GAME OVER</div>
+                <div class="score-display">PUNKTE: <span id="final-score">0</span></div>
+                
+                <div id="highscore-form">
+                    <p style="color: #1abc9c; margin-bottom: 10px;">NEUER HIGHSCORE!</p>
+                    <input type="text" id="highscore-name" maxlength="3" placeholder="AAA">
+                    <button class="btn" id="btn-save-score">SPEICHERN</button>
+                </div>
+                
+                <table id="highscore-tabelle">
+                    <thead><tr><th>NAME</th><th>PUNKTE</th></tr></thead>
+                    <tbody id="highscore-body"></tbody>
+                </table>
+                
+                <button class="btn" id="btn-restart">NEUSTART</button>
+            </div>
+
+            <div id="score-anzeige">00000</div>
+            <div id="level-anzeige">LEVEL 1</div>
+            
+            <div id="boss-hp-container">
+                <div id="boss-hp-balken"></div>
+            </div>
+
+            <div id="laser1" class="laser-strahl"></div>
+            <div id="laser2" class="laser-strahl"></div>
+            <div id="laser-diag-links" class="laser-strahl"></div>
+            <div id="laser-diag-rechts" class="laser-strahl"></div>
+            <div id="autolaser"></div>
+            <div id="hitscan-laser" class="hitscan-strahl"></div>
+
+            <div id="spieler" data-rotate="0">
+                <svg viewBox="0 0 30 30" style="position: absolute; width: 100%; height: 100%; z-index: 2;">
+                    <!-- Wings -->
+                    <path d="M15 2 L2 20 L5 25 L15 22 L25 25 L28 20 Z" fill="#c0392b"/>
+                    <!-- Main Fuselage -->
+                    <path d="M15 0 L9 20 L15 27 L21 20 Z" fill="#e74c3c"/>
+                    <!-- Cockpit -->
+                    <path d="M15 8 L12 16 L15 19 L18 16 Z" fill="#87CEEB"/>
+                    <!-- Engine Nozzles -->
+                    <rect x="7" y="23" width="4" height="4" fill="#7f8c8d"/>
+                    <rect x="19" y="23" width="4" height="4" fill="#7f8c8d"/>
+                </svg>
+                <div id="flame-left" class="ship-flame" style="left: 7.5px;"></div>
+                <div id="flame-right" class="ship-flame" style="left: 19.5px;"></div>
+            </div>
+        </div>
+
+        <div id="steuerung-anzeige">
+            <div class="steuerung-titel">Steuerung</div>
+            <b>W A S D</b> &nbsp;&rarr; Bewegen<br>
+            <b>L</b> &nbsp;&rarr; Laser<br>
+            <b>K</b> &nbsp;&rarr; Raketen<br>
+            <b>LEER</b> &rarr; Bomben
+
+            <div class="steuerung-titel">Powerups</div>
+            <span style="color:#e74c3c; font-weight:bold">&hearts;</span> : Extraleben<br>
+            <span style="color:#f1c40f; font-weight:bold">E</span> : +10 Max Energie<br>
+            <span style="color:#9b59b6; font-weight:bold">L/R/B</span> : Waffen-Upgrades<br>
+            <span style="color:#00ffff; font-weight:bold">&uarr;</span> : Laser-Durchschlag<br>
+            <span style="color:#3498db; font-weight:bold">O</span> : Schild (1 Treffer)
+        </div>
+    </div>
+
+    <script>
+        const spielfeld = document.getElementById('spielfeld');
+        const spieler = document.getElementById('spieler');
+        const lebenAnzeige = document.getElementById('leben-anzeige');
+        const energieBalken = document.getElementById('energie-balken');
+        const maxEnergieMarker = document.getElementById('max-energie-marker');
+        const aktivePowerupsContainer = document.getElementById('aktive-powerups');
+        const scoreAnzeige = document.getElementById('score-anzeige');
+        const levelAnzeige = document.getElementById('level-anzeige');
+        const bossHpContainer = document.getElementById('boss-hp-container');
+        const bossHpBalken = document.getElementById('boss-hp-balken');
+        const warningOverlay = document.getElementById('warning-overlay');
+
+        const laser1 = document.getElementById('laser1');
+        const laser2 = document.getElementById('laser2');
+        const laserDiagLinks = document.getElementById('laser-diag-links');
+        const laserDiagRechts = document.getElementById('laser-diag-rechts');
+        const autolaserEl = document.getElementById('autolaser');
+
+        const spielfeldBreite = 400;
+        const spielfeldHoehe = 600;
+        const spielerGroesse = 30;
+        const geschwindigkeit = 5;
+
+        // --- SPIELSTATUS ---
+        let x = 185;
+        let y = 285;
+        let leben = 3;
+        let score = 0;
+        let level = 1;
+
+        let absMaxEnergie = 100;
+        let maxEnergie = 50;
+        let energie = 50;
+        let minZuendEnergie = 15;
+        let laserSchiesst = false;
+
+        let laserDurchschlag = false;
+        let durchschlagTimer = 0;
+        let hatSchild = false;
+        let laserStufe = 1;
+        let autolaserAktiv = false;
+        let autolaserTimer = 0;
+        
+        let raketenStufe = 1;
+        let raketenCooldown = 0;
+        const raketenArray = [];
+        
+        let bombenStufe = 1;
+        let bombenCooldown = 0;
+        const bombenArray = [];
+
+        function addScore(punkte) {
+            score += punkte;
+            scoreAnzeige.innerText = score.toString().padStart(5, '0');
+        }
+
+        function updateLebenUI() {
+            let herzen = "";
+            for (let i = 0; i < leben; i++) herzen += "&hearts;";
+            lebenAnzeige.innerHTML = herzen;
+        }
+        updateLebenUI();
+
+        function updateLevelUI() {
+            levelAnzeige.innerText = 'LEVEL ' + level;
+        }
+
+        function updateMaxEnergieMarker() {
+            maxEnergieMarker.style.left = ((maxEnergie / absMaxEnergie) * 100) + '%';
+        }
+        updateMaxEnergieMarker();
+
+        function updateAktivePowerupsUI() {
+            aktivePowerupsContainer.innerHTML = '';
+            if (laserStufe > 1) {
+                let color = laserStufe === 5 ? '#e056fd' : '#9b59b6';
+                aktivePowerupsContainer.innerHTML += `<div class="active-pu-icon" style="background:rgba(155,89,182,0.2); border:1px solid ${color}; color:${color};">L${laserStufe}</div>`;
+            }
+            if (raketenStufe > 1) {
+                let color = raketenStufe === 5 ? '#f39c12' : '#e67e22';
+                aktivePowerupsContainer.innerHTML += `<div class="active-pu-icon" style="background:rgba(230,126,34,0.2); border:1px solid ${color}; color:${color};">R${raketenStufe}</div>`;
+            }
+            if (bombenStufe > 1) {
+                let color = bombenStufe === 5 ? '#e74c3c' : '#c0392b';
+                aktivePowerupsContainer.innerHTML += `<div class="active-pu-icon" style="background:rgba(192,57,43,0.2); border:1px solid ${color}; color:${color};">B${bombenStufe}</div>`;
+            }
+            if (laserDurchschlag) aktivePowerupsContainer.innerHTML += '<div class="active-pu-icon" style="background:rgba(0,255,255,0.2); border:1px solid #00ffff; color:#00ffff;">&uarr;</div>';
+            if (hatSchild) aktivePowerupsContainer.innerHTML += '<div class="active-pu-icon" style="background:rgba(52,152,219,0.2); border:1px solid #3498db; color:#3498db;">O</div>';
+            if (autolaserAktiv) aktivePowerupsContainer.innerHTML += '<div class="active-pu-icon" style="background:rgba(230,126,34,0.2); border:1px solid #e67e22; color:#e67e22;">A</div>';
+        }
+
+        function zerstoereZiel(ziel) {
+            let fIndex = feinde.indexOf(ziel);
+            let aIndex = asteroiden.indexOf(ziel);
+            let bIndex = bosses.indexOf(ziel);
+
+            if (fIndex === -1 && aIndex === -1 && bIndex === -1) return;
+
+            // Boss Logik beim Zerstören
+            if (ziel.istBoss) {
+                addScore(1000 * level);
+                erzeugeExplosion(ziel.x + ziel.groesse / 2, ziel.y + ziel.groesse / 2, '#f1c40f', 50);
+
+                // 3 Belohnungen fallen lassen (1 Waffe + 2 zufällige verschiedene)
+                const moeglicheDrops = ['leben', 'energie', 'durchschlag', 'schild'];
+                let waffenDrops = ['laserWaffe', 'raketenWaffe', 'bombenWaffe'];
+                let drops = [waffenDrops[Math.floor(Math.random() * waffenDrops.length)]]; // Zufällige Waffe ist immer garantiert
+                let randomIndex = Math.floor(Math.random() * moeglicheDrops.length);
+                drops.push(moeglicheDrops.splice(randomIndex, 1)[0]); // Typ entfernen, damit er nicht doppelt kommt
+                randomIndex = Math.floor(Math.random() * moeglicheDrops.length);
+                drops.push(moeglicheDrops[randomIndex]); // Zweiter Typ
+                
+                // Positionen mischen, damit Waffe nicht immer links spawnt
+                drops.sort(() => Math.random() - 0.5);
+
+                erzeugePowerup(ziel.x + ziel.groesse * 0.2, ziel.y + ziel.groesse * 0.5, drops[0]);
+                erzeugePowerup(ziel.x + ziel.groesse * 0.5, ziel.y + ziel.groesse * 0.5, drops[1]);
+                erzeugePowerup(ziel.x + ziel.groesse * 0.8, ziel.y + ziel.groesse * 0.5, drops[2]);
+
+                bossAktiv = false;
+                bossHpContainer.style.display = 'none';
+                level++;
+                updateLevelUI();
+                frameZaehler = 0;
+            } else {
+                addScore(ziel.istFeind ? 100 : (ziel.traegtPowerup ? 50 : (ziel.groesse >= 35 ? 20 : 10)));
+                let farbe = ziel.istFeind ? '#9b59b6' : (ziel.el.style.backgroundColor || '#ffffff');
+                erzeugeExplosion(ziel.x + ziel.groesse / 2, ziel.y + ziel.groesse / 2, farbe, 25);
+
+                if (ziel.traegtPowerup) {
+                    erzeugePowerup(ziel.x + (ziel.groesse / 2) - 12, ziel.y + (ziel.groesse / 2) - 12);
+                } else if (!ziel.istFeind && ziel.groesse >= 35) {
+                    let neueGroesse = ziel.groesse * 0.6;
+                    erzeugeAsteroid(ziel.x, ziel.y, neueGroesse, -3, ziel.vy, 15, true);
+                    erzeugeAsteroid(ziel.x + ziel.groesse - neueGroesse, ziel.y, neueGroesse, 3, ziel.vy, 15, true);
+                }
+            }
+
+            ziel.el.remove();
+            if (fIndex > -1) feinde.splice(fIndex, 1);
+            if (aIndex > -1) asteroiden.splice(aIndex, 1);
+            if (bIndex > -1) bosses.splice(bIndex, 1);
+        }
+
+        function spielerGetroffen(kollisionsObjekt, explodiert = true) {
+            if (hatSchild) {
+                hatSchild = false;
+                spieler.classList.remove('schild-aktiv');
+                updateAktivePowerupsUI();
+
+                if (explodiert) {
+                    let c = kollisionsObjekt.el.style.backgroundColor || '#9b59b6';
+                    erzeugeExplosion(kollisionsObjekt.x + (kollisionsObjekt.groesse || 4) / 2, kollisionsObjekt.y + (kollisionsObjekt.groesse || 15) / 2, c, 10);
+                }
+
+                addScore(10);
+                spielfeld.style.backgroundColor = 'rgba(52, 152, 219, 0.3)';
+                setTimeout(() => { spielfeld.style.backgroundColor = '#0b1319'; }, 150);
+                return;
+            }
+
+            leben--;
+            if (laserStufe > 1) laserStufe--;
+            if (raketenStufe > 1) raketenStufe--;
+            if (bombenStufe > 1) bombenStufe--;
+
+            updateLebenUI();
+            updateAktivePowerupsUI();
+
+            spielfeld.style.backgroundColor = '#900';
+            setTimeout(() => { spielfeld.style.backgroundColor = '#0b1319'; }, 150);
+
+            if (explodiert && !kollisionsObjekt.istBoss) {
+                let c = kollisionsObjekt.el.style.backgroundColor || '#9b59b6';
+                erzeugeExplosion(kollisionsObjekt.x + (kollisionsObjekt.groesse || 4) / 2, kollisionsObjekt.y + (kollisionsObjekt.groesse || 15) / 2, c, 10);
+            }
+
+            if (leben <= 0) {
+                gameOverAktiv = true;
+                finalerScore = score;
+                document.getElementById('final-score').innerText = finalerScore;
+                document.getElementById('game-over-screen').style.display = 'flex';
+                
+                let hs = getHighscores();
+                if (hs.length < 10 || finalerScore > hs[hs.length - 1].score) {
+                    document.getElementById('highscore-form').style.display = 'block';
+                    document.getElementById('highscore-name').value = '';
+                } else {
+                    document.getElementById('highscore-form').style.display = 'none';
+                }
+                
+                renderHighscores();
+            }
+        }
+
+        function restartGame() {
+            gameOverAktiv = false;
+            document.getElementById('game-over-screen').style.display = 'none';
+            
+            leben = 3; maxEnergie = 50; energie = maxEnergie; waffenStufe = 0;
+            laserDurchschlag = false; durchschlagTimer = 0; hatSchild = false;
+            spieler.classList.remove('schild-aktiv');
+
+            score = 0; addScore(0);
+            level = 1;
+
+            updateLebenUI(); updateMaxEnergieMarker(); updateAktivePowerupsUI(); updateLevelUI();
+            x = 185; y = 285;
+
+            asteroiden.forEach(a => a.el.remove()); asteroiden.length = 0;
+            feinde.forEach(f => f.el.remove()); feinde.length = 0;
+            feindLaserArray.forEach(l => l.el.remove()); feindLaserArray.length = 0;
+            bosses.forEach(b => b.el.remove()); bosses.length = 0;
+            bossLaserArray.forEach(l => l.el.remove()); bossLaserArray.length = 0;
+            powerups.forEach(p => p.el.remove()); powerups.length = 0;
+            partikelArray.forEach(p => p.el.remove()); partikelArray.length = 0;
+            laserArray.forEach(l => l.el.remove()); laserArray.length = 0;
+            raketenArray.forEach(r => r.el.remove()); raketenArray.length = 0;
+            bombenArray.forEach(b => b.el.remove()); bombenArray.length = 0;
+
+            bossAktiv = false;
+            bossHpContainer.style.display = 'none';
+            frameZaehler = 0;
+        }
+
+        const tastenGedrueckt = { w: false, a: false, s: false, d: false, l: false, k: false, ' ': false };
+        window.addEventListener('keydown', (e) => { if (tastenGedrueckt.hasOwnProperty(e.key.toLowerCase())) { tastenGedrueckt[e.key.toLowerCase()] = true; if (e.key === ' ') e.preventDefault(); } });
+        window.addEventListener('keyup', (e) => { if (tastenGedrueckt.hasOwnProperty(e.key.toLowerCase())) tastenGedrueckt[e.key.toLowerCase()] = false; });
+
+        const sterne = [];
+        for (let i = 0; i < 50; i++) {
+            const sternEl = document.createElement('div');
+            sternEl.classList.add('stern');
+            const groesse = Math.random() * 2 + 1;
+            sternEl.style.width = groesse + 'px'; sternEl.style.height = groesse + 'px'; sternEl.style.opacity = Math.random() * 0.8 + 0.2;
+            const stern = { el: sternEl, x: Math.random() * spielfeldBreite, y: Math.random() * spielfeldHoehe, speed: groesse * 1.5 };
+            sternEl.style.left = stern.x + 'px'; sternEl.style.top = stern.y + 'px';
+            spielfeld.appendChild(sternEl); sterne.push(stern);
+        }
+
+        const asteroiden = [];
+        const feinde = [];
+        const feindLaserArray = [];
+        const bosses = [];
+        const bossLaserArray = [];
+        const powerups = [];
+        const laserArray = []; // Projektile
+        let spielerSchussCooldown = 0;
+        let frameZaehler = 0;
+        let bossAktiv = false;
+        let bossWarningAktiv = false;
+        let bossWarningTimer = 0;
+        let gameOverAktiv = false;
+        let finalerScore = 0;
+
+        // --- HIGHSCORE LOGIK ---
+        function getHighscores() {
+            let hs = localStorage.getItem('spaceShooterHighscores');
+            return hs ? JSON.parse(hs) : [];
+        }
+
+        function saveHighscore(name, scoreValue) {
+            let hs = getHighscores();
+            hs.push({ name: name.toUpperCase(), score: scoreValue });
+            hs.sort((a, b) => b.score - a.score);
+            hs = hs.slice(0, 10);
+            localStorage.setItem('spaceShooterHighscores', JSON.stringify(hs));
+            return hs;
+        }
+
+        function renderHighscores() {
+            let hs = getHighscores();
+            const tbody = document.getElementById('highscore-body');
+            tbody.innerHTML = '';
+            if (hs.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="2">- Keine Einträge -</td></tr>';
+            } else {
+                hs.forEach(entry => {
+                    tbody.innerHTML += `<tr><td>${entry.name}</td><td>${entry.score}</td></tr>`;
+                });
+            }
+        }
+        
+        document.getElementById('btn-save-score').addEventListener('click', () => {
+            let nameInput = document.getElementById('highscore-name').value;
+            if (!nameInput || nameInput.trim() === '') nameInput = 'AAA';
+            saveHighscore(nameInput, finalerScore);
+            document.getElementById('highscore-form').style.display = 'none';
+            renderHighscores();
+        });
+
+        document.getElementById('btn-restart').addEventListener('click', restartGame);
+
+        // UI Updates
+        const partikelArray = [];
+
+        function erzeugeExplosion(x, y, farbe, anzahl = 15) {
+            for (let i = 0; i < anzahl; i++) {
+                const el = document.createElement('div');
+                el.classList.add('partikel'); el.style.backgroundColor = farbe;
+                el.style.left = x + 'px'; el.style.top = y + 'px'; spielfeld.appendChild(el);
+                const winkel = Math.random() * Math.PI * 2; const tempo = Math.random() * 4 + 2;
+                partikelArray.push({ el: el, x: x, y: y, vx: Math.cos(winkel) * tempo, vy: Math.sin(winkel) * tempo, leben: 1.0, zerfall: Math.random() * 0.03 + 0.02 });
+            }
+        }
+        
+        function erzeugeRauchFunken(x, y, groesse) {
+            // Rauch
+            if (Math.random() < 0.5) {
+                const el = document.createElement('div'); el.classList.add('partikel'); 
+                el.style.backgroundColor = '#555'; el.style.width = '6px'; el.style.height = '6px';
+                el.style.left = (x + Math.random() * groesse) + 'px'; 
+                el.style.top = (y + Math.random() * groesse) + 'px'; spielfeld.appendChild(el);
+                partikelArray.push({ el: el, x: parseFloat(el.style.left), y: parseFloat(el.style.top), vx: (Math.random()-0.5)*2, vy: -Math.random()*2 - 1, leben: 1.0, zerfall: 0.02 });
+            }
+            // Funken
+            if (Math.random() < 0.3) {
+                const el = document.createElement('div'); el.classList.add('partikel'); 
+                el.style.backgroundColor = '#f1c40f'; el.style.boxShadow = '0 0 5px #f1c40f';
+                el.style.left = (x + Math.random() * groesse) + 'px'; 
+                el.style.top = (y + Math.random() * groesse) + 'px'; spielfeld.appendChild(el);
+                partikelArray.push({ el: el, x: parseFloat(el.style.left), y: parseFloat(el.style.top), vx: (Math.random()-0.5)*4, vy: -Math.random()*4, leben: 1.0, zerfall: 0.05 });
+            }
+        }
+
+        const asteroidenFarben = ['#7f8c8d', '#95a5a6', '#6c7a89', '#555555'];
+        const magmaFarben = ['#c0392b', '#d35400', '#e67e22'];
+        const asteroidenFormen = [
+            'polygon(30% 0%, 70% 0%, 100% 30%, 100% 70%, 70% 100%, 30% 100%, 0% 70%, 0% 30%)',
+            'polygon(50% 0%, 90% 20%, 100% 60%, 75% 100%, 25% 100%, 0% 60%, 10% 20%)',
+            'polygon(20% 0%, 80% 10%, 100% 50%, 80% 90%, 20% 100%, 0% 60%)',
+            'polygon(10% 20%, 60% 0%, 100% 40%, 80% 100%, 20% 90%, 0% 50%)'
+        ];
+
+        function erzeugePowerup(px, py, forceType = null) {
+            const puTypes = ['leben', 'energie', 'durchschlag', 'schild', 'laserWaffe', 'raketenWaffe', 'bombenWaffe'];
+            if (laserStufe >= 5) puTypes.push('autolaser');
+            const type = forceType ? forceType : puTypes[Math.floor(Math.random() * puTypes.length)];
+            const el = document.createElement('div'); el.classList.add('powerup');
+
+            let farbe, symbol;
+            if (type === 'leben') { farbe = '#e74c3c'; symbol = '&hearts;'; }
+            else if (type === 'energie') { farbe = '#f1c40f'; symbol = 'E'; }
+            else if (type === 'durchschlag') { farbe = '#00ffff'; symbol = '&uarr;'; }
+            else if (type === 'schild') { farbe = '#3498db'; symbol = 'O'; }
+            else if (type === 'laserWaffe') { farbe = '#9b59b6'; symbol = 'L'; }
+            else if (type === 'raketenWaffe') { farbe = '#e67e22'; symbol = 'R'; }
+            else if (type === 'bombenWaffe') { farbe = '#c0392b'; symbol = 'B'; }
+            else if (type === 'autolaser') { farbe = '#f39c12'; symbol = 'A'; }
+
+            el.style.border = `2px solid ${farbe}`; el.style.color = farbe; el.style.boxShadow = `0 0 10px ${farbe}, inset 0 0 5px ${farbe}`; el.innerHTML = symbol;
+            el.style.left = px + 'px'; el.style.top = py + 'px'; spielfeld.appendChild(el);
+            powerups.push({ el: el, x: px, y: py, groesse: 24, vy: 2, type: type, farbe: farbe });
+        }
+
+        function erzeugeAsteroid(startX, startY, startGroesse, startVx, startVy, immunFrames = 0, forceDestructible = false) {
+            const el = document.createElement('div'); el.classList.add('asteroid');
+            const groesse = startGroesse !== undefined ? startGroesse : (Math.random() * 30 + 15);
+            el.style.width = groesse + 'px'; el.style.height = groesse + 'px';
+
+            let istMagma = false; let istUnzerstoerbar = false; let traegtPowerup = false;
+            if (!forceDestructible && Math.random() < 0.2) {
+                istMagma = true;
+                if (Math.random() < 0.3) { traegtPowerup = true; istUnzerstoerbar = false; }
+                else { istUnzerstoerbar = true; }
+            }
+
+            if (istMagma) { el.style.backgroundColor = magmaFarben[Math.floor(Math.random() * magmaFarben.length)]; el.classList.add('unzerstoerbar'); }
+            else { el.style.backgroundColor = asteroidenFarben[Math.floor(Math.random() * asteroidenFarben.length)]; }
+
+            el.style.clipPath = asteroidenFormen[Math.floor(Math.random() * asteroidenFormen.length)];
+            const finalX = startX !== undefined ? startX : Math.random() * (spielfeldBreite - groesse);
+            const finalY = startY !== undefined ? startY : -groesse;
+            el.style.left = finalX + 'px'; el.style.top = finalY + 'px';
+
+            let rissEl = null;
+            if (!istUnzerstoerbar) {
+                rissEl = document.createElement('div'); rissEl.classList.add('riss-layer');
+                if (traegtPowerup) rissEl.style.opacity = '0.5';
+                el.appendChild(rissEl);
+            }
+            spielfeld.appendChild(el);
+
+            let startHp = groesse * 1.2;
+            if (traegtPowerup) startHp *= 3;
+
+            let berechnetVx = startVx !== undefined ? startVx : (Math.random() - 0.5) * 4;
+            // LANGSAMERE SKALIERUNG: Asteroiden fallen in höheren Leveln nur dezent schneller
+            let berechnetVy = startVy !== undefined ? startVy : Math.random() * 1.5 + 1.0 + (level * 0.1);
+
+            if (traegtPowerup && startVx === undefined) berechnetVx = (Math.random() - 0.5);
+
+            asteroiden.push({
+                el: el, x: finalX, y: finalY, groesse: groesse, vx: berechnetVx, vy: berechnetVy,
+                immune: immunFrames, hp: startHp, maxHp: startHp, istUnzerstoerbar: istUnzerstoerbar,
+                traegtPowerup: traegtPowerup, rissEl: rissEl, istFeind: false
+            });
+        }
+
+        function erzeugeFeind(sX, sY) {
+            const el = document.createElement('div'); el.classList.add('feind-schiff');
+            const startX = sX !== undefined ? sX : Math.random() * (spielfeldBreite - 30);
+            const startY = sY !== undefined ? sY : -30;
+            el.style.left = startX + 'px'; el.style.top = startY + 'px'; spielfeld.appendChild(el);
+
+            // LANGSAMERE SKALIERUNG: Feinde schießen auf höheren Leveln nicht mehr ganz so extrem schnell
+            let schussBasis = Math.max(25, 40 - ((level - 1) * 3));
+
+            feinde.push({
+                el: el, x: startX, y: startY, groesse: 30, hp: 20, maxHp: 20, vy: 1.2, basisX: startX, zeit: 0,
+                schussTimer: Math.random() * schussBasis + schussBasis, istFeind: true, istUnzerstoerbar: false, traegtPowerup: Math.random() < 0.2
+            });
+        }
+
+        function erzeugeFeindLaser(fx, fy) {
+            const el = document.createElement('div'); el.classList.add('feind-laser');
+            el.style.left = fx + 'px'; el.style.top = fy + 'px'; spielfeld.appendChild(el);
+            feindLaserArray.push({ el: el, x: fx, y: fy, vy: 7, width: 4, height: 15 });
+        }
+
+        // --- BOSS SKALIERUNG & OPTIK ---
+        const bossFarben = ['#8e44ad', '#2980b9', '#27ae60', '#d35400', '#c0392b', '#16a085'];
+
+        function erzeugeBoss() {
+            bossAktiv = true;
+            bossHpContainer.style.display = 'block';
+            bossHpBalken.style.width = '100%';
+            bossHpBalken.style.backgroundColor = '#e74c3c';
+
+            const el = document.createElement('div');
+            el.classList.add('boss-schiff');
+
+            // Bestimme Boss Typ basierend auf Level
+            let bTyp = level % 4; 
+            if (bTyp === 0) bTyp = 4; // 1, 2, 3, 4, 1, 2, ...
+            
+            let bossFarbe = bossFarben[(level - 1) % bossFarben.length];
+            
+            let rawSvg = '';
+            let defs = `<defs><linearGradient id='g' x1='0%' y1='0%' x2='0%' y2='100%'><stop offset='0%' stop-color='${bossFarbe}'/><stop offset='100%' stop-color='#222'/></linearGradient></defs>`;
+
+            if (bTyp === 1) { // Kreuzer
+                rawSvg = `<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'>${defs}<path d='M10 30 L90 30 L80 70 L60 90 L40 90 L20 70 Z' fill='url(#g)' stroke='#f1c40f' stroke-width='3' stroke-linejoin='round'/><circle cx='30' cy='20' r='6' fill='#e74c3c'/><circle cx='70' cy='20' r='6' fill='#e74c3c'/><circle cx='50' cy='80' r='8' fill='#00ffff'/><path d='M30 45 L70 45' stroke='#ffffff' stroke-width='2' opacity='0.5'/></svg>`;
+            } else if (bTyp === 2) { // Jäger
+                rawSvg = `<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'>${defs}<path d='M50 90 L10 10 L50 30 L90 10 Z' fill='url(#g)' stroke='#3498db' stroke-width='3' stroke-linejoin='round'/><circle cx='50' cy='20' r='10' fill='#e74c3c'/><path d='M50 40 L50 70' stroke='#ffffff' stroke-width='4' opacity='0.7'/></svg>`;
+            } else if (bTyp === 3) { // Träger
+                rawSvg = `<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'>${defs}<circle cx='50' cy='50' r='45' fill='url(#g)' stroke='#9b59b6' stroke-width='4'/><circle cx='50' cy='50' r='20' fill='#2c3e50' stroke='#e74c3c' stroke-width='2'/><circle cx='30' cy='40' r='8' fill='#e74c3c'/><circle cx='70' cy='40' r='8' fill='#e74c3c'/></svg>`;
+            } else if (bTyp === 4) { // Festung
+                rawSvg = `<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'>${defs}<rect x='10' y='20' width='80' height='70' rx='10' fill='url(#g)' stroke='#e67e22' stroke-width='4'/><rect x='25' y='10' width='15' height='10' fill='#e74c3c'/><rect x='60' y='10' width='15' height='10' fill='#e74c3c'/><circle cx='50' cy='55' r='15' fill='#2c3e50' stroke='#00ffff' stroke-width='3'/></svg>`;
+            }
+            
+            let bossSvg = "data:image/svg+xml;charset=utf-8," + encodeURIComponent(rawSvg);
+            el.style.backgroundImage = `url("${bossSvg}")`;
+            el.style.filter = `drop-shadow(0 0 15px ${bossFarbe})`;
+
+            let bossGroesse = 100 + ((level - 1) * 10);
+            bossGroesse = Math.min(bossGroesse, 160); // Maximale Größe deckeln
+            el.style.width = bossGroesse + 'px';
+            el.style.height = bossGroesse + 'px';
+
+            let startX = (spielfeldBreite / 2) - (bossGroesse / 2);
+            el.style.left = startX + 'px';
+            el.style.top = '-150px';
+            spielfeld.appendChild(el);
+
+            // SKALIERUNG: HP wachsen nun deutlich stärker, um mit höheren Waffenstufen mitzuhalten
+            let bossHp = 400 + ((level - 1) * 350);
+            let bossVx = 2 + ((level - 1) * 0.2);
+            let schussRhythmus = Math.max(45, 90 - ((level - 1) * 10));
+
+            bosses.push({
+                el: el, x: startX, y: -150, groesse: bossGroesse, hp: bossHp, maxHp: bossHp,
+                vx: bossVx, vy: 1, phase: 'einzug', schussTimer: 60,
+                baseSchussRate: schussRhythmus,
+                istFeind: false, istBoss: true, istUnzerstoerbar: false,
+                bossTyp: bTyp, enragePhaseAktiv: false
+            });
+        }
+
+        function erzeugeBossLaser(fx, fy, vx = 0, vy = 6) {
+            const el = document.createElement('div'); el.classList.add('boss-laser');
+            el.style.left = fx + 'px'; el.style.top = fy + 'px'; 
+            if (vx !== 0) {
+                let winkel = Math.atan2(vy, vx) * 180 / Math.PI;
+                el.style.transform = `rotate(${winkel - 90}deg)`;
+            }
+            spielfeld.appendChild(el);
+            bossLaserArray.push({ el: el, x: fx, y: fy, vx: vx, vy: vy, width: 8, height: 25 });
+        }
+        // ------------------------------
+
+        function versteckeAlleLaser() {
+            laser1.style.display = 'none'; laser2.style.display = 'none'; laserDiagLinks.style.display = 'none'; laserDiagRechts.style.display = 'none';
+        }
+
+        function gameLoop() {
+            if (bossWarningAktiv) {
+                bossWarningTimer--;
+                if (bossWarningTimer <= 0) {
+                    bossWarningAktiv = false;
+                    warningOverlay.style.display = 'none';
+                    erzeugeBoss();
+                }
+                sterne.forEach(stern => { stern.y += stern.speed; if (stern.y > spielfeldHoehe) { stern.y = -5; stern.x = Math.random() * spielfeldBreite; } stern.el.style.top = stern.y + 'px'; stern.el.style.left = stern.x + 'px'; });
+                requestAnimationFrame(gameLoop);
+                return; 
+            }
+            
+            if (gameOverAktiv) {
+                // Nur Sterne fliegen weiter
+                sterne.forEach(stern => { stern.y += stern.speed; if (stern.y > spielfeldHoehe) { stern.y = -5; stern.x = Math.random() * spielfeldBreite; } stern.el.style.top = stern.y + 'px'; stern.el.style.left = stern.x + 'px'; });
+                requestAnimationFrame(gameLoop);
+                return;
+            }
+
+            // --- 9.1 SPIELER-BEWEGUNG ---
+            let baseFlameScale = 1.0;
+            if (tastenGedrueckt.w) { y -= geschwindigkeit; baseFlameScale = 1.8; }
+            if (tastenGedrueckt.s) { y += geschwindigkeit; baseFlameScale = 0.4; }
+            
+            let targetRotate = 0;
+            if (tastenGedrueckt.a) { x -= geschwindigkeit; targetRotate = -15; }
+            if (tastenGedrueckt.d) { x += geschwindigkeit; targetRotate = 15; }
+            
+            if (x < 0) x = 0; if (y < 0) y = 0; if (x > spielfeldBreite - spielerGroesse) x = spielfeldBreite - spielerGroesse; if (y > spielfeldHoehe - spielerGroesse) y = spielfeldHoehe - spielerGroesse;
+            spieler.style.left = x + 'px'; spieler.style.top = y + 'px';
+            
+            let currentRotate = parseFloat(spieler.getAttribute('data-rotate') || 0);
+            currentRotate += (targetRotate - currentRotate) * 0.15; // Smooth rotation
+            spieler.setAttribute('data-rotate', currentRotate);
+            spieler.style.transform = `rotate(${currentRotate}deg)`;
+            
+            document.getElementById('flame-left').style.transform = `scaleY(${baseFlameScale})`;
+            document.getElementById('flame-right').style.transform = `scaleY(${baseFlameScale})`;
+            
+            if (baseFlameScale > 0.5 && Math.random() < (baseFlameScale > 1.0 ? 0.6 : 0.2)) {
+                const pEl = document.createElement('div');
+                pEl.classList.add('partikel');
+                pEl.style.backgroundColor = Math.random() < 0.5 ? '#f1c40f' : '#e74c3c';
+                let px = x + 15 + (Math.random() * 8 - 4);
+                let py = y + 28;
+                pEl.style.left = px + 'px'; pEl.style.top = py + 'px';
+                spielfeld.appendChild(pEl);
+                partikelArray.push({ el: pEl, x: px, y: py, vx: (Math.random()-0.5)*0.5, vy: 1 + Math.random() * baseFlameScale, leben: 1.0, zerfall: 0.05 });
+            }
+
+            if (durchschlagTimer > 0) { durchschlagTimer--; if (durchschlagTimer <= 0) { laserDurchschlag = false; updateAktivePowerupsUI(); } }
+
+            // --- 9.2 STERNE ---
+            sterne.forEach(stern => { stern.y += stern.speed; if (stern.y > spielfeldHoehe) { stern.y = -5; stern.x = Math.random() * spielfeldBreite; } stern.el.style.top = stern.y + 'px'; stern.el.style.left = stern.x + 'px'; });
+
+            // --- 9.3 SPAWNS & DIFFICULTY CURVE (Skaliert mit Level!) ---
+            frameZaehler++;
+
+            if (!bossAktiv) {
+                // LANGSAMERE SKALIERUNG: Asteroiden-Raten sinken nicht mehr so extrem schnell
+                let startRate = Math.max(40, 120 - ((level - 1) * 10));
+                let midRate = Math.max(30, startRate - 20);
+                let endRate = Math.max(20, midRate - 20);
+
+                let astRate = startRate;
+                // Das Level dauert nun 60 Sekunden (3600 Frames)
+                if (frameZaehler > 1200) astRate = midRate;  // Nach 20 Sek
+                if (frameZaehler > 2400) astRate = endRate;  // Nach 40 Sek
+
+                if (frameZaehler % astRate === 0) erzeugeAsteroid();
+
+                let feindSpawnZeit = Math.max(600, 1200 - ((level - 1) * 100));
+                let feindRate = Math.max(120, 300 - ((level - 1) * 30));
+
+                if (frameZaehler > feindSpawnZeit && frameZaehler % feindRate === 0) erzeugeFeind();
+
+                // Boss erscheint am Ende des Levels (nach 60 Sekunden / 3600 Frames)
+                if (frameZaehler === 3600 && !bossAktiv && !bossWarningAktiv) {
+                    bossWarningAktiv = true;
+                    bossWarningTimer = 120; // 2 Sekunden Pause bei 60 FPS
+                    warningOverlay.style.display = 'flex';
+                }
+            }
+
+            if (frameZaehler % 60 === 0) addScore(5);
+
+            // --- 9.4 ENERGIE ---
+            if (tastenGedrueckt.l) {
+                if (!laserSchiesst && energie >= minZuendEnergie) laserSchiesst = true;
+                if (energie <= 0) laserSchiesst = false;
+            } else { laserSchiesst = false; }
+            let laserAktiv = laserSchiesst && energie > 0;
+            if (laserAktiv) { energie -= (0.8 + Math.min(laserStufe, 5) * 0.1); } else { if (energie < maxEnergie) energie += 0.4; versteckeAlleLaser(); }
+            if (energie < 0) energie = 0; if (energie > maxEnergie) energie = maxEnergie;
+            energieBalken.style.width = ((energie / absMaxEnergie) * 100) + '%';
+            energieBalken.style.backgroundColor = (energie < minZuendEnergie && !laserSchiesst) ? '#e67e22' : '#1abc9c';
+
+            // --- 9.5 POWERUPS ---
+            for (let i = powerups.length - 1; i >= 0; i--) {
+                let p = powerups[i]; p.y += p.vy; p.el.style.top = p.y + 'px';
+                if (p.y > spielfeldHoehe) { p.el.remove(); powerups.splice(i, 1); continue; }
+                if (x < p.x + p.groesse && x + spielerGroesse > p.x && y < p.y + p.groesse && y + spielerGroesse > p.y) {
+                    if (p.type === 'leben') { leben++; updateLebenUI(); }
+                    else if (p.type === 'energie') { maxEnergie = Math.min(absMaxEnergie, maxEnergie + 10); energie = maxEnergie; updateMaxEnergieMarker(); }
+                    else if (p.type === 'durchschlag') { laserDurchschlag = true; durchschlagTimer = 600; updateAktivePowerupsUI(); }
+                    else if (p.type === 'schild') { hatSchild = true; spieler.classList.add('schild-aktiv'); updateAktivePowerupsUI(); }
+                    else if (p.type === 'laserWaffe') { if (laserStufe < 5) { laserStufe++; updateAktivePowerupsUI(); } }
+                    else if (p.type === 'raketenWaffe') { if (raketenStufe < 5) { raketenStufe++; updateAktivePowerupsUI(); } }
+                    else if (p.type === 'bombenWaffe') { if (bombenStufe < 5) { bombenStufe++; updateAktivePowerupsUI(); } }
+                    else if (p.type === 'autolaser') { autolaserAktiv = true; autolaserTimer = 600; updateAktivePowerupsUI(); }
+                    addScore(50); spielfeld.style.backgroundColor = p.farbe; setTimeout(() => { spielfeld.style.backgroundColor = '#0b1319'; }, 100);
+                    p.el.remove(); powerups.splice(i, 1);
+                }
+            }
+
+            // --- 9.6 ASTEROIDEN ---
+            for (let i = asteroiden.length - 1; i >= 0; i--) {
+                let ast = asteroiden[i]; if (!ast) break;
+                if (ast.immune > 0) ast.immune--;
+                ast.x += ast.vx; ast.y += ast.vy; ast.el.style.left = ast.x + 'px'; ast.el.style.top = ast.y + 'px';
+                if (ast.y > spielfeldHoehe || ast.x < -ast.groesse || ast.x > spielfeldBreite) { ast.el.remove(); asteroiden.splice(i, 1); continue; }
+                if (x < ast.x + ast.groesse && x + spielerGroesse > ast.x && y < ast.y + ast.groesse && y + spielerGroesse > ast.y) { spielerGetroffen(ast, true); ast.el.remove(); asteroiden.splice(i, 1); }
+            }
+
+            // --- 9.7 FEINDE ---
+            for (let i = feinde.length - 1; i >= 0; i--) {
+                let f = feinde[i]; if (!f) break;
+                f.zeit += 0.05; f.x = f.basisX + Math.sin(f.zeit) * 60; f.y += f.vy;
+                if (f.x < 0) f.x = 0; if (f.x > spielfeldBreite - f.groesse) f.x = spielfeldBreite - f.groesse;
+                f.el.style.left = f.x + 'px'; f.el.style.top = f.y + 'px';
+                if (f.y > spielfeldHoehe) { f.el.remove(); feinde.splice(i, 1); continue; }
+                f.schussTimer--; if (f.schussTimer <= 0) { erzeugeFeindLaser(f.x + f.groesse / 2 - 2, f.y + f.groesse); f.schussTimer = Math.random() * 60 + 60; }
+                if (x < f.x + f.groesse && x + spielerGroesse > f.x && y < f.y + f.groesse && y + spielerGroesse > f.y) { spielerGetroffen(f, true); f.el.remove(); feinde.splice(i, 1); }
+            }
+
+            // --- 9.8 FEIND-LASER ---
+            for (let i = feindLaserArray.length - 1; i >= 0; i--) {
+                let fl = feindLaserArray[i]; if (!fl) break;
+                fl.y += fl.vy; fl.el.style.top = fl.y + 'px';
+                if (fl.y > spielfeldHoehe) { fl.el.remove(); feindLaserArray.splice(i, 1); continue; }
+                if (x < fl.x + fl.width && x + spielerGroesse > fl.x && y < fl.y + fl.height && y + spielerGroesse > fl.y) { spielerGetroffen(fl, false); fl.el.remove(); feindLaserArray.splice(i, 1); }
+            }
+
+            // --- BOSS LOGIK ---
+            for (let i = bosses.length - 1; i >= 0; i--) {
+                let b = bosses[i]; if (!b) break;
+                if (b.phase === 'einzug') {
+                    if (!b.el.classList.contains('repulsor-aktiv')) b.el.classList.add('repulsor-aktiv');
+                    b.y += b.vy;
+                    if (b.y >= 20) {
+                        b.y = 20;
+                        b.phase = 'kampf';
+                        b.el.classList.remove('repulsor-aktiv');
+                    }
+                    
+                    // Repulsor auf Projektile anwenden
+                    laserArray.forEach(l => {
+                        let cx = b.x + b.groesse / 2;
+                        let cy = b.y + b.groesse / 2;
+                        let lx = l.x + l.width / 2;
+                        let ly = l.y;
+                        let dx = lx - cx;
+                        let dy = ly - cy;
+                        let dist = Math.hypot(dx, dy);
+                        if (dist < b.groesse * 1.5 && dy > 0) { // Wirkt am besten nach unten abwehrend
+                            let kraft = (b.groesse * 1.5 - dist) * 0.15;
+                            l.vx += (dx > 0 ? kraft : -kraft);
+                        }
+                    });
+
+                    b.el.style.left = b.x + 'px';
+                    b.el.style.top = b.y + 'px';
+                    bossHpBalken.style.width = Math.max(0, (b.hp / b.maxHp) * 100) + '%';
+                    continue; // Überspringt Kampf-Bewegungen und Schießen
+                } else {
+                    // Enrage Check für alle Typen
+                    if (!b.enragePhaseAktiv && b.hp < b.maxHp * 0.5) {
+                        b.enragePhaseAktiv = true;
+                        b.baseSchussRate = Math.max(15, Math.floor(b.baseSchussRate / 2));
+                        bossHpBalken.style.backgroundColor = '#8e44ad'; // Visualisiert Enrage im Balken
+                        if (b.bossTyp === 2) b.vx *= 1.5; // Jäger wird im Enrage schneller
+                    }
+
+                    // Bewegung
+                    if (b.bossTyp === 1) { // Kreuzer
+                        b.x += b.vx;
+                        if (b.x <= 10 || b.x >= spielfeldBreite - b.groesse - 10) b.vx *= -1;
+                    } else if (b.bossTyp === 2) { // Jäger
+                        let zielX = x + spielerGroesse/2 - b.groesse/2;
+                        if (b.x < zielX - 5) b.x += b.vx;
+                        else if (b.x > zielX + 5) b.x -= b.vx;
+                    } else if (b.bossTyp === 3) { // Träger
+                        b.zeit = (b.zeit || 0) + 0.02 * (b.enragePhaseAktiv ? 1.5 : 1);
+                        b.x = (spielfeldBreite / 2 - b.groesse / 2) + Math.sin(b.zeit) * (spielfeldBreite / 2 - b.groesse / 2 - 10);
+                    } else if (b.bossTyp === 4) { // Festung
+                        b.x += b.vx * 0.5; // Bewegt sich sehr langsam
+                        if (b.x <= 10 || b.x >= spielfeldBreite - b.groesse - 10) b.vx *= -1;
+                    }
+
+                    // Update HP Balken Breite
+                    bossHpBalken.style.width = Math.max(0, (b.hp / b.maxHp) * 100) + '%';
+                    
+                    if (b.enragePhaseAktiv) {
+                        erzeugeRauchFunken(b.x, b.y, b.groesse);
+                    }
+
+                    b.schussTimer--;
+                    if (b.schussTimer <= 0) {
+                        if (b.bossTyp === 1) {
+                            erzeugeBossLaser(b.x + b.groesse * 0.2, b.y + b.groesse * 0.7);
+                            erzeugeBossLaser(b.x + b.groesse * 0.46, b.y + b.groesse * 0.9);
+                            erzeugeBossLaser(b.x + b.groesse * 0.72, b.y + b.groesse * 0.7);
+                            if (b.enragePhaseAktiv) {
+                                erzeugeBossLaser(b.x + b.groesse * 0.1, b.y + b.groesse * 0.5);
+                                erzeugeBossLaser(b.x + b.groesse * 0.82, b.y + b.groesse * 0.5);
+                            }
+                        } else if (b.bossTyp === 2) {
+                            // Gezielter Schuss
+                            let startX = b.x + b.groesse / 2 - 4;
+                            let startY = b.y + b.groesse;
+                            let winkel = Math.atan2(y - startY, x - startX);
+                            erzeugeBossLaser(startX, startY, Math.cos(winkel) * 8, Math.sin(winkel) * 8);
+                            if (b.enragePhaseAktiv) {
+                                erzeugeBossLaser(startX, startY, Math.cos(winkel-0.2) * 8, Math.sin(winkel-0.2) * 8);
+                                erzeugeBossLaser(startX, startY, Math.cos(winkel+0.2) * 8, Math.sin(winkel+0.2) * 8);
+                            }
+                        } else if (b.bossTyp === 3) {
+                            // Spawnt einen Feind
+                            erzeugeFeind(b.x + b.groesse/2 - 15, b.y + b.groesse);
+                            if (Math.random() < 0.5 || b.enragePhaseAktiv) erzeugeBossLaser(b.x + b.groesse/2 - 4, b.y + b.groesse);
+                        } else if (b.bossTyp === 4) {
+                            // Fächerschuss (Spread)
+                            let anzahl = b.enragePhaseAktiv ? 7 : 5;
+                            let startX = b.x + b.groesse / 2 - 4;
+                            let startY = b.y + b.groesse - 10;
+                            for (let j = 0; j < anzahl; j++) {
+                                let winkel = (Math.PI / 2) - 0.5 + (j * (1.0 / (anzahl-1)));
+                                erzeugeBossLaser(startX, startY, Math.cos(winkel) * 6, Math.sin(winkel) * 6);
+                            }
+                        }
+                        
+                        b.schussTimer = b.baseSchussRate;
+                    }
+                }
+                b.el.style.left = b.x + 'px';
+                b.el.style.top = b.y + 'px';
+
+                let bossPadding = b.groesse * 0.15;
+                if (x < b.x + b.groesse - bossPadding && x + spielerGroesse > b.x + bossPadding && 
+                    y < b.y + b.groesse - bossPadding && y + spielerGroesse > b.y + bossPadding) {
+                    spielerGetroffen(b, false);
+                }
+            }
+
+            for (let i = bossLaserArray.length - 1; i >= 0; i--) {
+                let bl = bossLaserArray[i]; if (!bl) break;
+                bl.x += (bl.vx || 0);
+                bl.y += bl.vy; 
+                bl.el.style.left = bl.x + 'px';
+                bl.el.style.top = bl.y + 'px';
+                if (bl.y > spielfeldHoehe || bl.x < -10 || bl.x > spielfeldBreite + 10) { bl.el.remove(); bossLaserArray.splice(i, 1); continue; }
+                if (x < bl.x + bl.width && x + spielerGroesse > bl.x && y < bl.y + bl.height && y + spielerGroesse > bl.y) {
+                    spielerGetroffen(bl, false); bl.el.remove(); bossLaserArray.splice(i, 1);
+                }
+            }
+
+            const alleZiele = [...asteroiden, ...feinde, ...bosses];
+
+            // --- 9.9 AUTOLASER ---
+            if (autolaserTimer > 0) { autolaserTimer--; if (autolaserTimer <= 0) { autolaserAktiv = false; updateAktivePowerupsUI(); } }
+            
+            if (autolaserAktiv) {
+                let target = null; let minDist = Infinity; let sx = x + 15; let sy = y;
+                for (let i = 0; i < alleZiele.length; i++) {
+                    let z = alleZiele[i];
+                    if (z.y + z.groesse < sy) {
+                        let tx = z.x + z.groesse / 2; let ty = z.y + z.groesse / 2; let dist = Math.hypot(tx - sx, ty - sy);
+                        if (dist < minDist) { minDist = dist; target = z; }
+                    }
+                }
+                if (target) {
+                    let tx = target.x + target.groesse / 2; let ty = target.y + target.groesse / 2;
+                    let dx = tx - sx; let dy = ty - sy; let dist = Math.hypot(dx, dy); let angle = Math.atan2(dx, -dy) * 180 / Math.PI;
+                    autolaserEl.style.display = 'block'; autolaserEl.style.height = dist + 'px'; autolaserEl.style.top = (sy - dist) + 'px'; autolaserEl.style.left = (sx - 2) + 'px'; autolaserEl.style.transform = `rotate(${angle}deg)`;
+                    if (!target.istUnzerstoerbar) {
+                        target.hp -= 1.5;
+                        if (target.rissEl) { let basisRiss = target.traegtPowerup ? 0.5 : 0; let schadenProzent = basisRiss + (1 - basisRiss) * (1 - (target.hp / target.maxHp)); target.rissEl.style.opacity = schadenProzent; }
+                        target.el.style.filter = 'brightness(2.5)'; setTimeout(() => { if (target.el) target.el.style.filter = ''; }, 50);
+                        if (target.hp <= 0) zerstoereZiel(target);
+                    }
+                } else { autolaserEl.style.display = 'none'; }
+            } else { autolaserEl.style.display = 'none'; }
+            
+            // --- 9.12 HITSCAN LASER (Level 5) ---
+            const hitscanLaserEl = document.getElementById('hitscan-laser');
+            if (laserAktiv && laserStufe >= 5) {
+                let target = null; let closestDist = Infinity; let sx = x + 15; let sy = y;
+                // Finde tiefstes Ziel direkt über dem Spieler
+                for (let i = 0; i < alleZiele.length; i++) {
+                    let z = alleZiele[i];
+                    if (z.y + z.groesse < sy && z.x < sx + 10 && z.x + z.groesse > sx - 10) {
+                        let dist = sy - (z.y + z.groesse);
+                        if (dist < closestDist) { closestDist = dist; target = z; }
+                    }
+                }
+                
+                if (target) {
+                    hitscanLaserEl.style.display = 'block';
+                    hitscanLaserEl.style.height = closestDist + 'px';
+                    hitscanLaserEl.style.top = (sy - closestDist) + 'px';
+                    hitscanLaserEl.style.left = (sx - 3) + 'px';
+                    if (!target.istUnzerstoerbar) {
+                        target.hp -= 2.5; // Starker konstanter Schaden
+                        if (target.rissEl) { let basisRiss = target.traegtPowerup ? 0.5 : 0; let schadenProzent = basisRiss + (1 - basisRiss) * (1 - (target.hp / target.maxHp)); target.rissEl.style.opacity = schadenProzent; }
+                        target.el.style.filter = 'brightness(2.5)'; setTimeout(() => { if (target.el) target.el.style.filter = ''; }, 50);
+                        if (target.hp <= 0) zerstoereZiel(target);
+                    }
+                } else {
+                    hitscanLaserEl.style.display = 'block';
+                    hitscanLaserEl.style.height = sy + 'px'; // Bis ganz nach oben
+                    hitscanLaserEl.style.top = '0px';
+                    hitscanLaserEl.style.left = (sx - 3) + 'px';
+                }
+            } else {
+                hitscanLaserEl.style.display = 'none';
+            }
+
+            // --- 9.10 MANUELLE LASER (Projektile) ---
+            if (spielerSchussCooldown > 0) spielerSchussCooldown--;
+            if (laserAktiv && spielerSchussCooldown <= 0) {
+                spielerSchussCooldown = 6; // Schussrate
+                
+                // Schaden pro Projektil (skaliert umgekehrt zur Projektilanzahl, damit Gesamt-DPS kontrolliert wächst)
+                let grundSchaden = 16; // 1 Projektil = 160 DPS (Stufe 1)
+                if (laserStufe === 2) grundSchaden = 10; // 2 Projektile = 200 DPS
+                else if (laserStufe === 3) grundSchaden = 12; // 2 Projektile = 240 DPS
+                else if (laserStufe >= 4) grundSchaden = 8; // 4 Projektile = 320 DPS
+                
+                let strahlenDef = [];
+                if (laserStufe === 1) { strahlenDef.push({ offsetX: 11, width: 8, vx: 0, color: '#00ffff' }); } 
+                else if (laserStufe === 2) { strahlenDef.push({ offsetX: 5, width: 4, vx: 0, color: '#00ffff' }); strahlenDef.push({ offsetX: 21, width: 4, vx: 0, color: '#00ffff' }); } 
+                else if (laserStufe >= 3) { 
+                    strahlenDef.push({ offsetX: 5, width: 5, vx: 0, color: '#ffffff' }); 
+                    strahlenDef.push({ offsetX: 20, width: 5, vx: 0, color: '#ffffff' }); 
+                    if (laserStufe >= 4) { 
+                        strahlenDef.push({ offsetX: -5, width: 4, vx: -2, color: '#a000ff' }); 
+                        strahlenDef.push({ offsetX: 31, width: 4, vx: 2, color: '#a000ff' }); 
+                    } 
+                }
+                
+                strahlenDef.forEach(st => {
+                    const el = document.createElement('div');
+                    el.classList.add('laser-projektil');
+                    el.style.backgroundColor = st.color;
+                    el.style.boxShadow = `0 0 10px ${st.color}`;
+                    el.style.width = st.width + 'px';
+                    el.style.height = '20px';
+                    el.style.left = (x + st.offsetX) + 'px';
+                    el.style.top = y + 'px';
+                    
+                    // Rotiere den Laser leicht, wenn er seitlich fliegt
+                    if (st.vx !== 0) {
+                        let winkel = Math.atan2(-15, st.vx) * 180 / Math.PI;
+                        el.style.transform = `rotate(${winkel + 90}deg)`;
+                    }
+                    
+                    spielfeld.appendChild(el);
+                    laserArray.push({ el: el, x: x + st.offsetX, y: y, vx: st.vx, vy: 15, width: st.width, height: 20, schaden: grundSchaden });
+                });
+            }
+
+            // --- 9.10b LASER UPDATE & KOLLISION ---
+            for (let i = laserArray.length - 1; i >= 0; i--) {
+                let l = laserArray[i];
+                l.x += l.vx;
+                l.y -= l.vy;
+                l.el.style.left = l.x + 'px';
+                l.el.style.top = l.y + 'px';
+                
+                if (l.vx !== 0) {
+                    let winkel = Math.atan2(-l.vy, l.vx) * 180 / Math.PI;
+                    l.el.style.transform = `rotate(${winkel + 90}deg)`;
+                } else {
+                    l.el.style.transform = 'rotate(0deg)';
+                }
+                
+                if (l.y < -30 || l.x < -30 || l.x > spielfeldBreite + 30) {
+                    l.el.remove(); laserArray.splice(i, 1); continue;
+                }
+                
+                // Kollision
+                let getroffenZiel = null;
+                for (let j = 0; j < alleZiele.length; j++) {
+                    let z = alleZiele[j];
+                    if (z === l.ignoreTarget) continue; // Ignoriere Ziel nach Abpraller
+                    if ((z.immune || 0) <= 0) {
+                        let padding = z.istBoss ? z.groesse * 0.15 : 0;
+                        if (l.x < z.x + z.groesse - padding && l.x + l.width > z.x + padding && 
+                            l.y < z.y + z.groesse - padding && l.y + l.height > z.y + padding) {
+                            getroffenZiel = z; break; // Erstes Ziel treffen
+                        }
+                    }
+                }
+
+                if (getroffenZiel) {
+                    if (!getroffenZiel.istUnzerstoerbar) {
+                        getroffenZiel.hp -= l.schaden;
+                        if (getroffenZiel.rissEl) { let basisRiss = getroffenZiel.traegtPowerup ? 0.5 : 0; let schadenProzent = basisRiss + (1 - basisRiss) * (1 - (getroffenZiel.hp / getroffenZiel.maxHp)); getroffenZiel.rissEl.style.opacity = schadenProzent; }
+                        getroffenZiel.el.style.filter = 'brightness(2.5)'; setTimeout(() => { if (getroffenZiel.el) getroffenZiel.el.style.filter = ''; }, 50);
+                        if (getroffenZiel.hp <= 0) zerstoereZiel(getroffenZiel);
+                        if (!laserDurchschlag) {
+                            l.el.remove(); laserArray.splice(i, 1);
+                        }
+                    } else {
+                        // Abpraller-Logik (Magma-Asteroiden etc.)
+                        // Querschläger fliegen nun vorwiegend waagerecht über den Bildschirm, 
+                        // mit einer leichten zufälligen Abweichung nach oben oder unten.
+                        l.vy = (Math.random() - 0.5) * 10; // vy zwischen -5 (leicht abwärts) und +5 (leicht aufwärts)
+                        l.vx = (Math.random() < 0.5 ? -1 : 1) * (10 + Math.random() * 10); // vx stark nach links oder rechts (10 bis 20)
+                        
+                        l.isDeflected = true;
+                        l.ignoreTarget = getroffenZiel; // Verhindert endloses Kollidieren im selben Frame
+                        l.schaden = Math.max(1, l.schaden / 2); // Schaden wird halbiert
+                        l.el.style.backgroundColor = '#e67e22'; // Orange/Rötlich einfärben
+                        l.el.style.boxShadow = `0 0 10px #e67e22`;
+                    }
+                } else if (l.isDeflected) {
+                    // Kollision mit Spieler, falls abgelenkt
+                    if (l.x < x + spielerGroesse && l.x + l.width > x && l.y < y + spielerGroesse && l.y + l.height > y) {
+                        spielerGetroffen(l, false);
+                        l.el.remove(); laserArray.splice(i, 1);
+                    }
+                }
+            }
+            // --- 9.13 RAKETEN ---
+            if (raketenCooldown > 0) raketenCooldown--;
+            
+            // Cooldown-Anzeige Update
+            let maxRaketenCd = 180;
+            if (raketenStufe >= 2 && raketenStufe <= 3) maxRaketenCd = 150;
+            if (raketenStufe >= 4) maxRaketenCd = 120;
+            const raketenCdBalken = document.getElementById('raketen-cd-balken');
+            raketenCdBalken.style.width = Math.max(0, 100 - (raketenCooldown / maxRaketenCd) * 100) + '%';
+            raketenCdBalken.style.backgroundColor = raketenCooldown <= 0 ? '#2ecc71' : '#e74c3c';
+            
+            if (tastenGedrueckt.k && raketenCooldown <= 0) {
+                raketenCooldown = maxRaketenCd;
+                
+                let rSchaden = 25;
+                let rRadius = 80;
+                let anzahl = 1;
+                
+                if (raketenStufe >= 2) rSchaden = 30;
+                if (raketenStufe >= 3) anzahl = 2;
+                if (raketenStufe >= 4) { rRadius = 100; rSchaden = 35; }
+                if (raketenStufe >= 5) anzahl = 3;
+                
+                let offsets = [{ox: 10, vy: 8, vx: 0}];
+                if (anzahl === 2) {
+                    offsets = [{ox: 2, vy: 8, vx: 0}, {ox: 18, vy: 8, vx: 0}];
+                } else if (anzahl === 3) {
+                    offsets = [{ox: 10, vy: 8, vx: 0}, {ox: -2, vy: 8, vx: -1.5}, {ox: 22, vy: 8, vx: 1.5}];
+                }
+
+                offsets.forEach(off => {
+                    const el = document.createElement('div');
+                    el.classList.add('raketen-projektil');
+                    el.innerHTML = `
+                        <div class="rakete-sensor"></div>
+                        <div class="rakete-rumpf"></div>
+                        <div class="rakete-fluegel"></div>
+                        <div class="rakete-feuer"></div>
+                    `;
+                    el.style.left = (x + off.ox) + 'px';
+                    el.style.top = y + 'px';
+                    
+                    if (off.vx !== 0) {
+                        let winkel = Math.atan2(-off.vy, off.vx) * 180 / Math.PI;
+                        el.style.transform = `rotate(${winkel + 90}deg)`;
+                    }
+                    
+                    spielfeld.appendChild(el);
+                    raketenArray.push({ el: el, x: x + off.ox, y: y, vx: off.vx, vy: off.vy, schaden: rSchaden, radius: rRadius, detoniert: false });
+                });
+            }
+
+            // Raketen Update & Kollision (Näherungszünder)
+            for (let i = raketenArray.length - 1; i >= 0; i--) {
+                let r = raketenArray[i];
+                r.y -= r.vy;
+                if (r.vx) r.x += r.vx;
+                r.el.style.top = r.y + 'px';
+                if (r.vx) r.el.style.left = r.x + 'px';
+                
+                // Partikelschweif (Rauch und Feuer)
+                if (Math.random() < 0.7) {
+                    const pEl = document.createElement('div');
+                    pEl.classList.add('partikel');
+                    pEl.style.backgroundColor = Math.random() < 0.4 ? '#f39c12' : '#7f8c8d'; // Feuer oder Rauch
+                    let px = r.x + 3 + Math.random() * 4; // Mitte der Rakete (Breite 10)
+                    let py = r.y + 24; // Unten an der Rakete
+                    pEl.style.left = px + 'px';
+                    pEl.style.top = py + 'px';
+                    spielfeld.appendChild(pEl);
+                    partikelArray.push({ el: pEl, x: px, y: py, vx: (Math.random() - 0.5) * 0.5, vy: 0.5 + Math.random(), leben: 1.0, zerfall: 0.04 });
+                }
+                
+                if (r.y < -30) { r.el.remove(); raketenArray.splice(i, 1); continue; }
+                
+                // Näherungszünder prüfen
+                let zielGefunden = false;
+                for (let j = 0; j < alleZiele.length; j++) {
+                    let z = alleZiele[j];
+                    if ((z.immune || 0) <= 0) {
+                        let zcx = z.x + z.groesse / 2;
+                        let zcy = z.y + z.groesse / 2;
+                        let rcx = r.x + 3; // 3 ist halbe Breite der Rakete
+                        let rcy = r.y + 9; // 9 ist halbe Höhe
+                        let dist = Math.hypot(zcx - rcx, zcy - rcy);
+                        if (dist < 50) { // Zündradius
+                            zielGefunden = true;
+                            break;
+                        }
+                    }
+                }
+                
+                if (zielGefunden) {
+                    r.detoniert = true;
+                    // Explosion auslösen
+                    let rcx = r.x + 3;
+                    let rcy = r.y + 9;
+                    erzeugeExplosion(rcx, rcy, '#e74c3c', 30); // Rote Partikel
+                    
+                    // Visuelle Schockwelle
+                    const shockwave = document.createElement('div');
+                    shockwave.style.position = 'absolute';
+                    shockwave.style.width = (r.radius * 2) + 'px';
+                    shockwave.style.height = (r.radius * 2) + 'px';
+                    shockwave.style.left = (rcx - r.radius) + 'px';
+                    shockwave.style.top = (rcy - r.radius) + 'px';
+                    shockwave.style.borderRadius = '50%';
+                    shockwave.style.backgroundColor = 'rgba(231, 76, 60, 0.5)';
+                    shockwave.style.boxShadow = '0 0 20px #e74c3c';
+                    shockwave.style.zIndex = '9';
+                    shockwave.style.pointerEvents = 'none';
+                    shockwave.style.transition = 'all 0.3s ease-out';
+                    spielfeld.appendChild(shockwave);
+                    
+                    // Schockwelle animieren und entfernen
+                    setTimeout(() => {
+                        shockwave.style.opacity = '0';
+                        shockwave.style.transform = 'scale(1.2)';
+                    }, 10);
+                    setTimeout(() => { shockwave.remove(); }, 300);
+                    
+                    // Flächenschaden
+                    for (let j = 0; j < alleZiele.length; j++) {
+                        let z = alleZiele[j];
+                        if ((z.immune || 0) <= 0) {
+                            let zcx = z.x + z.groesse / 2;
+                            let zcy = z.y + z.groesse / 2;
+                            let dist = Math.hypot(zcx - rcx, zcy - rcy);
+                            if (dist <= r.radius) {
+                                if (!z.istUnzerstoerbar) {
+                                    z.hp -= r.schaden;
+                                    if (z.rissEl) { let basisRiss = z.traegtPowerup ? 0.5 : 0; let schadenProzent = basisRiss + (1 - basisRiss) * (1 - (z.hp / z.maxHp)); z.rissEl.style.opacity = schadenProzent; }
+                                    z.el.style.filter = 'brightness(2.5)'; setTimeout(() => { if (z.el) z.el.style.filter = ''; }, 50);
+                                    if (z.hp <= 0) zerstoereZiel(z);
+                                }
+                            }
+                        }
+                    }
+                    
+                    r.el.remove(); raketenArray.splice(i, 1);
+                }
+            }
+            // --- 9.14 BOMBEN ---
+            if (bombenCooldown > 0) bombenCooldown--;
+            
+            let maxBombenCd = 2400 - (bombenStufe * 240); // 40s - 4s per level
+            
+            const bombenCdBalken = document.getElementById('bomben-cd-balken');
+            bombenCdBalken.style.width = Math.max(0, 100 - (bombenCooldown / maxBombenCd) * 100) + '%';
+            bombenCdBalken.style.backgroundColor = bombenCooldown <= 0 ? '#2ecc71' : '#f39c12';
+            
+            if (tastenGedrueckt[' '] && bombenCooldown <= 0) {
+                bombenCooldown = maxBombenCd;
+                
+                const el = document.createElement('div');
+                el.classList.add('bomben-projektil');
+                el.innerHTML = `
+                    <div class="bombe-body"></div>
+                    <div class="bombe-licht" style="top: 4px;"></div>
+                    <div class="bombe-licht" style="top: 13px;"></div>
+                    <div class="bombe-licht" style="top: 22px;"></div>
+                `;
+                el.style.left = (x + 8) + 'px'; // Mittig aus dem Schiff
+                el.style.top = y + 'px';
+                
+                // Alle Lichter animieren
+                Array.from(el.querySelectorAll('.bombe-licht')).forEach(l => {
+                    l.style.animation = 'bombeBlink 1s infinite alternate';
+                });
+                
+                spielfeld.appendChild(el);
+                
+                let bSchaden = 100 + (bombenStufe * 50);
+                let bRadius = 150 + (bombenStufe * 50);
+                
+                bombenArray.push({ el: el, x: x + 8, y: y, targetX: 193, targetY: 285, startDist: 0, speed: 1.5, rot: 0, schaden: bSchaden, radius: bRadius });
+            }
+            
+            for (let i = bombenArray.length - 1; i >= 0; i--) {
+                let b = bombenArray[i];
+                let dx = b.targetX - (b.x + 7);
+                let dy = b.targetY - (b.y + 15);
+                let dist = Math.hypot(dx, dy);
+                
+                if (b.startDist === 0) b.startDist = dist;
+                
+                if (dist > 5) {
+                    b.x += (dx / dist) * b.speed;
+                    b.y += (dy / dist) * b.speed;
+                    b.rot += 2;
+                    b.el.style.left = b.x + 'px';
+                    b.el.style.top = b.y + 'px';
+                    b.el.style.transform = `rotate(${b.rot}deg)`;
+                    
+                    // Blink-Geschwindigkeit erhöhen je näher am Ziel
+                    let blinkSpeed = Math.max(0.1, (dist / b.startDist) * 1.0);
+                    Array.from(b.el.querySelectorAll('.bombe-licht')).forEach(l => {
+                        l.style.animationDuration = blinkSpeed + 's';
+                    });
+                } else {
+                    // Detonation
+                    let bcx = b.x + 7;
+                    let bcy = b.y + 15;
+                    erzeugeExplosion(bcx, bcy, '#f39c12', 60);
+                    
+                    const shockwave = document.createElement('div');
+                    shockwave.style.position = 'absolute';
+                    shockwave.style.width = (b.radius * 2) + 'px';
+                    shockwave.style.height = (b.radius * 2) + 'px';
+                    shockwave.style.left = (bcx - b.radius) + 'px';
+                    shockwave.style.top = (bcy - b.radius) + 'px';
+                    shockwave.style.borderRadius = '50%';
+                    shockwave.style.backgroundColor = 'rgba(243, 156, 18, 0.4)';
+                    shockwave.style.boxShadow = '0 0 40px #f39c12';
+                    shockwave.style.zIndex = '9';
+                    shockwave.style.pointerEvents = 'none';
+                    shockwave.style.transition = 'all 0.5s ease-out';
+                    spielfeld.appendChild(shockwave);
+                    
+                    setTimeout(() => {
+                        shockwave.style.opacity = '0';
+                        shockwave.style.transform = 'scale(1.2)';
+                    }, 10);
+                    setTimeout(() => { shockwave.remove(); }, 500);
+                    
+                    for (let j = 0; j < alleZiele.length; j++) {
+                        let z = alleZiele[j];
+                        if ((z.immune || 0) <= 0) {
+                            let zcx = z.x + z.groesse / 2;
+                            let zcy = z.y + z.groesse / 2;
+                            if (Math.hypot(zcx - bcx, zcy - bcy) <= b.radius) {
+                                if (z.istUnzerstoerbar && z.hp !== undefined && !z.istBoss) {
+                                    // Bomben zerstören Magma-Asteroiden (werden zu Powerup-Trägern)
+                                    z.istUnzerstoerbar = false;
+                                    z.traegtPowerup = true;
+                                    z.el.classList.remove('unzerstoerbar');
+                                    if (!z.rissEl) {
+                                        z.rissEl = document.createElement('div');
+                                        z.rissEl.classList.add('riss-layer');
+                                        z.el.appendChild(z.rissEl);
+                                    }
+                                }
+                                if (!z.istUnzerstoerbar) {
+                                    z.hp -= b.schaden;
+                                    if (z.rissEl) { let basisRiss = z.traegtPowerup ? 0.5 : 0; let schadenProzent = basisRiss + (1 - basisRiss) * (1 - (z.hp / z.maxHp)); z.rissEl.style.opacity = schadenProzent; }
+                                    z.el.style.filter = 'brightness(3)'; setTimeout(() => { if (z.el) z.el.style.filter = ''; }, 50);
+                                    if (z.hp <= 0) zerstoereZiel(z);
+                                }
+                            }
+                        }
+                    }
+                    
+                    b.el.remove(); bombenArray.splice(i, 1);
+                }
+            }
+
+            // --- 9.11 PARTIKEL ANIMIEREN ---
+            for (let i = partikelArray.length - 1; i >= 0; i--) {
+                let p = partikelArray[i]; p.x += p.vx; p.y += p.vy; p.vx *= 0.92; p.vy *= 0.92; p.leben -= p.zerfall;
+                if (p.leben <= 0) { p.el.remove(); partikelArray.splice(i, 1); } else { p.el.style.left = p.x + 'px'; p.el.style.top = p.y + 'px'; p.el.style.opacity = p.leben; p.el.style.transform = `scale(${p.leben})`; }
+            }
+
+            requestAnimationFrame(gameLoop);
+        }
+
+        gameLoop();
+    </script>
+
+</body>
+
+</html>
