@@ -501,6 +501,11 @@
             100% { height: 12px; background-color: #e74c3c; }
         }
 
+        @keyframes superWaffePulse {
+            0% { transform: scale(1); filter: brightness(1); }
+            100% { transform: scale(1.15); filter: brightness(1.5); }
+        }
+
         .bomben-projektil {
             position: absolute;
             width: 14px;
@@ -1156,7 +1161,7 @@
             else if (type === 'raketenWaffe') { farbe = '#e67e22'; symbol = 'R'; }
             else if (type === 'bombenWaffe') { farbe = '#c0392b'; symbol = 'B'; }
             else if (type === 'autolaser') { farbe = '#f39c12'; symbol = 'A'; }
-            else if (type === 'superWaffe') { farbe = '#ffffff'; symbol = 'S'; el.style.animation = 'flackerFeuer 0.2s infinite alternate'; }
+            else if (type === 'superWaffe') { farbe = '#ffffff'; symbol = 'S'; el.style.animation = 'superWaffePulse 0.3s infinite alternate'; }
 
             el.style.border = `2px solid ${farbe}`; el.style.color = farbe; el.style.boxShadow = `0 0 10px ${farbe}, inset 0 0 5px ${farbe}`; el.innerHTML = symbol;
             el.style.left = px + 'px'; el.style.top = py + 'px'; spielfeld.appendChild(el);
