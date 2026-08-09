@@ -1224,7 +1224,7 @@
             });
         }
 
-        function erzeugeFeind(sX, sY) {
+        function erzeugeFeind(sX, sY, forceMuster = null, forceVx = 0) {
             const el = document.createElement('div'); el.classList.add('feind-schiff');
             el.innerHTML = `
                 <svg viewBox="0 0 30 30" style="position: absolute; width: 100%; height: 100%; z-index: 2;">
@@ -1243,19 +1243,48 @@
             // LANGSAMERE SKALIERUNG: Feinde schießen auf höheren Leveln nicht mehr ganz so extrem schnell
             let schussBasis = Math.max(25, 40 - ((level - 1) * 3));
 
-            // Bestimme Muster (ab Level 2)
-            let muster = 'normal';
+            let muster = forceMuster !== null ? forceMuster : 'normal';
             let stopY = 0;
-            if (level >= 2 && Math.random() < Math.min(0.6, (level - 1) * 0.2)) {
+            if (forceMuster === null && level >= 2 && Math.random() < Math.min(0.6, (level - 1) * 0.2)) {
                 muster = 'stopAndGo';
+            }
+            if (muster === 'stopAndGo') {
                 stopY = 80 + Math.random() * 120; // Stoppt im oberen Drittel
             }
 
             feinde.push({
-                el: el, x: startX, y: startY, groesse: 30, hp: 20, maxHp: 20, vy: 1.2, basisX: startX, zeit: 0,
+                el: el, x: startX, y: startY, groesse: 30, hp: 20, maxHp: 20, vy: 1.2, vx: forceVx, basisX: startX, zeit: 0,
                 schussTimer: Math.random() * schussBasis + schussBasis, istFeind: true, istUnzerstoerbar: false, traegtPowerup: Math.random() < 0.2,
                 muster: muster, phase: 'anflug', stopTimer: 0, stopY: stopY
             });
+        }
+
+        function verwalteFeindSpawns() {
+            let r = Math.random();
+            if (level >= 5 && r < 0.25) {
+                // V-Formation (3 oder 5 Jäger)
+                let count = Math.random() < 0.5 ? 3 : 5;
+                let spacingX = 40;
+                let spacingY = 30;
+                let centerX = spielfeldBreite / 2 - 15;
+                for (let i = 0; i < count; i++) {
+                    let offset = Math.ceil(i / 2);
+                    let side = (i % 2 === 0 && i !== 0) ? -1 : 1;
+                    if (i === 0) { offset = 0; side = 0; }
+                    erzeugeFeind(centerX + (offset * spacingX * side), -30 - (offset * spacingY), 'normal', 0);
+                }
+            } else if (level >= 4 && r < 0.45) {
+                // Crossfire (2 Jäger überkreuz)
+                erzeugeFeind(10, -30, 'crossfire', 2.5);
+                erzeugeFeind(spielfeldBreite - 40, -30, 'crossfire', -2.5);
+            } else if (level >= 3 && r < 0.65) {
+                // Swoop (1 Jäger von der Seite)
+                let spawnLeft = Math.random() < 0.5;
+                erzeugeFeind(spawnLeft ? -30 : spielfeldBreite, 20 + Math.random() * 50, 'swoop', spawnLeft ? 3.5 : -3.5);
+            } else {
+                // Einzelner Jäger (Normal oder Stop&Go)
+                erzeugeFeind();
+            }
         }
 
         function erzeugeFeindLaser(fx, fy, zielX = null, zielY = null) {
@@ -1426,7 +1455,7 @@
                 let feindSpawnZeit = Math.max(600, 1200 - ((level - 1) * 100));
                 let feindRate = Math.max(120, 300 - ((level - 1) * 30));
 
-                if (frameZaehler > feindSpawnZeit && frameZaehler % feindRate === 0) erzeugeFeind();
+                if (frameZaehler > feindSpawnZeit && frameZaehler % feindRate === 0) verwalteFeindSpawns();
 
                 // Boss erscheint am Ende des Levels (nach 60 Sekunden / 3600 Frames)
                 if (frameZaehler === 3600 && !bossAktiv && !bossWarningAktiv) {
@@ -1503,14 +1532,19 @@
                         f.y += f.vy * 3.5; // Sehr schneller Abflug
                     }
                     f.zeit += 0.05; f.x = f.basisX + Math.sin(f.zeit) * 20; // Weniger starkes Wackeln im Stop&Go
+                } else if (f.muster === 'swoop' || f.muster === 'crossfire') {
+                    f.x += f.vx; f.y += f.vy * 1.5;
+                    f.el.style.transform = `rotate(${Math.atan2(f.vy * 1.5, f.vx) * 180 / Math.PI - 90}deg)`;
                 } else {
                     f.zeit += 0.05; f.x = f.basisX + Math.sin(f.zeit) * 60; f.y += f.vy;
                 }
                 
-                if (f.x < 0) f.x = 0; if (f.x > spielfeldBreite - f.groesse) f.x = spielfeldBreite - f.groesse;
+                if (f.muster !== 'swoop' && f.muster !== 'crossfire') {
+                    if (f.x < 0) f.x = 0; if (f.x > spielfeldBreite - f.groesse) f.x = spielfeldBreite - f.groesse;
+                }
                 f.el.style.left = f.x + 'px'; f.el.style.top = f.y + 'px';
                 erzeugeAntriebsRauch(f.x + 13, f.y - 2, -1.5);
-                if (f.y > spielfeldHoehe) { f.el.remove(); feinde.splice(i, 1); continue; }
+                if (f.y > spielfeldHoehe || f.x < -100 || f.x > spielfeldBreite + 100) { f.el.remove(); feinde.splice(i, 1); continue; }
                 
                 if (f.muster !== 'stopAndGo') {
                     f.schussTimer--; 
