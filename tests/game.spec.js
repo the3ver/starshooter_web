@@ -30,4 +30,24 @@ test.describe('Space Shooter', () => {
     // Taste wieder loslassen
     await page.keyboard.up('w');
   });
+
+  test('Spielfeld skaliert dynamisch je nach Fenstergröße', async ({ page }) => {
+    const spielfeld = page.locator('#spielfeld');
+    const container = page.locator('#spielfeld-container');
+    
+    await expect(container).toBeAttached();
+
+    // Initiale Transformation prüfen
+    let transform = await spielfeld.evaluate((el) => el.style.transform);
+    expect(transform).toContain('scale');
+
+    // Fenstergröße extrem ändern
+    await page.setViewportSize({ width: 1920, height: 1080 });
+    // Kurz warten bis Event Listener triggert
+    await page.waitForTimeout(100);
+    
+    let newTransform = await spielfeld.evaluate((el) => el.style.transform);
+    expect(newTransform).toContain('scale');
+    expect(newTransform).not.toEqual(transform); // Scale factor sollte sich geändert haben
+  });
 });
