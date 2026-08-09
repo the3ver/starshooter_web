@@ -31,6 +31,7 @@ Das Schiff verfügt über drei unterschiedliche Waffentypen, die durch das Aufsa
 - **L** - Laser feuern
 - **K** - Raketen abfeuern
 - **Leertaste** - Bombe abwerfen
+- **P** - Spiel pausieren
 
 ## Lokale Entwicklung & Ausführung
 Da das Projekt nun ES6-Module (`<script type="module">`) nutzt, blockieren moderne Browser das Laden aus Sicherheitsgründen (CORS), wenn du die `index.html` direkt als Datei (`file://`) öffnest. 

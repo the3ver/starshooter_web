@@ -12,6 +12,11 @@ export function setupInput() {
       if (e.key === ' ') e.preventDefault();
     }
     if (e.key.length === 1) {
+      if (e.key.toLowerCase() === 'p' && state.spielLaeuft && !state.gameOverAktiv) {
+        state.pausiert = !state.pausiert;
+        dom.pauseOverlay.style.display = state.pausiert ? 'block' : 'none';
+      }
+      
       state.typedCheatKeys += e.key.toLowerCase();
       if (state.typedCheatKeys.length > 10) state.typedCheatKeys = state.typedCheatKeys.slice(-10);
       if (state.typedCheatKeys.endsWith('idkfa')) {

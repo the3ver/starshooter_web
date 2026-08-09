@@ -15,7 +15,8 @@ export const dom = {
     laser2: document.getElementById('laser2'),
     laserDiagLinks: document.getElementById('laser-diag-links'),
     laserDiagRechts: document.getElementById('laser-diag-rechts'),
-    autolaserEl: document.getElementById('autolaser')
+    autolaserEl: document.getElementById('autolaser'),
+    pauseOverlay: document.getElementById('pause-overlay')
 };
 
 export const config = {
@@ -47,7 +48,7 @@ export const state = {
     feindSpawnZeit: 1200, bossKampfAktiv: false, tastenGedrueckt: {w: false, a: false, s: false, d: false, l: false, k: false, ' ': false}, mausGedrueckt: false,
     bossAktiv: false, bossWarningAktiv: false, bossWarningTimer: 0, gameOverAktiv: false,
     spielerSchussCooldown: 0, finalerScore: 0, cheatUsed: false, typedCheatKeys: '',
-    godMode: false
+    godMode: false, pausiert: false
 };
 
 export const arrays = {

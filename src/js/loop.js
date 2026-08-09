@@ -6,8 +6,13 @@ import * as Input from './input.js';
 
 
 export function verwalteFeindSpawns() {
+  let pV = state.level >= 2 ? Math.min(0.25, 0.05 + (state.level - 2) * 0.05) : 0;
+  let pCross = state.level >= 1 ? Math.min(0.20, 0.05 + (state.level - 1) * 0.05) : 0;
+  let pSwoop = state.level >= 1 ? Math.min(0.20, 0.05 + (state.level - 1) * 0.05) : 0;
+  
   let r = Math.random();
-  if (state.level >= 4 && r < 0.25) {
+  
+  if (r < pV) {
     // V-Formation (3 oder 5 Jäger)
     let count = Math.random() < 0.5 ? 3 : 5;
     let spacingX = 40;
@@ -22,11 +27,11 @@ export function verwalteFeindSpawns() {
       }
       Entities.erzeugeFeind(centerX + offset * spacingX * side, -30 - offset * spacingY, 'normal', 0);
     }
-  } else if (state.level >= 3 && r < 0.45) {
+  } else if (r < pV + pCross) {
     // Crossfire (2 Jäger überkreuz)
     Entities.erzeugeFeind(10, -30, 'crossfire', 2.5);
     Entities.erzeugeFeind(config.spielfeldBreite - 40, -30, 'crossfire', -2.5);
-  } else if (state.level >= 2 && r < 0.65) {
+  } else if (r < pV + pCross + pSwoop) {
     // Swoop (1 Jäger von der Seite)
     let spawnLeft = Math.random() < 0.5;
     Entities.erzeugeFeind(spawnLeft ? -30 : config.spielfeldBreite, 20 + Math.random() * 50, 'swoop', spawnLeft ? 3.5 : -3.5);
@@ -45,6 +50,11 @@ function versteckeAlleLaser() {
   dom.laserDiagRechts.style.display = 'none';
 }
 export function gameLoop() {
+  if (state.pausiert) {
+    requestAnimationFrame(gameLoop);
+    return;
+  }
+
   if (!state.spielLaeuft) {
     if (state.tastenGedrueckt.w || state.tastenGedrueckt.a || state.tastenGedrueckt.s || state.tastenGedrueckt.d || state.tastenGedrueckt.l || state.tastenGedrueckt.k || state.tastenGedrueckt[' ']) {
       state.spielLaeuft = true;
