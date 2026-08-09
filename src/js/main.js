@@ -55,5 +55,10 @@ document.addEventListener('DOMContentLoaded', () => {
     resizeGame();
 
     state.spielLaeuft = false;
+    // UI initialisieren
+    import('./utils.js').then(Utils => {
+        Utils.updateMaxEnergieMarker();
+    });
+
     requestAnimationFrame(gameLoop);
 });
