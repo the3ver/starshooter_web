@@ -141,32 +141,76 @@ export function erzeugeAsteroid(startX, startY, startGroesse, startVx, startVy, 
 export function erzeugeFeind(sX, sY, forceMuster = null, forceVx = 0) {
   const el = document.createElement('div');
   el.classList.add('feind-schiff');
-  el.innerHTML = `
-                <svg viewBox="0 0 30 30" style="position: absolute; width: 100%; height: 100%; z-index: 2;">
-                    <!-- pointing down -->
-                    <path d="M15 28 L2 10 L5 5 L15 8 L25 5 L28 10 Z" fill="#71368a"/>
-                    <path d="M15 30 L9 10 L15 3 L21 10 Z" fill="#9b59b6"/>
-                    <path d="M15 22 L12 14 L15 11 L18 14 Z" fill="#f1c40f"/>
-                    <rect x="13" y="0" width="4" height="4" fill="#7f8c8d"/>
-                </svg>
-                <div class="feind-flame" style="left: 13px;"></div>
-            `;
-  const startX = sX !== undefined ? sX : Math.random() * (config.spielfeldBreite - 30);
-  const startY = sY !== undefined ? sY : -30;
-  el.style.left = startX + 'px';
-  el.style.top = startY + 'px';
-  dom.spielfeld.appendChild(el);
-
-  // LANGSAMERE SKALIERUNG: Feinde schießen auf höheren Leveln nicht mehr ganz so extrem schnell
-  let schussBasis = Math.max(25, 40 - (state.level - 1) * 3);
+  
   let muster = forceMuster !== null ? forceMuster : 'normal';
   let stopY = 0;
   if (forceMuster === null && state.level >= 1 && Math.random() < Math.min(0.6, state.level * 0.2)) {
     muster = 'stopAndGo';
   }
   if (muster === 'stopAndGo') {
-    stopY = 80 + Math.random() * 120; // Stoppt im oberen Drittel
+    stopY = 80 + Math.random() * 120;
   }
+
+  let svgHtml = '';
+  let color = '#9b59b6';
+
+  if (muster === 'normal') {
+    svgHtml = `
+      <svg viewBox="0 0 30 30" style="position: absolute; width: 100%; height: 100%; z-index: 2;">
+          <path d="M15 28 L2 10 L5 5 L15 8 L25 5 L28 10 Z" fill="#71368a"/>
+          <path d="M15 30 L9 10 L15 3 L21 10 Z" fill="#9b59b6"/>
+          <path d="M15 22 L12 14 L15 11 L18 14 Z" fill="#f1c40f"/>
+          <rect x="13" y="0" width="4" height="4" fill="#7f8c8d"/>
+      </svg>
+      <div class="feind-flame" style="left: 13px;"></div>
+    `;
+    color = '#9b59b6';
+  } else if (muster === 'stopAndGo') {
+    svgHtml = `
+      <svg viewBox="0 0 30 30" style="position: absolute; width: 100%; height: 100%; z-index: 2;">
+          <rect x="5" y="8" width="20" height="15" fill="#d35400"/>
+          <polygon points="5,23 25,23 15,30" fill="#e67e22"/>
+          <polygon points="15,20 10,12 20,12" fill="#f1c40f"/>
+          <rect x="10" y="0" width="4" height="8" fill="#7f8c8d"/>
+          <rect x="16" y="0" width="4" height="8" fill="#7f8c8d"/>
+      </svg>
+      <div class="feind-flame" style="left: 10px; width: 4px;"></div>
+      <div class="feind-flame" style="left: 16px; width: 4px;"></div>
+    `;
+    color = '#e67e22';
+  } else if (muster === 'crossfire') {
+    svgHtml = `
+      <svg viewBox="0 0 30 30" style="position: absolute; width: 100%; height: 100%; z-index: 2;">
+          <polygon points="15,30 0,10 10,10 15,0 20,10 30,10" fill="#1abc9c"/>
+          <polygon points="15,22 8,12 22,12" fill="#16a085"/>
+          <polygon points="15,18 12,12 18,12" fill="#f1c40f"/>
+      </svg>
+      <div class="feind-flame" style="left: 13px;"></div>
+    `;
+    color = '#1abc9c';
+  } else if (muster === 'swoop') {
+    svgHtml = `
+      <svg viewBox="0 0 30 30" style="position: absolute; width: 100%; height: 100%; z-index: 2;">
+          <path d="M15 30 L0 5 L15 15 L30 5 Z" fill="#2ecc71"/>
+          <path d="M15 25 L8 10 L22 10 Z" fill="#27ae60"/>
+          <circle cx="15" cy="14" r="3" fill="#f1c40f"/>
+          <rect x="13" y="0" width="4" height="6" fill="#7f8c8d"/>
+      </svg>
+      <div class="feind-flame" style="left: 13px;"></div>
+    `;
+    color = '#2ecc71';
+  }
+
+  el.innerHTML = svgHtml;
+  el.dataset.baseColor = color;
+  
+  const startX = sX !== undefined ? sX : Math.random() * (config.spielfeldBreite - 30);
+  const startY = sY !== undefined ? sY : -30;
+  el.style.left = startX + 'px';
+  el.style.top = startY + 'px';
+  dom.spielfeld.appendChild(el);
+
+  let schussBasis = Math.max(25, 40 - (state.level - 1) * 3);
   arrays.feinde.push({
     el: el,
     x: startX,

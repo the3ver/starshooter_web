@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 30 30">
+    <!-- Wings -->
+    <path d="M15 2 L2 20 L5 25 L15 22 L25 25 L28 20 Z" fill="#c0392b"/>
+    <!-- Main Fuselage -->
+    <path d="M15 0 L9 20 L15 27 L21 20 Z" fill="#e74c3c"/>
+    <!-- Cockpit -->
+    <path d="M15 8 L12 16 L15 19 L18 16 Z" fill="#87CEEB"/>
+    <!-- Engine Nozzles -->
+    <rect x="7" y="23" width="4" height="4" fill="#7f8c8d"/>
+    <rect x="19" y="23" width="4" height="4" fill="#7f8c8d"/>
+</svg>

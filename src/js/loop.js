@@ -50,6 +50,10 @@ export function gameLoop() {
       state.spielLaeuft = true;
       let startText = document.getElementById('start-text');
       if (startText) startText.style.display = 'none';
+      // Verhindere sofortiges Feuern beim Spielstart
+      state.tastenGedrueckt[' '] = false;
+      state.tastenGedrueckt.k = false;
+      state.tastenGedrueckt.l = false;
     } else {
       // Nur Sterne und Spieler rendern
       arrays.sterne.forEach(stern => {

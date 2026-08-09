@@ -9,10 +9,38 @@ export function addScore(punkte) {
   state.score += punkte;
   dom.scoreAnzeige.innerText = state.score.toString().padStart(5, '0');
 }
+let prevLeben = null;
+
 export function updateLebenUI() {
-  let herzen = "";
-  for (let i = 0; i < state.leben; i++) herzen += "&hearts;";
-  dom.lebenAnzeige.innerHTML = herzen;
+  if (prevLeben === null) {
+    prevLeben = state.leben;
+  }
+
+  let html = "";
+  let lostHtml = "";
+
+  for (let i = 0; i < state.leben; i++) {
+    let animClass = (i >= prevLeben) ? 'pu-anim-new' : '';
+    html += `<span class="leben-herz ${animClass}">&hearts;</span>`;
+  }
+
+  if (state.leben < prevLeben) {
+    let lostCount = prevLeben - state.leben;
+    for (let i = 0; i < lostCount; i++) {
+      lostHtml += `<span class="leben-herz pu-anim-lost">&hearts;</span>`;
+    }
+  }
+
+  dom.lebenAnzeige.innerHTML = html + lostHtml;
+
+  if (lostHtml) {
+    setTimeout(() => {
+      const elements = dom.lebenAnzeige.querySelectorAll('.pu-anim-lost');
+      elements.forEach(el => el.remove());
+    }, 1000);
+  }
+
+  prevLeben = state.leben;
 }
 export function updateLevelUI() {
   dom.levelAnzeige.innerText = 'LEVEL ' + state.level;
@@ -20,23 +48,59 @@ export function updateLevelUI() {
 export function updateMaxEnergieMarker() {
   dom.maxEnergieMarker.style.left = state.maxEnergie / state.absMaxEnergie * 100 + '%';
 }
+let prevPuState = null;
+
 export function updateAktivePowerupsUI() {
-  dom.aktivePowerupsContainer.innerHTML = '';
-  if (state.laserStufe > 1) {
-    let color = state.laserStufe === 5 ? '#e056fd' : '#9b59b6';
-    dom.aktivePowerupsContainer.innerHTML += `<div class="active-pu-icon" style="background:rgba(155,89,182,0.2); border:1px solid ${color}; color:${color};">L${state.laserStufe}</div>`;
+  if (!prevPuState) {
+    prevPuState = { ...state };
   }
-  if (state.raketenStufe > 1) {
-    let color = state.raketenStufe === 5 ? '#f39c12' : '#e67e22';
-    dom.aktivePowerupsContainer.innerHTML += `<div class="active-pu-icon" style="background:rgba(230,126,34,0.2); border:1px solid ${color}; color:${color};">R${state.raketenStufe}</div>`;
+
+  let html = '';
+  let lostHtml = '';
+
+  function buildIcon(key, currentVal, threshold, textPrefix, isBool, bgRgba, colorFunc) {
+    let prevVal = prevPuState[key];
+    let animClass = '';
+    let isCurrentActive = isBool ? currentVal : currentVal > threshold;
+    let isPrevActive = isBool ? prevVal : prevVal > threshold;
+
+    if (isCurrentActive) {
+      if (!isPrevActive) animClass = 'pu-anim-new';
+      else if (!isBool && currentVal > prevVal) animClass = 'pu-anim-upgrade';
+      else if (!isBool && currentVal < prevVal) animClass = 'pu-anim-downgrade';
+
+      let displayVal = isBool ? '' : currentVal;
+      let color = typeof colorFunc === 'function' ? colorFunc(currentVal) : colorFunc;
+      html += `<div class="active-pu-icon ${animClass}" style="background:${bgRgba}; border:1px solid ${color}; color:${color};">${textPrefix}${displayVal}</div>`;
+    } else if (isPrevActive) {
+      let displayVal = isBool ? '' : prevVal;
+      let color = typeof colorFunc === 'function' ? colorFunc(prevVal) : colorFunc;
+      lostHtml += `<div class="active-pu-icon pu-anim-lost" style="background:${bgRgba}; border:1px solid ${color}; color:${color};">${textPrefix}${displayVal}</div>`;
+    }
   }
-  if (state.bombenStufe > 1) {
-    let color = state.bombenStufe === 5 ? '#e74c3c' : '#c0392b';
-    dom.aktivePowerupsContainer.innerHTML += `<div class="active-pu-icon" style="background:rgba(192,57,43,0.2); border:1px solid ${color}; color:${color};">B${state.bombenStufe}</div>`;
+
+  buildIcon('laserStufe', state.laserStufe, 1, 'L', false, 'rgba(155,89,182,0.2)', val => val === 5 ? '#e056fd' : '#9b59b6');
+  buildIcon('raketenStufe', state.raketenStufe, 1, 'R', false, 'rgba(230,126,34,0.2)', val => val === 5 ? '#f39c12' : '#e67e22');
+  buildIcon('bombenStufe', state.bombenStufe, 1, 'B', false, 'rgba(192,57,43,0.2)', val => val === 5 ? '#e74c3c' : '#c0392b');
+  buildIcon('laserDurchschlag', state.laserDurchschlag, false, '&uarr;', true, 'rgba(0,255,255,0.2)', '#00ffff');
+  buildIcon('schildStufe', state.schildStufe, 0, 'O', false, 'rgba(52,152,219,0.2)', '#3498db');
+  buildIcon('autolaserAktiv', state.autolaserAktiv, false, 'A', true, 'rgba(230,126,34,0.2)', '#e67e22');
+
+  dom.aktivePowerupsContainer.innerHTML = html + lostHtml;
+
+  if (lostHtml) {
+    setTimeout(() => {
+      const elements = dom.aktivePowerupsContainer.querySelectorAll('.pu-anim-lost');
+      elements.forEach(el => el.remove());
+    }, 1000);
   }
-  if (state.laserDurchschlag) dom.aktivePowerupsContainer.innerHTML += '<div class="active-pu-icon" style="background:rgba(0,255,255,0.2); border:1px solid #00ffff; color:#00ffff;">&uarr;</div>';
-  if (state.schildStufe > 0) dom.aktivePowerupsContainer.innerHTML += `<div class="active-pu-icon" style="background:rgba(52,152,219,0.2); border:1px solid #3498db; color:#3498db;">O${state.schildStufe}</div>`;
-  if (state.autolaserAktiv) dom.aktivePowerupsContainer.innerHTML += '<div class="active-pu-icon" style="background:rgba(230,126,34,0.2); border:1px solid #e67e22; color:#e67e22;">A</div>';
+
+  prevPuState.laserStufe = state.laserStufe;
+  prevPuState.raketenStufe = state.raketenStufe;
+  prevPuState.bombenStufe = state.bombenStufe;
+  prevPuState.laserDurchschlag = state.laserDurchschlag;
+  prevPuState.schildStufe = state.schildStufe;
+  prevPuState.autolaserAktiv = state.autolaserAktiv;
 }
 export function zerstoereZiel(ziel) {
   let fIndex = arrays.feinde.indexOf(ziel);
