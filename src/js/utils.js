@@ -251,6 +251,9 @@ export function restartGame() {
   state.bossAktiv = false;
   dom.bossHpContainer.style.display = 'none';
   state.frameZaehler = 0;
+  state.spielLaeuft = false;
+  let startScreen = document.getElementById('start-screen');
+  if (startScreen) startScreen.style.display = 'block';
 }
 export
 // --- HIGHSCORE LOGIK ---

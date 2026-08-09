@@ -58,8 +58,8 @@ export function gameLoop() {
   if (!state.spielLaeuft) {
     if (state.tastenGedrueckt.w || state.tastenGedrueckt.a || state.tastenGedrueckt.s || state.tastenGedrueckt.d || state.tastenGedrueckt.l || state.tastenGedrueckt.k || state.tastenGedrueckt[' ']) {
       state.spielLaeuft = true;
-      let startText = document.getElementById('start-text');
-      if (startText) startText.style.display = 'none';
+      let startScreen = document.getElementById('start-screen');
+      if (startScreen) startScreen.style.display = 'none';
       // Verhindere sofortiges Feuern beim Spielstart
       state.tastenGedrueckt[' '] = false;
       state.tastenGedrueckt.k = false;
@@ -820,8 +820,15 @@ export function gameLoop() {
   if (state.raketenStufe >= 2 && state.raketenStufe <= 3) maxRaketenCd = 150;
   if (state.raketenStufe >= 4) maxRaketenCd = 120;
   const raketenCdBalken = document.getElementById('raketen-cd-balken');
-  raketenCdBalken.style.width = Math.max(0, 100 - state.raketenCooldown / maxRaketenCd * 100) + '%';
+  let pctR = Math.max(0, 100 - state.raketenCooldown / maxRaketenCd * 100);
+  raketenCdBalken.style.width = pctR + '%';
   raketenCdBalken.style.backgroundColor = state.raketenCooldown <= 0 ? '#2ecc71' : '#e74c3c';
+  
+  const mobileBtnRaketeCd = document.getElementById('btn-rakete-cd');
+  if (mobileBtnRaketeCd) {
+    mobileBtnRaketeCd.style.height = pctR + '%';
+    mobileBtnRaketeCd.style.backgroundColor = state.raketenCooldown <= 0 ? 'rgba(46, 204, 113, 0.5)' : 'rgba(231, 76, 60, 0.5)';
+  }
   if (state.tastenGedrueckt.k && state.raketenCooldown <= 0) {
     state.raketenCooldown = maxRaketenCd;
     let rSchaden = 25;
@@ -1008,8 +1015,15 @@ export function gameLoop() {
   let maxBombenCd = 2400 - state.bombenStufe * 240; // 40s - 4s per level
 
   const bombenCdBalken = document.getElementById('bomben-cd-balken');
-  bombenCdBalken.style.width = Math.max(0, 100 - state.bombenCooldown / maxBombenCd * 100) + '%';
+  let pctB = Math.max(0, 100 - state.bombenCooldown / maxBombenCd * 100);
+  bombenCdBalken.style.width = pctB + '%';
   bombenCdBalken.style.backgroundColor = state.bombenCooldown <= 0 ? '#2ecc71' : '#f39c12';
+  
+  const mobileBtnBombeCd = document.getElementById('btn-bombe-cd');
+  if (mobileBtnBombeCd) {
+    mobileBtnBombeCd.style.height = pctB + '%';
+    mobileBtnBombeCd.style.backgroundColor = state.bombenCooldown <= 0 ? 'rgba(46, 204, 113, 0.5)' : 'rgba(243, 156, 18, 0.5)';
+  }
   if (state.tastenGedrueckt[' '] && state.bombenCooldown <= 0) {
     state.bombenCooldown = maxBombenCd;
     const el = document.createElement('div');

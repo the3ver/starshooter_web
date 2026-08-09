@@ -29,7 +29,7 @@ document.addEventListener('DOMContentLoaded', () => {
         let availableHeight = window.innerHeight * 0.95;
         let scale = availableHeight / 600;
         
-        let availableWidth = window.innerWidth - 300;
+        let availableWidth = window.innerWidth * 0.95; // Volle Breite nutzen, da Seitenmenü weg ist
         if (400 * scale > availableWidth) {
             scale = availableWidth / 400;
         }
@@ -42,6 +42,12 @@ document.addEventListener('DOMContentLoaded', () => {
         if (container) {
             container.style.width = (400 * scale) + 'px';
             container.style.height = (600 * scale) + 'px';
+        }
+
+        const isTouchDevice = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
+        const mobileControls = document.getElementById('mobile-controls');
+        if (mobileControls) {
+            mobileControls.style.display = isTouchDevice ? 'flex' : 'none';
         }
     }
     

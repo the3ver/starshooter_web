@@ -32,7 +32,26 @@
             <div id="warning-overlay">WARNING<br>BOSS APPROACHING</div>
             <div id="pause-overlay" style="display: none; position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); color: #3498db; font-size: 40px; font-weight: bold; z-index: 1000; letter-spacing: 5px; text-shadow: 0 0 15px #3498db;">PAUSED</div>
 
-            <div id="start-text">PRESS ANY KEY TO START</div>
+            <div id="start-screen">
+                <div class="start-title">STAR SHOOTER</div>
+                <div class="steuerung-titel">Steuerung (PC)</div>
+                <b>W A S D</b> &nbsp;&rarr; Bewegen<br>
+                <b>L</b> &nbsp;&rarr; Laser<br>
+                <b>K</b> &nbsp;&rarr; Raketen<br>
+                <b>LEER</b> &rarr; Bomben<br>
+                <b>P</b> &nbsp;&rarr; Pause
+
+                <div class="steuerung-titel">Steuerung (Mobile)</div>
+                Wischen &rarr; Bewegen & Auto-Laser<br>
+                Buttons &rarr; Raketen, Bomben, Pause<br>
+
+                <div class="steuerung-titel">Powerups</div>
+                <span style="color:#e74c3c; font-weight:bold">&hearts;</span> : Extraleben | <span style="color:#f1c40f; font-weight:bold">E</span> : +10 Max Energie<br>
+                <span style="color:#9b59b6; font-weight:bold">L/R/B</span> : Waffen-Upgrades<br>
+                <span style="color:#00ffff; font-weight:bold">&uarr;</span> : Laser-Durchschlag | <span style="color:#3498db; font-weight:bold">O</span> : Schild
+                
+                <div id="start-text">TAP OR PRESS ANY KEY TO START</div>
+            </div>
 
             <div id="game-over-screen">
                 <div class="game-over-title">GAME OVER</div>
@@ -87,24 +106,21 @@
                 <div id="flame-left" class="ship-flame" style="left: 7.5px;"></div>
                 <div id="flame-right" class="ship-flame" style="left: 19.5px;"></div>
             </div>
+            
+            <div id="mobile-controls" style="display: none;">
+                <button id="btn-pause" class="mobile-btn">P</button>
+                <button id="btn-rakete" class="mobile-btn">
+                    <span>R</span>
+                    <div id="btn-rakete-cd" class="mobile-btn-cd"></div>
+                </button>
+                <button id="btn-bombe" class="mobile-btn" style="border-color: #f39c12;">
+                    <span>B</span>
+                    <div id="btn-bombe-cd" class="mobile-btn-cd" style="background-color: rgba(243, 156, 18, 0.5);"></div>
+                </button>
+            </div>
         </div>
         </div>
 
-        <div id="steuerung-anzeige">
-            <div class="steuerung-titel">Steuerung</div>
-            <b>W A S D</b> &nbsp;&rarr; Bewegen<br>
-            <b>L</b> &nbsp;&rarr; Laser<br>
-            <b>K</b> &nbsp;&rarr; Raketen<br>
-            <b>LEER</b> &rarr; Bomben<br>
-            <b>P</b> &nbsp;&rarr; Pause
-
-            <div class="steuerung-titel">Powerups</div>
-            <span style="color:#e74c3c; font-weight:bold">&hearts;</span> : Extraleben<br>
-            <span style="color:#f1c40f; font-weight:bold">E</span> : +10 Max Energie<br>
-            <span style="color:#9b59b6; font-weight:bold">L/R/B</span> : Waffen-Upgrades<br>
-            <span style="color:#00ffff; font-weight:bold">&uarr;</span> : Laser-Durchschlag<br>
-            <span style="color:#3498db; font-weight:bold">O</span> : Schild (1 Treffer)
-        </div>
     </div>
 
     <script type="module" src="js/main.js"></script>

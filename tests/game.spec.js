@@ -8,7 +8,7 @@ test.describe('Space Shooter', () => {
   test('Das Spiel lädt und der Start-Text wird angezeigt', async ({ page }) => {
     const startText = page.locator('#start-text');
     await expect(startText).toBeVisible();
-    await expect(startText).toContainText('PRESS ANY KEY TO START');
+    await expect(startText).toContainText('TAP OR PRESS ANY KEY TO START');
   });
 
   test('Spielerschiff ist im DOM vorhanden', async ({ page }) => {
