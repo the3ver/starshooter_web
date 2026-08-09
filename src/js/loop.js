@@ -120,8 +120,13 @@ export function gameLoop() {
   let targetRotate = 0;
   
   if (state.joystick && state.joystick.active) {
-    state.x += state.joystick.x * config.geschwindigkeit;
-    state.y += state.joystick.y * config.geschwindigkeit;
+    let mag = Math.sqrt(state.joystick.x * state.joystick.x + state.joystick.y * state.joystick.y);
+    if (mag > 0.1) {
+      let dirX = state.joystick.x / mag;
+      let dirY = state.joystick.y / mag;
+      state.x += dirX * config.geschwindigkeit;
+      state.y += dirY * config.geschwindigkeit;
+    }
     
     if (state.joystick.y < -0.2) baseFlameScale = 1.8;
     else if (state.joystick.y > 0.2) baseFlameScale = 0.4;
