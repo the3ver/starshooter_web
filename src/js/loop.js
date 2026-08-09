@@ -60,6 +60,7 @@ export function gameLoop() {
       state.spielLaeuft = true;
       let startScreen = document.getElementById('start-screen');
       if (startScreen) startScreen.style.display = 'none';
+      Utils.updateMobileControlsVisibility();
       // Verhindere sofortiges Feuern beim Spielstart
       state.tastenGedrueckt[' '] = false;
       state.tastenGedrueckt.k = false;

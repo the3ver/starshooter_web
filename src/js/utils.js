@@ -199,8 +199,21 @@ export function spielerGetroffen(kollisionsObjekt, explodiert = true) {
       document.getElementById('highscore-form').style.display = 'none';
     }
     renderHighscores();
+    updateMobileControlsVisibility();
   }
 }
+export function updateMobileControlsVisibility() {
+  const isTouchDevice = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
+  const mobileControls = document.getElementById('mobile-controls');
+  if (mobileControls) {
+    if (state.spielLaeuft && !state.gameOverAktiv && isTouchDevice) {
+      mobileControls.style.display = 'block';
+    } else {
+      mobileControls.style.display = 'none';
+    }
+  }
+}
+
 export function restartGame() {
   state.gameOverAktiv = false;
   document.getElementById('game-over-screen').style.display = 'none';
@@ -254,6 +267,7 @@ export function restartGame() {
   state.spielLaeuft = false;
   let startScreen = document.getElementById('start-screen');
   if (startScreen) startScreen.style.display = 'block';
+  updateMobileControlsVisibility();
 }
 export
 // --- HIGHSCORE LOGIK ---

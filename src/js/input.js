@@ -89,6 +89,7 @@ export function setupInput() {
       state.spielLaeuft = true;
       let startScreen = document.getElementById('start-screen');
       if (startScreen) startScreen.style.display = 'none';
+      Utils.updateMobileControlsVisibility();
       return;
     }
     

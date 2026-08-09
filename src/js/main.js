@@ -44,11 +44,7 @@ document.addEventListener('DOMContentLoaded', () => {
             container.style.height = (600 * scale) + 'px';
         }
 
-        const isTouchDevice = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
-        const mobileControls = document.getElementById('mobile-controls');
-        if (mobileControls) {
-            mobileControls.style.display = isTouchDevice ? 'flex' : 'none';
-        }
+        // Mobile Controls werden nun über Utils.updateMobileControlsVisibility() gesteuert
     }
     
     window.addEventListener('resize', resizeGame);
