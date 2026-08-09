@@ -116,22 +116,34 @@ export function gameLoop() {
 
   // --- 9.1 SPIELER-BEWEGUNG ---
   let baseFlameScale = 1.0;
-  if (state.tastenGedrueckt.w) {
-    state.y -= config.geschwindigkeit;
-    baseFlameScale = 1.8;
-  }
-  if (state.tastenGedrueckt.s) {
-    state.y += config.geschwindigkeit;
-    baseFlameScale = 0.4;
-  }
   let targetRotate = 0;
-  if (state.tastenGedrueckt.a) {
-    state.x -= config.geschwindigkeit;
-    targetRotate = -15;
-  }
-  if (state.tastenGedrueckt.d) {
-    state.x += config.geschwindigkeit;
-    targetRotate = 15;
+  
+  if (state.joystick && state.joystick.active) {
+    state.x += state.joystick.x * config.geschwindigkeit;
+    state.y += state.joystick.y * config.geschwindigkeit;
+    
+    if (state.joystick.y < -0.2) baseFlameScale = 1.8;
+    else if (state.joystick.y > 0.2) baseFlameScale = 0.4;
+    
+    if (state.joystick.x < -0.2) targetRotate = -15;
+    else if (state.joystick.x > 0.2) targetRotate = 15;
+  } else {
+    if (state.tastenGedrueckt.w) {
+      state.y -= config.geschwindigkeit;
+      baseFlameScale = 1.8;
+    }
+    if (state.tastenGedrueckt.s) {
+      state.y += config.geschwindigkeit;
+      baseFlameScale = 0.4;
+    }
+    if (state.tastenGedrueckt.a) {
+      state.x -= config.geschwindigkeit;
+      targetRotate = -15;
+    }
+    if (state.tastenGedrueckt.d) {
+      state.x += config.geschwindigkeit;
+      targetRotate = 15;
+    }
   }
   if (state.x < 0) state.x = 0;
   if (state.y < 0) state.y = 0;

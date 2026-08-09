@@ -73,15 +73,17 @@ export function setupInput() {
   });
   document.getElementById('btn-restart').addEventListener('click', Utils.restartGame);
 
-  // --- MOBILE TOUCH CONTROLS ---
-  let touchStartX = 0;
-  let touchStartY = 0;
-  let shipStartX = 0;
-  let shipStartY = 0;
-  let isDragging = false;
-
+  // --- MOBILE TOUCH CONTROLS (VIRTUAL JOYSTICK & TAP) ---
   const spielfeldContainer = document.getElementById('game-wrapper');
+  const joystickZone = document.getElementById('joystick-zone');
+  const joystickBase = document.getElementById('joystick-base');
+  const joystickStick = document.getElementById('joystick-stick');
+  
+  let jCenterX = 0;
+  let jCenterY = 0;
+  const maxJoystickRadius = 50;
 
+  // 1. Tap to Pause on Spielfeld
   spielfeldContainer.addEventListener('touchstart', e => {
     if (!state.spielLaeuft && !state.gameOverAktiv) {
       state.spielLaeuft = true;
@@ -90,79 +92,97 @@ export function setupInput() {
       return;
     }
     
-    if (!state.spielLaeuft) return;
-    if (e.target.closest('#mobile-controls')) return; // Ignore if clicking buttons
+    if (!state.spielLaeuft || state.gameOverAktiv) return;
     
-    if (e.touches.length === 1 && !state.gameOverAktiv && !state.pausiert) {
-      isDragging = true;
-      touchStartX = e.touches[0].clientX;
-      touchStartY = e.touches[0].clientY;
-      shipStartX = state.x;
-      shipStartY = state.y;
-      state.tastenGedrueckt.l = true; // Auto-fire laser
+    // Ignore if clicking mobile controls
+    if (e.target.closest('#mobile-controls')) return; 
+
+    // If tap is in the upper 30% of the screen, pause
+    if (e.touches.length > 0) {
+      let touchY = e.touches[0].clientY;
+      if (touchY < window.innerHeight * 0.3) {
+        state.pausiert = !state.pausiert;
+        dom.pauseOverlay.style.display = state.pausiert ? 'block' : 'none';
+      }
     }
   }, { passive: false });
 
-  spielfeldContainer.addEventListener('touchmove', e => {
-    if (isDragging && state.spielLaeuft && !state.gameOverAktiv && !state.pausiert) {
+  // 2. Joystick Logic
+  if (joystickZone) {
+    joystickZone.addEventListener('touchstart', e => {
       e.preventDefault();
+      if (!state.spielLaeuft || state.gameOverAktiv || state.pausiert) return;
+      
       let touchX = e.touches[0].clientX;
       let touchY = e.touches[0].clientY;
       
-      let transformStr = dom.spielfeld.style.transform;
-      let scale = 1;
-      if (transformStr && transformStr.includes('scale')) {
-          let match = transformStr.match(/scale\(([^)]+)\)/);
-          if (match) scale = parseFloat(match[1]);
+      jCenterX = touchX;
+      jCenterY = touchY;
+      
+      joystickBase.style.left = touchX + 'px';
+      joystickBase.style.top = touchY + 'px';
+      joystickBase.style.display = 'block';
+      joystickStick.style.transform = `translate(-50%, -50%)`;
+      
+      state.joystick.active = true;
+      state.tastenGedrueckt.l = true; // Auto-fire laser
+    }, { passive: false });
+
+    joystickZone.addEventListener('touchmove', e => {
+      e.preventDefault();
+      if (!state.joystick.active || state.pausiert) return;
+      
+      let touchX = e.touches[0].clientX;
+      let touchY = e.touches[0].clientY;
+      
+      let dx = touchX - jCenterX;
+      let dy = touchY - jCenterY;
+      let distance = Math.sqrt(dx * dx + dy * dy);
+      
+      if (distance > maxJoystickRadius) {
+        dx = (dx / distance) * maxJoystickRadius;
+        dy = (dy / distance) * maxJoystickRadius;
       }
-      if (scale === 0 || isNaN(scale)) scale = 1;
       
-      let deltaX = (touchX - touchStartX) / scale;
-      let deltaY = (touchY - touchStartY) / scale;
+      joystickStick.style.transform = `translate(calc(-50% + ${dx}px), calc(-50% + ${dy}px))`;
       
-      let newX = shipStartX + deltaX;
-      let newY = shipStartY + deltaY;
-      
-      if (newX < 0) newX = 0;
-      if (newX > config.spielfeldBreite - config.spielerGroesse) newX = config.spielfeldBreite - config.spielerGroesse;
-      if (newY < 0) newY = 0;
-      if (newY > config.spielfeldHoehe - config.spielerGroesse) newY = config.spielfeldHoehe - config.spielerGroesse;
-      
-      state.x = newX;
-      state.y = newY;
-    }
-  }, { passive: false });
+      // Normalize between -1 and 1
+      state.joystick.x = dx / maxJoystickRadius;
+      state.joystick.y = dy / maxJoystickRadius;
+    }, { passive: false });
 
-  spielfeldContainer.addEventListener('touchend', e => {
-    if (e.touches.length === 0) {
-      isDragging = false;
+    joystickZone.addEventListener('touchend', e => {
+      e.preventDefault();
+      joystickBase.style.display = 'none';
+      state.joystick.active = false;
+      state.joystick.x = 0;
+      state.joystick.y = 0;
       state.tastenGedrueckt.l = false; // Stop auto-fire
-    }
-  });
+    });
+  }
 
-  document.getElementById('btn-rakete').addEventListener('touchstart', (e) => {
-    e.preventDefault();
-    if (state.spielLaeuft && !state.gameOverAktiv && !state.pausiert) {
-      state.tastenGedrueckt.k = true;
-      setTimeout(() => state.tastenGedrueckt.k = false, 100);
-    }
-  });
+  // 3. Mobile Buttons
+  const btnRakete = document.getElementById('btn-rakete');
+  if (btnRakete) {
+    btnRakete.addEventListener('touchstart', (e) => {
+      e.preventDefault();
+      if (state.spielLaeuft && !state.gameOverAktiv && !state.pausiert) {
+        state.tastenGedrueckt.k = true;
+        setTimeout(() => state.tastenGedrueckt.k = false, 100);
+      }
+    });
+  }
   
-  document.getElementById('btn-bombe').addEventListener('touchstart', (e) => {
-    e.preventDefault();
-    if (state.spielLaeuft && !state.gameOverAktiv && !state.pausiert) {
-      state.tastenGedrueckt[' '] = true;
-      setTimeout(() => state.tastenGedrueckt[' '] = false, 100);
-    }
-  });
-
-  document.getElementById('btn-pause').addEventListener('touchstart', (e) => {
-    e.preventDefault();
-    if (state.spielLaeuft && !state.gameOverAktiv) {
-      state.pausiert = !state.pausiert;
-      dom.pauseOverlay.style.display = state.pausiert ? 'block' : 'none';
-    }
-  });
+  const btnBombe = document.getElementById('btn-bombe');
+  if (btnBombe) {
+    btnBombe.addEventListener('touchstart', (e) => {
+      e.preventDefault();
+      if (state.spielLaeuft && !state.gameOverAktiv && !state.pausiert) {
+        state.tastenGedrueckt[' '] = true;
+        setTimeout(() => state.tastenGedrueckt[' '] = false, 100);
+      }
+    });
+  }
 
   // UI Updates
 }

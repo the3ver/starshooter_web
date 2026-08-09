@@ -48,7 +48,8 @@ export const state = {
     feindSpawnZeit: 1200, bossKampfAktiv: false, tastenGedrueckt: {w: false, a: false, s: false, d: false, l: false, k: false, ' ': false}, mausGedrueckt: false,
     bossAktiv: false, bossWarningAktiv: false, bossWarningTimer: 0, gameOverAktiv: false,
     spielerSchussCooldown: 0, finalerScore: 0, cheatUsed: false, typedCheatKeys: '',
-    godMode: false, pausiert: false, unbegrenzteEnergie: false
+    godMode: false, pausiert: false, unbegrenzteEnergie: false,
+    joystick: { x: 0, y: 0, active: false }
 };
 
 export const arrays = {

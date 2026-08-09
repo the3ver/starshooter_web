@@ -707,13 +707,71 @@
            ========================================================================== */
         #mobile-controls {
             position: absolute;
-            bottom: 20px;
+            top: 0;
+            left: 0;
             width: 100%;
-            display: flex;
-            justify-content: space-around;
-            align-items: flex-end;
+            height: 100%;
             z-index: 100;
             pointer-events: none; /* Let touches pass through the container */
+        }
+
+        #joystick-zone {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 50%;
+            height: 100%;
+            pointer-events: auto;
+        }
+
+        #joystick-base {
+            position: absolute;
+            width: 120px;
+            height: 120px;
+            border-radius: 50%;
+            background-color: rgba(52, 152, 219, 0.2);
+            border: 2px solid rgba(52, 152, 219, 0.5);
+            transform: translate(-50%, -50%);
+            pointer-events: none;
+            backdrop-filter: blur(5px);
+            -webkit-backdrop-filter: blur(5px);
+        }
+
+        #joystick-stick {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            width: 50px;
+            height: 50px;
+            border-radius: 50%;
+            background-color: rgba(236, 240, 241, 0.8);
+            transform: translate(-50%, -50%);
+            pointer-events: none;
+            box-shadow: 0 0 10px rgba(0,0,0,0.5);
+        }
+
+        #mobile-buttons-right {
+            position: absolute;
+            bottom: 20px;
+            right: 20px;
+            width: 150px;
+            height: 150px;
+            pointer-events: none;
+        }
+
+        #btn-rakete {
+            position: absolute;
+            bottom: 0;
+            right: 0;
+            border-color: #e74c3c;
+        }
+        #btn-rakete:active { background-color: rgba(231, 76, 60, 0.4); }
+        
+        #btn-bombe {
+            position: absolute;
+            bottom: 70px;
+            right: 70px;
+            border-color: #f39c12;
         }
 
         .mobile-btn {
@@ -728,7 +786,6 @@
             backdrop-filter: blur(5px);
             -webkit-backdrop-filter: blur(5px);
             pointer-events: auto;
-            position: relative;
             overflow: hidden;
             display: flex;
             justify-content: center;
@@ -752,7 +809,3 @@
             z-index: -1;
             transition: height 0.1s linear;
         }
-
-        #btn-rakete { border-color: #e74c3c; }
-        #btn-rakete:active { background-color: rgba(231, 76, 60, 0.4); }
-        #btn-pause { border-color: #95a5a6; width: 50px; height: 50px; font-size: 20px; }
