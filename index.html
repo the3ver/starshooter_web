@@ -674,7 +674,7 @@
 
             <div id="score-anzeige">00000</div>
             <div id="level-anzeige">LEVEL 1</div>
-            <div id="version-anzeige">V 0.9</div>
+            <div id="version-anzeige">V 0.10</div>
             
             <div id="boss-hp-container">
                 <div id="boss-hp-balken"></div>
@@ -867,6 +867,7 @@
         }
 
         function spielerGetroffen(kollisionsObjekt, explodiert = true) {
+            if (godMode) return;
             if (schildStufe > 0) {
                 spieler.classList.remove(`schild-aktiv-${schildStufe}`);
                 schildStufe--;
@@ -911,7 +912,7 @@
 
             if (leben <= 0) {
                 gameOverAktiv = true;
-                finalerScore = score;
+                finalerScore = cheatUsed ? 0 : score;
                 document.getElementById('final-score').innerText = finalerScore;
                 document.getElementById('game-over-screen').style.display = 'flex';
                 
@@ -932,6 +933,8 @@
             document.getElementById('game-over-screen').style.display = 'none';
             
             leben = 3; maxEnergie = 50; energie = maxEnergie; waffenStufe = 0;
+            laserStufe = 1; raketenStufe = 1; bombenStufe = 1;
+            cheatUsed = false; godMode = false;
             laserDurchschlag = false; durchschlagTimer = 0; schildStufe = 0;
             spieler.classList.remove('schild-aktiv-1', 'schild-aktiv-2', 'schild-aktiv-3');
 
@@ -958,7 +961,47 @@
         }
 
         const tastenGedrueckt = { w: false, a: false, s: false, d: false, l: false, k: false, ' ': false };
-        window.addEventListener('keydown', (e) => { if (tastenGedrueckt.hasOwnProperty(e.key.toLowerCase())) { tastenGedrueckt[e.key.toLowerCase()] = true; if (e.key === ' ') e.preventDefault(); } });
+        let typedCheatKeys = '';
+        let cheatUsed = false;
+        let godMode = false;
+        window.addEventListener('keydown', (e) => { 
+            if (tastenGedrueckt.hasOwnProperty(e.key.toLowerCase())) { 
+                tastenGedrueckt[e.key.toLowerCase()] = true; 
+                if (e.key === ' ') e.preventDefault(); 
+            } 
+            
+            if (e.key.length === 1) {
+                typedCheatKeys += e.key.toLowerCase();
+                if (typedCheatKeys.length > 10) typedCheatKeys = typedCheatKeys.slice(-10);
+                
+                if (typedCheatKeys.endsWith('idkfa')) {
+                    cheatUsed = true;
+                    laserStufe = 5; raketenStufe = 5; bombenStufe = 5;
+                    schildStufe = 3;
+                    spieler.classList.remove('schild-aktiv-1', 'schild-aktiv-2');
+                    spieler.classList.add('schild-aktiv-3');
+                    energie = maxEnergie;
+                    updateAktivePowerupsUI();
+                    updateLebenUI();
+                    updateMaxEnergieMarker();
+                    let overlay = document.getElementById('warning-overlay');
+                    overlay.innerHTML = 'IDKFA<br>Very Happy Ammo!';
+                    overlay.style.display = 'block';
+                    overlay.style.color = '#f1c40f';
+                    setTimeout(() => { overlay.style.display = 'none'; overlay.style.color = '#e74c3c'; overlay.innerHTML = 'WARNING<br>BOSS APPROACHING'; }, 2000);
+                }
+                
+                if (typedCheatKeys.endsWith('idgod')) {
+                    cheatUsed = true;
+                    godMode = !godMode;
+                    let overlay = document.getElementById('warning-overlay');
+                    overlay.innerHTML = godMode ? 'IDGOD<br>Degreelessness Mode On' : 'IDGOD<br>Degreelessness Mode Off';
+                    overlay.style.display = 'block';
+                    overlay.style.color = '#f1c40f';
+                    setTimeout(() => { overlay.style.display = 'none'; overlay.style.color = '#e74c3c'; overlay.innerHTML = 'WARNING<br>BOSS APPROACHING'; }, 2000);
+                }
+            }
+        });
         window.addEventListener('keyup', (e) => { if (tastenGedrueckt.hasOwnProperty(e.key.toLowerCase())) tastenGedrueckt[e.key.toLowerCase()] = false; });
 
         const sterne = [];
