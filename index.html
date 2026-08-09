@@ -1761,10 +1761,10 @@
                         }
                     } else {
                         // Abpraller-Logik (Magma-Asteroiden etc.)
-                        // Querschläger fliegen nun vorwiegend waagerecht über den Bildschirm, 
-                        // mit einer leichten zufälligen Abweichung nach oben oder unten.
-                        l.vy = (Math.random() - 0.5) * 10; // vy zwischen -5 (leicht abwärts) und +5 (leicht aufwärts)
-                        l.vx = (Math.random() < 0.5 ? -1 : 1) * (10 + Math.random() * 10); // vx stark nach links oder rechts (10 bis 20)
+                        // Querschläger fliegen nun vorwiegend weiter nach oben, 
+                        // mit einer leichten bis mittleren Ablenkung nach links oder rechts.
+                        l.vy = 8 + Math.random() * 7; // vy zwischen 8 und 15 (aufwärts)
+                        l.vx = (Math.random() < 0.5 ? -1 : 1) * (2 + Math.random() * 6); // vx leicht zur Seite (2 bis 8)
                         
                         l.isDeflected = true;
                         l.ignoreTarget = getroffenZiel; // Verhindert endloses Kollidieren im selben Frame
