@@ -980,7 +980,10 @@
                     schildStufe = 3;
                     spieler.classList.remove('schild-aktiv-1', 'schild-aktiv-2');
                     spieler.classList.add('schild-aktiv-3');
+                    maxEnergie = absMaxEnergie;
                     energie = maxEnergie;
+                    laserDurchschlag = true; durchschlagTimer = 600;
+                    autolaserAktiv = true; autolaserTimer = 600;
                     updateAktivePowerupsUI();
                     updateLebenUI();
                     updateMaxEnergieMarker();
