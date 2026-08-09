@@ -588,14 +588,32 @@
             animation: flackerFeuer 0.1s infinite alternate;
         }
 
-        #spieler.schild-aktiv::after {
+        #spieler.schild-aktiv-1::after,
+        #spieler.schild-aktiv-2::after,
+        #spieler.schild-aktiv-3::after {
             content: '';
             position: absolute;
             top: -5px; left: -5px; right: -5px; bottom: -5px;
             border-radius: 50%;
+            z-index: 5;
+            transition: box-shadow 0.3s, border 0.3s, top 0.3s, left 0.3s, right 0.3s, bottom 0.3s;
+        }
+
+        #spieler.schild-aktiv-1::after {
             box-shadow: 0 0 15px 5px rgba(52, 152, 219, 0.7);
             border: 2px solid rgba(52, 152, 219, 0.8);
-            z-index: 5;
+        }
+
+        #spieler.schild-aktiv-2::after {
+            box-shadow: 0 0 25px 8px rgba(46, 204, 113, 0.8);
+            border: 3px solid rgba(46, 204, 113, 0.9);
+            top: -8px; left: -8px; right: -8px; bottom: -8px;
+        }
+
+        #spieler.schild-aktiv-3::after {
+            box-shadow: 0 0 40px 12px rgba(241, 196, 15, 0.9);
+            border: 4px solid rgba(241, 196, 15, 1);
+            top: -12px; left: -12px; right: -12px; bottom: -12px;
         }
 
         .partikel {
@@ -741,7 +759,7 @@
 
         let laserDurchschlag = false;
         let durchschlagTimer = 0;
-        let hatSchild = false;
+        let schildStufe = 0;
         let laserStufe = 1;
         let autolaserAktiv = false;
         let autolaserTimer = 0;
@@ -790,7 +808,7 @@
                 aktivePowerupsContainer.innerHTML += `<div class="active-pu-icon" style="background:rgba(192,57,43,0.2); border:1px solid ${color}; color:${color};">B${bombenStufe}</div>`;
             }
             if (laserDurchschlag) aktivePowerupsContainer.innerHTML += '<div class="active-pu-icon" style="background:rgba(0,255,255,0.2); border:1px solid #00ffff; color:#00ffff;">&uarr;</div>';
-            if (hatSchild) aktivePowerupsContainer.innerHTML += '<div class="active-pu-icon" style="background:rgba(52,152,219,0.2); border:1px solid #3498db; color:#3498db;">O</div>';
+            if (schildStufe > 0) aktivePowerupsContainer.innerHTML += `<div class="active-pu-icon" style="background:rgba(52,152,219,0.2); border:1px solid #3498db; color:#3498db;">O${schildStufe}</div>`;
             if (autolaserAktiv) aktivePowerupsContainer.innerHTML += '<div class="active-pu-icon" style="background:rgba(230,126,34,0.2); border:1px solid #e67e22; color:#e67e22;">A</div>';
         }
 
@@ -849,9 +867,10 @@
         }
 
         function spielerGetroffen(kollisionsObjekt, explodiert = true) {
-            if (hatSchild) {
-                hatSchild = false;
-                spieler.classList.remove('schild-aktiv');
+            if (schildStufe > 0) {
+                spieler.classList.remove(`schild-aktiv-${schildStufe}`);
+                schildStufe--;
+                if (schildStufe > 0) spieler.classList.add(`schild-aktiv-${schildStufe}`);
                 updateAktivePowerupsUI();
 
                 if (explodiert) {
@@ -913,8 +932,8 @@
             document.getElementById('game-over-screen').style.display = 'none';
             
             leben = 3; maxEnergie = 50; energie = maxEnergie; waffenStufe = 0;
-            laserDurchschlag = false; durchschlagTimer = 0; hatSchild = false;
-            spieler.classList.remove('schild-aktiv');
+            laserDurchschlag = false; durchschlagTimer = 0; schildStufe = 0;
+            spieler.classList.remove('schild-aktiv-1', 'schild-aktiv-2', 'schild-aktiv-3');
 
             score = 0; addScore(0);
             level = 1;
@@ -1370,7 +1389,7 @@
                     if (p.type === 'leben') { leben++; updateLebenUI(); }
                     else if (p.type === 'energie') { maxEnergie = Math.min(absMaxEnergie, maxEnergie + 10); energie = maxEnergie; updateMaxEnergieMarker(); }
                     else if (p.type === 'durchschlag') { laserDurchschlag = true; durchschlagTimer = 600; updateAktivePowerupsUI(); }
-                    else if (p.type === 'schild') { hatSchild = true; spieler.classList.add('schild-aktiv'); updateAktivePowerupsUI(); }
+                    else if (p.type === 'schild') { if (schildStufe > 0) spieler.classList.remove(`schild-aktiv-${schildStufe}`); if (schildStufe < 3) schildStufe++; spieler.classList.add(`schild-aktiv-${schildStufe}`); updateAktivePowerupsUI(); }
                     else if (p.type === 'laserWaffe') { if (laserStufe < 5) { laserStufe++; updateAktivePowerupsUI(); } }
                     else if (p.type === 'raketenWaffe') { if (raketenStufe < 5) { raketenStufe++; updateAktivePowerupsUI(); } }
                     else if (p.type === 'bombenWaffe') { if (bombenStufe < 5) { bombenStufe++; updateAktivePowerupsUI(); } }
