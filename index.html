@@ -208,7 +208,6 @@
         .riss-layer {
             width: 100%;
             height: 100%;
-            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Cpath d='M30,0 L40,30 L20,50 L45,65 L35,100 M70,0 L50,25 L75,40 L55,70 L65,100 M0,40 L30,30 L45,50' stroke='%23000' stroke-width='4' fill='none' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
             background-size: cover;
             opacity: 0;
         }
@@ -233,8 +232,6 @@
             position: absolute;
             width: 30px;
             height: 30px;
-            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 30 30'%3E%3Cpath d='M15 30L25 5H5z' fill='%239b59b6'/%3E%3Ccircle cx='15' cy='15' r='3' fill='%23f1c40f'/%3E%3C/svg%3E");
-            background-size: cover;
             z-index: 9;
             transition: filter 0.1s;
         }
@@ -256,10 +253,38 @@
 
         .boss-schiff {
             position: absolute;
-            background-size: cover;
             z-index: 9;
             transition: filter 0.1s;
             animation: bossHover 3s ease-in-out infinite;
+        }
+
+        .feind-flame {
+            position: absolute;
+            top: -12px;
+            width: 4px;
+            height: 12px;
+            background-color: #f1c40f;
+            border-radius: 4px 4px 0 0;
+            box-shadow: 0 0 8px #e74c3c;
+            z-index: 1;
+            transform-origin: bottom center;
+            animation: flackerFeuerScale 0.1s infinite alternate;
+        }
+
+        .boss-flame {
+            position: absolute;
+            height: 15%;
+            background-color: #f1c40f;
+            border-radius: 5px 5px 0 0;
+            box-shadow: 0 0 12px #e74c3c;
+            z-index: 1;
+            transform-origin: bottom center;
+            animation: flackerFeuerScale 0.1s infinite alternate;
+        }
+
+        @keyframes flackerFeuerScale {
+            0% { transform: scaleY(1); background-color: #f1c40f; }
+            100% { transform: scaleY(1.5); background-color: #e74c3c; }
         }
 
         @keyframes warnBlink {
@@ -610,6 +635,11 @@
                 </table>
                 
                 <button class="btn" id="btn-restart">NEUSTART</button>
+                
+                <div class="credits" style="margin-top: 25px; text-align: center; font-size: 14px; color: #7f8c8d; border-top: 1px solid #34495e; padding-top: 15px; width: 80%;">
+                    <p style="margin: 5px 0;"><strong style="color: #bdc3c7;">Entwicklung:</strong> Frank</p>
+                    <p style="margin: 5px 0;"><strong style="color: #bdc3c7;">Tester:</strong> Peter, Benni</p>
+                </div>
             </div>
 
             <div id="score-anzeige">00000</div>
@@ -786,7 +816,7 @@
                 frameZaehler = 0;
             } else {
                 addScore(ziel.istFeind ? 100 : (ziel.traegtPowerup ? 50 : (ziel.groesse >= 35 ? 20 : 10)));
-                let farbe = ziel.istFeind ? '#9b59b6' : (ziel.el.style.backgroundColor || '#ffffff');
+                let farbe = ziel.istFeind ? '#9b59b6' : (ziel.el.dataset.baseColor || ziel.el.style.backgroundColor || '#ffffff');
                 erzeugeExplosion(ziel.x + ziel.groesse / 2, ziel.y + ziel.groesse / 2, farbe, 25);
 
                 if (ziel.traegtPowerup) {
@@ -795,6 +825,7 @@
                     let neueGroesse = ziel.groesse * 0.6;
                     erzeugeAsteroid(ziel.x, ziel.y, neueGroesse, -3, ziel.vy, 15, true);
                     erzeugeAsteroid(ziel.x + ziel.groesse - neueGroesse, ziel.y, neueGroesse, 3, ziel.vy, 15, true);
+                    erzeugeExplosion(ziel.x + ziel.groesse / 2, ziel.y + ziel.groesse / 2, farbe, 20); // Extra split particles
                 }
             }
 
@@ -811,7 +842,7 @@
                 updateAktivePowerupsUI();
 
                 if (explodiert) {
-                    let c = kollisionsObjekt.el.style.backgroundColor || '#9b59b6';
+                    let c = kollisionsObjekt.istFeind ? '#9b59b6' : (kollisionsObjekt.el.dataset.baseColor || kollisionsObjekt.el.style.backgroundColor || '#7f8c8d');
                     erzeugeExplosion(kollisionsObjekt.x + (kollisionsObjekt.groesse || 4) / 2, kollisionsObjekt.y + (kollisionsObjekt.groesse || 15) / 2, c, 10);
                 }
 
@@ -833,7 +864,7 @@
             setTimeout(() => { spielfeld.style.backgroundColor = '#0b1319'; }, 150);
 
             if (explodiert && !kollisionsObjekt.istBoss) {
-                let c = kollisionsObjekt.el.style.backgroundColor || '#9b59b6';
+                let c = kollisionsObjekt.istFeind ? '#9b59b6' : (kollisionsObjekt.el.dataset.baseColor || kollisionsObjekt.el.style.backgroundColor || '#7f8c8d');
                 erzeugeExplosion(kollisionsObjekt.x + (kollisionsObjekt.groesse || 4) / 2, kollisionsObjekt.y + (kollisionsObjekt.groesse || 15) / 2, c, 10);
             }
 
@@ -985,14 +1016,44 @@
             }
         }
 
-        const asteroidenFarben = ['#7f8c8d', '#95a5a6', '#6c7a89', '#555555'];
-        const magmaFarben = ['#c0392b', '#d35400', '#e67e22'];
-        const asteroidenFormen = [
-            'polygon(30% 0%, 70% 0%, 100% 30%, 100% 70%, 70% 100%, 30% 100%, 0% 70%, 0% 30%)',
-            'polygon(50% 0%, 90% 20%, 100% 60%, 75% 100%, 25% 100%, 0% 60%, 10% 20%)',
-            'polygon(20% 0%, 80% 10%, 100% 50%, 80% 90%, 20% 100%, 0% 60%)',
-            'polygon(10% 20%, 60% 0%, 100% 40%, 80% 100%, 20% 90%, 0% 50%)'
+        function erzeugeAntriebsRauch(x, y, vy = -1.5) {
+            if (Math.random() < 0.6) {
+                const el = document.createElement('div'); el.classList.add('partikel');
+                el.style.backgroundColor = Math.random() < 0.3 ? '#e74c3c' : '#7f8c8d'; 
+                el.style.width = '4px'; el.style.height = '4px';
+                el.style.left = x + 'px'; el.style.top = y + 'px'; spielfeld.appendChild(el);
+                partikelArray.push({ el: el, x: x, y: y, vx: (Math.random()-0.5)*1, vy: vy + (Math.random()-0.5)*0.5, leben: 1.0, zerfall: 0.05 });
+            }
+        }
+
+        const asteroidenBasisFarben = [
+            { a: '#7f8c8d', b: '#2c3e50' },
+            { a: '#95a5a6', b: '#34495e' },
+            { a: '#6c7a89', b: '#22313f' },
+            { a: '#bdc3c7', b: '#555555' }
         ];
+        const magmaBasisFarben = [
+            { a: '#e74c3c', b: '#c0392b' },
+            { a: '#e67e22', b: '#d35400' },
+            { a: '#f1c40f', b: '#e67e22' }
+        ];
+        const rissMuster = [
+            "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Cpath d='M30,0 L40,30 L20,50 L45,65 L35,100 M70,0 L50,25 L75,40 L55,70 L65,100 M0,40 L30,30 L45,50' stroke='%23000' stroke-width='4' fill='none' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E",
+            "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Cpath d='M10,10 L30,40 L15,80 M80,20 L60,50 L85,90 M40,20 L50,50 L30,90' stroke='%23000' stroke-width='4' fill='none' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E",
+            "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Cpath d='M50,0 L45,30 L60,45 L40,65 L50,100 M0,50 L30,45 L50,60 L75,45 L100,55' stroke='%23000' stroke-width='4' fill='none' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E"
+        ];
+        function generiereAsteroidPolygon() {
+            let punkte = [];
+            let anzahlEcken = Math.floor(Math.random() * 4) + 6;
+            for (let i = 0; i < anzahlEcken; i++) {
+                let winkel = (i / anzahlEcken) * Math.PI * 2;
+                let radius = 0.7 + Math.random() * 0.3;
+                let px = 50 + Math.cos(winkel) * 50 * radius;
+                let py = 50 + Math.sin(winkel) * 50 * radius;
+                punkte.push(`${px.toFixed(1)}% ${py.toFixed(1)}%`);
+            }
+            return `polygon(${punkte.join(', ')})`;
+        }
 
         function erzeugePowerup(px, py, forceType = null) {
             const puTypes = ['leben', 'energie', 'durchschlag', 'schild', 'laserWaffe', 'raketenWaffe', 'bombenWaffe'];
@@ -1027,10 +1088,18 @@
                 else { istUnzerstoerbar = true; }
             }
 
-            if (istMagma) { el.style.backgroundColor = magmaFarben[Math.floor(Math.random() * magmaFarben.length)]; el.classList.add('unzerstoerbar'); }
-            else { el.style.backgroundColor = asteroidenFarben[Math.floor(Math.random() * asteroidenFarben.length)]; }
+            if (istMagma) { 
+                let c = magmaBasisFarben[Math.floor(Math.random() * magmaBasisFarben.length)];
+                el.style.background = `radial-gradient(circle at 30% 30%, ${c.a}, ${c.b})`;
+                el.dataset.baseColor = c.a;
+                el.classList.add('unzerstoerbar'); 
+            } else { 
+                let c = asteroidenBasisFarben[Math.floor(Math.random() * asteroidenBasisFarben.length)];
+                el.style.background = `radial-gradient(circle at 30% 30%, ${c.a}, ${c.b})`;
+                el.dataset.baseColor = c.a;
+            }
 
-            el.style.clipPath = asteroidenFormen[Math.floor(Math.random() * asteroidenFormen.length)];
+            el.style.clipPath = generiereAsteroidPolygon();
             const finalX = startX !== undefined ? startX : Math.random() * (spielfeldBreite - groesse);
             const finalY = startY !== undefined ? startY : -groesse;
             el.style.left = finalX + 'px'; el.style.top = finalY + 'px';
@@ -1038,6 +1107,7 @@
             let rissEl = null;
             if (!istUnzerstoerbar) {
                 rissEl = document.createElement('div'); rissEl.classList.add('riss-layer');
+                rissEl.style.backgroundImage = `url("${rissMuster[Math.floor(Math.random() * rissMuster.length)]}")`;
                 if (traegtPowerup) rissEl.style.opacity = '0.5';
                 el.appendChild(rissEl);
             }
@@ -1051,16 +1121,29 @@
             let berechnetVy = startVy !== undefined ? startVy : Math.random() * 1.5 + 1.0 + (level * 0.1);
 
             if (traegtPowerup && startVx === undefined) berechnetVx = (Math.random() - 0.5);
+            
+            let startRot = Math.random() * 360;
+            let vRot = (Math.random() - 0.5) * 3;
 
             asteroiden.push({
                 el: el, x: finalX, y: finalY, groesse: groesse, vx: berechnetVx, vy: berechnetVy,
                 immune: immunFrames, hp: startHp, maxHp: startHp, istUnzerstoerbar: istUnzerstoerbar,
-                traegtPowerup: traegtPowerup, rissEl: rissEl, istFeind: false
+                traegtPowerup: traegtPowerup, rissEl: rissEl, istFeind: false, rot: startRot, vRot: vRot
             });
         }
 
         function erzeugeFeind(sX, sY) {
             const el = document.createElement('div'); el.classList.add('feind-schiff');
+            el.innerHTML = `
+                <svg viewBox="0 0 30 30" style="position: absolute; width: 100%; height: 100%; z-index: 2;">
+                    <!-- pointing down -->
+                    <path d="M15 28 L2 10 L5 5 L15 8 L25 5 L28 10 Z" fill="#71368a"/>
+                    <path d="M15 30 L9 10 L15 3 L21 10 Z" fill="#9b59b6"/>
+                    <path d="M15 22 L12 14 L15 11 L18 14 Z" fill="#f1c40f"/>
+                    <rect x="13" y="0" width="4" height="4" fill="#7f8c8d"/>
+                </svg>
+                <div class="feind-flame" style="left: 13px;"></div>
+            `;
             const startX = sX !== undefined ? sX : Math.random() * (spielfeldBreite - 30);
             const startY = sY !== undefined ? sY : -30;
             el.style.left = startX + 'px'; el.style.top = startY + 'px'; spielfeld.appendChild(el);
@@ -1101,18 +1184,22 @@
             let rawSvg = '';
             let defs = `<defs><linearGradient id='g' x1='0%' y1='0%' x2='0%' y2='100%'><stop offset='0%' stop-color='${bossFarbe}'/><stop offset='100%' stop-color='#222'/></linearGradient></defs>`;
 
+            let flamesHtml = '';
             if (bTyp === 1) { // Kreuzer
-                rawSvg = `<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'>${defs}<path d='M10 30 L90 30 L80 70 L60 90 L40 90 L20 70 Z' fill='url(#g)' stroke='#f1c40f' stroke-width='3' stroke-linejoin='round'/><circle cx='30' cy='20' r='6' fill='#e74c3c'/><circle cx='70' cy='20' r='6' fill='#e74c3c'/><circle cx='50' cy='80' r='8' fill='#00ffff'/><path d='M30 45 L70 45' stroke='#ffffff' stroke-width='2' opacity='0.5'/></svg>`;
+                rawSvg = `<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100' style='position:absolute; width:100%; height:100%; z-index:2;'>${defs}<path d='M20 20 L80 20 L90 50 L70 90 L50 100 L30 90 L10 50 Z' fill='url(#g)' stroke='#f1c40f' stroke-width='3' stroke-linejoin='round'/><path d='M30 30 L70 30 L75 50 L50 80 L25 50 Z' fill='#2c3e50' stroke='#34495e' stroke-width='2'/><circle cx='50' cy='60' r='10' fill='#00ffff'/><rect x='25' y='5' width='10' height='15' fill='#7f8c8d'/><rect x='65' y='5' width='10' height='15' fill='#7f8c8d'/></svg>`;
+                flamesHtml = `<div class='boss-flame' style='left: 25%; top: -15%; width: 10%;'></div><div class='boss-flame' style='left: 65%; top: -15%; width: 10%;'></div>`;
             } else if (bTyp === 2) { // Jäger
-                rawSvg = `<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'>${defs}<path d='M50 90 L10 10 L50 30 L90 10 Z' fill='url(#g)' stroke='#3498db' stroke-width='3' stroke-linejoin='round'/><circle cx='50' cy='20' r='10' fill='#e74c3c'/><path d='M50 40 L50 70' stroke='#ffffff' stroke-width='4' opacity='0.7'/></svg>`;
+                rawSvg = `<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100' style='position:absolute; width:100%; height:100%; z-index:2;'>${defs}<path d='M10 30 L50 90 L90 30 L70 20 L50 35 L30 20 Z' fill='url(#g)' stroke='#3498db' stroke-width='3' stroke-linejoin='round'/><path d='M40 40 L50 80 L60 40 Z' fill='#2c3e50'/><circle cx='50' cy='65' r='8' fill='#e74c3c'/><rect x='30' y='5' width='10' height='15' fill='#7f8c8d'/><rect x='60' y='5' width='10' height='15' fill='#7f8c8d'/></svg>`;
+                flamesHtml = `<div class='boss-flame' style='left: 31%; top: -15%; width: 8%;'></div><div class='boss-flame' style='left: 61%; top: -15%; width: 8%;'></div>`;
             } else if (bTyp === 3) { // Träger
-                rawSvg = `<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'>${defs}<circle cx='50' cy='50' r='45' fill='url(#g)' stroke='#9b59b6' stroke-width='4'/><circle cx='50' cy='50' r='20' fill='#2c3e50' stroke='#e74c3c' stroke-width='2'/><circle cx='30' cy='40' r='8' fill='#e74c3c'/><circle cx='70' cy='40' r='8' fill='#e74c3c'/></svg>`;
+                rawSvg = `<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100' style='position:absolute; width:100%; height:100%; z-index:2;'>${defs}<polygon points='50,10 90,30 90,70 50,95 10,70 10,30' fill='url(#g)' stroke='#9b59b6' stroke-width='4' stroke-linejoin='round'/><rect x='40' y='30' width='20' height='50' fill='#2c3e50' stroke='#34495e'/><circle cx='30' cy='50' r='5' fill='#e74c3c'/><circle cx='70' cy='50' r='5' fill='#e74c3c'/><circle cx='50' cy='50' r='15' fill='#00ffff' opacity='0.3'/><rect x='35' y='2' width='30' height='10' fill='#7f8c8d'/></svg>`;
+                flamesHtml = `<div class='boss-flame' style='left: 37%; top: -15%; width: 26%;'></div>`;
             } else if (bTyp === 4) { // Festung
-                rawSvg = `<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'>${defs}<rect x='10' y='20' width='80' height='70' rx='10' fill='url(#g)' stroke='#e67e22' stroke-width='4'/><rect x='25' y='10' width='15' height='10' fill='#e74c3c'/><rect x='60' y='10' width='15' height='10' fill='#e74c3c'/><circle cx='50' cy='55' r='15' fill='#2c3e50' stroke='#00ffff' stroke-width='3'/></svg>`;
+                rawSvg = `<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100' style='position:absolute; width:100%; height:100%; z-index:2;'>${defs}<rect x='10' y='20' width='80' height='60' rx='5' fill='url(#g)' stroke='#e67e22' stroke-width='4'/><path d='M20 80 L50 95 L80 80 Z' fill='url(#g)' stroke='#e67e22' stroke-width='4'/><rect x='20' y='30' width='60' height='40' fill='#2c3e50'/><circle cx='50' cy='50' r='15' fill='#e74c3c' stroke='#f1c40f' stroke-width='2'/><rect x='15' y='5' width='20' height='15' fill='#7f8c8d'/><rect x='65' y='5' width='20' height='15' fill='#7f8c8d'/></svg>`;
+                flamesHtml = `<div class='boss-flame' style='left: 17%; top: -15%; width: 16%;'></div><div class='boss-flame' style='left: 67%; top: -15%; width: 16%;'></div>`;
             }
             
-            let bossSvg = "data:image/svg+xml;charset=utf-8," + encodeURIComponent(rawSvg);
-            el.style.backgroundImage = `url("${bossSvg}")`;
+            el.innerHTML = rawSvg + flamesHtml;
             el.style.filter = `drop-shadow(0 0 15px ${bossFarbe})`;
 
             let bossGroesse = 100 + ((level - 1) * 10);
@@ -1275,7 +1362,9 @@
             for (let i = asteroiden.length - 1; i >= 0; i--) {
                 let ast = asteroiden[i]; if (!ast) break;
                 if (ast.immune > 0) ast.immune--;
-                ast.x += ast.vx; ast.y += ast.vy; ast.el.style.left = ast.x + 'px'; ast.el.style.top = ast.y + 'px';
+                ast.x += ast.vx; ast.y += ast.vy; 
+                if (ast.vRot) { ast.rot += ast.vRot; ast.el.style.transform = `rotate(${ast.rot}deg)`; }
+                ast.el.style.left = ast.x + 'px'; ast.el.style.top = ast.y + 'px';
                 if (ast.y > spielfeldHoehe || ast.x < -ast.groesse || ast.x > spielfeldBreite) { ast.el.remove(); asteroiden.splice(i, 1); continue; }
                 if (x < ast.x + ast.groesse && x + spielerGroesse > ast.x && y < ast.y + ast.groesse && y + spielerGroesse > ast.y) { spielerGetroffen(ast, true); ast.el.remove(); asteroiden.splice(i, 1); }
             }
@@ -1286,6 +1375,7 @@
                 f.zeit += 0.05; f.x = f.basisX + Math.sin(f.zeit) * 60; f.y += f.vy;
                 if (f.x < 0) f.x = 0; if (f.x > spielfeldBreite - f.groesse) f.x = spielfeldBreite - f.groesse;
                 f.el.style.left = f.x + 'px'; f.el.style.top = f.y + 'px';
+                erzeugeAntriebsRauch(f.x + 13, f.y - 2, -1.5);
                 if (f.y > spielfeldHoehe) { f.el.remove(); feinde.splice(i, 1); continue; }
                 f.schussTimer--; if (f.schussTimer <= 0) { erzeugeFeindLaser(f.x + f.groesse / 2 - 2, f.y + f.groesse); f.schussTimer = Math.random() * 60 + 60; }
                 if (x < f.x + f.groesse && x + spielerGroesse > f.x && y < f.y + f.groesse && y + spielerGroesse > f.y) { spielerGetroffen(f, true); f.el.remove(); feinde.splice(i, 1); }
@@ -1360,6 +1450,19 @@
                     
                     if (b.enragePhaseAktiv) {
                         erzeugeRauchFunken(b.x, b.y, b.groesse);
+                    }
+                    
+                    if (b.bossTyp === 1) {
+                        erzeugeAntriebsRauch(b.x + b.groesse * 0.3, b.y - b.groesse * 0.05, -2);
+                        erzeugeAntriebsRauch(b.x + b.groesse * 0.7, b.y - b.groesse * 0.05, -2);
+                    } else if (b.bossTyp === 2) {
+                        erzeugeAntriebsRauch(b.x + b.groesse * 0.35, b.y - b.groesse * 0.05, -2);
+                        erzeugeAntriebsRauch(b.x + b.groesse * 0.65, b.y - b.groesse * 0.05, -2);
+                    } else if (b.bossTyp === 3) {
+                        erzeugeAntriebsRauch(b.x + b.groesse * 0.5, b.y - b.groesse * 0.05, -2);
+                    } else if (b.bossTyp === 4) {
+                        erzeugeAntriebsRauch(b.x + b.groesse * 0.25, b.y - b.groesse * 0.05, -2);
+                        erzeugeAntriebsRauch(b.x + b.groesse * 0.75, b.y - b.groesse * 0.05, -2);
                     }
 
                     b.schussTimer--;
