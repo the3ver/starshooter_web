@@ -27,11 +27,17 @@ Das Schiff verfügt über drei unterschiedliche Waffentypen, die durch das Aufsa
   - **Treffer kassiert (Waffe wird komplett verloren):** Das Symbol blinkt rot, schrumpft in sich zusammen und verschwindet aus der UI.
 
 ## Steuerung
+**Desktop (Tastatur):**
 - **W, A, S, D** - Schiff bewegen
 - **L** - Laser feuern
 - **K** - Raketen abfeuern
 - **Leertaste** - Bombe abwerfen
 - **P** - Spiel pausieren
+
+**Mobile (Touch):**
+- **Virtueller Joystick (linke Bildschirmhälfte)** - Schiff steuern (Laser feuert automatisch)
+- **Feuer-Buttons (unten rechts)** - Raketen und Bomben abfeuern
+- **Oberes Drittel des Spielfelds antippen** - Spiel pausieren
 
 ## Lokale Entwicklung & Ausführung
 Da das Projekt nun ES6-Module (`<script type="module">`) nutzt, blockieren moderne Browser das Laden aus Sicherheitsgründen (CORS), wenn du die `index.html` direkt als Datei (`file://`) öffnest. 
