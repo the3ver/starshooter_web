@@ -1238,16 +1238,33 @@
             // LANGSAMERE SKALIERUNG: Feinde schießen auf höheren Leveln nicht mehr ganz so extrem schnell
             let schussBasis = Math.max(25, 40 - ((level - 1) * 3));
 
+            // Bestimme Muster (ab Level 2)
+            let muster = 'normal';
+            let stopY = 0;
+            if (level >= 2 && Math.random() < Math.min(0.6, (level - 1) * 0.2)) {
+                muster = 'stopAndGo';
+                stopY = 80 + Math.random() * 120; // Stoppt im oberen Drittel
+            }
+
             feinde.push({
                 el: el, x: startX, y: startY, groesse: 30, hp: 20, maxHp: 20, vy: 1.2, basisX: startX, zeit: 0,
-                schussTimer: Math.random() * schussBasis + schussBasis, istFeind: true, istUnzerstoerbar: false, traegtPowerup: Math.random() < 0.2
+                schussTimer: Math.random() * schussBasis + schussBasis, istFeind: true, istUnzerstoerbar: false, traegtPowerup: Math.random() < 0.2,
+                muster: muster, phase: 'anflug', stopTimer: 0, stopY: stopY
             });
         }
 
-        function erzeugeFeindLaser(fx, fy) {
+        function erzeugeFeindLaser(fx, fy, zielX = null, zielY = null) {
             const el = document.createElement('div'); el.classList.add('feind-laser');
             el.style.left = fx + 'px'; el.style.top = fy + 'px'; spielfeld.appendChild(el);
-            feindLaserArray.push({ el: el, x: fx, y: fy, vy: 7, width: 4, height: 15 });
+            
+            let vx = 0; let vy = 7;
+            if (zielX !== null && zielY !== null) {
+                let dx = zielX - fx; let dy = zielY - fy;
+                let dist = Math.sqrt(dx*dx + dy*dy);
+                if (dist > 0) { vx = (dx/dist) * 7; vy = (dy/dist) * 7; }
+                el.style.transform = `rotate(${Math.atan2(dy, dx) * 180 / Math.PI - 90}deg)`;
+            }
+            feindLaserArray.push({ el: el, x: fx, y: fy, vx: vx, vy: vy, width: 4, height: 15 });
         }
 
         // --- BOSS SKALIERUNG & OPTIK ---
@@ -1465,20 +1482,47 @@
             // --- 9.7 FEINDE ---
             for (let i = feinde.length - 1; i >= 0; i--) {
                 let f = feinde[i]; if (!f) break;
-                f.zeit += 0.05; f.x = f.basisX + Math.sin(f.zeit) * 60; f.y += f.vy;
+                
+                if (f.muster === 'stopAndGo') {
+                    if (f.phase === 'anflug') {
+                        f.y += f.vy * 2.5; // Schneller Anflug
+                        if (f.y >= f.stopY) { f.phase = 'stop'; f.stopTimer = 40; }
+                    } else if (f.phase === 'stop') {
+                        f.stopTimer--;
+                        if (f.stopTimer === 10) {
+                            // Gezielter Schuss auf den Spieler kurz vor Abflug
+                            erzeugeFeindLaser(f.x + f.groesse / 2 - 2, f.y + f.groesse, x + spielerGroesse/2, y + spielerGroesse/2);
+                        }
+                        if (f.stopTimer <= 0) { f.phase = 'abflug'; f.schussTimer = 9999; }
+                    } else if (f.phase === 'abflug') {
+                        f.y += f.vy * 3.5; // Sehr schneller Abflug
+                    }
+                    f.zeit += 0.05; f.x = f.basisX + Math.sin(f.zeit) * 20; // Weniger starkes Wackeln im Stop&Go
+                } else {
+                    f.zeit += 0.05; f.x = f.basisX + Math.sin(f.zeit) * 60; f.y += f.vy;
+                }
+                
                 if (f.x < 0) f.x = 0; if (f.x > spielfeldBreite - f.groesse) f.x = spielfeldBreite - f.groesse;
                 f.el.style.left = f.x + 'px'; f.el.style.top = f.y + 'px';
                 erzeugeAntriebsRauch(f.x + 13, f.y - 2, -1.5);
                 if (f.y > spielfeldHoehe) { f.el.remove(); feinde.splice(i, 1); continue; }
-                f.schussTimer--; if (f.schussTimer <= 0) { erzeugeFeindLaser(f.x + f.groesse / 2 - 2, f.y + f.groesse); f.schussTimer = Math.random() * 60 + 60; }
+                
+                if (f.muster !== 'stopAndGo') {
+                    f.schussTimer--; 
+                    if (f.schussTimer <= 0) { erzeugeFeindLaser(f.x + f.groesse / 2 - 2, f.y + f.groesse); f.schussTimer = Math.random() * 60 + 60; }
+                }
+                
                 if (x < f.x + f.groesse && x + spielerGroesse > f.x && y < f.y + f.groesse && y + spielerGroesse > f.y) { spielerGetroffen(f, true); f.el.remove(); feinde.splice(i, 1); }
             }
 
             // --- 9.8 FEIND-LASER ---
             for (let i = feindLaserArray.length - 1; i >= 0; i--) {
                 let fl = feindLaserArray[i]; if (!fl) break;
-                fl.y += fl.vy; fl.el.style.top = fl.y + 'px';
-                if (fl.y > spielfeldHoehe) { fl.el.remove(); feindLaserArray.splice(i, 1); continue; }
+                fl.y += fl.vy; 
+                if (fl.vx) fl.x += fl.vx;
+                fl.el.style.top = fl.y + 'px'; 
+                fl.el.style.left = fl.x + 'px';
+                if (fl.y > spielfeldHoehe || fl.x < -fl.width || fl.x > spielfeldBreite) { fl.el.remove(); feindLaserArray.splice(i, 1); continue; }
                 if (x < fl.x + fl.width && x + spielerGroesse > fl.x && y < fl.y + fl.height && y + spielerGroesse > fl.y) { spielerGetroffen(fl, false); fl.el.remove(); feindLaserArray.splice(i, 1); }
             }
 
