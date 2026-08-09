@@ -40,15 +40,15 @@ export const config = {
 };
 
 export const state = {
-    x: 185, y: 285, leben: 3, score: 0, level: 1, absMaxEnergie: 100, maxEnergie: 100,
-    energie: 100, minZuendEnergie: 15, energieTimer: 0, laserSchiesst: false,
+    x: 185, y: 285, leben: 3, score: 0, level: 1, absMaxEnergie: 100, maxEnergie: 50,
+    energie: 50, minZuendEnergie: 15, energieTimer: 0, laserSchiesst: false,
     laserDurchschlag: false, durchschlagTimer: 0, schildStufe: 0, laserStufe: 1,
     autolaserAktiv: false, autolaserTimer: 0, raketenStufe: 1, raketenCooldown: 0,
     bombenStufe: 1, bombenCooldown: 0, frameZaehler: 0, spielLaeuft: false,
     feindSpawnZeit: 1200, bossKampfAktiv: false, tastenGedrueckt: {w: false, a: false, s: false, d: false, l: false, k: false, ' ': false}, mausGedrueckt: false,
     bossAktiv: false, bossWarningAktiv: false, bossWarningTimer: 0, gameOverAktiv: false,
     spielerSchussCooldown: 0, finalerScore: 0, cheatUsed: false, typedCheatKeys: '',
-    godMode: false, pausiert: false
+    godMode: false, pausiert: false, unbegrenzteEnergie: false
 };
 
 export const arrays = {

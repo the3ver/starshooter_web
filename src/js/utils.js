@@ -213,6 +213,8 @@ export function restartGame() {
   state.bombenStufe = 1;
   state.cheatUsed = false;
   state.godMode = false;
+  state.unbegrenzteEnergie = false;
+  dom.maxEnergieMarker.style.display = 'block';
   state.laserDurchschlag = false;
   state.durchschlagTimer = 0;
   state.schildStufe = 0;

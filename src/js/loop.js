@@ -218,7 +218,9 @@ export function gameLoop() {
   }
   let laserAktiv = state.laserSchiesst && state.energie > 0;
   if (laserAktiv) {
-    state.energie -= 0.8 + Math.min(state.laserStufe, 5) * 0.1;
+    if (!state.unbegrenzteEnergie) {
+      state.energie -= 0.8 + Math.min(state.laserStufe, 5) * 0.1;
+    }
   } else {
     if (state.energie < state.maxEnergie) state.energie += 0.4;
     versteckeAlleLaser();
@@ -226,7 +228,11 @@ export function gameLoop() {
   if (state.energie < 0) state.energie = 0;
   if (state.energie > state.maxEnergie) state.energie = state.maxEnergie;
   dom.energieBalken.style.width = state.energie / state.absMaxEnergie * 100 + '%';
-  dom.energieBalken.style.backgroundColor = state.energie < state.minZuendEnergie && !state.laserSchiesst ? '#e67e22' : '#1abc9c';
+  if (state.unbegrenzteEnergie) {
+    dom.energieBalken.style.backgroundColor = '#f1c40f';
+  } else {
+    dom.energieBalken.style.backgroundColor = state.energie < state.minZuendEnergie && !state.laserSchiesst ? '#e67e22' : '#1abc9c';
+  }
 
   // --- 9.5 POWERUPS ---
   for (let i = arrays.powerups.length - 1; i >= 0; i--) {
@@ -243,9 +249,15 @@ export function gameLoop() {
         state.leben++;
         Utils.updateLebenUI();
       } else if (p.type === 'energie') {
-        state.maxEnergie = Math.min(state.absMaxEnergie, state.maxEnergie + 10);
-        state.energie = state.maxEnergie;
-        Utils.updateMaxEnergieMarker();
+        if (state.maxEnergie >= state.absMaxEnergie) {
+          state.unbegrenzteEnergie = true;
+          dom.maxEnergieMarker.style.display = 'none';
+          state.energie = state.absMaxEnergie;
+        } else {
+          state.maxEnergie = Math.min(state.absMaxEnergie, state.maxEnergie + 10);
+          state.energie = state.maxEnergie;
+          Utils.updateMaxEnergieMarker();
+        }
       } else if (p.type === 'durchschlag') {
         state.laserDurchschlag = true;
         state.durchschlagTimer = 600;
