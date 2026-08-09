@@ -167,6 +167,18 @@
             z-index: 20;
         }
 
+        #version-anzeige {
+            position: absolute;
+            bottom: 5px;
+            right: 10px;
+            color: rgba(255, 255, 255, 0.4);
+            font-size: 10px;
+            font-family: Arial, sans-serif;
+            z-index: 20;
+            pointer-events: none;
+            letter-spacing: 1px;
+        }
+
         #boss-hp-container {
             position: absolute;
             top: 15px;
@@ -644,6 +656,7 @@
 
             <div id="score-anzeige">00000</div>
             <div id="level-anzeige">LEVEL 1</div>
+            <div id="version-anzeige">V 0.9</div>
             
             <div id="boss-hp-container">
                 <div id="boss-hp-balken"></div>
@@ -853,9 +866,18 @@
             }
 
             leben--;
-            if (laserStufe > 1) laserStufe--;
-            if (raketenStufe > 1) raketenStufe--;
-            if (bombenStufe > 1) bombenStufe--;
+            
+            let moeglicheDowngrades = [];
+            if (laserStufe > 1) moeglicheDowngrades.push('laser');
+            if (raketenStufe > 1) moeglicheDowngrades.push('raketen');
+            if (bombenStufe > 1) moeglicheDowngrades.push('bomben');
+            
+            if (moeglicheDowngrades.length > 0) {
+                let wahl = moeglicheDowngrades[Math.floor(Math.random() * moeglicheDowngrades.length)];
+                if (wahl === 'laser') laserStufe--;
+                else if (wahl === 'raketen') raketenStufe--;
+                else if (wahl === 'bomben') bombenStufe--;
+            }
 
             updateLebenUI();
             updateAktivePowerupsUI();
