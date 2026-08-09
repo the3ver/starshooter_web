@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="de">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Spielfeld: Level-System & Boss-Skalierung</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+
+<body>
+
+    <div id="game-wrapper">
+        <div id="spielfeld">
+            <div id="ui-container">
+                <div id="leben-anzeige"></div>
+                <div id="energie-container">
+                    <div id="energie-balken"></div>
+                    <div id="max-energie-marker"></div>
+                </div>
+                <div id="raketen-cd-container" class="cooldown-container">
+                    <div id="raketen-cd-balken" class="cooldown-balken"></div>
+                </div>
+                <div id="bomben-cd-container" class="cooldown-container">
+                    <div id="bomben-cd-balken" class="cooldown-balken" style="background-color: #f39c12;"></div>
+                </div>
+                <div id="aktive-powerups"></div>
+            </div>
+            
+            <div id="warning-overlay">WARNING<br>BOSS APPROACHING</div>
+
+            <div id="start-text">PRESS ANY KEY TO START</div>
+
+            <div id="game-over-screen">
+                <div class="game-over-title">GAME OVER</div>
+                <div class="score-display">PUNKTE: <span id="final-score">0</span></div>
+                
+                <div id="highscore-form">
+                    <p style="color: #1abc9c; margin-bottom: 10px;">NEUER HIGHSCORE!</p>
+                    <input type="text" id="highscore-name" maxlength="3" placeholder="AAA">
+                    <button class="btn" id="btn-save-score">SPEICHERN</button>
+                </div>
+                
+                <table id="highscore-tabelle">
+                    <thead><tr><th>NAME</th><th>PUNKTE</th></tr></thead>
+                    <tbody id="highscore-body"></tbody>
+                </table>
+                
+                <button class="btn" id="btn-restart">NEUSTART</button>
+                
+                <div class="credits" style="margin-top: 25px; text-align: center; font-size: 14px; color: #7f8c8d; border-top: 1px solid #34495e; padding-top: 15px; width: 80%;">
+                    <p style="margin: 5px 0;"><strong style="color: #bdc3c7;">Entwicklung:</strong> Frank</p>
+                    <p style="margin: 5px 0;"><strong style="color: #bdc3c7;">Tester:</strong> Peter, Benni, Max</p>
+                </div>
+            </div>
+
+            <div id="score-anzeige">00000</div>
+            <div id="level-anzeige">LEVEL 1</div>
+            <div id="version-anzeige">V 0.10</div>
+            
+            <div id="boss-hp-container">
+                <div id="boss-hp-balken"></div>
+            </div>
+
+            <div id="laser1" class="laser-strahl"></div>
+            <div id="laser2" class="laser-strahl"></div>
+            <div id="laser-diag-links" class="laser-strahl"></div>
+            <div id="laser-diag-rechts" class="laser-strahl"></div>
+            <div id="autolaser"></div>
+            <div id="hitscan-laser" class="hitscan-strahl"></div>
+
+            <div id="spieler" data-rotate="0">
+                <svg viewBox="0 0 30 30" style="position: absolute; width: 100%; height: 100%; z-index: 2;">
+                    <!-- Wings -->
+                    <path d="M15 2 L2 20 L5 25 L15 22 L25 25 L28 20 Z" fill="#c0392b"/>
+                    <!-- Main Fuselage -->
+                    <path d="M15 0 L9 20 L15 27 L21 20 Z" fill="#e74c3c"/>
+                    <!-- Cockpit -->
+                    <path d="M15 8 L12 16 L15 19 L18 16 Z" fill="#87CEEB"/>
+                    <!-- Engine Nozzles -->
+                    <rect x="7" y="23" width="4" height="4" fill="#7f8c8d"/>
+                    <rect x="19" y="23" width="4" height="4" fill="#7f8c8d"/>
+                </svg>
+                <div id="flame-left" class="ship-flame" style="left: 7.5px;"></div>
+                <div id="flame-right" class="ship-flame" style="left: 19.5px;"></div>
+            </div>
+        </div>
+
+        <div id="steuerung-anzeige">
+            <div class="steuerung-titel">Steuerung</div>
+            <b>W A S D</b> &nbsp;&rarr; Bewegen<br>
+            <b>L</b> &nbsp;&rarr; Laser<br>
+            <b>K</b> &nbsp;&rarr; Raketen<br>
+            <b>LEER</b> &rarr; Bomben
+
+            <div class="steuerung-titel">Powerups</div>
+            <span style="color:#e74c3c; font-weight:bold">&hearts;</span> : Extraleben<br>
+            <span style="color:#f1c40f; font-weight:bold">E</span> : +10 Max Energie<br>
+            <span style="color:#9b59b6; font-weight:bold">L/R/B</span> : Waffen-Upgrades<br>
+            <span style="color:#00ffff; font-weight:bold">&uarr;</span> : Laser-Durchschlag<br>
+            <span style="color:#3498db; font-weight:bold">O</span> : Schild (1 Treffer)
+        </div>
+    </div>
+
+    <script type="module" src="js/main.js"></script>
+
+</body>
+
+</html>
