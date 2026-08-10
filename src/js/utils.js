@@ -220,7 +220,6 @@ export function restartGame() {
   state.leben = 3;
   state.maxEnergie = 50;
   state.energie = state.maxEnergie;
-  waffenStufe = 0;
   state.laserStufe = 1;
   state.raketenStufe = 1;
   state.bombenStufe = 1;
@@ -241,30 +240,54 @@ export function restartGame() {
   updateLevelUI();
   state.x = 185;
   state.y = 285;
-  arrays.asteroiden.forEach(a => a.el.remove());
-  arrays.asteroiden.length = 0;
-  arrays.feinde.forEach(f => f.el.remove());
-  arrays.feinde.length = 0;
-  arrays.feindLaserArray.forEach(l => l.el.remove());
-  arrays.feindLaserArray.length = 0;
-  arrays.bosses.forEach(b => b.el.remove());
-  arrays.bosses.length = 0;
-  arrays.bossLaserArray.forEach(l => l.el.remove());
-  arrays.bossLaserArray.length = 0;
-  arrays.powerups.forEach(p => p.el.remove());
-  arrays.powerups.length = 0;
-  arrays.partikelArray.forEach(p => p.el.remove());
-  arrays.partikelArray.length = 0;
-  arrays.laserArray.forEach(l => l.el.remove());
-  arrays.laserArray.length = 0;
-  arrays.raketenArray.forEach(r => r.el.remove());
-  arrays.raketenArray.length = 0;
-  arrays.bombenArray.forEach(b => b.el.remove());
-  arrays.bombenArray.length = 0;
+  dom.spieler.style.left = state.x + 'px';
+  dom.spieler.style.top = state.y + 'px';
+  dom.spieler.setAttribute('data-rotate', '0');
+  dom.spieler.style.transform = 'rotate(0deg)';
+  
+  const clearArray = (arr) => {
+    if (arr) {
+      arr.forEach(item => { if (item && item.el) item.el.remove(); });
+      arr.length = 0;
+    }
+  };
+  
+  clearArray(arrays.asteroiden);
+  clearArray(arrays.feinde);
+  clearArray(arrays.feindLaserArray);
+  clearArray(arrays.bosses);
+  clearArray(arrays.bossLaserArray);
+  clearArray(arrays.powerups);
+  clearArray(arrays.partikelArray);
+  clearArray(arrays.laserArray);
+  clearArray(arrays.raketenArray);
+  clearArray(arrays.bombenArray);
+  clearArray(arrays.explosionenArray);
+
   state.bossAktiv = false;
+  state.bossWarningAktiv = false;
+  state.bossWarningTimer = 0;
+  dom.warningOverlay.style.display = 'none';
   dom.bossHpContainer.style.display = 'none';
+  
+  state.pausiert = false;
+  dom.pauseOverlay.style.display = 'none';
+  
+  state.bossKampfAktiv = false;
+  state.autolaserAktiv = false;
+  dom.autolaserEl.style.display = 'none';
+  
+  state.spielerSchussCooldown = 0;
+  state.raketenCooldown = 0;
+  state.bombenCooldown = 0;
+  
   state.frameZaehler = 0;
   state.spielLaeuft = false;
+  
+  for (let key in state.tastenGedrueckt) {
+    state.tastenGedrueckt[key] = false;
+  }
+  
   let startScreen = document.getElementById('start-screen');
   if (startScreen) startScreen.style.display = 'block';
   updateMobileControlsVisibility();
