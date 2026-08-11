@@ -713,7 +713,7 @@
            ========================================================================== */
         #mobile-controls {
             position: relative;
-            height: 150px;
+            height: 80px;
             z-index: 9999;
             display: flex;
             justify-content: space-between;
