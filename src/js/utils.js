@@ -207,9 +207,12 @@ export function updateMobileControlsVisibility() {
   const mobileControls = document.getElementById('mobile-controls');
   if (mobileControls) {
     if (state.spielLaeuft && !state.gameOverAktiv && isTouchDevice) {
-      mobileControls.style.display = 'block';
+      mobileControls.style.display = 'flex';
     } else {
       mobileControls.style.display = 'none';
+    }
+    if (typeof window.resizeGame === 'function') {
+      window.resizeGame();
     }
   }
 }

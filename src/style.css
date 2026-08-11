@@ -16,8 +16,9 @@
 
         #game-wrapper {
             display: flex;
-            align-items: flex-start;
-            gap: 20px;
+            flex-direction: column;
+            align-items: center;
+            gap: 10px;
         }
 
         #spielfeld-container {
@@ -711,19 +712,17 @@
            10. MOBILE CONTROLS
            ========================================================================== */
         #mobile-controls {
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
+            position: relative;
+            height: 150px;
             z-index: 9999;
-            pointer-events: none; /* Let touches pass through the container */
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            pointer-events: auto;
         }
 
         #joystick-zone {
-            position: absolute;
-            top: 0;
-            left: 0;
+            position: relative;
             width: 50%;
             height: 100%;
             pointer-events: auto;
@@ -756,18 +755,16 @@
         }
 
         #mobile-buttons-right {
-            position: absolute;
-            bottom: 40px;
-            right: 20px;
-            width: 150px;
-            height: 150px;
+            position: relative;
+            width: 140px;
+            height: 140px;
             pointer-events: none;
         }
 
         #btn-rakete {
             position: absolute;
-            bottom: 0;
-            right: 0;
+            bottom: 10px;
+            right: 10px;
             border-color: #e74c3c;
         }
         #btn-rakete:active { background-color: rgba(231, 76, 60, 0.4); }

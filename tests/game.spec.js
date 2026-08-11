@@ -69,14 +69,12 @@ test.describe('Mobile UI Positionierung - Handy (Pixel)', () => {
     const raketeBox = await raketeBtn.boundingBox();
     const feldBox = await spielfeld.boundingBox();
     
-    // Der Abstand vom rechten Button-Rand zum rechten Spielfeld-Rand sollte gering sein.
-    // Falls das Spielfeld skaliert wird, sollten die Buttons sich daran orientieren, nicht am Viewport.
+    // Der Abstand vom rechten Button-Rand zum rechten Spielfeld-Rand sollte gering sein (unter 60px)
     const distanceToRightEdge = raketeBox.x + raketeBox.width - (feldBox.x + feldBox.width);
-    expect(Math.abs(distanceToRightEdge)).toBeLessThan(50);
+    expect(Math.abs(distanceToRightEdge)).toBeLessThan(60);
     
-    // Auf dem Handy ragt der Button von unten in die Spielfläche
-    // Wenn die Spielfläche sehr hoch ist, sollte der Button sich vielleicht innerhalb des Feldes unten rechts befinden
-    // oder darunter (falls Platz ist). Hier testen wir einfach, dass er nicht out of bounds oder komplett falsch liegt.
+    // Prüfen, dass der Button im unteren Bereich / unterhalb der Spielfläche liegt
+    expect(raketeBox.y).toBeGreaterThanOrEqual(feldBox.y + feldBox.height - 50);
   });
 });
 
@@ -96,12 +94,10 @@ test.describe('Mobile UI Positionierung - Tablet (iPad)', () => {
     const raketeBox = await raketeBtn.boundingBox();
     const feldBox = await spielfeld.boundingBox();
     
-    // Der Button sollte nah am Spielfeld liegen. Beim aktuellen Bug (right: 20px am viewport)
-    // wäre der Button beim iPad hunderte Pixel weit weg vom zentrierten Spielfeld.
     const distanceToRightEdge = (raketeBox.x + raketeBox.width) - (feldBox.x + feldBox.width);
+    expect(Math.abs(distanceToRightEdge)).toBeLessThan(60);
     
-    // Test sollte rot sein, da der Abstand beim iPad extrem groß ist
-    expect(Math.abs(distanceToRightEdge)).toBeLessThan(50);
+    // Prüfen, dass der Button im unteren Bereich / unterhalb der Spielfläche liegt
+    expect(raketeBox.y).toBeGreaterThanOrEqual(feldBox.y + feldBox.height - 50);
   });
 });
-

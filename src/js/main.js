@@ -26,7 +26,11 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function resizeGame() {
-        let availableHeight = window.innerHeight * 0.95;
+        const isTouch = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
+        const mobileControls = document.getElementById('mobile-controls');
+        const controlsVisible = mobileControls && mobileControls.style.display !== 'none';
+        let controlsHeight = (isTouch && controlsVisible) ? 150 : 0;
+        let availableHeight = (window.innerHeight * 0.95) - controlsHeight;
         let scale = availableHeight / 600;
         
         let availableWidth = window.innerWidth * 0.95; // Volle Breite nutzen, da Seitenmenü weg ist
@@ -44,8 +48,11 @@ document.addEventListener('DOMContentLoaded', () => {
             container.style.height = (600 * scale) + 'px';
         }
 
-        // Mobile Controls werden nun über Utils.updateMobileControlsVisibility() gesteuert
+        if (mobileControls && container) {
+            mobileControls.style.width = (400 * scale) + 'px';
+        }
     }
+    window.resizeGame = resizeGame;
     
     window.addEventListener('resize', resizeGame);
     resizeGame();
