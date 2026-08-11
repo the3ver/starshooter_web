@@ -150,7 +150,11 @@ export function zerstoereZiel(ziel) {
   if (bIndex > -1) arrays.bosses.splice(bIndex, 1);
 }
 export function spielerGetroffen(kollisionsObjekt, explodiert = true) {
-  if (state.godMode) return;
+  if (state.godMode || state.invulnerableTimer > 0) return;
+  
+  state.invulnerableTimer = 90;
+  dom.spieler.classList.add('spieler-blink');
+
   if (state.schildStufe > 0) {
     dom.spieler.classList.remove(`schild-aktiv-${state.schildStufe}`);
     state.schildStufe--;

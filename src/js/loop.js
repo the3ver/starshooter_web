@@ -115,6 +115,14 @@ export function gameLoop() {
     return;
   }
 
+  // --- I-Frames (Unverwundbarkeit Timer) ---
+  if (state.invulnerableTimer > 0) {
+    state.invulnerableTimer--;
+    if (state.invulnerableTimer === 0) {
+      dom.spieler.classList.remove('spieler-blink');
+    }
+  }
+
   // --- 9.1 SPIELER-BEWEGUNG ---
   let baseFlameScale = 1.0;
   let targetRotate = 0;

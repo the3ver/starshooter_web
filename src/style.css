@@ -806,3 +806,14 @@
             z-index: -1;
             transition: height 0.1s linear;
         }
+
+/* --- I-FRAMES BLINK ANIMATION --- */
+@keyframes blink {
+    0% { opacity: 1; }
+    50% { opacity: 0.2; }
+    100% { opacity: 1; }
+}
+
+.spieler-blink {
+    animation: blink 0.15s infinite;
+}
