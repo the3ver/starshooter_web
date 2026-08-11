@@ -57,8 +57,8 @@ test.describe('Mobile UI Positionierung - Handy (Pixel)', () => {
 
   test('Buttons sind relativ zum Spielfeld korrekt platziert und ragen nicht unschön rein', async ({ page }) => {
     await page.goto('/');
-    // Tippen um das Spiel zu starten
-    await page.locator('#start-text').click();
+    // Touch-Event auslösen um das Spiel auf Mobilmangeräten zu starten
+    await page.locator('#spielfeld-container').dispatchEvent('touchstart');
     
     // Warten bis Controls da sind
     await expect(page.locator('#mobile-controls')).toBeVisible();
@@ -86,7 +86,7 @@ test.describe('Mobile UI Positionierung - Tablet (iPad)', () => {
 
   test('Buttons kleben nicht am rechten Bildschirmrand, sondern am Spielfeld', async ({ page }) => {
     await page.goto('/');
-    await page.locator('#start-text').click();
+    await page.locator('#spielfeld-container').dispatchEvent('touchstart');
     
     await expect(page.locator('#mobile-controls')).toBeVisible();
     
