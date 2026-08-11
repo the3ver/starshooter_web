@@ -755,24 +755,19 @@
         }
 
         #mobile-buttons-right {
-            position: relative;
-            width: 140px;
-            height: 140px;
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            padding-right: 10px;
             pointer-events: none;
         }
 
         #btn-rakete {
-            position: absolute;
-            bottom: 10px;
-            right: 10px;
             border-color: #e74c3c;
         }
         #btn-rakete:active { background-color: rgba(231, 76, 60, 0.4); }
         
         #btn-bombe {
-            position: absolute;
-            bottom: 70px;
-            right: 70px;
             border-color: #f39c12;
         }
 
