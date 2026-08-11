@@ -53,12 +53,12 @@ test.describe('Space Shooter', () => {
 });
 
 test.describe('Mobile UI Positionierung - Handy (Pixel)', () => {
-  test.use({ hasTouch: true, viewport: { width: 412, height: 915 } });
+  test.use({ hasTouch: true, isMobile: true, viewport: { width: 412, height: 915 } });
 
   test('Buttons sind relativ zum Spielfeld korrekt platziert und ragen nicht unschön rein', async ({ page }) => {
     await page.goto('/');
-    // Touch-Event auslösen um das Spiel auf Mobilmangeräten zu starten
-    await page.locator('#spielfeld-container').dispatchEvent('touchstart');
+    // Echten Tap ausführen
+    await page.tap('#spielfeld-container');
     
     // Warten bis Controls da sind
     await expect(page.locator('#mobile-controls')).toBeVisible();
@@ -82,11 +82,11 @@ test.describe('Mobile UI Positionierung - Handy (Pixel)', () => {
 
 test.describe('Mobile UI Positionierung - Tablet (iPad)', () => {
   // iPad Pro Format / typisches Tablet quer/hoch
-  test.use({ hasTouch: true, viewport: { width: 1024, height: 1366 } });
+  test.use({ hasTouch: true, isMobile: true, viewport: { width: 1024, height: 1366 } });
 
   test('Buttons kleben nicht am rechten Bildschirmrand, sondern am Spielfeld', async ({ page }) => {
     await page.goto('/');
-    await page.locator('#spielfeld-container').dispatchEvent('touchstart');
+    await page.tap('#spielfeld-container');
     
     await expect(page.locator('#mobile-controls')).toBeVisible();
     
