@@ -294,27 +294,61 @@ export function erzeugeBoss() {
 
   let bossFarbe = config.bossFarben[(state.level - 1) % config.bossFarben.length];
   let rawSvg = '';
-  let defs = `<defs><linearGradient id='g' x1='0%' y1='0%' x2='0%' y2='100%'><stop offset='0%' stop-color='${bossFarbe}'/><stop offset='100%' stop-color='#222'/></linearGradient></defs>`;
+  let defs = `<defs>
+    <radialGradient id='gMet' cx='50%' cy='30%' r='60%'><stop offset='0%' stop-color='#ffffff'/><stop offset='20%' stop-color='${bossFarbe}'/><stop offset='100%' stop-color='#222222'/></radialGradient>
+    <radialGradient id='gSha' cx='50%' cy='20%' r='80%'><stop offset='0%' stop-color='${bossFarbe}'/><stop offset='70%' stop-color='#000000'/><stop offset='100%' stop-color='#000000'/></radialGradient>
+    <filter id='glow' x='-50%' y='-50%' width='200%' height='200%'><feGaussianBlur stdDeviation='3' result='coloredBlur'/><feMerge><feMergeNode in='coloredBlur'/><feMergeNode in='SourceGraphic'/></feMerge></filter>
+  </defs>`;
   let flamesHtml = '';
   if (bTyp === 1) {
-    // Kreuzer
-    rawSvg = `<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100' style='position:absolute; width:100%; height:100%; z-index:2;'>${defs}<path d='M20 20 L80 20 L90 50 L70 90 L50 100 L30 90 L10 50 Z' fill='url(#g)' stroke='#f1c40f' stroke-width='3' stroke-linejoin='round'/><path d='M30 30 L70 30 L75 50 L50 80 L25 50 Z' fill='#2c3e50' stroke='#34495e' stroke-width='2'/><circle cx='50' cy='60' r='10' fill='#00ffff'/><rect x='25' y='5' width='10' height='15' fill='#7f8c8d'/><rect x='65' y='5' width='10' height='15' fill='#7f8c8d'/></svg>`;
+    // Kreuzer (Metallic)
+    rawSvg = `<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100' style='position:absolute; width:100%; height:100%; z-index:2;'>${defs}
+      <path d='M20 20 L80 20 L90 50 L70 90 L50 100 L30 90 L10 50 Z' fill='url(#gMet)' stroke='#f1c40f' stroke-width='2' stroke-linejoin='round'/>
+      <path d='M22 22 L78 22 L87 49 L68 87 L50 96 L32 87 L13 49 Z' fill='none' stroke='rgba(255,255,255,0.6)' stroke-width='2'/>
+      <path d='M30 30 L70 30 L75 50 L50 80 L25 50 Z' fill='#2c3e50' stroke='#34495e' stroke-width='2'/>
+      <circle cx='50' cy='60' r='10' fill='#00ffff' filter='url(#glow)'/>
+      <circle cx='50' cy='60' r='5' fill='#ffffff'/>
+      <rect x='25' y='5' width='10' height='15' fill='#7f8c8d'/><rect x='65' y='5' width='10' height='15' fill='#7f8c8d'/>
+    </svg>`;
     flamesHtml = `<div class='boss-flame' style='left: 25%; top: -15%; width: 10%;'></div><div class='boss-flame' style='left: 65%; top: -15%; width: 10%;'></div>`;
   } else if (bTyp === 2) {
-    // Jäger
-    rawSvg = `<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100' style='position:absolute; width:100%; height:100%; z-index:2;'>${defs}<path d='M10 30 L50 90 L90 30 L70 20 L50 35 L30 20 Z' fill='url(#g)' stroke='#3498db' stroke-width='3' stroke-linejoin='round'/><path d='M40 40 L50 80 L60 40 Z' fill='#2c3e50'/><circle cx='50' cy='65' r='8' fill='#e74c3c'/><rect x='30' y='5' width='10' height='15' fill='#7f8c8d'/><rect x='60' y='5' width='10' height='15' fill='#7f8c8d'/></svg>`;
+    // Jäger (Deep Shadow)
+    rawSvg = `<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100' style='position:absolute; width:100%; height:100%; z-index:2;'>${defs}
+      <path d='M10 30 L50 90 L90 30 L70 20 L50 35 L30 20 Z' fill='url(#gSha)' stroke='#3498db' stroke-width='2' stroke-linejoin='round'/>
+      <path d='M14 32 L50 85 L86 32 L69 24 L50 39 L31 24 Z' fill='none' stroke='rgba(0,0,0,0.8)' stroke-width='3'/>
+      <path d='M40 40 L50 80 L60 40 Z' fill='#1a252f'/>
+      <circle cx='50' cy='65' r='8' fill='#e74c3c' filter='url(#glow)'/>
+      <circle cx='50' cy='65' r='3' fill='#ffffff'/>
+      <rect x='30' y='5' width='10' height='15' fill='#7f8c8d'/><rect x='60' y='5' width='10' height='15' fill='#7f8c8d'/>
+    </svg>`;
     flamesHtml = `<div class='boss-flame' style='left: 31%; top: -15%; width: 8%;'></div><div class='boss-flame' style='left: 61%; top: -15%; width: 8%;'></div>`;
   } else if (bTyp === 3) {
-    // Träger
-    rawSvg = `<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100' style='position:absolute; width:100%; height:100%; z-index:2;'>${defs}<polygon points='50,10 90,30 90,70 50,95 10,70 10,30' fill='url(#g)' stroke='#9b59b6' stroke-width='4' stroke-linejoin='round'/><rect x='40' y='30' width='20' height='50' fill='#2c3e50' stroke='#34495e'/><circle cx='30' cy='50' r='5' fill='#e74c3c'/><circle cx='70' cy='50' r='5' fill='#e74c3c'/><circle cx='50' cy='50' r='15' fill='#00ffff' opacity='0.3'/><rect x='35' y='2' width='30' height='10' fill='#7f8c8d'/></svg>`;
+    // Träger (Metallic)
+    rawSvg = `<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100' style='position:absolute; width:100%; height:100%; z-index:2;'>${defs}
+      <polygon points='50,10 90,30 90,70 50,95 10,70 10,30' fill='url(#gMet)' stroke='#9b59b6' stroke-width='2' stroke-linejoin='round'/>
+      <polygon points='50,14 86,32 86,68 50,91 14,68 14,32' fill='none' stroke='rgba(255,255,255,0.6)' stroke-width='2'/>
+      <rect x='40' y='30' width='20' height='50' fill='#2c3e50' stroke='#34495e'/>
+      <circle cx='30' cy='50' r='6' fill='#e74c3c' filter='url(#glow)'/>
+      <circle cx='70' cy='50' r='6' fill='#e74c3c' filter='url(#glow)'/>
+      <circle cx='50' cy='50' r='15' fill='#00ffff' opacity='0.3'/>
+      <rect x='35' y='2' width='30' height='10' fill='#7f8c8d'/>
+    </svg>`;
     flamesHtml = `<div class='boss-flame' style='left: 37%; top: -15%; width: 26%;'></div>`;
   } else if (bTyp === 4) {
-    // Festung
-    rawSvg = `<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100' style='position:absolute; width:100%; height:100%; z-index:2;'>${defs}<rect x='10' y='20' width='80' height='60' rx='5' fill='url(#g)' stroke='#e67e22' stroke-width='4'/><path d='M20 80 L50 95 L80 80 Z' fill='url(#g)' stroke='#e67e22' stroke-width='4'/><rect x='20' y='30' width='60' height='40' fill='#2c3e50'/><circle cx='50' cy='50' r='15' fill='#e74c3c' stroke='#f1c40f' stroke-width='2'/><rect x='15' y='5' width='20' height='15' fill='#7f8c8d'/><rect x='65' y='5' width='20' height='15' fill='#7f8c8d'/></svg>`;
+    // Festung (Deep Shadow)
+    rawSvg = `<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100' style='position:absolute; width:100%; height:100%; z-index:2;'>${defs}
+      <rect x='10' y='20' width='80' height='60' rx='5' fill='url(#gSha)' stroke='#e67e22' stroke-width='3'/>
+      <rect x='13' y='23' width='74' height='54' rx='3' fill='none' stroke='rgba(0,0,0,0.8)' stroke-width='3'/>
+      <path d='M20 80 L50 95 L80 80 Z' fill='url(#gSha)' stroke='#e67e22' stroke-width='3'/>
+      <rect x='20' y='30' width='60' height='40' fill='#1a252f'/>
+      <circle cx='50' cy='50' r='15' fill='#e74c3c' filter='url(#glow)'/>
+      <circle cx='50' cy='50' r='5' fill='#ffffff'/>
+      <rect x='15' y='5' width='20' height='15' fill='#7f8c8d'/><rect x='65' y='5' width='20' height='15' fill='#7f8c8d'/>
+    </svg>`;
     flamesHtml = `<div class='boss-flame' style='left: 17%; top: -15%; width: 16%;'></div><div class='boss-flame' style='left: 67%; top: -15%; width: 16%;'></div>`;
   }
   el.innerHTML = rawSvg + flamesHtml;
-  el.style.filter = `drop-shadow(0 0 15px ${bossFarbe})`;
+  el.style.filter = `drop-shadow(0 10px 20px rgba(0,0,0,0.9)) drop-shadow(0 0 15px ${bossFarbe})`;
   let bossGroesse = 100 + (state.level - 1) * 10;
   bossGroesse = Math.min(bossGroesse, 160); // Maximale Größe deckeln
   el.style.width = bossGroesse + 'px';
