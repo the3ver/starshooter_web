@@ -109,12 +109,25 @@
         }
 
         .cooldown-container {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            margin-top: 5px;
+        }
+
+        .cooldown-icon {
+            width: 16px;
+            height: 16px;
+            flex-shrink: 0;
+            filter: drop-shadow(0 0 5px rgba(255,255,255,0.3));
+        }
+
+        .cooldown-balken-wrap {
             width: 80px;
             height: 4px;
             background-color: #1a252f;
             border-radius: 2px;
             overflow: hidden;
-            margin-top: 2px;
         }
 
         .cooldown-balken {
