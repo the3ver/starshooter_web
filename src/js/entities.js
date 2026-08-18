@@ -154,7 +154,7 @@ export function erzeugeFeind(sX, sY, forceMuster = null, forceVx = 0) {
   let svgHtml = '';
   let color = '#9b59b6';
 
-  if (muster === 'normal') {
+  if (muster === 'normal' || muster === 'clingOn') {
     svgHtml = `
       <svg viewBox="0 0 30 30" style="position: absolute; width: 100%; height: 100%; z-index: 2;">
           <path d="M15 28 L2 10 L5 5 L15 8 L25 5 L28 10 Z" fill="#71368a"/>
@@ -231,6 +231,24 @@ export function erzeugeFeind(sX, sY, forceMuster = null, forceVx = 0) {
     stopTimer: 0,
     stopY: stopY
   });
+}
+
+export function erzeugeClingOnFeind() {
+  let groesse = Math.random() * 20 + 30; // 30-50
+  // Erzeuge garantiert zerstörbaren (grauen) Asteroiden
+  erzeugeAsteroid(undefined, undefined, groesse, undefined, undefined, 0, true);
+  let ast = arrays.asteroiden[arrays.asteroiden.length - 1]; // Zuletzt erstellter Asteroid
+
+  // Erzeuge den Feind auf der Position des Asteroiden
+  erzeugeFeind(ast.x, ast.y, 'clingOn', 0);
+  let f = arrays.feinde[arrays.feinde.length - 1];
+  f.attachedAsteroid = ast;
+  f.phase = 'attached';
+  f.schussTimer = 9999; // Schießt nicht, während er haftet
+  
+  // Flamme anfänglich verstecken
+  let flames = f.el.querySelectorAll('.feind-flame');
+  flames.forEach(fl => fl.style.display = 'none');
 }
 export function erzeugeFeindLaser(fx, fy, zielX = null, zielY = null) {
   const el = document.createElement('div');

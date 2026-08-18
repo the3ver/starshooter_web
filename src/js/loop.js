@@ -9,6 +9,7 @@ export function verwalteFeindSpawns() {
   let pV = state.level >= 2 ? Math.min(0.25, 0.05 + (state.level - 2) * 0.05) : 0;
   let pCross = state.level >= 1 ? Math.min(0.20, 0.05 + (state.level - 1) * 0.05) : 0;
   let pSwoop = state.level >= 1 ? Math.min(0.20, 0.05 + (state.level - 1) * 0.05) : 0;
+  let pClingOn = state.level >= 1 ? Math.min(0.20, 0.05 + (state.level - 1) * 0.05) : 0;
   
   let r = Math.random();
   
@@ -35,6 +36,9 @@ export function verwalteFeindSpawns() {
     // Swoop (1 Jäger von der Seite)
     let spawnLeft = Math.random() < 0.5;
     Entities.erzeugeFeind(spawnLeft ? -30 : config.spielfeldBreite, 20 + Math.random() * 50, 'swoop', spawnLeft ? 3.5 : -3.5);
+  } else if (r < pV + pCross + pSwoop + pClingOn) {
+    // Cling-on Feind an neuem Asteroid
+    Entities.erzeugeClingOnFeind();
   } else {
     // Einzelner Jäger (Normal oder Stop&Go)
     Entities.erzeugeFeind();
@@ -383,24 +387,47 @@ export function gameLoop() {
       f.x += f.vx;
       f.y += f.vy * 1.5;
       f.el.style.transform = `rotate(${Math.atan2(f.vy * 1.5, f.vx) * 180 / Math.PI - 90}deg)`;
+    } else if (f.muster === 'clingOn') {
+      if (f.phase === 'attached') {
+        let asteroidExists = arrays.asteroiden.includes(f.attachedAsteroid);
+        if (!asteroidExists || f.attachedAsteroid.y >= 150) {
+          f.phase = 'attack';
+          f.vy = 2; // start speed
+          f.schussTimer = 9999;
+          
+          let flames = f.el.querySelectorAll('.feind-flame');
+          flames.forEach(fl => fl.style.display = 'block');
+          
+          Entities.erzeugeFeindLaser(f.x + f.groesse / 2 - 2, f.y + f.groesse, state.x + config.spielerGroesse / 2, state.y + config.spielerGroesse / 2);
+        } else {
+          f.x = f.attachedAsteroid.x + f.attachedAsteroid.groesse / 2 - f.groesse / 2;
+          f.y = f.attachedAsteroid.y + f.attachedAsteroid.groesse / 2 - f.groesse / 2;
+        }
+      }
+      if (f.phase === 'attack') {
+        f.vy += 0.1; // accelerate
+        f.y += f.vy;
+      }
     } else {
       f.zeit += 0.05;
       f.x = f.basisX + Math.sin(f.zeit) * 60;
       f.y += f.vy;
     }
-    if (f.muster !== 'swoop' && f.muster !== 'crossfire') {
+    if (f.muster !== 'swoop' && f.muster !== 'crossfire' && f.muster !== 'clingOn') {
       if (f.x < 0) f.x = 0;
       if (f.x > config.spielfeldBreite - f.groesse) f.x = config.spielfeldBreite - f.groesse;
     }
     f.el.style.left = f.x + 'px';
     f.el.style.top = f.y + 'px';
-    Utils.erzeugeAntriebsRauch(f.x + 13, f.y - 2, -1.5);
+    if (f.phase !== 'attached') {
+      Utils.erzeugeAntriebsRauch(f.x + 13, f.y - 2, -1.5);
+    }
     if (f.y > config.spielfeldHoehe || f.x < -100 || f.x > config.spielfeldBreite + 100) {
       f.el.remove();
       arrays.feinde.splice(i, 1);
       continue;
     }
-    if (f.muster !== 'stopAndGo') {
+    if (f.muster !== 'stopAndGo' && f.muster !== 'clingOn') {
       f.schussTimer--;
       if (f.schussTimer <= 0) {
         Entities.erzeugeFeindLaser(f.x + f.groesse / 2 - 2, f.y + f.groesse);
