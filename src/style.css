@@ -429,6 +429,13 @@
             text-transform: uppercase;
             padding: 5px;
             margin-right: 10px;
+            transition: border-color 0.2s, box-shadow 0.2s;
+        }
+
+        #highscore-name:focus {
+            outline: none;
+            border-color: #f1c40f;
+            box-shadow: 0 0 10px rgba(241, 196, 15, 0.7);
         }
 
         .btn {

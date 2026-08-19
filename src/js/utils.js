@@ -198,7 +198,13 @@ export function spielerGetroffen(kollisionsObjekt, explodiert = true) {
     let hs = getHighscores();
     if (hs.length < 10 || state.finalerScore > hs[hs.length - 1].score) {
       document.getElementById('highscore-form').style.display = 'block';
-      document.getElementById('highscore-name').value = '';
+      const hsInput = document.getElementById('highscore-name');
+      if (hsInput) {
+        hsInput.value = '';
+        setTimeout(() => {
+          hsInput.focus();
+        }, 50);
+      }
     } else {
       document.getElementById('highscore-form').style.display = 'none';
     }

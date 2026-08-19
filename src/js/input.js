@@ -7,6 +7,7 @@ import * as Loop from './loop.js';
 
 export function setupInput() {
   window.addEventListener('keydown', e => {
+    if (e.target && e.target.tagName === 'INPUT') return;
     if (state.tastenGedrueckt.hasOwnProperty(e.key.toLowerCase())) {
       state.tastenGedrueckt[e.key.toLowerCase()] = true;
       if (e.key === ' ') e.preventDefault();
@@ -62,8 +63,18 @@ export function setupInput() {
     }
   });
   window.addEventListener('keyup', e => {
+    if (e.target && e.target.tagName === 'INPUT') return;
     if (state.tastenGedrueckt.hasOwnProperty(e.key.toLowerCase())) state.tastenGedrueckt[e.key.toLowerCase()] = false;
   });
+  const hsInput = document.getElementById('highscore-name');
+  if (hsInput) {
+    hsInput.addEventListener('keydown', e => {
+      e.stopPropagation();
+      if (e.key === 'Enter') {
+        document.getElementById('btn-save-score').click();
+      }
+    });
+  }
   document.getElementById('btn-save-score').addEventListener('click', () => {
     let nameInput = document.getElementById('highscore-name').value;
     if (!nameInput || nameInput.trim() === '') nameInput = 'AAA';

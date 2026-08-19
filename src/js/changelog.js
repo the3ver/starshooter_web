@@ -1,14 +1,14 @@
-export const GAME_VERSION = '1.2.1';
+export const GAME_VERSION = '1.2.2';
 
 export const changelogData = {
-  '1.2.1': {
-    version: '1.2.1',
-    intro: 'Hey, es ist jetzt Version 1.2.1 rausgekommen, folgendes wurde geändert oder ist neu:',
+  '1.2.2': {
+    version: '1.2.2',
+    intro: 'Hey, es ist jetzt Version 1.2.2 rausgekommen, folgendes wurde geändert oder ist neu:',
     highlights: [
+      '🏆 Sofortiger Fokus auf das Highscore-Eingabefeld bei Game Over',
       '❤️ Kompaktere Lebensanzeige mit kreisrunden Animationen',
       '💣 Rote, dynamisch pulsierende Aura für die Super-Bombe',
       "🚀 'Was gibt's Neues'-Meldung beim Spielstart nach Updates",
-      '🌟 Kreisförmige Powerup-Badges für Energie, Raketen und Bomben',
       '🛠️ Einige Bugfixes und Verbesserungen'
     ]
   }

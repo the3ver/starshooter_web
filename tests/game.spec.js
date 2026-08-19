@@ -3,7 +3,7 @@ const { test, expect } = require('@playwright/test');
 test.beforeEach(async ({ page }) => {
   // Standardmäßig als bereits gesehen markieren, damit die Tests direkt interagieren können
   await page.addInitScript(() => {
-    localStorage.setItem('starshooter_last_seen_version', '1.2.1');
+    localStorage.setItem('starshooter_last_seen_version', '1.2.2');
   });
   await page.goto('/');
 });
@@ -78,6 +78,36 @@ test.describe('Space Shooter', () => {
     await page.keyboard.up('Space');
   });
 
+  test('Highscore-Eingabefeld wird bei Game Over automatisch fokussiert', async ({ page }) => {
+    // Spiel starten
+    await page.keyboard.down('KeyW');
+    await page.waitForTimeout(50);
+    await page.keyboard.up('KeyW');
+
+    // GameOver über State & spielerGetroffen simulieren
+    await page.evaluate(async () => {
+      const stateMod = await import('./js/state.js');
+      const utilsMod = await import('./js/utils.js');
+      stateMod.state.leben = 1;
+      stateMod.state.score = 500;
+      utilsMod.spielerGetroffen({ x: 0, y: 0, el: document.createElement('div') }, false);
+    });
+
+    const hsForm = page.locator('#highscore-form');
+    await expect(hsForm).toBeVisible();
+
+    const hsInput = page.locator('#highscore-name');
+    await expect(hsInput).toBeFocused();
+
+    // Direkt lostippen und mit Enter speichern
+    await page.keyboard.type('XYZ');
+    await page.keyboard.press('Enter');
+
+    await expect(hsForm).toBeHidden();
+    const table = page.locator('#highscore-tabelle');
+    await expect(table).toContainText('XYZ');
+  });
+
   test('Spielfeld skaliert dynamisch je nach Fenstergröße', async ({ page }) => {
     const spielfeld = page.locator('#spielfeld');
     const container = page.locator('#spielfeld-container');
@@ -114,7 +144,7 @@ test.describe('Was gibt es Neues Modal (Changelog)', () => {
     await expect(title).toContainText("WAS GIBT'S NEUES");
 
     const intro = page.locator('#whats-new-intro');
-    await expect(intro).toContainText('1.2.1');
+    await expect(intro).toContainText('1.2.2');
 
     const items = page.locator('#whats-new-list li');
     await expect(items).toHaveCount(5);
@@ -127,7 +157,7 @@ test.describe('Was gibt es Neues Modal (Changelog)', () => {
 
     // Prüfen, dass localStorage aktualisiert wurde
     const storedVersion = await page.evaluate(() => localStorage.getItem('starshooter_last_seen_version'));
-    expect(storedVersion).toBe('1.2.1');
+    expect(storedVersion).toBe('1.2.2');
 
     // Erneut öffnen über Start-Screen Button
     const openBtn = page.locator('#btn-open-whats-new');
