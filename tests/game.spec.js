@@ -15,6 +15,16 @@ test.describe('Space Shooter', () => {
     const spieler = page.locator('#spieler');
     await expect(spieler).toBeAttached();
   });
+
+  test('Lebensanzeige ist beim Start sichtbar und zeigt 3 Herzen', async ({ page }) => {
+    const lebenAnzeige = page.locator('#leben-anzeige');
+    await expect(lebenAnzeige).toBeVisible();
+    const herzen = page.locator('#leben-anzeige .leben-herz');
+    await expect(herzen).toHaveCount(3);
+    for (let i = 0; i < 3; i++) {
+      await expect(herzen.nth(i)).toHaveText('♥');
+    }
+  });
   
   test('Spiel startet nach Tastendruck und Sterne fliegen', async ({ page }) => {
     // Vorher ist spielLaeuft false

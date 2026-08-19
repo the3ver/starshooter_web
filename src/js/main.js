@@ -61,6 +61,8 @@ document.addEventListener('DOMContentLoaded', () => {
     // UI initialisieren
     import('./utils.js').then(Utils => {
         Utils.updateMaxEnergieMarker();
+        Utils.updateLebenUI();
+        Utils.updateAktivePowerupsUI();
     });
 
     requestAnimationFrame(gameLoop);
