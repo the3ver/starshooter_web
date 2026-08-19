@@ -928,15 +928,15 @@ export function gameLoop() {
       offsets = [{
         ox: -2,
         ejectVx: -3.8,
-        homing: false
+        homing: true // Linke Flanken-Rakete ist zielsuchend
       }, {
         ox: 10,
-        ejectVx: (Math.random() < 0.5 ? -1.5 : 1.5),
-        homing: true // Auf Stufe 5 ist die mittlere Rakete zielsuchend
+        ejectVx: 0,
+        homing: false // Mittlere Rakete schießt geradeaus
       }, {
         ox: 22,
         ejectVx: 3.8,
-        homing: false
+        homing: true // Rechte Flanken-Rakete ist zielsuchend
       }];
     }
     offsets.forEach(off => {

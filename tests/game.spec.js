@@ -3,7 +3,7 @@ const { test, expect } = require('@playwright/test');
 test.beforeEach(async ({ page }) => {
   // Standardmäßig als bereits gesehen markieren, damit die Tests direkt interagieren können
   await page.addInitScript(() => {
-    localStorage.setItem('starshooter_last_seen_version', '1.4.3');
+    localStorage.setItem('starshooter_last_seen_version', '1.4.4');
   });
   await page.goto('/');
 });
@@ -268,6 +268,27 @@ test.describe('Space Shooter', () => {
     expect(homingX).toBeGreaterThan(205);
   });
 
+  test('Auf Stufe 5 sind 2 von 3 Raketen zielsuchend (Dual-Homing Flanken)', async ({ page }) => {
+    // Spiel starten und Raketenstufe 5 setzen
+    await page.keyboard.down('KeyW');
+    await page.waitForTimeout(50);
+    await page.keyboard.up('KeyW');
+
+    await page.evaluate(async () => {
+      const stateMod = await import('./js/state.js');
+      stateMod.state.raketenStufe = 5;
+      stateMod.state.raketenCooldown = 0;
+    });
+
+    // Raketen mit Taste K abfeuern
+    await page.keyboard.down('k');
+    const homingRockets = page.locator('.raketen-projektil.rakete-homing');
+    await expect(homingRockets).toHaveCount(2);
+    const allRockets = page.locator('.raketen-projektil');
+    await expect(allRockets).toHaveCount(3);
+    await page.keyboard.up('k');
+  });
+
   test('Spielerschiff bleibt innerhalb der 4 Spielfeldbegrenzungen (oben, unten, links, rechts)', async ({ page }) => {
     // Spiel starten
     await page.keyboard.down('KeyW');
@@ -346,7 +367,7 @@ test.describe('Was gibt es Neues Modal (Changelog)', () => {
     await expect(title).toContainText("WAS GIBT'S NEUES");
 
     const intro = page.locator('#whats-new-intro');
-    await expect(intro).toContainText('1.4.3');
+    await expect(intro).toContainText('1.4.4');
 
     const items = page.locator('#whats-new-list li');
     await expect(items).toHaveCount(5);
@@ -359,7 +380,7 @@ test.describe('Was gibt es Neues Modal (Changelog)', () => {
 
     // Prüfen, dass localStorage aktualisiert wurde
     const storedVersion = await page.evaluate(() => localStorage.getItem('starshooter_last_seen_version'));
-    expect(storedVersion).toBe('1.4.3');
+    expect(storedVersion).toBe('1.4.4');
 
     // Erneut öffnen über Start-Screen Button
     const openBtn = page.locator('#btn-open-whats-new');
