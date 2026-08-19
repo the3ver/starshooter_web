@@ -26,7 +26,11 @@ test.describe('Space Shooter', () => {
     }
   });
 
-  test('Cooldown-Balken zeigen Powerup-Buchstaben R und B', async ({ page }) => {
+  test('Energie- und Cooldown-Balken zeigen kreisfoermige Powerup-Buchstaben E, R und B', async ({ page }) => {
+    const energieLetter = page.locator('#energie-cd-container .cooldown-letter-e');
+    await expect(energieLetter).toBeVisible();
+    await expect(energieLetter).toHaveText('E');
+
     const raketenLetter = page.locator('#raketen-cd-container .cooldown-letter-r');
     await expect(raketenLetter).toBeVisible();
     await expect(raketenLetter).toHaveText('R');
@@ -34,6 +38,10 @@ test.describe('Space Shooter', () => {
     const bombenLetter = page.locator('#bomben-cd-container .cooldown-letter-b');
     await expect(bombenLetter).toBeVisible();
     await expect(bombenLetter).toHaveText('B');
+
+    // Prüfen, dass die Badges kreisförmig sind (border-radius 50%)
+    const borderRadius = await energieLetter.evaluate(el => window.getComputedStyle(el).borderRadius);
+    expect(borderRadius).toBe('50%');
   });
   
   test('Spiel startet nach Tastendruck und Sterne fliegen', async ({ page }) => {
