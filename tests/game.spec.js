@@ -3,7 +3,7 @@ const { test, expect } = require('@playwright/test');
 test.beforeEach(async ({ page }) => {
   // Standardmäßig als bereits gesehen markieren, damit die Tests direkt interagieren können
   await page.addInitScript(() => {
-    localStorage.setItem('starshooter_last_seen_version', '1.2.0');
+    localStorage.setItem('starshooter_last_seen_version', '1.2.1');
   });
   await page.goto('/');
 });
@@ -103,7 +103,7 @@ test.describe('Was gibt es Neues Modal (Changelog)', () => {
   test('Wird bei neuer Version automatisch angezeigt und kann geschlossen werden', async ({ page }) => {
     // Altes Release simulieren
     await page.addInitScript(() => {
-      localStorage.setItem('starshooter_last_seen_version', '1.1.0');
+      localStorage.setItem('starshooter_last_seen_version', '1.2.0');
     });
     await page.goto('/');
 
@@ -114,7 +114,7 @@ test.describe('Was gibt es Neues Modal (Changelog)', () => {
     await expect(title).toContainText("WAS GIBT'S NEUES");
 
     const intro = page.locator('#whats-new-intro');
-    await expect(intro).toContainText('1.2.0');
+    await expect(intro).toContainText('1.2.1');
 
     const items = page.locator('#whats-new-list li');
     await expect(items).toHaveCount(5);
@@ -127,7 +127,7 @@ test.describe('Was gibt es Neues Modal (Changelog)', () => {
 
     // Prüfen, dass localStorage aktualisiert wurde
     const storedVersion = await page.evaluate(() => localStorage.getItem('starshooter_last_seen_version'));
-    expect(storedVersion).toBe('1.2.0');
+    expect(storedVersion).toBe('1.2.1');
 
     // Erneut öffnen über Start-Screen Button
     const openBtn = page.locator('#btn-open-whats-new');
