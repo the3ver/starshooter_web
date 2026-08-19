@@ -20,6 +20,13 @@ export function setupInput() {
       
       state.typedCheatKeys += e.key.toLowerCase();
       if (state.typedCheatKeys.length > 10) state.typedCheatKeys = state.typedCheatKeys.slice(-10);
+      function resetAllCooldowns() {
+        state.bombenCooldown = 0;
+        state.raketenCooldown = 0;
+        state.spielerSchussCooldown = 0;
+        state.energie = state.maxEnergie;
+      }
+
       const idkfMatch = state.typedCheatKeys.match(/idkf([1-5])$/);
       if (idkfMatch) {
         const lvl = parseInt(idkfMatch[1], 10);
@@ -27,6 +34,7 @@ export function setupInput() {
         state.laserStufe = lvl;
         state.raketenStufe = lvl;
         state.bombenStufe = lvl;
+        resetAllCooldowns();
         Utils.updateAktivePowerupsUI();
         let overlay = document.getElementById('warning-overlay');
         overlay.innerHTML = `IDKF${lvl}<br>Weapons Level ${lvl}!`;
@@ -52,6 +60,7 @@ export function setupInput() {
         state.durchschlagTimer = 600;
         state.autolaserAktiv = true;
         state.autolaserTimer = 600;
+        resetAllCooldowns();
         Utils.updateAktivePowerupsUI();
         Utils.updateLebenUI();
         Utils.updateMaxEnergieMarker();
@@ -68,6 +77,7 @@ export function setupInput() {
       if (state.typedCheatKeys.endsWith('idgod')) {
         state.cheatUsed = true;
         state.godMode = !state.godMode;
+        resetAllCooldowns();
         let overlay = document.getElementById('warning-overlay');
         overlay.innerHTML = state.godMode ? 'IDGOD<br>Degreelessness Mode On' : 'IDGOD<br>Degreelessness Mode Off';
         overlay.style.display = 'block';

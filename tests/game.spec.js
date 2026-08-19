@@ -3,7 +3,7 @@ const { test, expect } = require('@playwright/test');
 test.beforeEach(async ({ page }) => {
   // Standardmäßig als bereits gesehen markieren, damit die Tests direkt interagieren können
   await page.addInitScript(() => {
-    localStorage.setItem('starshooter_last_seen_version', '1.3.3');
+    localStorage.setItem('starshooter_last_seen_version', '1.3.4');
   });
   await page.goto('/');
 });
@@ -136,13 +136,21 @@ test.describe('Space Shooter', () => {
     expect(laserCount).toBe(0);
   });
 
-  test('Cheatcodes idkf1 bis idkf5 setzen alle Waffenstufen (1 bis 5) und zeigen Overlay', async ({ page }) => {
+  test('Cheatcodes idkf1 bis idkf5 setzen alle Waffenstufen (1 bis 5), resetten Cooldowns und zeigen Overlay', async ({ page }) => {
     // Spiel starten
     await page.keyboard.down('KeyW');
     await page.waitForTimeout(50);
     await page.keyboard.up('KeyW');
 
     for (let lvl = 1; lvl <= 5; lvl++) {
+      // Cooldowns künstlich hochsetzen
+      await page.evaluate(async () => {
+        const stateMod = await import('./js/state.js');
+        stateMod.state.bombenCooldown = 500;
+        stateMod.state.raketenCooldown = 200;
+        stateMod.state.energie = 5;
+      });
+
       const cheat = `idkf${lvl}`;
       for (const char of cheat) {
         await page.keyboard.press(char);
@@ -155,7 +163,11 @@ test.describe('Space Shooter', () => {
           laser: stateMod.state.laserStufe,
           raketen: stateMod.state.raketenStufe,
           bomben: stateMod.state.bombenStufe,
-          cheatUsed: stateMod.state.cheatUsed
+          cheatUsed: stateMod.state.cheatUsed,
+          bombenCooldown: stateMod.state.bombenCooldown,
+          raketenCooldown: stateMod.state.raketenCooldown,
+          energie: stateMod.state.energie,
+          maxEnergie: stateMod.state.maxEnergie
         };
       });
 
@@ -163,6 +175,9 @@ test.describe('Space Shooter', () => {
       expect(stufen.raketen).toBe(lvl);
       expect(stufen.bomben).toBe(lvl);
       expect(stufen.cheatUsed).toBe(true);
+      expect(stufen.bombenCooldown).toBe(0);
+      expect(stufen.raketenCooldown).toBe(0);
+      expect(stufen.energie).toBe(stufen.maxEnergie);
 
       const overlay = page.locator('#warning-overlay');
       await expect(overlay).toBeVisible();
@@ -236,7 +251,7 @@ test.describe('Was gibt es Neues Modal (Changelog)', () => {
     await expect(title).toContainText("WAS GIBT'S NEUES");
 
     const intro = page.locator('#whats-new-intro');
-    await expect(intro).toContainText('1.3.3');
+    await expect(intro).toContainText('1.3.4');
 
     const items = page.locator('#whats-new-list li');
     await expect(items).toHaveCount(5);
@@ -249,7 +264,7 @@ test.describe('Was gibt es Neues Modal (Changelog)', () => {
 
     // Prüfen, dass localStorage aktualisiert wurde
     const storedVersion = await page.evaluate(() => localStorage.getItem('starshooter_last_seen_version'));
-    expect(storedVersion).toBe('1.3.3');
+    expect(storedVersion).toBe('1.3.4');
 
     // Erneut öffnen über Start-Screen Button
     const openBtn = page.locator('#btn-open-whats-new');

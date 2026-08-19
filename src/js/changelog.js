@@ -1,9 +1,9 @@
-export const GAME_VERSION = '1.3.3';
+export const GAME_VERSION = '1.3.4';
 
 export const changelogData = {
-  '1.3.3': {
-    version: '1.3.3',
-    intro: 'Hey, es ist jetzt Version 1.3.3 rausgekommen, folgendes wurde geändert oder ist neu:',
+  '1.3.4': {
+    version: '1.3.4',
+    intro: 'Hey, es ist jetzt Version 1.3.4 rausgekommen, folgendes wurde geändert oder ist neu:',
     highlights: [
       '💣 Bomben-Evolution: 5 Stufen mit eigenen Auren, EMP & Vortex-Sog',
       '💥 Jericho-Cluster auf Stufe 5 mit 4 Sub-Bomben & Kaskaden-Explosionen',
