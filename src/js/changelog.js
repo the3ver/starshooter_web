@@ -1,9 +1,9 @@
-export const GAME_VERSION = '1.2.2';
+export const GAME_VERSION = '1.2.3';
 
 export const changelogData = {
-  '1.2.2': {
-    version: '1.2.2',
-    intro: 'Hey, es ist jetzt Version 1.2.2 rausgekommen, folgendes wurde geändert oder ist neu:',
+  '1.2.3': {
+    version: '1.2.3',
+    intro: 'Hey, es ist jetzt Version 1.2.3 rausgekommen, folgendes wurde geändert oder ist neu:',
     highlights: [
       '🏆 Sofortiger Fokus auf das Highscore-Eingabefeld bei Game Over',
       '❤️ Kompaktere Lebensanzeige mit kreisrunden Animationen',
