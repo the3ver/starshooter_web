@@ -769,15 +769,15 @@ export function gameLoop() {
       });
       if (state.laserStufe >= 4) {
         strahlenDef.push({
-          offsetX: -5,
+          offsetX: 0,
           width: 4,
-          vx: -2,
+          vx: 0,
           color: '#a000ff'
         });
         strahlenDef.push({
-          offsetX: 31,
+          offsetX: 26,
           width: 4,
-          vx: 2,
+          vx: 0,
           color: '#a000ff'
         });
       }

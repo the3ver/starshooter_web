@@ -3,7 +3,7 @@ const { test, expect } = require('@playwright/test');
 test.beforeEach(async ({ page }) => {
   // Standardmäßig als bereits gesehen markieren, damit die Tests direkt interagieren können
   await page.addInitScript(() => {
-    localStorage.setItem('starshooter_last_seen_version', '1.5.1');
+    localStorage.setItem('starshooter_last_seen_version', '1.5.2');
   });
   await page.goto('/');
 });
@@ -287,6 +287,42 @@ test.describe('Space Shooter', () => {
     const allRockets = page.locator('.raketen-projektil');
     await expect(allRockets).toHaveCount(3);
     await page.keyboard.up('k');
+  });
+
+  test('Auf Laser-Stufe 4 feuert das Schiff 4 parallele, gebündelte Laser ohne diagonale Streuung (vx = 0)', async ({ page }) => {
+    // Spiel starten und Laserstufe 4 setzen
+    await page.keyboard.down('KeyW');
+    await page.waitForTimeout(50);
+    await page.keyboard.up('KeyW');
+
+    await page.evaluate(async () => {
+      const stateMod = await import('./js/state.js');
+      stateMod.state.laserStufe = 4;
+      stateMod.state.energie = 100;
+      stateMod.state.spielerSchussCooldown = 0;
+    });
+
+    // Laser mit Taste L abfeuern
+    await page.keyboard.down('KeyL');
+    await page.waitForTimeout(100);
+
+    const laserInfo = await page.evaluate(async () => {
+      const stateMod = await import('./js/state.js');
+      return stateMod.arrays.laserArray.map(l => ({
+        vx: l.vx,
+        vy: l.vy,
+        width: l.width
+      }));
+    });
+
+    await page.keyboard.up('KeyL');
+
+    expect(laserInfo.length).toBeGreaterThanOrEqual(4);
+    const batch = laserInfo.slice(-4);
+    expect(batch.length).toBe(4);
+    for (const l of batch) {
+      expect(l.vx).toBe(0);
+    }
   });
 
   test('Spielerschiff bleibt innerhalb der 4 Spielfeldbegrenzungen (oben, unten, links, rechts)', async ({ page }) => {
@@ -675,10 +711,10 @@ test.describe('Was gibt es Neues Modal (Changelog)', () => {
     await expect(title).toContainText("WAS GIBT'S NEUES");
 
     const intro = page.locator('#whats-new-intro');
-    await expect(intro).toContainText('1.5.1');
+    await expect(intro).toContainText('1.5.2');
 
     const items = page.locator('#whats-new-list li');
-    await expect(items).toHaveCount(4);
+    await expect(items).toHaveCount(3);
 
     // Schließen
     const closeBtn = page.locator('#btn-close-whats-new');
@@ -688,7 +724,7 @@ test.describe('Was gibt es Neues Modal (Changelog)', () => {
 
     // Prüfen, dass localStorage aktualisiert wurde
     const storedVersion = await page.evaluate(() => localStorage.getItem('starshooter_last_seen_version'));
-    expect(storedVersion).toBe('1.5.1');
+    expect(storedVersion).toBe('1.5.2');
 
     // Erneut öffnen über Start-Screen Button
     const openBtn = page.locator('#btn-open-whats-new');

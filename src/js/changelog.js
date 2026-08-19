@@ -1,6 +1,15 @@
-export const GAME_VERSION = '1.5.1';
+export const GAME_VERSION = '1.5.2';
 
 export const changelogData = {
+  '1.5.2': {
+    version: '1.5.2',
+    intro: 'Hey, es ist jetzt Version 1.5.2 rausgekommen, folgendes wurde geändert oder ist neu:',
+    highlights: [
+      '⚡ Gebündeltes Laser-Feuer (Stufe 4): Quad-Core-Formation feuert 4 Laser parallel nach vorne',
+      '🎯 Mehr Präzision: Keine ungenaue diagonale Streuung mehr bei den lila Lasern',
+      '💥 Konzentrierter Einzelschaden: Maximale Feuerkraft auf engstem Raum gegen Bosse & Asteroiden'
+    ]
+  },
   '1.5.1': {
     version: '1.5.1',
     intro: 'Hey, es ist jetzt Version 1.5.1 rausgekommen, folgendes wurde geändert oder ist neu:',
