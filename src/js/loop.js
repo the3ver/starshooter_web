@@ -634,6 +634,7 @@ export function gameLoop() {
     let sy = state.y;
     for (let i = 0; i < alleZiele.length; i++) {
       let z = alleZiele[i];
+      if (z.istUnzerstoerbar) continue;
       if (z.y + z.groesse < sy) {
         let tx = z.x + z.groesse / 2;
         let ty = z.y + z.groesse / 2;

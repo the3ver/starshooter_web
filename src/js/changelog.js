@@ -1,6 +1,14 @@
-export const GAME_VERSION = '1.5.3';
+export const GAME_VERSION = '1.5.4';
 
 export const changelogData = {
+  '1.5.4': {
+    version: '1.5.4',
+    intro: 'Hey, es ist jetzt Version 1.5.4 rausgekommen, folgendes wurde geändert oder ist neu:',
+    highlights: [
+      '🎯 Smarte Autolaser-Zielerfassung: Ignoriert unzerstörbare Magma-Asteroiden und visiert nur zerstörbare Feinde & Asteroiden an',
+      '⚡ Optimierte Zielpriorisierung für das "A"-Powerup'
+    ]
+  },
   '1.5.3': {
     version: '1.5.3',
     intro: 'Hey, es ist jetzt Version 1.5.3 rausgekommen, folgendes wurde geändert oder ist neu:',

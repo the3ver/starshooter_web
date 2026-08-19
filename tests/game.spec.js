@@ -3,7 +3,7 @@ const { test, expect } = require('@playwright/test');
 test.beforeEach(async ({ page }) => {
   // Standardmäßig als bereits gesehen markieren, damit die Tests direkt interagieren können
   await page.addInitScript(() => {
-    localStorage.setItem('starshooter_last_seen_version', '1.5.3');
+    localStorage.setItem('starshooter_last_seen_version', '1.5.4');
   });
   await page.goto('/');
 });
@@ -323,6 +323,42 @@ test.describe('Space Shooter', () => {
     for (const l of batch) {
       expect(l.vx).toBe(0);
     }
+  });
+
+  test('Automatischer Laser zielt nicht auf unzerstoerbare Asteroiden, sondern waehlt zerstoerbare Ziele', async ({ page }) => {
+    // Spiel starten
+    await page.keyboard.down('KeyW');
+    await page.waitForTimeout(50);
+    await page.keyboard.up('KeyW');
+
+    // Unzerstörbaren Asteroiden nahe am Spieler und zerstörbaren Feind weiter oben platzieren
+    await page.evaluate(async () => {
+      const stateMod = await import('./js/state.js');
+      const entitiesMod = await import('./js/entities.js');
+      stateMod.state.autolaserAktiv = true;
+      stateMod.state.autolaserTimer = 600;
+      stateMod.state.x = 200;
+      stateMod.state.y = 400;
+
+      // 1. Unzerstörbarer Asteroid sehr nah über dem Spieler (y: 350, direkt über dem Schiff)
+      entitiesMod.erzeugeAsteroid(200, 350, 30, 0, 0, false, 0);
+      const unzerstoerbarAst = stateMod.arrays.asteroiden[stateMod.arrays.asteroiden.length - 1];
+      unzerstoerbarAst.istUnzerstoerbar = true;
+
+      // 2. Zerstörbarer Feind weiter weg (y: 200, x: 250)
+      entitiesMod.erzeugeFeind(250, 200, 'normal', 0);
+    });
+
+    // Kurz warten, damit Autolaser im Loop zielen und feuern kann
+    await page.waitForTimeout(200);
+
+    const enemyHp = await page.evaluate(async () => {
+      const stateMod = await import('./js/state.js');
+      return stateMod.arrays.feinde[0]?.hp;
+    });
+
+    // Feind muss Schaden genommen haben (< 20 HP)
+    expect(enemyHp).toBeLessThan(20);
   });
 
   test('Spielerschiff bleibt innerhalb der 4 Spielfeldbegrenzungen (oben, unten, links, rechts)', async ({ page }) => {
@@ -712,7 +748,7 @@ test.describe('Was gibt es Neues Modal (Changelog)', () => {
     await expect(title).toContainText("WAS GIBT'S NEUES");
 
     const intro = page.locator('#whats-new-intro');
-    await expect(intro).toContainText('1.5.3');
+    await expect(intro).toContainText('1.5.4');
 
     const items = page.locator('#whats-new-list li');
     await expect(items).toHaveCount(2);
@@ -725,7 +761,7 @@ test.describe('Was gibt es Neues Modal (Changelog)', () => {
 
     // Prüfen, dass localStorage aktualisiert wurde
     const storedVersion = await page.evaluate(() => localStorage.getItem('starshooter_last_seen_version'));
-    expect(storedVersion).toBe('1.5.3');
+    expect(storedVersion).toBe('1.5.4');
 
     // Erneut öffnen über Start-Screen Button
     const openBtn = page.locator('#btn-open-whats-new');
