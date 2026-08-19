@@ -3,7 +3,7 @@ const { test, expect } = require('@playwright/test');
 test.beforeEach(async ({ page }) => {
   // Standardmäßig als bereits gesehen markieren, damit die Tests direkt interagieren können
   await page.addInitScript(() => {
-    localStorage.setItem('starshooter_last_seen_version', '1.4.1');
+    localStorage.setItem('starshooter_last_seen_version', '1.4.2');
   });
   await page.goto('/');
 });
@@ -257,15 +257,15 @@ test.describe('Space Shooter', () => {
     await expect(homingRocket).toBeAttached();
     await page.keyboard.up('k');
 
-    // Kurz warten und prüfen, dass die Homing-Rakete ihren X-Wert in Richtung des Feindes (rechts) lenkt
-    await page.waitForTimeout(200);
+    // Kurz warten (über die Ejektions- & Stallphase hinweg) und prüfen, dass die Homing-Rakete ihren X-Wert nach rechts lenkt
+    await page.waitForTimeout(400);
     const homingX = await page.evaluate(() => {
       const el = document.querySelector('.raketen-projektil.rakete-homing');
       return el ? parseFloat(el.style.left) : null;
     });
 
-    // Ursprung war ~203px (state.x + 18), sollte sich nach rechts bewegt haben (> 205px)
-    expect(homingX).toBeGreaterThan(203);
+    // Ursprung war ~205px (state.x + 20), sollte sich nach rechts bewegt haben (> 205px)
+    expect(homingX).toBeGreaterThan(205);
   });
 
   test('Spielfeld skaliert dynamisch je nach Fenstergröße', async ({ page }) => {
@@ -304,7 +304,7 @@ test.describe('Was gibt es Neues Modal (Changelog)', () => {
     await expect(title).toContainText("WAS GIBT'S NEUES");
 
     const intro = page.locator('#whats-new-intro');
-    await expect(intro).toContainText('1.4.1');
+    await expect(intro).toContainText('1.4.2');
 
     const items = page.locator('#whats-new-list li');
     await expect(items).toHaveCount(5);
@@ -317,7 +317,7 @@ test.describe('Was gibt es Neues Modal (Changelog)', () => {
 
     // Prüfen, dass localStorage aktualisiert wurde
     const storedVersion = await page.evaluate(() => localStorage.getItem('starshooter_last_seen_version'));
-    expect(storedVersion).toBe('1.4.1');
+    expect(storedVersion).toBe('1.4.2');
 
     // Erneut öffnen über Start-Screen Button
     const openBtn = page.locator('#btn-open-whats-new');

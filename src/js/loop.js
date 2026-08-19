@@ -167,8 +167,10 @@ export function gameLoop() {
   }
   if (state.x < 0) state.x = 0;
   if (state.y < 0) state.y = 0;
-  if (state.x > config.spielfeldBreite - config.spielerGroesse) state.x = config.spielfeldBreite - config.spielerGroesse;
-  if (state.y > config.spielfeldHoehe - config.spielerGroesse) state.y = config.spielfeldHoehe - config.spielerGroesse;
+  state.spielerVx = state.x - (state.prevX !== undefined ? state.prevX : state.x);
+  state.spielerVy = (state.prevY !== undefined ? state.prevY : state.y) - state.y;
+  state.prevX = state.x;
+  state.prevY = state.y;
   dom.spieler.style.left = state.x + 'px';
   dom.spieler.style.top = state.y + 'px';
   let currentRotate = parseFloat(dom.spieler.getAttribute('data-rotate') || 0);
@@ -896,39 +898,42 @@ export function gameLoop() {
       rSchaden = 35;
     }
     if (state.raketenStufe >= 5) anzahl = 3;
-    let offsets = [{
-      ox: 10,
-      vy: 8,
-      vx: 0,
-      homing: false
-    }];
-    if (anzahl === 2) {
+
+    // Schiff-Bewegungsvektor zur Vererbung der Geschwindigkeit
+    let shipVx = state.spielerVx || 0;
+    let shipVy = state.spielerVy || 0;
+    let initVy = Math.max(0.5, 2.0 + shipVy * 0.6);
+
+    let offsets = [];
+    if (anzahl === 1) {
+      let side = (state.lastRocketSide = (state.lastRocketSide === 1 ? -1 : 1));
       offsets = [{
-        ox: 2,
-        vy: 8,
-        vx: 0,
+        ox: side > 0 ? 18 : 2,
+        ejectVx: side * 3.2,
+        homing: false
+      }];
+    } else if (anzahl === 2) {
+      offsets = [{
+        ox: 0,
+        ejectVx: -3.0,
         homing: false
       }, {
-        ox: 18,
-        vy: 8,
-        vx: 0,
+        ox: 20,
+        ejectVx: 3.0,
         homing: state.raketenStufe >= 3 // Ab Stufe 3 ist eine Rakete zielsuchend
       }];
     } else if (anzahl === 3) {
       offsets = [{
-        ox: 10,
-        vy: 8,
-        vx: 0,
-        homing: true // Auf Stufe 5 ist die mittlere Rakete zielsuchend
-      }, {
         ox: -2,
-        vy: 8,
-        vx: -1.5,
+        ejectVx: -3.8,
         homing: false
       }, {
+        ox: 10,
+        ejectVx: (Math.random() < 0.5 ? -1.5 : 1.5),
+        homing: true // Auf Stufe 5 ist die mittlere Rakete zielsuchend
+      }, {
         ox: 22,
-        vy: 8,
-        vx: 1.5,
+        ejectVx: 3.8,
         homing: false
       }];
     }
@@ -946,79 +951,105 @@ export function gameLoop() {
                     `;
       el.style.left = state.x + off.ox + 'px';
       el.style.top = state.y + 'px';
-      if (off.vx !== 0) {
-        let winkel = Math.atan2(-off.vy, off.vx) * 180 / Math.PI;
-        el.style.transform = `rotate(${winkel + 90}deg)`;
-      }
+      let vx = off.ejectVx + shipVx * 0.4;
+      let winkel = Math.atan2(-initVy, vx) * 180 / Math.PI;
+      el.style.transform = `rotate(${winkel + 90}deg)`;
       dom.spielfeld.appendChild(el);
       arrays.raketenArray.push({
         el: el,
         x: state.x + off.ox,
         y: state.y,
-        vx: off.vx,
-        vy: off.vy,
+        vx: vx,
+        vy: initVy,
         schaden: rSchaden,
         radius: rRadius,
         homing: off.homing,
+        age: 0,
         detoniert: false
       });
     });
   }
 
-  // Raketen Update & Kollision (Näherungszünder & Zielsuche)
+  // Raketen Update & Kollision (3-Phasen-Flugdynamik, Näherungszünder & Zielsuche)
   for (let i = arrays.raketenArray.length - 1; i >= 0; i--) {
     let r = arrays.raketenArray[i];
+    r.age = (r.age || 0) + 1;
 
-    // Zielsuchende Lenkung (nur gegen Feinde und Bosse)
-    if (r.homing) {
-      let bestDist = Infinity;
-      let target = null;
-      const feindZiele = [...arrays.feinde, ...arrays.bosses];
-      for (let f of feindZiele) {
-        if ((f.immune || 0) <= 0) {
-          let zcx = f.x + (f.groesse || 20) / 2;
-          let zcy = f.y + (f.groesse || 20) / 2;
-          let d = Math.hypot(zcx - (r.x + 5), zcy - (r.y + 12));
-          // Nur Feinde erfassen, die sich vor oder in vertretbarer Nähe der Rakete befinden
-          if (d < bestDist && zcy < r.y + 160) {
-            bestDist = d;
-            target = f;
+    // 3-Phasen-Flugdynamik:
+    // Phase 1 (Frames 1-10): Seitliches Lösen / Ausklinken, erbt Schiffsgeschwindigkeit
+    if (r.age <= 10) {
+      r.x += r.vx;
+      r.y -= r.vy;
+      r.vx *= 0.95;
+    }
+    // Phase 2 (Frames 11-18): Kurzes Verlangsamen ("Anlauf nehmen" & Triebwerkszündung)
+    else if (r.age <= 18) {
+      r.vx *= 0.82;
+      r.vy = Math.max(0.3, r.vy * 0.85);
+      r.x += r.vx;
+      r.y -= r.vy;
+    }
+    // Phase 3 (Frames 19+): Starke, lineare Beschleunigung (Triebwerks-Vollschub)
+    else {
+      r.vy = Math.min(14, r.vy + 0.5); // Schneller, linearer Schubanstieg
+      r.vx *= 0.92;
+
+      // Zielsuchende Lenkung (nur gegen Feinde und Bosse) ab Phase 3 aktiv
+      if (r.homing) {
+        let bestDist = Infinity;
+        let target = null;
+        const feindZiele = [...arrays.feinde, ...arrays.bosses];
+        for (let f of feindZiele) {
+          if ((f.immune || 0) <= 0) {
+            let zcx = f.x + (f.groesse || 20) / 2;
+            let zcy = f.y + (f.groesse || 20) / 2;
+            let d = Math.hypot(zcx - (r.x + 5), zcy - (r.y + 12));
+            // Nur Feinde erfassen, die sich vor oder in vertretbarer Nähe der Rakete befinden
+            if (d < bestDist && zcy < r.y + 160) {
+              bestDist = d;
+              target = f;
+            }
           }
+        }
+
+        if (target) {
+          let zcx = target.x + (target.groesse || 20) / 2;
+          let zcy = target.y + (target.groesse || 20) / 2;
+          let targetAngle = Math.atan2(zcy - (r.y + 12), zcx - (r.x + 5));
+          let currentAngle = Math.atan2(-r.vy, r.vx || 0.0001);
+          let diff = targetAngle - currentAngle;
+          while (diff < -Math.PI) diff += Math.PI * 2;
+          while (diff > Math.PI) diff -= Math.PI * 2;
+
+          let maxTurn = 0.12; // Direktere Kurvenlenkung unter Schub
+          let newAngle = currentAngle + Math.sign(diff) * Math.min(Math.abs(diff), maxTurn);
+          let currentSpeed = Math.hypot(r.vx, r.vy) || r.vy;
+          r.vx = Math.cos(newAngle) * currentSpeed;
+          r.vy = -Math.sin(newAngle) * currentSpeed;
         }
       }
 
-      if (target) {
-        let zcx = target.x + (target.groesse || 20) / 2;
-        let zcy = target.y + (target.groesse || 20) / 2;
-        let targetAngle = Math.atan2(zcy - (r.y + 12), zcx - (r.x + 5));
-        let currentAngle = Math.atan2(-r.vy, r.vx || 0.0001);
-        let diff = targetAngle - currentAngle;
-        while (diff < -Math.PI) diff += Math.PI * 2;
-        while (diff > Math.PI) diff -= Math.PI * 2;
-
-        let maxTurn = 0.09; // Feine, dynamische Kurvenlenkung
-        let newAngle = currentAngle + Math.sign(diff) * Math.min(Math.abs(diff), maxTurn);
-        let speed = Math.hypot(r.vx, r.vy) || 8;
-        r.vx = Math.cos(newAngle) * speed;
-        r.vy = -Math.sin(newAngle) * speed;
-        let rotDeg = Math.atan2(-r.vy, r.vx) * 180 / Math.PI + 90;
-        r.el.style.transform = `rotate(${rotDeg}deg)`;
-      }
+      r.x += r.vx;
+      r.y -= r.vy;
     }
 
-    r.y -= r.vy;
-    r.x += r.vx;
+    // Raketenausrichtung & DOM-Position aktualisieren
+    let flightAngle = Math.atan2(-r.vy, r.vx || 0.0001) * 180 / Math.PI + 90;
+    r.el.style.transform = `rotate(${flightAngle}deg)`;
     r.el.style.top = r.y + 'px';
     r.el.style.left = r.x + 'px';
 
-    // Partikelschweif (Rauch und Feuer / Cyan für Homing)
-    if (Math.random() < 0.75) {
+    // Partikelschweif (Rauch beim Ausklinken, Vollfeuer in Phase 3)
+    let flameProb = r.age > 18 ? 0.9 : (r.age > 10 ? 0.5 : 0.2);
+    if (Math.random() < flameProb) {
       const pEl = document.createElement('div');
       pEl.classList.add('partikel');
-      if (r.homing) {
+      if (r.homing && r.age > 18) {
         pEl.style.backgroundColor = Math.random() < 0.5 ? '#00ffff' : '#3498db';
+      } else if (r.age > 18) {
+        pEl.style.backgroundColor = Math.random() < 0.6 ? '#f1c40f' : '#e74c3c';
       } else {
-        pEl.style.backgroundColor = Math.random() < 0.4 ? '#f39c12' : '#7f8c8d';
+        pEl.style.backgroundColor = '#7f8c8d'; // Rauch beim Abwurf
       }
       let px = r.x + 3 + Math.random() * 4; // Mitte der Rakete (Breite 10)
       let py = r.y + 24; // Unten an der Rakete
