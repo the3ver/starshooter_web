@@ -141,6 +141,14 @@ export function zerstoereZiel(ziel) {
     state.frameZaehler = 0; // Setzt Level-Timer zurück
   } else {
     addScore(ziel.istFeind ? 100 : ziel.traegtPowerup ? 50 : ziel.groesse >= 35 ? 20 : 10);
+    if (ziel.istFeind) {
+      const currentShip = shipModels && shipModels[state.selectedShipModel || 'viper'];
+      const energyGain = (currentShip && currentShip.energyPerKill) || 0;
+      if (energyGain > 0) {
+        state.energie = Math.min(state.maxEnergie, state.energie + energyGain);
+        if (dom.energieBalken) dom.energieBalken.style.width = state.energie / state.absMaxEnergie * 100 + '%';
+      }
+    }
     let farbe = ziel.istFeind ? '#9b59b6' : ziel.el.dataset.baseColor || ziel.el.style.backgroundColor || '#ffffff';
     erzeugeExplosion(ziel.x + ziel.groesse / 2, ziel.y + ziel.groesse / 2, farbe, 25);
     if (ziel.traegtPowerup) {

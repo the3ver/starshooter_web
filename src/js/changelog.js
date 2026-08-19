@@ -1,6 +1,14 @@
-export const GAME_VERSION = '1.5.5';
+export const GAME_VERSION = '1.5.6';
 
 export const changelogData = {
+  '1.5.6': {
+    version: '1.5.6',
+    intro: 'Hey, es ist jetzt Version 1.5.6 rausgekommen, folgendes wurde geändert oder ist neu:',
+    highlights: [
+      '⚡ Viper-X Kill-Energie: Zerstörte feindliche Schiffe stellen der Viper sofort +5 Laser-Energie wieder her',
+      '🏷️ Hangar-Perks aktualisiert: Neuer Perk "+5 ENERGIE BEI KILL" für Viper-X sichtbar'
+    ]
+  },
   '1.5.5': {
     version: '1.5.5',
     intro: 'Hey, es ist jetzt Version 1.5.5 rausgekommen, folgendes wurde geändert oder ist neu:',

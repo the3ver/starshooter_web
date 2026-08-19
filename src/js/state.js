@@ -54,10 +54,12 @@ export const shipModels = {
         speed: 6.0,
         energyRegen: 0.5,
         startShield: 0,
+        energyPerKill: 5,
         loseUpgradesOnHit: true,
         perks: [
             { icon: '⚡', label: '+20% TEMPO', desc: 'Höchste Wendigkeit & Fluggeschwindigkeit', type: 'buff' },
             { icon: '🔋', label: '+25% REGEN', desc: 'Laser lädt deutlich schneller wieder auf', type: 'buff' },
+            { icon: '💥', label: '+5 ENERGIE BEI KILL', desc: 'Stellt für jeden zerstörten Feind 5 Laser-Energie wieder her', type: 'buff' },
             { icon: '⚠️', label: 'TREFFER: -1 UPGRADE', desc: 'Verliert bei Treffern ohne Schild ein Waffen-Upgrade', type: 'nerf' }
         ]
     },

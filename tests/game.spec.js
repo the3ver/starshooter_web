@@ -3,7 +3,7 @@ const { test, expect } = require('@playwright/test');
 test.beforeEach(async ({ page }) => {
   // Standardmäßig als bereits gesehen markieren, damit die Tests direkt interagieren können
   await page.addInitScript(() => {
-    localStorage.setItem('starshooter_last_seen_version', '1.5.5');
+    localStorage.setItem('starshooter_last_seen_version', '1.5.6');
   });
   await page.goto('/');
 });
@@ -735,6 +735,38 @@ test.describe('Space Shooter', () => {
     expect(viperRegen.energie).toBeGreaterThan(phantomRegen.energie);
   });
 
+  test('Schiff-Eigenschaften: Viper-X erhaelt bei Zerstoerung kleiner Gegner Energie zurueck (+5 Energie)', async ({ page }) => {
+    // 1. Viper-X wählen (Standard)
+    await page.goto('/');
+    const viperBtn = page.locator('.hangar-model-btn[data-model="viper"]');
+    await viperBtn.click();
+
+    // Spiel starten und Energie auf 20 setzen
+    await page.keyboard.down('KeyW');
+    await page.waitForTimeout(50);
+    await page.keyboard.up('KeyW');
+
+    await page.evaluate(async () => {
+      const stateMod = await import('./js/state.js');
+      const entitiesMod = await import('./js/entities.js');
+      const utilsMod = await import('./js/utils.js');
+
+      stateMod.state.energie = 20;
+      // Kleinen Feind erzeugen und zerstören
+      entitiesMod.erzeugeFeind(200, 100, 'normal', 0);
+      const feind = stateMod.arrays.feinde[0];
+      utilsMod.zerstoereZiel(feind);
+    });
+
+    const energyAfterKill = await page.evaluate(async () => {
+      const stateMod = await import('./js/state.js');
+      return stateMod.state.energie;
+    });
+
+    // Energie muss von 20 auf 25 gestiegen sein
+    expect(energyAfterKill).toBe(25);
+  });
+
   test('Hangar: Zeigt beim Umschalten dynamisch die Perk-Badges der Schiffe an', async ({ page }) => {
     await page.goto('/');
 
@@ -743,9 +775,10 @@ test.describe('Space Shooter', () => {
 
     // 1. Initial mit Viper-X
     const viperBadges = perksContainer.locator('.hangar-perk-badge');
-    await expect(viperBadges).toHaveCount(3);
+    await expect(viperBadges).toHaveCount(4);
     await expect(perksContainer).toContainText('+20% TEMPO');
     await expect(perksContainer).toContainText('+25% REGEN');
+    await expect(perksContainer).toContainText('+5 ENERGIE BEI KILL');
     await expect(perksContainer).toContainText('TREFFER: -1 UPGRADE');
 
     // 2. Wechsel auf Phantom-NX
@@ -802,10 +835,10 @@ test.describe('Was gibt es Neues Modal (Changelog)', () => {
     await expect(title).toContainText("WAS GIBT'S NEUES");
 
     const intro = page.locator('#whats-new-intro');
-    await expect(intro).toContainText('1.5.5');
+    await expect(intro).toContainText('1.5.6');
 
     const items = page.locator('#whats-new-list li');
-    await expect(items).toHaveCount(3);
+    await expect(items).toHaveCount(2);
 
     // Schließen
     const closeBtn = page.locator('#btn-close-whats-new');
@@ -815,7 +848,7 @@ test.describe('Was gibt es Neues Modal (Changelog)', () => {
 
     // Prüfen, dass localStorage aktualisiert wurde
     const storedVersion = await page.evaluate(() => localStorage.getItem('starshooter_last_seen_version'));
-    expect(storedVersion).toBe('1.5.5');
+    expect(storedVersion).toBe('1.5.6');
 
     // Erneut öffnen über Start-Screen Button
     const openBtn = page.locator('#btn-open-whats-new');
