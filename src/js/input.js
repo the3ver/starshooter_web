@@ -20,6 +20,24 @@ export function setupInput() {
       
       state.typedCheatKeys += e.key.toLowerCase();
       if (state.typedCheatKeys.length > 10) state.typedCheatKeys = state.typedCheatKeys.slice(-10);
+      const idkfMatch = state.typedCheatKeys.match(/idkf([1-5])$/);
+      if (idkfMatch) {
+        const lvl = parseInt(idkfMatch[1], 10);
+        state.cheatUsed = true;
+        state.laserStufe = lvl;
+        state.raketenStufe = lvl;
+        state.bombenStufe = lvl;
+        Utils.updateAktivePowerupsUI();
+        let overlay = document.getElementById('warning-overlay');
+        overlay.innerHTML = `IDKF${lvl}<br>Weapons Level ${lvl}!`;
+        overlay.style.display = 'block';
+        overlay.style.color = '#f1c40f';
+        setTimeout(() => {
+          overlay.style.display = 'none';
+          overlay.style.color = '#e74c3c';
+          overlay.innerHTML = 'WARNING<br>BOSS APPROACHING';
+        }, 2000);
+      }
       if (state.typedCheatKeys.endsWith('idkfa')) {
         state.cheatUsed = true;
         state.laserStufe = 5;

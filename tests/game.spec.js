@@ -3,7 +3,7 @@ const { test, expect } = require('@playwright/test');
 test.beforeEach(async ({ page }) => {
   // Standardmäßig als bereits gesehen markieren, damit die Tests direkt interagieren können
   await page.addInitScript(() => {
-    localStorage.setItem('starshooter_last_seen_version', '1.3.1');
+    localStorage.setItem('starshooter_last_seen_version', '1.3.2');
   });
   await page.goto('/');
 });
@@ -136,6 +136,53 @@ test.describe('Space Shooter', () => {
     expect(laserCount).toBe(0);
   });
 
+  test('Cheatcodes idkf1 bis idkf5 setzen die Waffenstufen entsprechend', async ({ page }) => {
+    // Spiel starten
+    await page.keyboard.down('KeyW');
+    await page.waitForTimeout(50);
+    await page.keyboard.up('KeyW');
+
+    // idkf3 tippen
+    for (const char of 'idkf3') {
+      await page.keyboard.press(char);
+      await page.waitForTimeout(20);
+    }
+
+    const stufen3 = await page.evaluate(async () => {
+      const stateMod = await import('./js/state.js');
+      return {
+        laser: stateMod.state.laserStufe,
+        raketen: stateMod.state.raketenStufe,
+        bomben: stateMod.state.bombenStufe,
+        cheatUsed: stateMod.state.cheatUsed
+      };
+    });
+
+    expect(stufen3.laser).toBe(3);
+    expect(stufen3.raketen).toBe(3);
+    expect(stufen3.bomben).toBe(3);
+    expect(stufen3.cheatUsed).toBe(true);
+
+    // idkf1 tippen
+    for (const char of 'idkf1') {
+      await page.keyboard.press(char);
+      await page.waitForTimeout(20);
+    }
+
+    const stufen1 = await page.evaluate(async () => {
+      const stateMod = await import('./js/state.js');
+      return {
+        laser: stateMod.state.laserStufe,
+        raketen: stateMod.state.raketenStufe,
+        bomben: stateMod.state.bombenStufe
+      };
+    });
+
+    expect(stufen1.laser).toBe(1);
+    expect(stufen1.raketen).toBe(1);
+    expect(stufen1.bomben).toBe(1);
+  });
+
   test('Highscore-Eingabefeld wird bei Game Over automatisch fokussiert', async ({ page }) => {
     // Spiel starten
     await page.keyboard.down('KeyW');
@@ -202,7 +249,7 @@ test.describe('Was gibt es Neues Modal (Changelog)', () => {
     await expect(title).toContainText("WAS GIBT'S NEUES");
 
     const intro = page.locator('#whats-new-intro');
-    await expect(intro).toContainText('1.3.1');
+    await expect(intro).toContainText('1.3.2');
 
     const items = page.locator('#whats-new-list li');
     await expect(items).toHaveCount(5);
@@ -215,7 +262,7 @@ test.describe('Was gibt es Neues Modal (Changelog)', () => {
 
     // Prüfen, dass localStorage aktualisiert wurde
     const storedVersion = await page.evaluate(() => localStorage.getItem('starshooter_last_seen_version'));
-    expect(storedVersion).toBe('1.3.1');
+    expect(storedVersion).toBe('1.3.2');
 
     // Erneut öffnen über Start-Screen Button
     const openBtn = page.locator('#btn-open-whats-new');
