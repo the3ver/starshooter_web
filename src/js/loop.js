@@ -1,5 +1,5 @@
 
-import { state, dom, config, arrays } from './state.js';
+import { state, dom, config, arrays, shipModels } from './state.js';
 import * as Utils from './utils.js';
 import * as Entities from './entities.js';
 import * as Input from './input.js';
@@ -67,6 +67,15 @@ export function gameLoop() {
       let startScreen = document.getElementById('start-screen');
       if (startScreen) startScreen.style.display = 'none';
       Utils.updateMobileControlsVisibility();
+      
+      // Schiff-spezifische Start-Eigenschaften anwenden (z.B. Phantom Start-Schild)
+      const currentShip = shipModels && shipModels[state.selectedShipModel || 'viper'];
+      if (currentShip && currentShip.startShield > 0) {
+        state.schildStufe = currentShip.startShield;
+        dom.spieler.classList.add(`schild-aktiv-${state.schildStufe}`);
+        Utils.updateAktivePowerupsUI();
+      }
+      
       // Verhindere sofortiges Feuern beim Spielstart
       state.tastenGedrueckt[' '] = false;
       state.tastenGedrueckt.k = false;
@@ -132,14 +141,15 @@ export function gameLoop() {
   // --- 9.1 SPIELER-BEWEGUNG ---
   let baseFlameScale = 1.0;
   let targetRotate = 0;
+  const currentSpeed = (shipModels && shipModels[state.selectedShipModel]?.speed) || config.geschwindigkeit;
   
   if (state.joystick && state.joystick.active) {
     let mag = Math.sqrt(state.joystick.x * state.joystick.x + state.joystick.y * state.joystick.y);
     if (mag > 0.1) {
       let dirX = state.joystick.x / mag;
       let dirY = state.joystick.y / mag;
-      state.x += dirX * config.geschwindigkeit;
-      state.y += dirY * config.geschwindigkeit;
+      state.x += dirX * currentSpeed;
+      state.y += dirY * currentSpeed;
     }
     
     if (state.joystick.y < -0.2) baseFlameScale = 1.8;
@@ -149,19 +159,19 @@ export function gameLoop() {
     else if (state.joystick.x > 0.2) targetRotate = 15;
   } else {
     if (state.tastenGedrueckt.w) {
-      state.y -= config.geschwindigkeit;
+      state.y -= currentSpeed;
       baseFlameScale = 1.8;
     }
     if (state.tastenGedrueckt.s) {
-      state.y += config.geschwindigkeit;
+      state.y += currentSpeed;
       baseFlameScale = 0.4;
     }
     if (state.tastenGedrueckt.a) {
-      state.x -= config.geschwindigkeit;
+      state.x -= currentSpeed;
       targetRotate = -15;
     }
     if (state.tastenGedrueckt.d) {
-      state.x += config.geschwindigkeit;
+      state.x += currentSpeed;
       targetRotate = 15;
     }
   }
@@ -258,7 +268,8 @@ export function gameLoop() {
       state.energie -= 0.8 + Math.min(state.laserStufe, 5) * 0.1;
     }
   } else {
-    if (state.energie < state.maxEnergie) state.energie += 0.4;
+    const regenRate = (shipModels && shipModels[state.selectedShipModel]?.energyRegen) || 0.4;
+    if (state.energie < state.maxEnergie) state.energie += regenRate;
     versteckeAlleLaser();
   }
   if (state.energie < 0) state.energie = 0;

@@ -1075,6 +1075,59 @@
             font-family: 'Courier New', Courier, monospace;
         }
 
+        .hangar-perks-list {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 4px;
+            justify-content: center;
+            align-items: center;
+            margin-top: 6px;
+            width: 100%;
+        }
+
+        .hangar-perk-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            background: rgba(11, 19, 25, 0.85);
+            border-radius: 4px;
+            padding: 2px 6px;
+            font-size: 8px;
+            font-family: 'Courier New', Courier, monospace;
+            font-weight: bold;
+            letter-spacing: 0.5px;
+            border: 1px solid rgba(255, 255, 255, 0.15);
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.4);
+            transition: transform 0.2s ease, box-shadow 0.2s ease;
+        }
+
+        .hangar-perk-badge:hover {
+            transform: translateY(-1px);
+        }
+
+        .hangar-perk-badge.perk-buff {
+            border-color: rgba(46, 204, 113, 0.4);
+            color: #2ecc71;
+            background: rgba(46, 204, 113, 0.08);
+            box-shadow: 0 0 6px rgba(46, 204, 113, 0.2);
+        }
+
+        .hangar-perk-badge.perk-nerf {
+            border-color: rgba(230, 126, 34, 0.4);
+            color: #e67e22;
+            background: rgba(230, 126, 34, 0.08);
+            box-shadow: 0 0 6px rgba(230, 126, 34, 0.2);
+        }
+
+        .hangar-perk-badge .perk-icon {
+            font-size: 9px;
+            line-height: 1;
+        }
+
+        .hangar-perk-badge .perk-label {
+            white-space: nowrap;
+        }
+
         .hangar-models {
             display: flex;
             gap: 8px;

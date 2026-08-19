@@ -43,6 +43,7 @@ Das Spielerschiff kann drei Waffentypen sammeln und auf Stufe 5 hochleveln. Powe
 
 ## Agent Verhalten
 - Keine Entschuldigungen für Fehler. Halte Antworten kurz, fokussiert und lösungsorientiert.
+- **Test-First / TDD:** Neue Features und Verhaltensänderungen müssen immer testgetrieben (TDD) implementiert werden: Zuerst wird der fehlschlagende Test (Rot) geschrieben, anschließend der Produktivcode, um den Test grün zu machen (Grün).
 - Vor einem Git Push müssen immer alle Tests erfolgreich durchlaufen (grün sein).
 - Wenn der Sandboxed-Modus aktiv ist und `run_command` aufgrund von Berechtigungen fehlschlägt, MUSS die Kommunikation über die Agent Bridge (`.agents/cmd_request.json` und `.agents/cmd_response.json`) erfolgen. Schreibe den Befehl als JSON (`{"id": <increment>, "command": "..."}`) in die Request-Datei, warte kurz (z.B. per `schedule`) und lese das Ergebnis aus der Response-Datei.
 - Bei jedem Commit, der nicht nur die Infrastruktur des Projekts betrifft (z. B. Spiel-Logik, UI, CSS), muss das Patch-Level der Version erhöht werden (z. B. `0.12.0` -> `0.12.1`). Denke daran, sowohl die `package.json` als auch die Versionsanzeige im `index.html` anzupassen.

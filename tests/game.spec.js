@@ -3,7 +3,7 @@ const { test, expect } = require('@playwright/test');
 test.beforeEach(async ({ page }) => {
   // Standardmäßig als bereits gesehen markieren, damit die Tests direkt interagieren können
   await page.addInitScript(() => {
-    localStorage.setItem('starshooter_last_seen_version', '1.5.0');
+    localStorage.setItem('starshooter_last_seen_version', '1.5.1');
   });
   await page.goto('/');
 });
@@ -386,6 +386,259 @@ test.describe('Space Shooter', () => {
     }
   });
 
+  test('Schiff-Eigenschaften: Viper-X bewegt sich spürbar schneller als Phantom-NX', async ({ page }) => {
+    // 1. Test mit Viper-X (Standard)
+    const viperBtn = page.locator('.hangar-model-btn[data-model="viper"]');
+    await viperBtn.click();
+
+    // Start-Position prüfen
+    await page.evaluate(async () => {
+      const stateMod = await import('./js/state.js');
+      stateMod.state.x = 100;
+      stateMod.state.y = 100;
+    });
+
+    // W-Taste drücken, um Spiel zu starten und für 100ms nach oben/rechts zu fliegen
+    await page.keyboard.down('KeyD');
+    await page.waitForTimeout(100);
+    await page.keyboard.up('KeyD');
+
+    const viperEndX = await page.evaluate(async () => {
+      const stateMod = await import('./js/state.js');
+      return stateMod.state.x;
+    });
+    const viperDelta = viperEndX - 100;
+
+    // Spiel neustarten und Phantom-NX wählen
+    await page.goto('/');
+    const phantomBtn = page.locator('.hangar-model-btn[data-model="phantom"]');
+    await phantomBtn.click();
+
+    await page.evaluate(async () => {
+      const stateMod = await import('./js/state.js');
+      stateMod.state.x = 100;
+      stateMod.state.y = 100;
+    });
+
+    await page.keyboard.down('KeyD');
+    await page.waitForTimeout(100);
+    await page.keyboard.up('KeyD');
+
+    const phantomEndX = await page.evaluate(async () => {
+      const stateMod = await import('./js/state.js');
+      return stateMod.state.x;
+    });
+    const phantomDelta = phantomEndX - 100;
+
+    // Geschwindigkeitswerte im State / Config prüfen
+    const shipSpeeds = await page.evaluate(async () => {
+      const stateMod = await import('./js/state.js');
+      return {
+        viper: stateMod.shipModels.viper.speed,
+        phantom: stateMod.shipModels.phantom.speed
+      };
+    });
+
+    expect(shipSpeeds.viper).toBe(6.0);
+    expect(shipSpeeds.phantom).toBe(4.5);
+    expect(viperDelta).toBeGreaterThan(phantomDelta);
+  });
+
+  test('Schiff-Eigenschaften: Phantom-NX startet mit Schild Stufe 1, Viper-X ohne Schild', async ({ page }) => {
+    // 1. Mit Phantom-NX starten
+    const phantomBtn = page.locator('.hangar-model-btn[data-model="phantom"]');
+    await phantomBtn.click();
+
+    // Spiel starten mit W-Taste
+    await page.keyboard.down('KeyW');
+    await page.waitForTimeout(50);
+    await page.keyboard.up('KeyW');
+
+    // Prüfen, ob Schildstufe 1 aktiv ist
+    const phantomSchild = await page.evaluate(async () => {
+      const stateMod = await import('./js/state.js');
+      const spielerEl = document.getElementById('spieler');
+      return {
+        stufe: stateMod.state.schildStufe,
+        hasShieldClass: spielerEl.classList.contains('schild-aktiv-1')
+      };
+    });
+
+    expect(phantomSchild.stufe).toBe(1);
+    expect(phantomSchild.hasShieldClass).toBe(true);
+
+    // 2. Seite neu laden und mit Viper-X starten
+    await page.goto('/');
+    const viperBtn = page.locator('.hangar-model-btn[data-model="viper"]');
+    await viperBtn.click();
+
+    await page.keyboard.down('KeyW');
+    await page.waitForTimeout(50);
+    await page.keyboard.up('KeyW');
+
+    const viperSchild = await page.evaluate(async () => {
+      const stateMod = await import('./js/state.js');
+      const spielerEl = document.getElementById('spieler');
+      return {
+        stufe: stateMod.state.schildStufe,
+        hasShieldClass: spielerEl.classList.contains('schild-aktiv-1')
+      };
+    });
+
+    expect(viperSchild.stufe).toBe(0);
+    expect(viperSchild.hasShieldClass).toBe(false);
+  });
+
+  test('Schiff-Eigenschaften: Phantom-NX verliert bei Treffern keine Upgrades, Viper-X verliert Upgrades', async ({ page }) => {
+    // 1. Test mit Phantom-NX: Verliert KEINE Upgrades bei Treffer
+    await page.goto('/');
+    const phantomBtn = page.locator('.hangar-model-btn[data-model="phantom"]');
+    await phantomBtn.click();
+
+    await page.evaluate(async () => {
+      const stateMod = await import('./js/state.js');
+      const utilsMod = await import('./js/utils.js');
+      stateMod.state.laserStufe = 3;
+      stateMod.state.raketenStufe = 3;
+      stateMod.state.bombenStufe = 3;
+      stateMod.state.schildStufe = 0; // Kein Schild, damit Treffer direkt HP trifft
+      stateMod.state.leben = 3;
+      stateMod.state.invulnerableTimer = 0;
+      
+      // Treffer simulieren
+      utilsMod.spielerGetroffen({ x: 0, y: 0, el: document.createElement('div'), istFeind: true }, false);
+    });
+
+    const phantomUpgrades = await page.evaluate(async () => {
+      const stateMod = await import('./js/state.js');
+      return {
+        laser: stateMod.state.laserStufe,
+        raketen: stateMod.state.raketenStufe,
+        bomben: stateMod.state.bombenStufe,
+        leben: stateMod.state.leben
+      };
+    });
+
+    // Leben wurde reduziert (3 -> 2), aber alle Waffenstufen blieben unverändert auf 3
+    expect(phantomUpgrades.leben).toBe(2);
+    expect(phantomUpgrades.laser).toBe(3);
+    expect(phantomUpgrades.raketen).toBe(3);
+    expect(phantomUpgrades.bomben).toBe(3);
+
+    // 2. Test mit Viper-X: Verliert 1 Upgrade bei Treffer
+    await page.goto('/');
+    const viperBtn = page.locator('.hangar-model-btn[data-model="viper"]');
+    await viperBtn.click();
+
+    await page.evaluate(async () => {
+      const stateMod = await import('./js/state.js');
+      const utilsMod = await import('./js/utils.js');
+      stateMod.state.laserStufe = 3;
+      stateMod.state.raketenStufe = 3;
+      stateMod.state.bombenStufe = 3;
+      stateMod.state.schildStufe = 0;
+      stateMod.state.leben = 3;
+      stateMod.state.invulnerableTimer = 0;
+
+      // Treffer simulieren
+      utilsMod.spielerGetroffen({ x: 0, y: 0, el: document.createElement('div'), istFeind: true }, false);
+    });
+
+    const viperUpgrades = await page.evaluate(async () => {
+      const stateMod = await import('./js/state.js');
+      return {
+        laser: stateMod.state.laserStufe,
+        raketen: stateMod.state.raketenStufe,
+        bomben: stateMod.state.bombenStufe,
+        leben: stateMod.state.leben,
+        summe: stateMod.state.laserStufe + stateMod.state.raketenStufe + stateMod.state.bombenStufe
+      };
+    });
+
+    // Leben wurde reduziert (3 -> 2) und Summe der Waffenstufen sank von 9 auf 8
+    expect(viperUpgrades.leben).toBe(2);
+    expect(viperUpgrades.summe).toBe(8);
+  });
+
+  test('Schiff-Eigenschaften: Viper-X regeneriert Laser-Energie 25% schneller als Phantom-NX', async ({ page }) => {
+    // 1. Viper-X wählen
+    await page.goto('/');
+    const viperBtn = page.locator('.hangar-model-btn[data-model="viper"]');
+    await viperBtn.click();
+
+    // Spiel starten und Energie auf 0 setzen
+    await page.keyboard.down('KeyW');
+    await page.waitForTimeout(50);
+    await page.keyboard.up('KeyW');
+
+    const viperRegen = await page.evaluate(async () => {
+      const stateMod = await import('./js/state.js');
+      stateMod.state.energie = 0;
+      stateMod.state.laserSchiesst = false;
+      
+      // 100ms warten damit der Game-Loop Energie regeneriert
+      await new Promise(r => setTimeout(r, 100));
+      return {
+        energie: stateMod.state.energie,
+        configRegen: stateMod.shipModels.viper.energyRegen
+      };
+    });
+
+    // 2. Phantom-NX wählen
+    await page.goto('/');
+    const phantomBtn = page.locator('.hangar-model-btn[data-model="phantom"]');
+    await phantomBtn.click();
+
+    await page.keyboard.down('KeyW');
+    await page.waitForTimeout(50);
+    await page.keyboard.up('KeyW');
+
+    const phantomRegen = await page.evaluate(async () => {
+      const stateMod = await import('./js/state.js');
+      stateMod.state.energie = 0;
+      stateMod.state.laserSchiesst = false;
+
+      await new Promise(r => setTimeout(r, 100));
+      return {
+        energie: stateMod.state.energie,
+        configRegen: stateMod.shipModels.phantom.energyRegen
+      };
+    });
+
+    expect(viperRegen.configRegen).toBe(0.5);
+    expect(phantomRegen.configRegen).toBe(0.4);
+    expect(viperRegen.energie).toBeGreaterThan(phantomRegen.energie);
+  });
+
+  test('Hangar: Zeigt beim Umschalten dynamisch die Perk-Badges der Schiffe an', async ({ page }) => {
+    await page.goto('/');
+
+    const perksContainer = page.locator('#hangar-ship-perks');
+    await expect(perksContainer).toBeVisible();
+
+    // 1. Initial mit Viper-X
+    const viperBadges = perksContainer.locator('.hangar-perk-badge');
+    await expect(viperBadges).toHaveCount(3);
+    await expect(perksContainer).toContainText('+20% TEMPO');
+    await expect(perksContainer).toContainText('+25% REGEN');
+
+    // 2. Wechsel auf Phantom-NX
+    const phantomBtn = page.locator('.hangar-model-btn[data-model="phantom"]');
+    await phantomBtn.click();
+
+    const phantomBadges = perksContainer.locator('.hangar-perk-badge');
+    await expect(phantomBadges).toHaveCount(3);
+    await expect(perksContainer).toContainText('SCHWERE PANZERUNG');
+    await expect(perksContainer).toContainText('START-SCHILD');
+
+    // 3. Zurück auf Viper-X
+    const viperBtn = page.locator('.hangar-model-btn[data-model="viper"]');
+    await viperBtn.click();
+
+    await expect(perksContainer).toContainText('+20% TEMPO');
+    await expect(perksContainer).not.toContainText('SCHWERE PANZERUNG');
+  });
+
   test('Spielfeld skaliert dynamisch je nach Fenstergröße', async ({ page }) => {
     const spielfeld = page.locator('#spielfeld');
     const container = page.locator('#spielfeld-container');
@@ -422,10 +675,10 @@ test.describe('Was gibt es Neues Modal (Changelog)', () => {
     await expect(title).toContainText("WAS GIBT'S NEUES");
 
     const intro = page.locator('#whats-new-intro');
-    await expect(intro).toContainText('1.5.0');
+    await expect(intro).toContainText('1.5.1');
 
     const items = page.locator('#whats-new-list li');
-    await expect(items).toHaveCount(5);
+    await expect(items).toHaveCount(4);
 
     // Schließen
     const closeBtn = page.locator('#btn-close-whats-new');
@@ -435,7 +688,7 @@ test.describe('Was gibt es Neues Modal (Changelog)', () => {
 
     // Prüfen, dass localStorage aktualisiert wurde
     const storedVersion = await page.evaluate(() => localStorage.getItem('starshooter_last_seen_version'));
-    expect(storedVersion).toBe('1.5.0');
+    expect(storedVersion).toBe('1.5.1');
 
     // Erneut öffnen über Start-Screen Button
     const openBtn = page.locator('#btn-open-whats-new');

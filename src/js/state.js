@@ -47,6 +47,35 @@ export const shipColors = {
     purple: { name: 'Void Violet', prim: '#9b59b6', sec: '#8e44ad', accent: '#a29bfe', glow: 'rgba(155, 89, 182, 0.8)' }
 };
 
+export const shipModels = {
+    viper: {
+        name: 'VIPER-X INTERCEPTOR',
+        shortName: 'VIPER-X',
+        speed: 6.0,
+        energyRegen: 0.5,
+        startShield: 0,
+        loseUpgradesOnHit: true,
+        perks: [
+            { icon: '⚡', label: '+20% TEMPO', desc: 'Höchste Wendigkeit & Fluggeschwindigkeit', type: 'buff' },
+            { icon: '🔋', label: '+25% REGEN', desc: 'Laser lädt deutlich schneller wieder auf', type: 'buff' },
+            { icon: '⚠️', label: 'LEICHTE PANZERUNG', desc: 'Verliert bei Treffern Waffen-Upgrades', type: 'nerf' }
+        ]
+    },
+    phantom: {
+        name: 'PHANTOM-NX STRIKER',
+        shortName: 'PHANTOM-NX',
+        speed: 4.5,
+        energyRegen: 0.4,
+        startShield: 1,
+        loseUpgradesOnHit: false,
+        perks: [
+            { icon: '🛡️', label: 'SCHWERE PANZERUNG', desc: 'Behält alle Waffen-Upgrades bei Treffern', type: 'buff' },
+            { icon: '🔷', label: 'START-SCHILD LVL 1', desc: 'Startet jedes Gefecht mit aktivem Schild', type: 'buff' },
+            { icon: '⏳', label: '-10% TEMPO', desc: 'Schwerere Masse, etwas trägere Steuerung', type: 'nerf' }
+        ]
+    }
+};
+
 export const state = {
     x: 185, y: 285, leben: 3, score: 0, level: 1, absMaxEnergie: 100, maxEnergie: 50,
     energie: 50, minZuendEnergie: 15, energieTimer: 0, laserSchiesst: false,

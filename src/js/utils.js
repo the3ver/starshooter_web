@@ -1,5 +1,5 @@
 
-import { state, dom, config, arrays, shipColors } from './state.js';
+import { state, dom, config, arrays, shipColors, shipModels } from './state.js';
 import * as Entities from './entities.js';
 import * as Input from './input.js';
 import * as Loop from './loop.js';
@@ -172,13 +172,18 @@ export function spielerGetroffen(kollisionsObjekt, explodiert = true) {
     return;
   }
   state.leben--;
-  let moeglicheDowngrades = [];
-  if (state.laserStufe > 1) moeglicheDowngrades.push('laser');
-  if (state.raketenStufe > 1) moeglicheDowngrades.push('raketen');
-  if (state.bombenStufe > 1) moeglicheDowngrades.push('bomben');
-  if (moeglicheDowngrades.length > 0) {
-    let wahl = moeglicheDowngrades[Math.floor(Math.random() * moeglicheDowngrades.length)];
-    if (wahl === 'laser') state.laserStufe--;else if (wahl === 'raketen') state.raketenStufe--;else if (wahl === 'bomben') state.bombenStufe--;
+  const currentShip = shipModels && shipModels[state.selectedShipModel || 'viper'];
+  if (!currentShip || currentShip.loseUpgradesOnHit) {
+    let moeglicheDowngrades = [];
+    if (state.laserStufe > 1) moeglicheDowngrades.push('laser');
+    if (state.raketenStufe > 1) moeglicheDowngrades.push('raketen');
+    if (state.bombenStufe > 1) moeglicheDowngrades.push('bomben');
+    if (moeglicheDowngrades.length > 0) {
+      let wahl = moeglicheDowngrades[Math.floor(Math.random() * moeglicheDowngrades.length)];
+      if (wahl === 'laser') state.laserStufe--;
+      else if (wahl === 'raketen') state.raketenStufe--;
+      else if (wahl === 'bomben') state.bombenStufe--;
+    }
   }
   updateLebenUI();
   updateAktivePowerupsUI();
@@ -242,8 +247,12 @@ export function restartGame() {
   dom.maxEnergieMarker.style.display = 'block';
   state.laserDurchschlag = false;
   state.durchschlagTimer = 0;
-  state.schildStufe = 0;
+  const currentShip = shipModels && shipModels[state.selectedShipModel || 'viper'];
+  state.schildStufe = (currentShip && currentShip.startShield) || 0;
   dom.spieler.classList.remove('schild-aktiv-1', 'schild-aktiv-2', 'schild-aktiv-3');
+  if (state.schildStufe > 0) {
+    dom.spieler.classList.add(`schild-aktiv-${state.schildStufe}`);
+  }
   state.score = 0;
   addScore(0);
   state.level = 1;
@@ -468,8 +477,20 @@ export function updatePlayerShipVisuals() {
     previewSvg.innerHTML = svgContent;
   }
   const previewName = document.getElementById('hangar-ship-name');
+  const shipData = shipModels && shipModels[model];
   if (previewName) {
-    previewName.textContent = model === 'phantom' ? 'PHANTOM-NX STRIKER' : 'VIPER-X INTERCEPTOR';
+    previewName.textContent = (shipData && shipData.name) || (model === 'phantom' ? 'PHANTOM-NX STRIKER' : 'VIPER-X INTERCEPTOR');
+  }
+
+  // Hangar Perks rendern
+  const perksContainer = document.getElementById('hangar-ship-perks');
+  if (perksContainer && shipData && shipData.perks) {
+    perksContainer.innerHTML = shipData.perks.map(p => `
+      <div class="hangar-perk-badge ${p.type === 'nerf' ? 'perk-nerf' : 'perk-buff'}" title="${p.desc}">
+        <span class="perk-icon">${p.icon}</span>
+        <span class="perk-label">${p.label}</span>
+      </div>
+    `).join('');
   }
 
   // Active Klassen auf Hangar Buttons aktualisieren

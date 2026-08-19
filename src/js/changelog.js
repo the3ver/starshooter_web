@@ -1,6 +1,16 @@
-export const GAME_VERSION = '1.5.0';
+export const GAME_VERSION = '1.5.1';
 
 export const changelogData = {
+  '1.5.1': {
+    version: '1.5.1',
+    intro: 'Hey, es ist jetzt Version 1.5.1 rausgekommen, folgendes wurde geändert oder ist neu:',
+    highlights: [
+      '⚡ Viper-X Interceptor: +20% Tempo & +25% schnellere Laser-Regeneration',
+      '🛡️ Phantom-NX Striker: Schwere Panzerung (kein Upgrade-Verlust) & Start-Schild Lvl 1',
+      '🏷️ Hangar-Perks: Anzeige aller Vor- und Nachteile direkt im Hangar',
+      '🛸 Ausbalanciertes Schiffsgefühl: Asymmetrische Eigenschaften für beide Modelle'
+    ]
+  },
   '1.5.0': {
     version: '1.5.0',
     intro: 'Hey, es ist jetzt Version 1.5.0 rausgekommen, folgendes wurde geändert oder ist neu:',
