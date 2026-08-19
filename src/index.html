@@ -48,23 +48,35 @@
 
             <div id="start-screen">
                 <div class="start-title">STAR SHOOTER</div>
+
+                <!-- HANGAR: SCHIFFS- & FARBAUSWAHL -->
+                <div id="hangar-container">
+                    <div class="hangar-header">HANGAR: SCHIFFS-AUSWAHL</div>
+                    <div class="hangar-preview-box">
+                        <div class="hangar-ship-display">
+                            <svg id="hangar-preview-svg" viewBox="0 0 30 30"></svg>
+                            <div class="hangar-flame flame-left"></div>
+                            <div class="hangar-flame flame-right"></div>
+                        </div>
+                        <div id="hangar-ship-name">VIPER-X INTERCEPTOR</div>
+                    </div>
+                    <div class="hangar-models">
+                        <button type="button" class="hangar-model-btn active" data-model="viper">VIPER-X</button>
+                        <button type="button" class="hangar-model-btn" data-model="phantom">PHANTOM-NX</button>
+                    </div>
+                    <div class="hangar-colors">
+                        <button type="button" class="hangar-color-btn color-red active" data-color="red" title="Crimson Red"></button>
+                        <button type="button" class="hangar-color-btn color-blue" data-color="blue" title="Cobalt Blue"></button>
+                        <button type="button" class="hangar-color-btn color-green" data-color="green" title="Emerald Green"></button>
+                        <button type="button" class="hangar-color-btn color-yellow" data-color="yellow" title="Cyber Gold"></button>
+                        <button type="button" class="hangar-color-btn color-purple" data-color="purple" title="Void Violet"></button>
+                    </div>
+                </div>
+
                 <div class="steuerung-titel">Steuerung (PC)</div>
-                <b>W A S D</b> &nbsp;&rarr; Bewegen<br>
-                <b>L</b> &nbsp;&rarr; Laser<br>
-                <b>K</b> &nbsp;&rarr; Raketen<br>
-                <b>LEER</b> &rarr; Bomben<br>
-                <b>P</b> &nbsp;&rarr; Pause
+                <b>W A S D</b> &nbsp;&rarr; Bewegen &nbsp;|&nbsp; <b>L</b> &rarr; Laser<br>
+                <b>K</b> &rarr; Raketen &nbsp;|&nbsp; <b>LEER</b> &rarr; Bomben &nbsp;|&nbsp; <b>P</b> &rarr; Pause
 
-                <div class="steuerung-titel">Steuerung (Mobile)</div>
-                Steuerkreuz (links) &rarr; Bewegen & Auto-Laser<br>
-                Tap oben &rarr; Pausieren<br>
-                Buttons &rarr; Raketen, Bomben<br>
-
-                <div class="steuerung-titel">Powerups</div>
-                <span style="color:#e74c3c; font-weight:bold">&hearts;</span> : Extraleben | <span style="color:#f1c40f; font-weight:bold">E</span> : +10 Max Energie<br>
-                <span style="color:#9b59b6; font-weight:bold">L/R/B</span> : Waffen-Upgrades<br>
-                <span style="color:#00ffff; font-weight:bold">&uarr;</span> : Laser-Durchschlag | <span style="color:#3498db; font-weight:bold">O</span> : Schild
-                
                 <div id="start-text">TAP OR PRESS ANY KEY TO START</div>
                 <button id="btn-open-whats-new" class="btn-whats-new">WAS IST NEU?</button>
             </div>
@@ -94,7 +106,7 @@
 
             <div id="score-anzeige">00000</div>
             <div id="level-anzeige">LEVEL 1</div>
-            <div id="version-anzeige">V 1.4.4</div>
+            <div id="version-anzeige">V 1.5.0</div>
             
             <div id="boss-hp-container">
                 <div id="boss-hp-balken"></div>

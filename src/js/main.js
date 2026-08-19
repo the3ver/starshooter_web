@@ -58,11 +58,29 @@ document.addEventListener('DOMContentLoaded', () => {
     resizeGame();
 
     state.spielLaeuft = false;
-    // UI initialisieren
+    // UI & Hangar initialisieren
     import('./utils.js').then(Utils => {
         Utils.updateMaxEnergieMarker();
         Utils.updateLebenUI();
         Utils.updateAktivePowerupsUI();
+        Utils.updatePlayerShipVisuals();
+
+        // Hangar Event Listeners
+        document.querySelectorAll('.hangar-model-btn').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                state.selectedShipModel = btn.getAttribute('data-model');
+                Utils.updatePlayerShipVisuals();
+            });
+        });
+
+        document.querySelectorAll('.hangar-color-btn').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                state.selectedShipColor = btn.getAttribute('data-color');
+                Utils.updatePlayerShipVisuals();
+            });
+        });
     });
 
     // Was gibt's Neues Changelog

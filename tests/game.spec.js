@@ -3,7 +3,7 @@ const { test, expect } = require('@playwright/test');
 test.beforeEach(async ({ page }) => {
   // Standardmäßig als bereits gesehen markieren, damit die Tests direkt interagieren können
   await page.addInitScript(() => {
-    localStorage.setItem('starshooter_last_seen_version', '1.4.4');
+    localStorage.setItem('starshooter_last_seen_version', '1.5.0');
   });
   await page.goto('/');
 });
@@ -92,7 +92,7 @@ test.describe('Space Shooter', () => {
 
     // Bombe abfeuern
     await page.keyboard.down('Space');
-    const bombeLvl5 = page.locator('.bomben-projektil.bombe-lvl-5');
+    const bombeLvl5 = page.locator('.bomben-projektil.bombe-lvl-5').first();
     await expect(bombeLvl5).toBeAttached();
     await page.keyboard.up('Space');
 
@@ -331,6 +331,61 @@ test.describe('Space Shooter', () => {
     expect(pos2.y).toBe(0);
   });
 
+  test('Hangar: Schiffs-Modell kann zwischen Viper-X und Phantom-NX gewechselt werden', async ({ page }) => {
+    const hangar = page.locator('#hangar-container');
+    await expect(hangar).toBeVisible();
+
+    const nameDisplay = page.locator('#hangar-ship-name');
+    await expect(nameDisplay).toContainText('VIPER-X');
+
+    // Wechsel auf Phantom-NX
+    const phantomBtn = page.locator('.hangar-model-btn[data-model="phantom"]');
+    await phantomBtn.click();
+
+    await expect(nameDisplay).toContainText('PHANTOM-NX');
+    await expect(phantomBtn).toHaveClass(/active/);
+
+    const viperBtn = page.locator('.hangar-model-btn[data-model="viper"]');
+    await expect(viperBtn).not.toHaveClass(/active/);
+
+    const modelPhantom = await page.evaluate(async () => {
+      const stateMod = await import('./js/state.js');
+      return stateMod.state.selectedShipModel;
+    });
+    expect(modelPhantom).toBe('phantom');
+
+    // Prüfen, dass das Spielerschiff-SVG die Phantom-Geometrie enthält
+    const spielerSvg = page.locator('#spieler svg');
+    const svgHtml1 = await spielerSvg.evaluate(el => el.innerHTML);
+    expect(svgHtml1).toContain('Phantom-NX');
+
+    // Wechsel zurück auf Viper-X
+    await viperBtn.click();
+    await expect(nameDisplay).toContainText('VIPER-X');
+    const modelViper = await page.evaluate(async () => {
+      const stateMod = await import('./js/state.js');
+      return stateMod.state.selectedShipModel;
+    });
+    expect(modelViper).toBe('viper');
+    const svgHtml2 = await spielerSvg.evaluate(el => el.innerHTML);
+    expect(svgHtml2).toContain('Viper-X');
+  });
+
+  test('Hangar: Farbauswahl wechselt alle 5 Farbvarianten durch', async ({ page }) => {
+    const colors = ['blue', 'green', 'yellow', 'purple', 'red'];
+    for (const c of colors) {
+      const colorBtn = page.locator(`.hangar-color-btn[data-color="${c}"]`);
+      await colorBtn.click();
+      await expect(colorBtn).toHaveClass(/active/);
+
+      const stateColor = await page.evaluate(async () => {
+        const stateMod = await import('./js/state.js');
+        return stateMod.state.selectedShipColor;
+      });
+      expect(stateColor).toBe(c);
+    }
+  });
+
   test('Spielfeld skaliert dynamisch je nach Fenstergröße', async ({ page }) => {
     const spielfeld = page.locator('#spielfeld');
     const container = page.locator('#spielfeld-container');
@@ -367,7 +422,7 @@ test.describe('Was gibt es Neues Modal (Changelog)', () => {
     await expect(title).toContainText("WAS GIBT'S NEUES");
 
     const intro = page.locator('#whats-new-intro');
-    await expect(intro).toContainText('1.4.4');
+    await expect(intro).toContainText('1.5.0');
 
     const items = page.locator('#whats-new-list li');
     await expect(items).toHaveCount(5);
@@ -380,7 +435,7 @@ test.describe('Was gibt es Neues Modal (Changelog)', () => {
 
     // Prüfen, dass localStorage aktualisiert wurde
     const storedVersion = await page.evaluate(() => localStorage.getItem('starshooter_last_seen_version'));
-    expect(storedVersion).toBe('1.4.4');
+    expect(storedVersion).toBe('1.5.0');
 
     // Erneut öffnen über Start-Screen Button
     const openBtn = page.locator('#btn-open-whats-new');
@@ -394,8 +449,8 @@ test.describe('Mobile UI Positionierung - Handy (Pixel)', () => {
 
   test('Buttons sind relativ zum Spielfeld korrekt platziert und ragen nicht unschön rein', async ({ page }) => {
     await page.goto('/');
-    // Echten Tap ausführen
-    await page.tap('#spielfeld-container');
+    // Echten Tap auf Start-Text ausführen
+    await page.tap('#start-text');
     
     // Warten bis Controls da sind
     await expect(page.locator('#mobile-controls')).toBeVisible();
@@ -421,7 +476,7 @@ test.describe('Mobile UI Positionierung - Tablet (iPad)', () => {
 
   test('Buttons kleben nicht am rechten Bildschirmrand, sondern am Spielfeld', async ({ page }) => {
     await page.goto('/');
-    await page.tap('#spielfeld-container');
+    await page.tap('#start-text');
     
     await expect(page.locator('#mobile-controls')).toBeVisible();
     

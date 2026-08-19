@@ -1,5 +1,5 @@
 
-import { state, dom, config, arrays } from './state.js';
+import { state, dom, config, arrays, shipColors } from './state.js';
 import * as Entities from './entities.js';
 import * as Input from './input.js';
 import * as Loop from './loop.js';
@@ -303,6 +303,7 @@ export function restartGame() {
   
   let startScreen = document.getElementById('start-screen');
   if (startScreen) startScreen.style.display = 'block';
+  updatePlayerShipVisuals();
   updateMobileControlsVisibility();
 }
 export
@@ -318,9 +319,7 @@ export function saveHighscore(name, scoreValue) {
     score: scoreValue
   });
   hs.sort((a, b) => b.score - a.score);
-  hs = hs.slice(0, 10);
-  localStorage.setItem('spaceShooterHighscores', JSON.stringify(hs));
-  return hs;
+  localStorage.setItem('spaceShooterHighscores', JSON.stringify(hs.slice(0, 10)));
 }
 export function renderHighscores() {
   let hs = getHighscores();
@@ -417,4 +416,67 @@ export function erzeugeAntriebsRauch(x, y, vy = -1.5) {
       zerfall: 0.05
     });
   }
+}
+
+// --- SCHIFFS-AUSWAHL & VISUALS ---
+export function getShipSVGContent(model, colorId) {
+  const c = shipColors[colorId] || shipColors.red;
+  if (model === 'phantom') {
+    return `
+      <!-- Phantom-NX: Forward-Swept Outer Wings -->
+      <path d="M15 8 L2 2 L0 18 L6 26 L10 22 L15 25 L20 22 L24 26 L30 18 L28 2 Z" fill="${c.sec}"/>
+      <!-- Twin-Nose & Armored Fuselage -->
+      <path d="M10 2 L10 18 L15 27 L20 18 L20 2 L17 12 L15 6 L13 12 Z" fill="${c.prim}"/>
+      <!-- Twin Cockpit Visors -->
+      <polygon points="11,6 13,11 11,14 9,10" fill="#87CEEB"/>
+      <polygon points="19,6 17,11 19,14 21,10" fill="#87CEEB"/>
+      <!-- Energy Core -->
+      <polygon points="15,13 17,17 15,21 13,17" fill="${c.accent}"/>
+      <!-- Thruster Nozzles -->
+      <rect x="5" y="24" width="4" height="4" fill="#7f8c8d"/>
+      <rect x="21" y="24" width="4" height="4" fill="#7f8c8d"/>
+    `;
+  }
+  // Default: Viper-X Interceptor
+  return `
+    <!-- Viper-X: Delta Wings -->
+    <path d="M15 2 L2 20 L5 25 L15 22 L25 25 L28 20 Z" fill="${c.sec}"/>
+    <!-- Main Fuselage -->
+    <path d="M15 0 L9 20 L15 27 L21 20 Z" fill="${c.prim}"/>
+    <!-- Cockpit -->
+    <path d="M15 8 L12 16 L15 19 L18 16 Z" fill="#87CEEB"/>
+    <!-- Engine Nozzles -->
+    <rect x="7" y="23" width="4" height="4" fill="#7f8c8d"/>
+    <rect x="19" y="23" width="4" height="4" fill="#7f8c8d"/>
+  `;
+}
+
+export function updatePlayerShipVisuals() {
+  const model = state.selectedShipModel || 'viper';
+  const colorId = state.selectedShipColor || 'red';
+  const svgContent = getShipSVGContent(model, colorId);
+
+  // In-Game Schiff SVG aktualisieren
+  const spielerSvg = dom.spieler ? dom.spieler.querySelector('svg') : document.querySelector('#spieler svg');
+  if (spielerSvg) {
+    spielerSvg.innerHTML = svgContent;
+  }
+
+  // Hangar Preview im Startscreen aktualisieren
+  const previewSvg = document.getElementById('hangar-preview-svg');
+  if (previewSvg) {
+    previewSvg.innerHTML = svgContent;
+  }
+  const previewName = document.getElementById('hangar-ship-name');
+  if (previewName) {
+    previewName.textContent = model === 'phantom' ? 'PHANTOM-NX STRIKER' : 'VIPER-X INTERCEPTOR';
+  }
+
+  // Active Klassen auf Hangar Buttons aktualisieren
+  document.querySelectorAll('.hangar-model-btn').forEach(btn => {
+    btn.classList.toggle('active', btn.getAttribute('data-model') === model);
+  });
+  document.querySelectorAll('.hangar-color-btn').forEach(btn => {
+    btn.classList.toggle('active', btn.getAttribute('data-color') === colorId);
+  });
 }

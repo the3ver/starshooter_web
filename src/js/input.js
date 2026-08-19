@@ -124,7 +124,7 @@ export function setupInput() {
 
   // 1. Tap to Pause on Spielfeld
   spielfeldContainer.addEventListener('touchstart', e => {
-    if (e.target.closest('#whats-new-overlay') || e.target.closest('#btn-open-whats-new')) return;
+    if (e.target.closest('#whats-new-overlay') || e.target.closest('#btn-open-whats-new') || e.target.closest('#hangar-container button')) return;
     const whatsNew = document.getElementById('whats-new-overlay');
     if (whatsNew && whatsNew.style.display !== 'none') return;
 

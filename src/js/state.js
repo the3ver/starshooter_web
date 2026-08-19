@@ -39,6 +39,14 @@ export const config = {
     ]
 };
 
+export const shipColors = {
+    red: { name: 'Crimson Red', prim: '#e74c3c', sec: '#c0392b', accent: '#ff7675', glow: 'rgba(231, 76, 60, 0.8)' },
+    blue: { name: 'Cobalt Blue', prim: '#3498db', sec: '#2980b9', accent: '#74b9ff', glow: 'rgba(52, 152, 219, 0.8)' },
+    green: { name: 'Emerald Green', prim: '#2ecc71', sec: '#27ae60', accent: '#55efc4', glow: 'rgba(46, 204, 113, 0.8)' },
+    yellow: { name: 'Cyber Gold', prim: '#f1c40f', sec: '#d35400', accent: '#ffeaa7', glow: 'rgba(241, 196, 15, 0.8)' },
+    purple: { name: 'Void Violet', prim: '#9b59b6', sec: '#8e44ad', accent: '#a29bfe', glow: 'rgba(155, 89, 182, 0.8)' }
+};
+
 export const state = {
     x: 185, y: 285, leben: 3, score: 0, level: 1, absMaxEnergie: 100, maxEnergie: 50,
     energie: 50, minZuendEnergie: 15, energieTimer: 0, laserSchiesst: false,
@@ -49,7 +57,9 @@ export const state = {
     bossAktiv: false, bossWarningAktiv: false, bossWarningTimer: 0, gameOverAktiv: false,
     spielerSchussCooldown: 0, finalerScore: 0, cheatUsed: false, typedCheatKeys: '',
     godMode: false, pausiert: false, unbegrenzteEnergie: false, invulnerableTimer: 0,
-    joystick: { x: 0, y: 0, active: false }
+    joystick: { x: 0, y: 0, active: false },
+    selectedShipModel: 'viper',
+    selectedShipColor: 'red'
 };
 
 export const arrays = {

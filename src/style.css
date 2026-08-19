@@ -979,37 +979,181 @@
             left: 50%;
             transform: translate(-50%, -50%);
             background-color: rgba(26, 37, 47, 0.95);
-            padding: 20px;
+            padding: 16px 20px;
             border-radius: 12px;
             border: 2px solid #34495e;
             color: #ecf0f1;
             text-align: center;
             z-index: 1000;
-            width: 80%;
+            width: 85%;
             max-width: 350px;
             box-shadow: 0 0 20px rgba(0,0,0,0.8);
         }
         
         .start-title {
-            font-size: 24px;
+            font-size: 22px;
             font-weight: bold;
             color: #3498db;
-            margin-bottom: 10px;
+            margin-bottom: 8px;
             text-shadow: 0 0 10px rgba(52, 152, 219, 0.5);
             letter-spacing: 2px;
         }
 
+        /* ==========================================================================
+           HANGAR: SCHIFFS- & FARBAUSWAHL
+           ========================================================================== */
+        #hangar-container {
+            background: rgba(11, 19, 25, 0.85);
+            border: 1px solid #1abc9c;
+            box-shadow: 0 0 15px rgba(26, 188, 156, 0.25), inset 0 0 10px rgba(26, 188, 156, 0.1);
+            border-radius: 8px;
+            padding: 10px;
+            margin: 8px 0;
+        }
+
+        .hangar-header {
+            font-size: 11px;
+            color: #1abc9c;
+            font-weight: bold;
+            letter-spacing: 1.5px;
+            text-transform: uppercase;
+            margin-bottom: 8px;
+            border-bottom: 1px dashed rgba(26, 188, 156, 0.4);
+            padding-bottom: 4px;
+        }
+
+        .hangar-preview-box {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            background: radial-gradient(circle, rgba(52, 73, 94, 0.5) 0%, rgba(11, 19, 25, 0.8) 100%);
+            border-radius: 6px;
+            padding: 8px;
+            margin-bottom: 8px;
+            border: 1px solid rgba(52, 152, 219, 0.3);
+        }
+
+        .hangar-ship-display {
+            position: relative;
+            width: 36px;
+            height: 36px;
+            animation: hangarFloat 2s ease-in-out infinite alternate;
+        }
+
+        @keyframes hangarFloat {
+            0% { transform: translateY(0px) scale(1.1); }
+            100% { transform: translateY(-3px) scale(1.1); }
+        }
+
+        .hangar-ship-display svg {
+            width: 100%;
+            height: 100%;
+            filter: drop-shadow(0 0 6px rgba(255, 255, 255, 0.3));
+        }
+
+        .hangar-flame {
+            position: absolute;
+            bottom: -6px;
+            width: 4px;
+            height: 10px;
+            background-color: #f1c40f;
+            border-radius: 0 0 4px 4px;
+            box-shadow: 0 0 8px #e74c3c;
+            animation: flackerFeuer 0.1s infinite alternate;
+        }
+
+        .hangar-flame.flame-left { left: 9px; }
+        .hangar-flame.flame-right { right: 9px; }
+
+        #hangar-ship-name {
+            margin-top: 6px;
+            font-size: 10px;
+            font-weight: bold;
+            letter-spacing: 1px;
+            color: #ecf0f1;
+            font-family: 'Courier New', Courier, monospace;
+        }
+
+        .hangar-models {
+            display: flex;
+            gap: 8px;
+            justify-content: center;
+            margin-bottom: 8px;
+        }
+
+        .hangar-model-btn {
+            flex: 1;
+            background: rgba(44, 62, 80, 0.8);
+            border: 1px solid #7f8c8d;
+            color: #bdc3c7;
+            padding: 5px 4px;
+            font-size: 11px;
+            font-weight: bold;
+            letter-spacing: 1px;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .hangar-model-btn:hover {
+            background: rgba(52, 152, 219, 0.3);
+            border-color: #3498db;
+            color: #fff;
+        }
+
+        .hangar-model-btn.active {
+            background: linear-gradient(135deg, #2980b9, #3498db);
+            border-color: #00ffff;
+            color: #fff;
+            box-shadow: 0 0 10px rgba(0, 255, 255, 0.5);
+        }
+
+        .hangar-colors {
+            display: flex;
+            gap: 10px;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .hangar-color-btn {
+            width: 22px;
+            height: 22px;
+            border-radius: 50%;
+            border: 2px solid transparent;
+            cursor: pointer;
+            transition: transform 0.2s, box-shadow 0.2s, border-color 0.2s;
+            padding: 0;
+            outline: none;
+        }
+
+        .hangar-color-btn:hover {
+            transform: scale(1.2);
+        }
+
+        .hangar-color-btn.active {
+            transform: scale(1.25);
+            border-color: #ffffff;
+            box-shadow: 0 0 10px #ffffff;
+        }
+
+        .hangar-color-btn.color-red { background: radial-gradient(circle, #e74c3c, #c0392b); }
+        .hangar-color-btn.color-blue { background: radial-gradient(circle, #3498db, #2980b9); }
+        .hangar-color-btn.color-green { background: radial-gradient(circle, #2ecc71, #27ae60); }
+        .hangar-color-btn.color-yellow { background: radial-gradient(circle, #f1c40f, #d35400); }
+        .hangar-color-btn.color-purple { background: radial-gradient(circle, #9b59b6, #8e44ad); }
+
         #start-screen .steuerung-titel {
-            margin-top: 15px;
-            margin-bottom: 5px;
+            margin-top: 10px;
+            margin-bottom: 4px;
         }
 
         #start-text {
-            margin-top: 20px;
+            margin-top: 14px;
             font-weight: bold;
             color: #f1c40f;
             animation: blink 1.5s infinite;
-            font-size: 16px;
+            font-size: 15px;
         }
 
         /* ==========================================================================

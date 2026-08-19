@@ -1,15 +1,15 @@
-export const GAME_VERSION = '1.4.4';
+export const GAME_VERSION = '1.5.0';
 
 export const changelogData = {
-  '1.4.4': {
-    version: '1.4.4',
-    intro: 'Hey, es ist jetzt Version 1.4.4 rausgekommen, folgendes wurde geändert oder ist neu:',
+  '1.5.0': {
+    version: '1.5.0',
+    intro: 'Hey, es ist jetzt Version 1.5.0 rausgekommen, folgendes wurde geändert oder ist neu:',
     highlights: [
-      '🚀 Dual-Homing auf Stufe 5: 2 von 3 Raketen visieren nun selbstständig Ziele an',
-      '🛡️ Fix: Spielfeld-Begrenzung für das Spielerschiff unten und rechts korrigiert',
-      '🚀 Dynamische Raketen-Kinematik: Seitlicher Abwurf, kurzer Stall & linearer Turbo-Schub',
-      '🛡️ Heavy Warhead: Neues, gepanzertes Raketen-Design mit Front-Canards ab Stufe 2',
-      '💣 Bomben-Evolution: 5 Stufen mit eigenen Auren, EMP & Vortex-Sog'
+      '🛸 Neuer Hangar: Wähle vor jedem Start zwischen "Viper-X" und "Phantom-NX"',
+      '🎨 5 Schiffs-Farben: Crimson, Cobalt, Emerald, Cyber Gold & Void Violet',
+      '🚀 Dual-Homing auf Stufe 5: 2 von 3 Raketen visieren Ziele an',
+      '🚀 Dynamische Raketen-Kinematik mit 3 Flugphasen',
+      '💣 Bomben-Evolution: 5 Stufen mit Auren, EMP & Jericho-Cluster'
     ]
   }
 };
