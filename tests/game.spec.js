@@ -3,7 +3,7 @@ const { test, expect } = require('@playwright/test');
 test.beforeEach(async ({ page }) => {
   // Standardmäßig als bereits gesehen markieren, damit die Tests direkt interagieren können
   await page.addInitScript(() => {
-    localStorage.setItem('starshooter_last_seen_version', '1.5.2');
+    localStorage.setItem('starshooter_last_seen_version', '1.5.3');
   });
   await page.goto('/');
 });
@@ -657,6 +657,7 @@ test.describe('Space Shooter', () => {
     await expect(viperBadges).toHaveCount(3);
     await expect(perksContainer).toContainText('+20% TEMPO');
     await expect(perksContainer).toContainText('+25% REGEN');
+    await expect(perksContainer).toContainText('TREFFER: -1 UPGRADE');
 
     // 2. Wechsel auf Phantom-NX
     const phantomBtn = page.locator('.hangar-model-btn[data-model="phantom"]');
@@ -711,10 +712,10 @@ test.describe('Was gibt es Neues Modal (Changelog)', () => {
     await expect(title).toContainText("WAS GIBT'S NEUES");
 
     const intro = page.locator('#whats-new-intro');
-    await expect(intro).toContainText('1.5.2');
+    await expect(intro).toContainText('1.5.3');
 
     const items = page.locator('#whats-new-list li');
-    await expect(items).toHaveCount(3);
+    await expect(items).toHaveCount(2);
 
     // Schließen
     const closeBtn = page.locator('#btn-close-whats-new');
@@ -724,7 +725,7 @@ test.describe('Was gibt es Neues Modal (Changelog)', () => {
 
     // Prüfen, dass localStorage aktualisiert wurde
     const storedVersion = await page.evaluate(() => localStorage.getItem('starshooter_last_seen_version'));
-    expect(storedVersion).toBe('1.5.2');
+    expect(storedVersion).toBe('1.5.3');
 
     // Erneut öffnen über Start-Screen Button
     const openBtn = page.locator('#btn-open-whats-new');

@@ -1,6 +1,14 @@
-export const GAME_VERSION = '1.5.2';
+export const GAME_VERSION = '1.5.3';
 
 export const changelogData = {
+  '1.5.3': {
+    version: '1.5.3',
+    intro: 'Hey, es ist jetzt Version 1.5.3 rausgekommen, folgendes wurde geändert oder ist neu:',
+    highlights: [
+      '🏷️ Klarere Hangar-Perks: Deutlicher Hinweis "TREFFER: -1 UPGRADE" bei der Viper-X',
+      '🛸 Bessere Transparenz: Alle Vor- und Nachteile beider Schiffe auf einen Blick'
+    ]
+  },
   '1.5.2': {
     version: '1.5.2',
     intro: 'Hey, es ist jetzt Version 1.5.2 rausgekommen, folgendes wurde geändert oder ist neu:',

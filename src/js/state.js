@@ -58,7 +58,7 @@ export const shipModels = {
         perks: [
             { icon: '⚡', label: '+20% TEMPO', desc: 'Höchste Wendigkeit & Fluggeschwindigkeit', type: 'buff' },
             { icon: '🔋', label: '+25% REGEN', desc: 'Laser lädt deutlich schneller wieder auf', type: 'buff' },
-            { icon: '⚠️', label: 'LEICHTE PANZERUNG', desc: 'Verliert bei Treffern Waffen-Upgrades', type: 'nerf' }
+            { icon: '⚠️', label: 'TREFFER: -1 UPGRADE', desc: 'Verliert bei Treffern ohne Schild ein Waffen-Upgrade', type: 'nerf' }
         ]
     },
     phantom: {
