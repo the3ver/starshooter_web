@@ -136,51 +136,38 @@ test.describe('Space Shooter', () => {
     expect(laserCount).toBe(0);
   });
 
-  test('Cheatcodes idkf1 bis idkf5 setzen die Waffenstufen entsprechend', async ({ page }) => {
+  test('Cheatcodes idkf1 bis idkf5 setzen alle Waffenstufen (1 bis 5) und zeigen Overlay', async ({ page }) => {
     // Spiel starten
     await page.keyboard.down('KeyW');
     await page.waitForTimeout(50);
     await page.keyboard.up('KeyW');
 
-    // idkf3 tippen
-    for (const char of 'idkf3') {
-      await page.keyboard.press(char);
-      await page.waitForTimeout(20);
+    for (let lvl = 1; lvl <= 5; lvl++) {
+      const cheat = `idkf${lvl}`;
+      for (const char of cheat) {
+        await page.keyboard.press(char);
+        await page.waitForTimeout(20);
+      }
+
+      const stufen = await page.evaluate(async () => {
+        const stateMod = await import('./js/state.js');
+        return {
+          laser: stateMod.state.laserStufe,
+          raketen: stateMod.state.raketenStufe,
+          bomben: stateMod.state.bombenStufe,
+          cheatUsed: stateMod.state.cheatUsed
+        };
+      });
+
+      expect(stufen.laser).toBe(lvl);
+      expect(stufen.raketen).toBe(lvl);
+      expect(stufen.bomben).toBe(lvl);
+      expect(stufen.cheatUsed).toBe(true);
+
+      const overlay = page.locator('#warning-overlay');
+      await expect(overlay).toBeVisible();
+      await expect(overlay).toContainText(`IDKF${lvl}`);
     }
-
-    const stufen3 = await page.evaluate(async () => {
-      const stateMod = await import('./js/state.js');
-      return {
-        laser: stateMod.state.laserStufe,
-        raketen: stateMod.state.raketenStufe,
-        bomben: stateMod.state.bombenStufe,
-        cheatUsed: stateMod.state.cheatUsed
-      };
-    });
-
-    expect(stufen3.laser).toBe(3);
-    expect(stufen3.raketen).toBe(3);
-    expect(stufen3.bomben).toBe(3);
-    expect(stufen3.cheatUsed).toBe(true);
-
-    // idkf1 tippen
-    for (const char of 'idkf1') {
-      await page.keyboard.press(char);
-      await page.waitForTimeout(20);
-    }
-
-    const stufen1 = await page.evaluate(async () => {
-      const stateMod = await import('./js/state.js');
-      return {
-        laser: stateMod.state.laserStufe,
-        raketen: stateMod.state.raketenStufe,
-        bomben: stateMod.state.bombenStufe
-      };
-    });
-
-    expect(stufen1.laser).toBe(1);
-    expect(stufen1.raketen).toBe(1);
-    expect(stufen1.bomben).toBe(1);
   });
 
   test('Highscore-Eingabefeld wird bei Game Over automatisch fokussiert', async ({ page }) => {
