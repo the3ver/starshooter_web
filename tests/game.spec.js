@@ -3,7 +3,7 @@ const { test, expect } = require('@playwright/test');
 test.beforeEach(async ({ page }) => {
   // Standardmäßig als bereits gesehen markieren, damit die Tests direkt interagieren können
   await page.addInitScript(() => {
-    localStorage.setItem('starshooter_last_seen_version', '1.3.4');
+    localStorage.setItem('starshooter_last_seen_version', '1.4.0');
   });
   await page.goto('/');
 });
@@ -215,6 +215,38 @@ test.describe('Space Shooter', () => {
     await expect(table).toContainText('XYZ');
   });
 
+  test('Ab Stufe 3 ist eine Rakete zielsuchend (Homing) gegen Feinde', async ({ page }) => {
+    // Spiel starten und Raketenstufe 3 setzen
+    await page.keyboard.down('KeyW');
+    await page.waitForTimeout(50);
+    await page.keyboard.up('KeyW');
+
+    await page.evaluate(async () => {
+      const stateMod = await import('./js/state.js');
+      const entitiesMod = await import('./js/entities.js');
+      stateMod.state.raketenStufe = 3;
+      stateMod.state.raketenCooldown = 0;
+      // Feind rechts oben platzieren
+      entitiesMod.erzeugeFeind(300, 50, 'normal', 0);
+    });
+
+    // Raketen mit Taste K abfeuern
+    await page.keyboard.down('k');
+    const homingRocket = page.locator('.raketen-projektil.rakete-homing');
+    await expect(homingRocket).toBeAttached();
+    await page.keyboard.up('k');
+
+    // Kurz warten und prüfen, dass die Homing-Rakete ihren X-Wert in Richtung des Feindes (rechts) lenkt
+    await page.waitForTimeout(200);
+    const homingX = await page.evaluate(() => {
+      const el = document.querySelector('.raketen-projektil.rakete-homing');
+      return el ? parseFloat(el.style.left) : null;
+    });
+
+    // Ursprung war ~203px (state.x + 18), sollte sich nach rechts bewegt haben (> 205px)
+    expect(homingX).toBeGreaterThan(203);
+  });
+
   test('Spielfeld skaliert dynamisch je nach Fenstergröße', async ({ page }) => {
     const spielfeld = page.locator('#spielfeld');
     const container = page.locator('#spielfeld-container');
@@ -251,7 +283,7 @@ test.describe('Was gibt es Neues Modal (Changelog)', () => {
     await expect(title).toContainText("WAS GIBT'S NEUES");
 
     const intro = page.locator('#whats-new-intro');
-    await expect(intro).toContainText('1.3.4');
+    await expect(intro).toContainText('1.4.0');
 
     const items = page.locator('#whats-new-list li');
     await expect(items).toHaveCount(5);
@@ -264,7 +296,7 @@ test.describe('Was gibt es Neues Modal (Changelog)', () => {
 
     // Prüfen, dass localStorage aktualisiert wurde
     const storedVersion = await page.evaluate(() => localStorage.getItem('starshooter_last_seen_version'));
-    expect(storedVersion).toBe('1.3.4');
+    expect(storedVersion).toBe('1.4.0');
 
     // Erneut öffnen über Start-Screen Button
     const openBtn = page.locator('#btn-open-whats-new');

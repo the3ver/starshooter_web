@@ -634,6 +634,16 @@
             box-shadow: 0 0 6px #ff0000;
             z-index: 2;
         }
+
+        .raketen-projektil.rakete-homing .rakete-sensor {
+            background-color: #00ffff;
+            box-shadow: 0 0 8px #00ffff, 0 0 12px #3498db;
+        }
+
+        .raketen-projektil.rakete-homing .rakete-feuer {
+            background-color: #00ffff;
+            box-shadow: 0 0 8px #00ffff;
+        }
         
         .rakete-rumpf {
             width: 6px;

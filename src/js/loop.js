@@ -899,36 +899,43 @@ export function gameLoop() {
     let offsets = [{
       ox: 10,
       vy: 8,
-      vx: 0
+      vx: 0,
+      homing: false
     }];
     if (anzahl === 2) {
       offsets = [{
         ox: 2,
         vy: 8,
-        vx: 0
+        vx: 0,
+        homing: false
       }, {
         ox: 18,
         vy: 8,
-        vx: 0
+        vx: 0,
+        homing: state.raketenStufe >= 3 // Ab Stufe 3 ist eine Rakete zielsuchend
       }];
     } else if (anzahl === 3) {
       offsets = [{
         ox: 10,
         vy: 8,
-        vx: 0
+        vx: 0,
+        homing: true // Auf Stufe 5 ist die mittlere Rakete zielsuchend
       }, {
         ox: -2,
         vy: 8,
-        vx: -1.5
+        vx: -1.5,
+        homing: false
       }, {
         ox: 22,
         vy: 8,
-        vx: 1.5
+        vx: 1.5,
+        homing: false
       }];
     }
     offsets.forEach(off => {
       const el = document.createElement('div');
       el.classList.add('raketen-projektil');
+      if (off.homing) el.classList.add('rakete-homing');
       el.innerHTML = `
                         <div class="rakete-sensor"></div>
                         <div class="rakete-rumpf"></div>
@@ -950,24 +957,67 @@ export function gameLoop() {
         vy: off.vy,
         schaden: rSchaden,
         radius: rRadius,
+        homing: off.homing,
         detoniert: false
       });
     });
   }
 
-  // Raketen Update & Kollision (Näherungszünder)
+  // Raketen Update & Kollision (Näherungszünder & Zielsuche)
   for (let i = arrays.raketenArray.length - 1; i >= 0; i--) {
     let r = arrays.raketenArray[i];
-    r.y -= r.vy;
-    if (r.vx) r.x += r.vx;
-    r.el.style.top = r.y + 'px';
-    if (r.vx) r.el.style.left = r.x + 'px';
 
-    // Partikelschweif (Rauch und Feuer)
-    if (Math.random() < 0.7) {
+    // Zielsuchende Lenkung (nur gegen Feinde und Bosse)
+    if (r.homing) {
+      let bestDist = Infinity;
+      let target = null;
+      const feindZiele = [...arrays.feinde, ...arrays.bosses];
+      for (let f of feindZiele) {
+        if ((f.immune || 0) <= 0) {
+          let zcx = f.x + (f.groesse || 20) / 2;
+          let zcy = f.y + (f.groesse || 20) / 2;
+          let d = Math.hypot(zcx - (r.x + 5), zcy - (r.y + 12));
+          // Nur Feinde erfassen, die sich vor oder in vertretbarer Nähe der Rakete befinden
+          if (d < bestDist && zcy < r.y + 160) {
+            bestDist = d;
+            target = f;
+          }
+        }
+      }
+
+      if (target) {
+        let zcx = target.x + (target.groesse || 20) / 2;
+        let zcy = target.y + (target.groesse || 20) / 2;
+        let targetAngle = Math.atan2(zcy - (r.y + 12), zcx - (r.x + 5));
+        let currentAngle = Math.atan2(-r.vy, r.vx || 0.0001);
+        let diff = targetAngle - currentAngle;
+        while (diff < -Math.PI) diff += Math.PI * 2;
+        while (diff > Math.PI) diff -= Math.PI * 2;
+
+        let maxTurn = 0.09; // Feine, dynamische Kurvenlenkung
+        let newAngle = currentAngle + Math.sign(diff) * Math.min(Math.abs(diff), maxTurn);
+        let speed = Math.hypot(r.vx, r.vy) || 8;
+        r.vx = Math.cos(newAngle) * speed;
+        r.vy = -Math.sin(newAngle) * speed;
+        let rotDeg = Math.atan2(-r.vy, r.vx) * 180 / Math.PI + 90;
+        r.el.style.transform = `rotate(${rotDeg}deg)`;
+      }
+    }
+
+    r.y -= r.vy;
+    r.x += r.vx;
+    r.el.style.top = r.y + 'px';
+    r.el.style.left = r.x + 'px';
+
+    // Partikelschweif (Rauch und Feuer / Cyan für Homing)
+    if (Math.random() < 0.75) {
       const pEl = document.createElement('div');
       pEl.classList.add('partikel');
-      pEl.style.backgroundColor = Math.random() < 0.4 ? '#f39c12' : '#7f8c8d'; // Feuer oder Rauch
+      if (r.homing) {
+        pEl.style.backgroundColor = Math.random() < 0.5 ? '#00ffff' : '#3498db';
+      } else {
+        pEl.style.backgroundColor = Math.random() < 0.4 ? '#f39c12' : '#7f8c8d';
+      }
       let px = r.x + 3 + Math.random() * 4; // Mitte der Rakete (Breite 10)
       let py = r.y + 24; // Unten an der Rakete
       pEl.style.left = px + 'px';
@@ -983,7 +1033,7 @@ export function gameLoop() {
         zerfall: 0.04
       });
     }
-    if (r.y < -30) {
+    if (r.y < -40 || r.x < -50 || r.x > config.spielfeldBreite + 50 || r.y > config.spielfeldHoehe + 50) {
       r.el.remove();
       arrays.raketenArray.splice(i, 1);
       continue;
