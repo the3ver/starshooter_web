@@ -680,6 +680,12 @@
             transform-origin: center center;
         }
 
+        .bomben-projektil.bombe-mini {
+            width: 10px;
+            height: 20px;
+            z-index: 7;
+        }
+
         .bombe-aura {
             position: absolute;
             width: 50px;
@@ -687,11 +693,85 @@
             left: -18px;
             top: -10px;
             border-radius: 50%;
-            background: radial-gradient(circle, rgba(231, 76, 60, 0.9) 0%, rgba(231, 76, 60, 0.5) 35%, rgba(231, 76, 60, 0.15) 65%, rgba(231, 76, 60, 0) 100%);
-            box-shadow: 0 0 15px 5px rgba(231, 76, 60, 0.6);
             pointer-events: none;
             z-index: 1;
             animation: bombeAuraPulse 0.8s infinite alternate ease-in-out;
+        }
+
+        .bombe-mini .bombe-aura {
+            width: 34px;
+            height: 34px;
+            left: -12px;
+            top: -7px;
+        }
+
+        /* Lvl 1: Rot */
+        .bombe-lvl-1 .bombe-aura {
+            background: radial-gradient(circle, rgba(231, 76, 60, 0.9) 0%, rgba(231, 76, 60, 0.5) 35%, rgba(231, 76, 60, 0.15) 65%, rgba(231, 76, 60, 0) 100%);
+            box-shadow: 0 0 15px 5px rgba(231, 76, 60, 0.6);
+        }
+        .bombe-lvl-1 .bombe-body {
+            background: linear-gradient(to right, #2c3e50, #34495e, #2c3e50);
+        }
+        .bombe-lvl-1 .bombe-licht {
+            background-color: #e74c3c;
+            box-shadow: 0 0 5px #e74c3c;
+        }
+
+        /* Lvl 2: Plasma Orange */
+        .bombe-lvl-2 .bombe-aura {
+            background: radial-gradient(circle, rgba(243, 156, 18, 0.95) 0%, rgba(230, 126, 34, 0.6) 35%, rgba(243, 156, 18, 0.2) 65%, rgba(243, 156, 18, 0) 100%);
+            box-shadow: 0 0 18px 6px rgba(243, 156, 18, 0.7);
+        }
+        .bombe-lvl-2 .bombe-body {
+            background: linear-gradient(to right, #d35400, #f39c12, #d35400);
+            border-color: #e67e22;
+        }
+        .bombe-lvl-2 .bombe-licht {
+            background-color: #f1c40f;
+            box-shadow: 0 0 6px #f1c40f;
+        }
+
+        /* Lvl 3: Vortex Lila */
+        .bombe-lvl-3 .bombe-aura {
+            background: radial-gradient(circle, rgba(155, 89, 182, 0.95) 0%, rgba(142, 68, 173, 0.6) 35%, rgba(155, 89, 182, 0.2) 65%, rgba(155, 89, 182, 0) 100%);
+            box-shadow: 0 0 20px 7px rgba(155, 89, 182, 0.8);
+        }
+        .bombe-lvl-3 .bombe-body {
+            background: linear-gradient(to right, #4a235a, #8e44ad, #4a235a);
+            border-color: #9b59b6;
+        }
+        .bombe-lvl-3 .bombe-licht {
+            background-color: #e056fd;
+            box-shadow: 0 0 7px #e056fd;
+        }
+
+        /* Lvl 4: Antimaterie Cyan */
+        .bombe-lvl-4 .bombe-aura {
+            background: radial-gradient(circle, rgba(0, 255, 255, 0.95) 0%, rgba(52, 152, 219, 0.6) 35%, rgba(0, 255, 255, 0.2) 65%, rgba(0, 255, 255, 0) 100%);
+            box-shadow: 0 0 22px 9px rgba(0, 255, 255, 0.85);
+        }
+        .bombe-lvl-4 .bombe-body {
+            background: linear-gradient(to right, #1b4f72, #00ffff, #1b4f72);
+            border-color: #00ffff;
+        }
+        .bombe-lvl-4 .bombe-licht {
+            background-color: #ffffff;
+            box-shadow: 0 0 8px #00ffff;
+        }
+
+        /* Lvl 5: Jericho Weiß-Gold */
+        .bombe-lvl-5 .bombe-aura {
+            background: radial-gradient(circle, rgba(255, 255, 255, 1) 0%, rgba(241, 196, 15, 0.8) 35%, rgba(243, 156, 18, 0.3) 65%, rgba(243, 156, 18, 0) 100%);
+            box-shadow: 0 0 25px 12px rgba(241, 196, 15, 0.95);
+        }
+        .bombe-lvl-5 .bombe-body {
+            background: linear-gradient(to right, #b7950b, #f1c40f, #ffffff, #f1c40f, #b7950b);
+            border-color: #fff;
+        }
+        .bombe-lvl-5 .bombe-licht {
+            background-color: #ffffff;
+            box-shadow: 0 0 8px #fff, 0 0 15px #f1c40f;
         }
 
         @keyframes bombeAuraPulse {
@@ -717,6 +797,10 @@
             z-index: 2;
         }
 
+        .bombe-mini .bombe-body {
+            border-radius: 3px;
+        }
+
         .bombe-licht {
             position: absolute;
             width: 4px;
@@ -728,9 +812,15 @@
             z-index: 3;
         }
 
+        .bombe-mini .bombe-licht {
+            width: 3px;
+            height: 3px;
+            left: 3.5px;
+        }
+
         @keyframes bombeBlink {
-            0%, 100% { opacity: 1; transform: scale(1); box-shadow: 0 0 8px #e74c3c; }
-            50% { opacity: 0.3; transform: scale(0.8); box-shadow: 0 0 2px #e74c3c; }
+            0%, 100% { opacity: 1; transform: scale(1); filter: brightness(1.5); }
+            50% { opacity: 0.3; transform: scale(0.8); filter: brightness(0.8); }
         }
 
         @keyframes repulsorPulse {

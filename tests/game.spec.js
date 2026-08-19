@@ -3,7 +3,7 @@ const { test, expect } = require('@playwright/test');
 test.beforeEach(async ({ page }) => {
   // Standardmäßig als bereits gesehen markieren, damit die Tests direkt interagieren können
   await page.addInitScript(() => {
-    localStorage.setItem('starshooter_last_seen_version', '1.2.3');
+    localStorage.setItem('starshooter_last_seen_version', '1.3.0');
   });
   await page.goto('/');
 });
@@ -64,7 +64,7 @@ test.describe('Space Shooter', () => {
     await page.keyboard.up('w');
   });
 
-  test('Bombe besitzt eine rote pulsierende Aura', async ({ page }) => {
+  test('Bombe besitzt Level-spezifische Aura (Lvl 1)', async ({ page }) => {
     // Spiel starten
     await page.keyboard.down('KeyW');
     await page.waitForTimeout(50);
@@ -73,9 +73,32 @@ test.describe('Space Shooter', () => {
 
     // Bombe abfeuern mit Leertaste
     await page.keyboard.down('Space');
-    const bombeAura = page.locator('.bomben-projektil .bombe-aura');
+    const bombeAura = page.locator('.bomben-projektil.bombe-lvl-1 .bombe-aura');
     await expect(bombeAura).toBeAttached();
     await page.keyboard.up('Space');
+  });
+
+  test('Stufe 5 Jericho-Bombe teilt sich in 4 Mini-Bomben auf', async ({ page }) => {
+    // Spiel starten und Bombenstufe 5 setzen
+    await page.keyboard.down('KeyW');
+    await page.waitForTimeout(50);
+    await page.keyboard.up('KeyW');
+
+    await page.evaluate(async () => {
+      const stateMod = await import('./js/state.js');
+      stateMod.state.bombenStufe = 5;
+      stateMod.state.bombenCooldown = 0;
+    });
+
+    // Bombe abfeuern
+    await page.keyboard.down('Space');
+    const bombeLvl5 = page.locator('.bomben-projektil.bombe-lvl-5');
+    await expect(bombeLvl5).toBeAttached();
+    await page.keyboard.up('Space');
+
+    // Warten auf den Jericho-Split (Mini-Bomben)
+    const miniBomben = page.locator('.bomben-projektil.bombe-mini');
+    await expect(miniBomben.first()).toBeAttached({ timeout: 5000 });
   });
 
   test('Highscore-Eingabefeld wird bei Game Over automatisch fokussiert', async ({ page }) => {
@@ -144,7 +167,7 @@ test.describe('Was gibt es Neues Modal (Changelog)', () => {
     await expect(title).toContainText("WAS GIBT'S NEUES");
 
     const intro = page.locator('#whats-new-intro');
-    await expect(intro).toContainText('1.2.3');
+    await expect(intro).toContainText('1.3.0');
 
     const items = page.locator('#whats-new-list li');
     await expect(items).toHaveCount(5);
@@ -157,7 +180,7 @@ test.describe('Was gibt es Neues Modal (Changelog)', () => {
 
     // Prüfen, dass localStorage aktualisiert wurde
     const storedVersion = await page.evaluate(() => localStorage.getItem('starshooter_last_seen_version'));
-    expect(storedVersion).toBe('1.2.3');
+    expect(storedVersion).toBe('1.3.0');
 
     // Erneut öffnen über Start-Screen Button
     const openBtn = page.locator('#btn-open-whats-new');

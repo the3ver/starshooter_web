@@ -1,14 +1,14 @@
-export const GAME_VERSION = '1.2.3';
+export const GAME_VERSION = '1.3.0';
 
 export const changelogData = {
-  '1.2.3': {
-    version: '1.2.3',
-    intro: 'Hey, es ist jetzt Version 1.2.3 rausgekommen, folgendes wurde geändert oder ist neu:',
+  '1.3.0': {
+    version: '1.3.0',
+    intro: 'Hey, es ist jetzt Version 1.3.0 rausgekommen, folgendes wurde geändert oder ist neu:',
     highlights: [
+      '💣 Bomben-Evolution: 5 Stufen mit eigenen Auren, EMP & Vortex-Sog',
+      '💥 Jericho-Cluster auf Stufe 5: Teilt sich in 4 Sub-Bomben mit Kaskaden-Explosionen',
       '🏆 Sofortiger Fokus auf das Highscore-Eingabefeld bei Game Over',
       '❤️ Kompaktere Lebensanzeige mit kreisrunden Animationen',
-      '💣 Rote, dynamisch pulsierende Aura für die Super-Bombe',
-      "🚀 'Was gibt's Neues'-Meldung beim Spielstart nach Updates",
       '🛠️ Einige Bugfixes und Verbesserungen'
     ]
   }

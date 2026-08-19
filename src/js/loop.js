@@ -1082,7 +1082,7 @@ export function gameLoop() {
   if (state.tastenGedrueckt[' '] && state.bombenCooldown <= 0) {
     state.bombenCooldown = maxBombenCd;
     const el = document.createElement('div');
-    el.classList.add('bomben-projektil');
+    el.classList.add('bomben-projektil', `bombe-lvl-${state.bombenStufe}`);
     el.innerHTML = `
                     <div class="bombe-aura"></div>
                     <div class="bombe-body"></div>
@@ -1100,6 +1100,8 @@ export function gameLoop() {
     dom.spielfeld.appendChild(el);
     let bSchaden = 100 + state.bombenStufe * 50;
     let bRadius = 150 + state.bombenStufe * 50;
+    const stufeColors = { 1: '#e74c3c', 2: '#f39c12', 3: '#9b59b6', 4: '#00ffff', 5: '#f1c40f' };
+    const stufeSpeeds = { 1: 1.5, 2: 1.8, 3: 2.0, 4: 2.3, 5: 2.6 };
     arrays.bombenArray.push({
       el: el,
       x: state.x + 8,
@@ -1107,30 +1109,76 @@ export function gameLoop() {
       targetX: 193,
       targetY: 285,
       startDist: 0,
-      speed: 1.5,
+      speed: stufeSpeeds[state.bombenStufe] || 1.5,
       rot: 0,
       schaden: bSchaden,
-      radius: bRadius
+      radius: bRadius,
+      stufe: state.bombenStufe,
+      color: stufeColors[state.bombenStufe] || '#f39c12',
+      isMini: false,
+      delayFrames: 0
     });
   }
   for (let i = arrays.bombenArray.length - 1; i >= 0; i--) {
     let b = arrays.bombenArray[i];
-    let dx = b.targetX - (b.x + 7);
-    let dy = b.targetY - (b.y + 15);
+
+    // Mini-Bomben können eine Verzögerung haben
+    if (b.delayFrames > 0) {
+      b.delayFrames--;
+    }
+
+    // EMP-Effekt für Level 4 und 5: Löscht gegnerische Laser sofort aus
+    if (b.stufe >= 4) {
+      for (let l = arrays.feindLaserArray.length - 1; l >= 0; l--) {
+        let fl = arrays.feindLaserArray[l];
+        Utils.erzeugePartikel(fl.x, fl.y, b.color, 2);
+        fl.el.remove();
+        arrays.feindLaserArray.splice(l, 1);
+      }
+      for (let l = arrays.bossLaserArray.length - 1; l >= 0; l--) {
+        let bl = arrays.bossLaserArray[l];
+        Utils.erzeugePartikel(bl.x, bl.y, b.color, 2);
+        bl.el.remove();
+        arrays.bossLaserArray.splice(l, 1);
+      }
+    }
+
+    let dx = b.targetX - (b.x + (b.isMini ? 5 : 7));
+    let dy = b.targetY - (b.y + (b.isMini ? 10 : 15));
     let dist = Math.hypot(dx, dy);
     if (b.startDist === 0) b.startDist = dist;
-    if (dist > 5) {
+
+    // Stufe 3: Vortex Gravitations-Sog vor der Explosion
+    if (b.stufe === 3 && dist < 80) {
+      let bcx = b.x + 7;
+      let bcy = b.y + 15;
+      alleZiele.forEach(z => {
+        let zcx = z.x + (z.groesse || 20) / 2;
+        let zcy = z.y + (z.groesse || 20) / 2;
+        let pullDx = bcx - zcx;
+        let pullDy = bcy - zcy;
+        let pullDist = Math.hypot(pullDx, pullDy);
+        if (pullDist > 5 && pullDist < 160) {
+          z.x += (pullDx / pullDist) * 1.5;
+          z.y += (pullDy / pullDist) * 1.5;
+          z.el.style.left = z.x + 'px';
+          z.el.style.top = z.y + 'px';
+        }
+      });
+    }
+
+    if (dist > 5 && (!b.isMini || b.delayFrames > 0)) {
       b.x += dx / dist * b.speed;
       b.y += dy / dist * b.speed;
-      b.rot += 2;
+      b.rot += b.isMini ? 5 : 2;
       b.el.style.left = b.x + 'px';
       b.el.style.top = b.y + 'px';
       b.el.style.transform = `rotate(${b.rot}deg)`;
 
       // Blink- & Aura-Puls-Geschwindigkeit erhöhen je näher am Ziel
-      let progress = dist / b.startDist;
-      let blinkSpeed = Math.max(0.1, progress * 1.0);
-      let auraPulseSpeed = Math.max(0.08, progress * 0.8);
+      let progress = dist / (b.startDist || 1);
+      let blinkSpeed = Math.max(0.08, progress * 1.0);
+      let auraPulseSpeed = Math.max(0.06, progress * 0.8);
       Array.from(b.el.querySelectorAll('.bombe-licht')).forEach(l => {
         l.style.animationDuration = blinkSpeed + 's';
       });
@@ -1139,10 +1187,64 @@ export function gameLoop() {
         aura.style.animationDuration = auraPulseSpeed + 's';
       }
     } else {
+      // Level 5 Jericho-Split: Hauptbombe teilt sich in 4 Sub-Bomben auf
+      if (b.stufe === 5 && !b.isMini) {
+        let bcx = b.x + 7;
+        let bcy = b.y + 15;
+        Utils.erzeugeExplosion(bcx, bcy, '#ffffff', 40);
+
+        // 4 Jericho Mini-Bomben fächern diagonal aus
+        const offsets = [
+          { ox: -75, oy: -65, delay: 10 },
+          { ox: 75, oy: -65, delay: 16 },
+          { ox: -75, oy: 65, delay: 22 },
+          { ox: 75, oy: 65, delay: 28 }
+        ];
+
+        offsets.forEach(off => {
+          const miniEl = document.createElement('div');
+          miniEl.classList.add('bomben-projektil', 'bombe-mini', 'bombe-lvl-5');
+          miniEl.innerHTML = `
+            <div class="bombe-aura"></div>
+            <div class="bombe-body"></div>
+            <div class="bombe-licht" style="top: 3px;"></div>
+            <div class="bombe-licht" style="top: 8px;"></div>
+            <div class="bombe-licht" style="top: 13px;"></div>
+          `;
+          miniEl.style.left = bcx - 5 + 'px';
+          miniEl.style.top = bcy - 10 + 'px';
+          Array.from(miniEl.querySelectorAll('.bombe-licht')).forEach(l => {
+            l.style.animation = 'bombeBlink 0.4s infinite alternate';
+          });
+          dom.spielfeld.appendChild(miniEl);
+
+          arrays.bombenArray.push({
+            el: miniEl,
+            x: bcx - 5,
+            y: bcy - 10,
+            targetX: Math.max(20, Math.min(config.spielfeldBreite - 20, bcx + off.ox)),
+            targetY: Math.max(20, Math.min(config.spielfeldHoehe - 20, bcy + off.oy)),
+            startDist: 0,
+            speed: 3.5,
+            rot: Math.random() * 360,
+            schaden: 220,
+            radius: 200,
+            stufe: 5,
+            color: '#f1c40f',
+            isMini: true,
+            delayFrames: off.delay
+          });
+        });
+
+        b.el.remove();
+        arrays.bombenArray.splice(i, 1);
+        continue;
+      }
+
       // Detonation
-      let bcx = b.x + 7;
-      let bcy = b.y + 15;
-      Utils.erzeugeExplosion(bcx, bcy, '#f39c12', 60);
+      let bcx = b.x + (b.isMini ? 5 : 7);
+      let bcy = b.y + (b.isMini ? 10 : 15);
+      Utils.erzeugeExplosion(bcx, bcy, b.color || '#f39c12', b.isMini ? 35 : 60);
       const shockwave = document.createElement('div');
       shockwave.style.position = 'absolute';
       shockwave.style.width = b.radius * 2 + 'px';
@@ -1150,8 +1252,8 @@ export function gameLoop() {
       shockwave.style.left = bcx - b.radius + 'px';
       shockwave.style.top = bcy - b.radius + 'px';
       shockwave.style.borderRadius = '50%';
-      shockwave.style.backgroundColor = 'rgba(243, 156, 18, 0.4)';
-      shockwave.style.boxShadow = '0 0 40px #f39c12';
+      shockwave.style.backgroundColor = b.color === '#00ffff' ? 'rgba(0, 255, 255, 0.4)' : (b.color === '#9b59b6' ? 'rgba(155, 89, 182, 0.4)' : (b.color === '#f1c40f' ? 'rgba(241, 196, 15, 0.45)' : 'rgba(231, 76, 60, 0.4)'));
+      shockwave.style.boxShadow = `0 0 45px ${b.color || '#f39c12'}`;
       shockwave.style.zIndex = '9';
       shockwave.style.pointerEvents = 'none';
       shockwave.style.transition = 'all 0.5s ease-out';
@@ -1163,6 +1265,31 @@ export function gameLoop() {
       setTimeout(() => {
         shockwave.remove();
       }, 500);
+
+      // Stufe 3 Vortex: Zweite Schockwelle leicht verzögert
+      if (b.stufe === 3 && !b.isMini) {
+        setTimeout(() => {
+          const sw2 = document.createElement('div');
+          sw2.style.position = 'absolute';
+          sw2.style.width = (b.radius * 1.5) + 'px';
+          sw2.style.height = (b.radius * 1.5) + 'px';
+          sw2.style.left = bcx - (b.radius * 0.75) + 'px';
+          sw2.style.top = bcy - (b.radius * 0.75) + 'px';
+          sw2.style.borderRadius = '50%';
+          sw2.style.backgroundColor = 'rgba(155, 89, 182, 0.3)';
+          sw2.style.boxShadow = '0 0 30px #9b59b6';
+          sw2.style.zIndex = '9';
+          sw2.style.pointerEvents = 'none';
+          sw2.style.transition = 'all 0.4s ease-out';
+          dom.spielfeld.appendChild(sw2);
+          setTimeout(() => {
+            sw2.style.opacity = '0';
+            sw2.style.transform = 'scale(1.3)';
+          }, 10);
+          setTimeout(() => sw2.remove(), 400);
+        }, 150);
+      }
+
       for (let j = 0; j < alleZiele.length; j++) {
         let z = alleZiele[j];
         if ((z.immune || 0) <= 0) {
