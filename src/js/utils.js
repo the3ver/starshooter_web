@@ -355,6 +355,7 @@ export function erzeugeExplosion(x, y, farbe, anzahl = 15) {
     });
   }
 }
+export const erzeugePartikel = erzeugeExplosion;
 export function erzeugeRauchFunken(x, y, groesse) {
   // Rauch
   if (Math.random() < 0.5) {

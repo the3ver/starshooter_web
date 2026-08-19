@@ -1131,13 +1131,13 @@ export function gameLoop() {
     if (b.stufe >= 4) {
       for (let l = arrays.feindLaserArray.length - 1; l >= 0; l--) {
         let fl = arrays.feindLaserArray[l];
-        Utils.erzeugePartikel(fl.x, fl.y, b.color, 2);
+        Utils.erzeugeExplosion(fl.x, fl.y, b.color, 2);
         fl.el.remove();
         arrays.feindLaserArray.splice(l, 1);
       }
       for (let l = arrays.bossLaserArray.length - 1; l >= 0; l--) {
         let bl = arrays.bossLaserArray[l];
-        Utils.erzeugePartikel(bl.x, bl.y, b.color, 2);
+        Utils.erzeugeExplosion(bl.x, bl.y, b.color, 2);
         bl.el.remove();
         arrays.bossLaserArray.splice(l, 1);
       }

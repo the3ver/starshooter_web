@@ -3,7 +3,7 @@ const { test, expect } = require('@playwright/test');
 test.beforeEach(async ({ page }) => {
   // Standardmäßig als bereits gesehen markieren, damit die Tests direkt interagieren können
   await page.addInitScript(() => {
-    localStorage.setItem('starshooter_last_seen_version', '1.3.0');
+    localStorage.setItem('starshooter_last_seen_version', '1.3.1');
   });
   await page.goto('/');
 });
@@ -101,6 +101,41 @@ test.describe('Space Shooter', () => {
     await expect(miniBomben.first()).toBeAttached({ timeout: 5000 });
   });
 
+  test('Stufe 4 Bombe loescht feindliche Laser ohne Exception (EMP-Effekt)', async ({ page }) => {
+    const pageErrors = [];
+    page.on('pageerror', err => pageErrors.push(err.message));
+
+    // Spiel starten
+    await page.keyboard.down('KeyW');
+    await page.waitForTimeout(50);
+    await page.keyboard.up('KeyW');
+
+    // Feindlaser und Stufe 4 Bombe erzeugen
+    await page.evaluate(async () => {
+      const stateMod = await import('./js/state.js');
+      const entitiesMod = await import('./js/entities.js');
+      stateMod.state.bombenStufe = 4;
+      stateMod.state.bombenCooldown = 0;
+      entitiesMod.erzeugeFeindLaser(150, 100);
+      entitiesMod.erzeugeBossLaser(200, 100);
+    });
+
+    // Bombe abfeuern mit Leertaste
+    await page.keyboard.down('Space');
+    await page.waitForTimeout(200);
+    await page.keyboard.up('Space');
+
+    // Pruefen, dass keine Exception geworfen wurde
+    expect(pageErrors).toEqual([]);
+
+    // Pruefen, dass Feindlaser durch EMP entfernt wurden
+    const laserCount = await page.evaluate(async () => {
+      const stateMod = await import('./js/state.js');
+      return stateMod.arrays.feindLaserArray.length + stateMod.arrays.bossLaserArray.length;
+    });
+    expect(laserCount).toBe(0);
+  });
+
   test('Highscore-Eingabefeld wird bei Game Over automatisch fokussiert', async ({ page }) => {
     // Spiel starten
     await page.keyboard.down('KeyW');
@@ -167,7 +202,7 @@ test.describe('Was gibt es Neues Modal (Changelog)', () => {
     await expect(title).toContainText("WAS GIBT'S NEUES");
 
     const intro = page.locator('#whats-new-intro');
-    await expect(intro).toContainText('1.3.0');
+    await expect(intro).toContainText('1.3.1');
 
     const items = page.locator('#whats-new-list li');
     await expect(items).toHaveCount(5);
@@ -180,7 +215,7 @@ test.describe('Was gibt es Neues Modal (Changelog)', () => {
 
     // Prüfen, dass localStorage aktualisiert wurde
     const storedVersion = await page.evaluate(() => localStorage.getItem('starshooter_last_seen_version'));
-    expect(storedVersion).toBe('1.3.0');
+    expect(storedVersion).toBe('1.3.1');
 
     // Erneut öffnen über Start-Screen Button
     const openBtn = page.locator('#btn-open-whats-new');
