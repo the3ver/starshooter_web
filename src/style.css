@@ -115,6 +115,36 @@
             margin-top: 5px;
         }
 
+        .cooldown-letter {
+            width: 16px;
+            height: 16px;
+            border-radius: 3px;
+            display: inline-flex;
+            justify-content: center;
+            align-items: center;
+            font-size: 11px;
+            font-weight: bold;
+            font-family: 'Courier New', Courier, monospace;
+            line-height: 1;
+            flex-shrink: 0;
+            box-sizing: border-box;
+            user-select: none;
+        }
+
+        .cooldown-letter-r {
+            background: rgba(230, 126, 34, 0.2);
+            border: 1px solid #e67e22;
+            color: #e67e22;
+            box-shadow: 0 0 5px rgba(230, 126, 34, 0.4);
+        }
+
+        .cooldown-letter-b {
+            background: rgba(243, 156, 18, 0.2);
+            border: 1px solid #f39c12;
+            color: #f39c12;
+            box-shadow: 0 0 5px rgba(243, 156, 18, 0.4);
+        }
+
         .cooldown-icon {
             width: 16px;
             height: 16px;

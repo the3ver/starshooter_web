@@ -25,6 +25,16 @@ test.describe('Space Shooter', () => {
       await expect(herzen.nth(i)).toHaveText('♥');
     }
   });
+
+  test('Cooldown-Balken zeigen Powerup-Buchstaben R und B', async ({ page }) => {
+    const raketenLetter = page.locator('#raketen-cd-container .cooldown-letter-r');
+    await expect(raketenLetter).toBeVisible();
+    await expect(raketenLetter).toHaveText('R');
+
+    const bombenLetter = page.locator('#bomben-cd-container .cooldown-letter-b');
+    await expect(bombenLetter).toBeVisible();
+    await expect(bombenLetter).toHaveText('B');
+  });
   
   test('Spiel startet nach Tastendruck und Sterne fliegen', async ({ page }) => {
     // Vorher ist spielLaeuft false
