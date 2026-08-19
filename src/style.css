@@ -635,9 +635,43 @@
             z-index: 2;
         }
 
+        /* Stufe 2+ Heavy Warhead */
+        .rakete-lvl-2 .rakete-sensor {
+            width: 6px;
+            height: 6px;
+            background-color: #e74c3c;
+            border-radius: 40% 40% 50% 50%;
+            box-shadow: 0 0 8px #ff0000;
+            animation: warheadPulse 0.4s infinite alternate;
+        }
+
+        @keyframes warheadPulse {
+            0% { transform: scale(1); filter: brightness(1); }
+            100% { transform: scale(1.15); filter: brightness(1.6); }
+        }
+
+        .rakete-canards {
+            display: none;
+            position: absolute;
+            top: 6px;
+            width: 10px;
+            height: 3px;
+            background-color: #e67e22;
+            clip-path: polygon(15% 0%, 85% 0%, 100% 100%, 0% 100%);
+            z-index: 1;
+        }
+
+        .rakete-lvl-2 .rakete-canards {
+            display: block;
+        }
+
         .raketen-projektil.rakete-homing .rakete-sensor {
             background-color: #00ffff;
             box-shadow: 0 0 8px #00ffff, 0 0 12px #3498db;
+        }
+
+        .raketen-projektil.rakete-homing .rakete-canards {
+            background-color: #00ffff;
         }
 
         .raketen-projektil.rakete-homing .rakete-feuer {
@@ -651,6 +685,12 @@
             background-color: #bdc3c7;
             margin-top: -1px;
             z-index: 1;
+        }
+
+        .rakete-lvl-2 .rakete-rumpf {
+            background: linear-gradient(to bottom, #95a5a6, #34495e);
+            border: 1px solid #2c3e50;
+            box-sizing: border-box;
         }
         
         .rakete-fluegel {

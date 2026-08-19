@@ -935,9 +935,11 @@ export function gameLoop() {
     offsets.forEach(off => {
       const el = document.createElement('div');
       el.classList.add('raketen-projektil');
+      if (state.raketenStufe >= 2) el.classList.add('rakete-lvl-2');
       if (off.homing) el.classList.add('rakete-homing');
       el.innerHTML = `
                         <div class="rakete-sensor"></div>
+                        <div class="rakete-canards"></div>
                         <div class="rakete-rumpf"></div>
                         <div class="rakete-fluegel"></div>
                         <div class="rakete-feuer"></div>
