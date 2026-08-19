@@ -1,15 +1,15 @@
-export const GAME_VERSION = '1.4.2';
+export const GAME_VERSION = '1.4.3';
 
 export const changelogData = {
-  '1.4.2': {
-    version: '1.4.2',
-    intro: 'Hey, es ist jetzt Version 1.4.2 rausgekommen, folgendes wurde geändert oder ist neu:',
+  '1.4.3': {
+    version: '1.4.3',
+    intro: 'Hey, es ist jetzt Version 1.4.3 rausgekommen, folgendes wurde geändert oder ist neu:',
     highlights: [
+      '🛡️ Fix: Spielfeld-Begrenzung für das Spielerschiff unten und rechts korrigiert',
       '🚀 Dynamische Raketen-Kinematik: Seitlicher Abwurf, kurzer Stall & linearer Turbo-Schub',
       '🛡️ Heavy Warhead: Neues, gepanzertes Raketen-Design mit Front-Canards ab Stufe 2',
       '🎯 Zielsuchende Homing-Raketen ab Stufe 3 (visieren Feinde & Bosse an)',
-      '💣 Bomben-Evolution: 5 Stufen mit eigenen Auren, EMP & Vortex-Sog',
-      '💥 Jericho-Cluster auf Stufe 5 mit 4 Sub-Bomben & Kaskaden-Explosionen'
+      '💣 Bomben-Evolution: 5 Stufen mit eigenen Auren, EMP & Vortex-Sog'
     ]
   }
 };

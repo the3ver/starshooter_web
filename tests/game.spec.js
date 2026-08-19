@@ -3,7 +3,7 @@ const { test, expect } = require('@playwright/test');
 test.beforeEach(async ({ page }) => {
   // Standardmäßig als bereits gesehen markieren, damit die Tests direkt interagieren können
   await page.addInitScript(() => {
-    localStorage.setItem('starshooter_last_seen_version', '1.4.2');
+    localStorage.setItem('starshooter_last_seen_version', '1.4.3');
   });
   await page.goto('/');
 });
@@ -268,6 +268,48 @@ test.describe('Space Shooter', () => {
     expect(homingX).toBeGreaterThan(205);
   });
 
+  test('Spielerschiff bleibt innerhalb der 4 Spielfeldbegrenzungen (oben, unten, links, rechts)', async ({ page }) => {
+    // Spiel starten
+    await page.keyboard.down('KeyW');
+    await page.waitForTimeout(50);
+    await page.keyboard.up('KeyW');
+
+    // Extrem nach rechts und unten setzen / steuern
+    await page.evaluate(async () => {
+      const stateMod = await import('./js/state.js');
+      stateMod.state.x = 1000;
+      stateMod.state.y = 1000;
+    });
+
+    await page.waitForTimeout(50);
+
+    const pos1 = await page.evaluate(async () => {
+      const stateMod = await import('./js/state.js');
+      return { x: stateMod.state.x, y: stateMod.state.y };
+    });
+
+    // Spielfeld 400x600, Spieler 30x30 -> max x: 370, max y: 570
+    expect(pos1.x).toBe(370);
+    expect(pos1.y).toBe(570);
+
+    // Extrem nach links und oben setzen / steuern
+    await page.evaluate(async () => {
+      const stateMod = await import('./js/state.js');
+      stateMod.state.x = -500;
+      stateMod.state.y = -500;
+    });
+
+    await page.waitForTimeout(50);
+
+    const pos2 = await page.evaluate(async () => {
+      const stateMod = await import('./js/state.js');
+      return { x: stateMod.state.x, y: stateMod.state.y };
+    });
+
+    expect(pos2.x).toBe(0);
+    expect(pos2.y).toBe(0);
+  });
+
   test('Spielfeld skaliert dynamisch je nach Fenstergröße', async ({ page }) => {
     const spielfeld = page.locator('#spielfeld');
     const container = page.locator('#spielfeld-container');
@@ -304,7 +346,7 @@ test.describe('Was gibt es Neues Modal (Changelog)', () => {
     await expect(title).toContainText("WAS GIBT'S NEUES");
 
     const intro = page.locator('#whats-new-intro');
-    await expect(intro).toContainText('1.4.2');
+    await expect(intro).toContainText('1.4.3');
 
     const items = page.locator('#whats-new-list li');
     await expect(items).toHaveCount(5);
@@ -317,7 +359,7 @@ test.describe('Was gibt es Neues Modal (Changelog)', () => {
 
     // Prüfen, dass localStorage aktualisiert wurde
     const storedVersion = await page.evaluate(() => localStorage.getItem('starshooter_last_seen_version'));
-    expect(storedVersion).toBe('1.4.2');
+    expect(storedVersion).toBe('1.4.3');
 
     // Erneut öffnen über Start-Screen Button
     const openBtn = page.locator('#btn-open-whats-new');

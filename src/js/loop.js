@@ -167,6 +167,8 @@ export function gameLoop() {
   }
   if (state.x < 0) state.x = 0;
   if (state.y < 0) state.y = 0;
+  if (state.x > config.spielfeldBreite - config.spielerGroesse) state.x = config.spielfeldBreite - config.spielerGroesse;
+  if (state.y > config.spielfeldHoehe - config.spielerGroesse) state.y = config.spielfeldHoehe - config.spielerGroesse;
   state.spielerVx = state.x - (state.prevX !== undefined ? state.prevX : state.x);
   state.spielerVy = (state.prevY !== undefined ? state.prevY : state.y) - state.y;
   state.prevX = state.x;
