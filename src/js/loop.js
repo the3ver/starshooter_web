@@ -1084,6 +1084,7 @@ export function gameLoop() {
     const el = document.createElement('div');
     el.classList.add('bomben-projektil');
     el.innerHTML = `
+                    <div class="bombe-aura"></div>
                     <div class="bombe-body"></div>
                     <div class="bombe-licht" style="top: 4px;"></div>
                     <div class="bombe-licht" style="top: 13px;"></div>
@@ -1126,11 +1127,17 @@ export function gameLoop() {
       b.el.style.top = b.y + 'px';
       b.el.style.transform = `rotate(${b.rot}deg)`;
 
-      // Blink-Geschwindigkeit erhöhen je näher am Ziel
-      let blinkSpeed = Math.max(0.1, dist / b.startDist * 1.0);
+      // Blink- & Aura-Puls-Geschwindigkeit erhöhen je näher am Ziel
+      let progress = dist / b.startDist;
+      let blinkSpeed = Math.max(0.1, progress * 1.0);
+      let auraPulseSpeed = Math.max(0.08, progress * 0.8);
       Array.from(b.el.querySelectorAll('.bombe-licht')).forEach(l => {
         l.style.animationDuration = blinkSpeed + 's';
       });
+      const aura = b.el.querySelector('.bombe-aura');
+      if (aura) {
+        aura.style.animationDuration = auraPulseSpeed + 's';
+      }
     } else {
       // Detonation
       let bcx = b.x + 7;

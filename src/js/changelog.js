@@ -1,15 +1,15 @@
-export const GAME_VERSION = '1.1.0';
+export const GAME_VERSION = '1.2.0';
 
 export const changelogData = {
-  '1.1.0': {
-    version: '1.1.0',
-    intro: 'Hey, es ist jetzt Version 1.1.0 rausgekommen, folgendes wurde geändert oder ist neu:',
+  '1.2.0': {
+    version: '1.2.0',
+    intro: 'Hey, es ist jetzt Version 1.2.0 rausgekommen, folgendes wurde geändert oder ist neu:',
     highlights: [
+      '💣 Rote, dynamisch pulsierende Aura für die Super-Bombe',
       "🚀 'Was gibt's Neues'-Meldung beim Spielstart nach Updates",
       '🌟 Kreisförmige Powerup-Badges für Energie, Raketen und Bomben',
       '❤️ Dynamische Lebensanzeige oben links',
-      '📱 Optimierte Touch- & Joystick-Steuerung für Mobilgeräte',
-      '🛠️ Einige Bugfixes und Performance-Verbesserungen'
+      '🛠️ Einige Bugfixes und Verbesserungen'
     ]
   }
 };

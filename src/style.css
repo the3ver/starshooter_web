@@ -667,6 +667,33 @@
             transform-origin: center center;
         }
 
+        .bombe-aura {
+            position: absolute;
+            width: 50px;
+            height: 50px;
+            left: -18px;
+            top: -10px;
+            border-radius: 50%;
+            background: radial-gradient(circle, rgba(231, 76, 60, 0.9) 0%, rgba(231, 76, 60, 0.5) 35%, rgba(231, 76, 60, 0.15) 65%, rgba(231, 76, 60, 0) 100%);
+            box-shadow: 0 0 15px 5px rgba(231, 76, 60, 0.6);
+            pointer-events: none;
+            z-index: 1;
+            animation: bombeAuraPulse 0.8s infinite alternate ease-in-out;
+        }
+
+        @keyframes bombeAuraPulse {
+            0% {
+                transform: scale(0.85);
+                opacity: 0.7;
+                filter: brightness(1);
+            }
+            100% {
+                transform: scale(1.15);
+                opacity: 1;
+                filter: brightness(1.4);
+            }
+        }
+
         .bombe-body {
             position: absolute;
             width: 100%;
@@ -674,6 +701,7 @@
             background: linear-gradient(to right, #2c3e50, #34495e, #2c3e50);
             border-radius: 4px;
             border: 1px solid #1a252f;
+            z-index: 2;
         }
 
         .bombe-licht {
@@ -684,6 +712,7 @@
             border-radius: 50%;
             left: 4px;
             box-shadow: 0 0 5px #e74c3c;
+            z-index: 3;
         }
 
         @keyframes bombeBlink {
