@@ -3,7 +3,7 @@ const { test, expect } = require('@playwright/test');
 test.beforeEach(async ({ page }) => {
   // Standardmäßig als bereits gesehen markieren, damit die Tests direkt interagieren können
   await page.addInitScript(() => {
-    localStorage.setItem('starshooter_last_seen_version', '1.5.4');
+    localStorage.setItem('starshooter_last_seen_version', '1.5.5');
   });
   await page.goto('/');
 });
@@ -512,8 +512,61 @@ test.describe('Space Shooter', () => {
     });
 
     expect(shipSpeeds.viper).toBe(6.0);
-    expect(shipSpeeds.phantom).toBe(4.5);
+    expect(shipSpeeds.phantom).toBe(3.8);
     expect(viperDelta).toBeGreaterThan(phantomDelta);
+  });
+
+  test('Schiff-Eigenschaften: Phantom-NX regeneriert Schild Stufe 1 nach Treffer und zeigt Uhr-Ladeanimation (O1)', async ({ page }) => {
+    // 1. Phantom-NX wählen
+    await page.goto('/');
+    const phantomBtn = page.locator('.hangar-model-btn[data-model="phantom"]');
+    await phantomBtn.click();
+
+    // Spiel starten
+    await page.keyboard.down('KeyW');
+    await page.waitForTimeout(50);
+    await page.keyboard.up('KeyW');
+
+    // Schild auf 0 setzen (Treffer simulieren) und 50% Regeneration setzen
+    await page.evaluate(async () => {
+      const stateMod = await import('./js/state.js');
+      const utilsMod = await import('./js/utils.js');
+      stateMod.state.schildStufe = 0;
+      stateMod.state.phantomSchildRegenTimer = 450; // 50% geladen
+      document.getElementById('spieler').classList.remove('schild-aktiv-1');
+      utilsMod.updateAktivePowerupsUI();
+    });
+
+    // Prüfen, dass das O1-Icon während der Regeneration angezeigt wird und einen conic-gradient Hintergrund besitzt
+    const o1Recharge = page.locator('#aktive-powerups .pu-recharging-shield');
+    await expect(o1Recharge).toBeVisible();
+    await expect(o1Recharge).toContainText('O1');
+
+    const background = await o1Recharge.evaluate(el => el.style.background);
+    expect(background).toContain('conic-gradient');
+
+    // Timer fast vollenden (899 Frames)
+    await page.evaluate(async () => {
+      const stateMod = await import('./js/state.js');
+      stateMod.state.phantomSchildRegenTimer = 899;
+    });
+
+    // Kurz warten, damit der Game-Loop den Frame tickt und den Schild auf Stufe 1 regeneriert
+    await page.waitForTimeout(100);
+
+    const shieldState = await page.evaluate(async () => {
+      const stateMod = await import('./js/state.js');
+      const spielerEl = document.getElementById('spieler');
+      return {
+        stufe: stateMod.state.schildStufe,
+        hasShieldClass: spielerEl.classList.contains('schild-aktiv-1'),
+        timer: stateMod.state.phantomSchildRegenTimer
+      };
+    });
+
+    expect(shieldState.stufe).toBe(1);
+    expect(shieldState.hasShieldClass).toBe(true);
+    expect(shieldState.timer).toBe(0);
   });
 
   test('Schiff-Eigenschaften: Phantom-NX startet mit Schild Stufe 1, Viper-X ohne Schild', async ({ page }) => {
@@ -702,7 +755,8 @@ test.describe('Space Shooter', () => {
     const phantomBadges = perksContainer.locator('.hangar-perk-badge');
     await expect(phantomBadges).toHaveCount(3);
     await expect(perksContainer).toContainText('SCHWERE PANZERUNG');
-    await expect(perksContainer).toContainText('START-SCHILD');
+    await expect(perksContainer).toContainText('REGEN-SCHILD LVL 1');
+    await expect(perksContainer).toContainText('-35% TEMPO');
 
     // 3. Zurück auf Viper-X
     const viperBtn = page.locator('.hangar-model-btn[data-model="viper"]');
@@ -748,10 +802,10 @@ test.describe('Was gibt es Neues Modal (Changelog)', () => {
     await expect(title).toContainText("WAS GIBT'S NEUES");
 
     const intro = page.locator('#whats-new-intro');
-    await expect(intro).toContainText('1.5.4');
+    await expect(intro).toContainText('1.5.5');
 
     const items = page.locator('#whats-new-list li');
-    await expect(items).toHaveCount(2);
+    await expect(items).toHaveCount(3);
 
     // Schließen
     const closeBtn = page.locator('#btn-close-whats-new');
@@ -761,7 +815,7 @@ test.describe('Was gibt es Neues Modal (Changelog)', () => {
 
     // Prüfen, dass localStorage aktualisiert wurde
     const storedVersion = await page.evaluate(() => localStorage.getItem('starshooter_last_seen_version'));
-    expect(storedVersion).toBe('1.5.4');
+    expect(storedVersion).toBe('1.5.5');
 
     // Erneut öffnen über Start-Screen Button
     const openBtn = page.locator('#btn-open-whats-new');

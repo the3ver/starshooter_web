@@ -83,7 +83,16 @@ export function updateAktivePowerupsUI() {
   buildIcon('raketenStufe', state.raketenStufe, 1, 'R', false, 'rgba(230,126,34,0.2)', val => val === 5 ? '#f39c12' : '#e67e22');
   buildIcon('bombenStufe', state.bombenStufe, 1, 'B', false, 'rgba(192,57,43,0.2)', val => val === 5 ? '#e74c3c' : '#c0392b');
   buildIcon('laserDurchschlag', state.laserDurchschlag, false, '&uarr;', true, 'rgba(0,255,255,0.2)', '#00ffff');
-  buildIcon('schildStufe', state.schildStufe, 0, 'O', false, 'rgba(52,152,219,0.2)', '#3498db');
+  if (state.schildStufe > 0) {
+    buildIcon('schildStufe', state.schildStufe, 0, 'O', false, 'rgba(52,152,219,0.2)', '#3498db');
+  } else if (state.selectedShipModel === 'phantom' && (state.phantomSchildRegenTimer || 0) > 0) {
+    const maxTimer = state.phantomSchildRegenMax || 900;
+    const progress = Math.min(1, Math.max(0, state.phantomSchildRegenTimer / maxTimer));
+    const deg = Math.round(progress * 360);
+    html += `<div class="active-pu-icon pu-recharging-shield" style="background: conic-gradient(#3498db ${deg}deg, rgba(52,152,219,0.15) 0deg); border:1px solid #3498db; color:#3498db;" title="Schild Stufe 1 lädt auf (${Math.round(progress * 100)}%)">O1</div>`;
+  } else {
+    buildIcon('schildStufe', state.schildStufe, 0, 'O', false, 'rgba(52,152,219,0.2)', '#3498db');
+  }
   buildIcon('autolaserAktiv', state.autolaserAktiv, false, 'A', true, 'rgba(230,126,34,0.2)', '#e67e22');
 
   dom.aktivePowerupsContainer.innerHTML = html + lostHtml;
@@ -119,18 +128,17 @@ export function zerstoereZiel(ziel) {
     let randomIndex = Math.floor(Math.random() * moeglicheDrops.length);
     drops.push(moeglicheDrops.splice(randomIndex, 1)[0]); // Typ entfernen, damit er nicht doppelt kommt
     randomIndex = Math.floor(Math.random() * moeglicheDrops.length);
-    drops.push(moeglicheDrops[randomIndex]); // Zweiter Typ
+    drops.push(moeglicheDrops[randomIndex]);
 
-    // Positionen mischen, damit Waffe nicht immer links spawnt
-    drops.sort(() => Math.random() - 0.5);
-    Entities.erzeugePowerup(ziel.x + ziel.groesse * 0.2, ziel.y + ziel.groesse * 0.5, drops[0]);
-    Entities.erzeugePowerup(ziel.x + ziel.groesse * 0.5, ziel.y + ziel.groesse * 0.5, drops[1]);
-    Entities.erzeugePowerup(ziel.x + ziel.groesse * 0.8, ziel.y + ziel.groesse * 0.5, drops[2]);
+    drops.forEach((d, i) => {
+      Entities.erzeugePowerup(ziel.x + i * 25, ziel.y, d);
+    });
+
     state.bossAktiv = false;
-    dom.bossHpContainer.style.display = 'none';
     state.level++;
     updateLevelUI();
-    state.frameZaehler = 0;
+    dom.bossHpContainer.style.display = 'none';
+    state.frameZaehler = 0; // Setzt Level-Timer zurück
   } else {
     addScore(ziel.istFeind ? 100 : ziel.traegtPowerup ? 50 : ziel.groesse >= 35 ? 20 : 10);
     let farbe = ziel.istFeind ? '#9b59b6' : ziel.el.dataset.baseColor || ziel.el.style.backgroundColor || '#ffffff';
@@ -159,6 +167,9 @@ export function spielerGetroffen(kollisionsObjekt, explodiert = true) {
     dom.spieler.classList.remove(`schild-aktiv-${state.schildStufe}`);
     state.schildStufe--;
     if (state.schildStufe > 0) dom.spieler.classList.add(`schild-aktiv-${state.schildStufe}`);
+    if (state.schildStufe === 0 && state.selectedShipModel === 'phantom') {
+      state.phantomSchildRegenTimer = 0;
+    }
     updateAktivePowerupsUI();
     if (explodiert) {
       let c = kollisionsObjekt.istFeind ? '#9b59b6' : kollisionsObjekt.el.dataset.baseColor || kollisionsObjekt.el.style.backgroundColor || '#7f8c8d';
@@ -172,6 +183,10 @@ export function spielerGetroffen(kollisionsObjekt, explodiert = true) {
     return;
   }
   state.leben--;
+  if (state.selectedShipModel === 'phantom') {
+    state.phantomSchildRegenTimer = 0;
+    updateAktivePowerupsUI();
+  }
   const currentShip = shipModels && shipModels[state.selectedShipModel || 'viper'];
   if (!currentShip || currentShip.loseUpgradesOnHit) {
     let moeglicheDowngrades = [];
@@ -247,6 +262,7 @@ export function restartGame() {
   dom.maxEnergieMarker.style.display = 'block';
   state.laserDurchschlag = false;
   state.durchschlagTimer = 0;
+  state.phantomSchildRegenTimer = 0;
   const currentShip = shipModels && shipModels[state.selectedShipModel || 'viper'];
   state.schildStufe = (currentShip && currentShip.startShield) || 0;
   dom.spieler.classList.remove('schild-aktiv-1', 'schild-aktiv-2', 'schild-aktiv-3');

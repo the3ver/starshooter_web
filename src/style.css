@@ -198,6 +198,14 @@
             font-weight: bold;
         }
 
+        .active-pu-icon.pu-recharging-shield {
+            position: relative;
+            box-shadow: 0 0 8px rgba(52, 152, 219, 0.4);
+            font-size: 10px;
+            transition: none;
+            cursor: help;
+        }
+
         @keyframes pu-pop-up {
             0% { transform: scale(0); opacity: 0; }
             50% { transform: scale(1.5); }

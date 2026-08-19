@@ -64,14 +64,16 @@ export const shipModels = {
     phantom: {
         name: 'PHANTOM-NX STRIKER',
         shortName: 'PHANTOM-NX',
-        speed: 4.5,
+        speed: 3.8,
         energyRegen: 0.4,
         startShield: 1,
+        shieldRegen: true,
+        shieldRegenMax: 900,
         loseUpgradesOnHit: false,
         perks: [
             { icon: '🛡️', label: 'SCHWERE PANZERUNG', desc: 'Behält alle Waffen-Upgrades bei Treffern', type: 'buff' },
-            { icon: '🔷', label: 'START-SCHILD LVL 1', desc: 'Startet jedes Gefecht mit aktivem Schild', type: 'buff' },
-            { icon: '⏳', label: '-10% TEMPO', desc: 'Schwerere Masse, etwas trägere Steuerung', type: 'nerf' }
+            { icon: '🔄', label: 'REGEN-SCHILD LVL 1', desc: 'Schild Stufe 1 lädt sich nach Treffern automatisch wieder auf', type: 'buff' },
+            { icon: '⏳', label: '-35% TEMPO', desc: 'Schwere Masse, spürbar langsamere Fluggeschwindigkeit', type: 'nerf' }
         ]
     }
 };
@@ -86,6 +88,7 @@ export const state = {
     bossAktiv: false, bossWarningAktiv: false, bossWarningTimer: 0, gameOverAktiv: false,
     spielerSchussCooldown: 0, finalerScore: 0, cheatUsed: false, typedCheatKeys: '',
     godMode: false, pausiert: false, unbegrenzteEnergie: false, invulnerableTimer: 0,
+    phantomSchildRegenTimer: 0, phantomSchildRegenMax: 900,
     joystick: { x: 0, y: 0, active: false },
     selectedShipModel: 'viper',
     selectedShipColor: 'red'

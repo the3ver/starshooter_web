@@ -281,6 +281,25 @@ export function gameLoop() {
     dom.energieBalken.style.backgroundColor = state.energie < state.minZuendEnergie && !state.laserSchiesst ? '#e67e22' : '#1abc9c';
   }
 
+  // --- 9.4b SCHILD REGENERATION (Phantom-NX) ---
+  const activeShip = shipModels && shipModels[state.selectedShipModel || 'viper'];
+  if (activeShip && activeShip.shieldRegen && state.schildStufe === 0 && state.leben > 0 && !state.gameOverAktiv) {
+    const maxRegen = state.phantomSchildRegenMax || activeShip.shieldRegenMax || 900;
+    state.phantomSchildRegenTimer = (state.phantomSchildRegenTimer || 0) + 1;
+    if (state.phantomSchildRegenTimer % 6 === 0) {
+      Utils.updateAktivePowerupsUI();
+    }
+    if (state.phantomSchildRegenTimer >= maxRegen) {
+      state.schildStufe = 1;
+      state.phantomSchildRegenTimer = 0;
+      dom.spieler.classList.remove('schild-aktiv-1', 'schild-aktiv-2', 'schild-aktiv-3');
+      dom.spieler.classList.add('schild-aktiv-1');
+      Utils.updateAktivePowerupsUI();
+    }
+  } else if (state.schildStufe > 0 && state.phantomSchildRegenTimer > 0) {
+    state.phantomSchildRegenTimer = 0;
+  }
+
   // --- 9.5 POWERUPS ---
   for (let i = arrays.powerups.length - 1; i >= 0; i--) {
     let p = arrays.powerups[i];

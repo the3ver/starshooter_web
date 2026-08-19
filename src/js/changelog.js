@@ -1,6 +1,15 @@
-export const GAME_VERSION = '1.5.4';
+export const GAME_VERSION = '1.5.5';
 
 export const changelogData = {
+  '1.5.5': {
+    version: '1.5.5',
+    intro: 'Hey, es ist jetzt Version 1.5.5 rausgekommen, folgendes wurde geändert oder ist neu:',
+    highlights: [
+      '🛡️ Phantom-NX Schild-Regeneration: Schild Stufe 1 lädt sich nach Treffern automatisch wieder auf',
+      '⏱️ Radialer Uhr-Ladebalken: Das O1-Icon zeigt den Ladefortschritt als kreisförmige Uhr-Animation an',
+      '🛸 Feinere Schiffs-Balance: Phantom-NX Geschwindigkeit auf 3.8 angepasst für spürbare Panzer-Trägheit'
+    ]
+  },
   '1.5.4': {
     version: '1.5.4',
     intro: 'Hey, es ist jetzt Version 1.5.4 rausgekommen, folgendes wurde geändert oder ist neu:',
