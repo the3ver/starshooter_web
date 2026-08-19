@@ -1,9 +1,14 @@
 const { test, expect } = require('@playwright/test');
 
-test.describe('Space Shooter', () => {
-  test.beforeEach(async ({ page }) => {
-    await page.goto('/');
+test.beforeEach(async ({ page }) => {
+  // Standardmäßig als bereits gesehen markieren, damit die Tests direkt interagieren können
+  await page.addInitScript(() => {
+    localStorage.setItem('starshooter_last_seen_version', '1.1.0');
   });
+  await page.goto('/');
+});
+
+test.describe('Space Shooter', () => {
 
   test('Das Spiel lädt und der Start-Text wird angezeigt', async ({ page }) => {
     const startText = page.locator('#start-text');
@@ -77,6 +82,43 @@ test.describe('Space Shooter', () => {
     let newTransform = await spielfeld.evaluate((el) => el.style.transform);
     expect(newTransform).toContain('scale');
     expect(newTransform).not.toEqual(transform); // Scale factor sollte sich geändert haben
+  });
+});
+
+test.describe('Was gibt es Neues Modal (Changelog)', () => {
+  test('Wird bei neuer Version automatisch angezeigt und kann geschlossen werden', async ({ page }) => {
+    // Altes Release simulieren
+    await page.addInitScript(() => {
+      localStorage.setItem('starshooter_last_seen_version', '1.0.0');
+    });
+    await page.goto('/');
+
+    const modal = page.locator('#whats-new-overlay');
+    await expect(modal).toBeVisible();
+
+    const title = page.locator('#whats-new-title');
+    await expect(title).toContainText("WAS GIBT'S NEUES");
+
+    const intro = page.locator('#whats-new-intro');
+    await expect(intro).toContainText('1.1.0');
+
+    const items = page.locator('#whats-new-list li');
+    await expect(items).toHaveCount(5);
+
+    // Schließen
+    const closeBtn = page.locator('#btn-close-whats-new');
+    await closeBtn.click();
+
+    await expect(modal).toBeHidden();
+
+    // Prüfen, dass localStorage aktualisiert wurde
+    const storedVersion = await page.evaluate(() => localStorage.getItem('starshooter_last_seen_version'));
+    expect(storedVersion).toBe('1.1.0');
+
+    // Erneut öffnen über Start-Screen Button
+    const openBtn = page.locator('#btn-open-whats-new');
+    await openBtn.click();
+    await expect(modal).toBeVisible();
   });
 });
 

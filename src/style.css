@@ -474,6 +474,84 @@
             animation: warnBlink 0.5s infinite;
         }
 
+        #whats-new-overlay {
+            position: absolute;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background-color: rgba(10, 15, 25, 0.92);
+            backdrop-filter: blur(8px);
+            -webkit-backdrop-filter: blur(8px);
+            display: none;
+            justify-content: center;
+            align-items: center;
+            z-index: 2000;
+            padding: 20px;
+            box-sizing: border-box;
+        }
+
+        .whats-new-content {
+            background: rgba(26, 37, 47, 0.95);
+            border: 2px solid #3498db;
+            box-shadow: 0 0 25px rgba(52, 152, 219, 0.5), inset 0 0 15px rgba(52, 152, 219, 0.2);
+            border-radius: 12px;
+            padding: 20px;
+            max-width: 320px;
+            width: 100%;
+            text-align: center;
+            color: #ecf0f1;
+            box-sizing: border-box;
+        }
+
+        .whats-new-title {
+            color: #f1c40f;
+            font-size: 18px;
+            font-weight: bold;
+            font-family: 'Courier New', Courier, monospace;
+            letter-spacing: 2px;
+            margin-bottom: 12px;
+            text-shadow: 0 0 8px rgba(241, 196, 15, 0.6);
+        }
+
+        .whats-new-intro {
+            font-size: 13px;
+            color: #bdc3c7;
+            margin-bottom: 14px;
+            line-height: 1.4;
+        }
+
+        .whats-new-list {
+            text-align: left;
+            font-size: 12px;
+            color: #ecf0f1;
+            padding-left: 18px;
+            margin: 0 0 18px 0;
+            line-height: 1.6;
+        }
+
+        .whats-new-list li {
+            margin-bottom: 6px;
+        }
+
+        .btn-whats-new {
+            margin-top: 12px;
+            background: transparent;
+            border: 1px solid #3498db;
+            color: #3498db;
+            padding: 5px 12px;
+            font-size: 11px;
+            font-weight: bold;
+            letter-spacing: 1px;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: all 0.2s;
+            display: inline-block;
+        }
+
+        .btn-whats-new:hover {
+            background-color: rgba(52, 152, 219, 0.2);
+            box-shadow: 0 0 8px rgba(52, 152, 219, 0.5);
+            color: #fff;
+        }
+
         .boss-laser {
             position: absolute;
             width: 8px;

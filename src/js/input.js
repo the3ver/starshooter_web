@@ -85,6 +85,10 @@ export function setupInput() {
 
   // 1. Tap to Pause on Spielfeld
   spielfeldContainer.addEventListener('touchstart', e => {
+    if (e.target.closest('#whats-new-overlay') || e.target.closest('#btn-open-whats-new')) return;
+    const whatsNew = document.getElementById('whats-new-overlay');
+    if (whatsNew && whatsNew.style.display !== 'none') return;
+
     if (!state.spielLaeuft && !state.gameOverAktiv) {
       state.spielLaeuft = true;
       let startScreen = document.getElementById('start-screen');

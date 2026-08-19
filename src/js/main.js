@@ -65,5 +65,25 @@ document.addEventListener('DOMContentLoaded', () => {
         Utils.updateAktivePowerupsUI();
     });
 
+    // Was gibt's Neues Changelog
+    import('./changelog.js').then(Changelog => {
+        Changelog.checkAndShowWhatsNew();
+
+        const btnClose = document.getElementById('btn-close-whats-new');
+        if (btnClose) {
+            btnClose.addEventListener('click', () => {
+                Changelog.closeWhatsNewModal();
+            });
+        }
+
+        const btnOpen = document.getElementById('btn-open-whats-new');
+        if (btnOpen) {
+            btnOpen.addEventListener('click', (e) => {
+                e.stopPropagation();
+                Changelog.showWhatsNewModal();
+            });
+        }
+    });
+
     requestAnimationFrame(gameLoop);
 });

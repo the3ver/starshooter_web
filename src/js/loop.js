@@ -60,7 +60,9 @@ export function gameLoop() {
   }
 
   if (!state.spielLaeuft) {
-    if (state.tastenGedrueckt.w || state.tastenGedrueckt.a || state.tastenGedrueckt.s || state.tastenGedrueckt.d || state.tastenGedrueckt.l || state.tastenGedrueckt.k || state.tastenGedrueckt[' ']) {
+    const whatsNew = document.getElementById('whats-new-overlay');
+    const isWhatsNewOpen = whatsNew && whatsNew.style.display !== 'none';
+    if (!isWhatsNewOpen && (state.tastenGedrueckt.w || state.tastenGedrueckt.a || state.tastenGedrueckt.s || state.tastenGedrueckt.d || state.tastenGedrueckt.l || state.tastenGedrueckt.k || state.tastenGedrueckt[' '])) {
       state.spielLaeuft = true;
       let startScreen = document.getElementById('start-screen');
       if (startScreen) startScreen.style.display = 'none';

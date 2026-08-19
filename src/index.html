@@ -37,6 +37,15 @@
             <div id="warning-overlay">WARNING<br>BOSS APPROACHING</div>
             <div id="pause-overlay" style="display: none; position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); color: #3498db; font-size: 40px; font-weight: bold; z-index: 1000; letter-spacing: 5px; text-shadow: 0 0 15px #3498db;">PAUSED</div>
 
+            <div id="whats-new-overlay" style="display: none;">
+                <div class="whats-new-content">
+                    <div id="whats-new-title" class="whats-new-title">WAS GIBT'S NEUES</div>
+                    <div id="whats-new-intro" class="whats-new-intro"></div>
+                    <ul id="whats-new-list" class="whats-new-list"></ul>
+                    <button class="btn" id="btn-close-whats-new">VERSTANDEN</button>
+                </div>
+            </div>
+
             <div id="start-screen">
                 <div class="start-title">STAR SHOOTER</div>
                 <div class="steuerung-titel">Steuerung (PC)</div>
@@ -57,6 +66,7 @@
                 <span style="color:#00ffff; font-weight:bold">&uarr;</span> : Laser-Durchschlag | <span style="color:#3498db; font-weight:bold">O</span> : Schild
                 
                 <div id="start-text">TAP OR PRESS ANY KEY TO START</div>
+                <button id="btn-open-whats-new" class="btn-whats-new">WAS IST NEU?</button>
             </div>
 
             <div id="game-over-screen">
@@ -84,7 +94,7 @@
 
             <div id="score-anzeige">00000</div>
             <div id="level-anzeige">LEVEL 1</div>
-            <div id="version-anzeige">V 1.0.0</div>
+            <div id="version-anzeige">V 1.1.0</div>
             
             <div id="boss-hp-container">
                 <div id="boss-hp-balken"></div>
