@@ -27,6 +27,42 @@ export function setupInput() {
         state.energie = state.maxEnergie;
       }
 
+      const idkflMatch = state.typedCheatKeys.match(/idkfl([1-9])$/);
+      if (idkflMatch) {
+        const lvl = parseInt(idkflMatch[1], 10);
+        state.cheatUsed = true;
+        state.level = lvl;
+        Utils.updateLevelUI();
+        if (dom.bossHpContainer) dom.bossHpContainer.style.display = 'none';
+        state.frameZaehler = 0;
+        if (arrays.bosses) {
+          arrays.bosses.forEach(b => b.el.remove());
+          arrays.bosses.length = 0;
+        }
+        if (arrays.bossLaserArray) {
+          arrays.bossLaserArray.forEach(bl => bl.el.remove());
+          arrays.bossLaserArray.length = 0;
+        }
+        if (arrays.bossBombenArray) {
+          arrays.bossBombenArray.forEach(bb => bb.el.remove());
+          arrays.bossBombenArray.length = 0;
+        }
+        if (arrays.bossRaketenArray) {
+          arrays.bossRaketenArray.forEach(br => br.el.remove());
+          arrays.bossRaketenArray.length = 0;
+        }
+        resetAllCooldowns();
+        let overlay = document.getElementById('warning-overlay');
+        overlay.innerHTML = `IDKFL${lvl}<br>Warping to Level ${lvl}!`;
+        overlay.style.display = 'block';
+        overlay.style.color = '#f1c40f';
+        setTimeout(() => {
+          overlay.style.display = 'none';
+          overlay.style.color = '#e74c3c';
+          overlay.innerHTML = 'WARNING<br>BOSS APPROACHING';
+        }, 2000);
+      }
+
       const idkfMatch = state.typedCheatKeys.match(/idkf([1-5])$/);
       if (idkfMatch) {
         const lvl = parseInt(idkfMatch[1], 10);

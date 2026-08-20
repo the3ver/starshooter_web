@@ -1,6 +1,15 @@
-export const GAME_VERSION = '1.6.2';
+export const GAME_VERSION = '1.6.3';
 
 export const changelogData = {
+  '1.6.3': {
+    version: '1.6.3',
+    intro: 'Hey, es ist jetzt Version 1.6.3 rausgekommen, folgendes wurde geändert oder ist neu:',
+    highlights: [
+      '🚀 Seitliche Boss-Raketen: Bosse feuern zielsuchende Raketen seitlich ab, um dem Frontal-Sperrfeuer auszuweichen',
+      '🎯 Zerstörbare Bedrohung: Schieße die langsamen Raketen mit dem Laser ab, bevor sie dich treffen',
+      '💥 Taktischer Bonus: +100 Punkte für jede im Flug zerstörte Boss-Rakete'
+    ]
+  },
   '1.6.2': {
     version: '1.6.2',
     intro: 'Hey, es ist jetzt Version 1.6.2 rausgekommen, folgendes wurde geändert oder ist neu:',

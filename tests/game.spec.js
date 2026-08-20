@@ -3,7 +3,7 @@ const { test, expect } = require('@playwright/test');
 test.beforeEach(async ({ page }) => {
   // Standardmäßig als bereits gesehen markieren, damit die Tests direkt interagieren können
   await page.addInitScript(() => {
-    localStorage.setItem('starshooter_last_seen_version', '1.6.2');
+    localStorage.setItem('starshooter_last_seen_version', '1.6.3');
   });
   await page.goto('/');
 });
@@ -182,6 +182,39 @@ test.describe('Space Shooter', () => {
       const overlay = page.locator('#warning-overlay');
       await expect(overlay).toBeVisible();
       await expect(overlay).toContainText(`IDKF${lvl}`);
+    }
+  });
+
+  test('Cheatcodes idkfl1 bis idkfl9 springen direkt in das entsprechende Level und aktualisieren das UI', async ({ page }) => {
+    // Spiel starten
+    await page.keyboard.down('KeyW');
+    await page.waitForTimeout(50);
+    await page.keyboard.up('KeyW');
+
+    for (const lvl of [1, 3, 5, 9]) {
+      const cheat = `idkfl${lvl}`;
+      for (const char of cheat) {
+        await page.keyboard.press(char);
+        await page.waitForTimeout(20);
+      }
+
+      const stateInfo = await page.evaluate(async () => {
+        const stateMod = await import('./js/state.js');
+        return {
+          level: stateMod.state.level,
+          cheatUsed: stateMod.state.cheatUsed
+        };
+      });
+
+      expect(stateInfo.level).toBe(lvl);
+      expect(stateInfo.cheatUsed).toBe(true);
+
+      const levelAnzeige = page.locator('#level-anzeige');
+      await expect(levelAnzeige).toHaveText(`LEVEL ${lvl}`);
+
+      const overlay = page.locator('#warning-overlay');
+      await expect(overlay).toBeVisible();
+      await expect(overlay).toContainText(`IDKFL${lvl}`);
     }
   });
 
@@ -835,7 +868,7 @@ test.describe('Was gibt es Neues Modal (Changelog)', () => {
     await expect(title).toContainText("WAS GIBT'S NEUES");
 
     const intro = page.locator('#whats-new-intro');
-    await expect(intro).toContainText('1.6.2');
+    await expect(intro).toContainText('1.6.3');
 
     const items = page.locator('#whats-new-list li');
     await expect(items).toHaveCount(3);
@@ -848,7 +881,7 @@ test.describe('Was gibt es Neues Modal (Changelog)', () => {
 
     // Prüfen, dass localStorage aktualisiert wurde
     const storedVersion = await page.evaluate(() => localStorage.getItem('starshooter_last_seen_version'));
-    expect(storedVersion).toBe('1.6.2');
+    expect(storedVersion).toBe('1.6.3');
 
     // Erneut öffnen über Start-Screen Button
     const openBtn = page.locator('#btn-open-whats-new');
