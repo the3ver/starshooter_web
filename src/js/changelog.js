@@ -1,6 +1,15 @@
-export const GAME_VERSION = '1.5.6';
+export const GAME_VERSION = '1.6.0';
 
 export const changelogData = {
+  '1.6.0': {
+    version: '1.6.0',
+    intro: 'Hey, es ist jetzt Version 1.6.0 rausgekommen, folgendes wurde geändert oder ist neu:',
+    highlights: [
+      '🚀 Sichtbare Raketenwerfer am Schiff: Dynamische Werfer-Pods mit animierter Plasma-Energiekopplung',
+      '🎯 Geradeaus-Abschuss: Raketen starten jetzt direkt und präzise geradeaus aus den Rohren (Viper links, Phantom rechts)',
+      '💥 Level-Skalierung & Pod-Abwurf: Zusätzliche Werfer auf Lvl 3-5 und spektakuläre Wegschleuder-Animation bei Upgrade-Verlust'
+    ]
+  },
   '1.5.6': {
     version: '1.5.6',
     intro: 'Hey, es ist jetzt Version 1.5.6 rausgekommen, folgendes wurde geändert oder ist neu:',

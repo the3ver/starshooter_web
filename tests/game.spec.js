@@ -3,7 +3,7 @@ const { test, expect } = require('@playwright/test');
 test.beforeEach(async ({ page }) => {
   // Standardmäßig als bereits gesehen markieren, damit die Tests direkt interagieren können
   await page.addInitScript(() => {
-    localStorage.setItem('starshooter_last_seen_version', '1.5.6');
+    localStorage.setItem('starshooter_last_seen_version', '1.6.0');
   });
   await page.goto('/');
 });
@@ -835,10 +835,10 @@ test.describe('Was gibt es Neues Modal (Changelog)', () => {
     await expect(title).toContainText("WAS GIBT'S NEUES");
 
     const intro = page.locator('#whats-new-intro');
-    await expect(intro).toContainText('1.5.6');
+    await expect(intro).toContainText('1.6.0');
 
     const items = page.locator('#whats-new-list li');
-    await expect(items).toHaveCount(2);
+    await expect(items).toHaveCount(3);
 
     // Schließen
     const closeBtn = page.locator('#btn-close-whats-new');
@@ -848,7 +848,7 @@ test.describe('Was gibt es Neues Modal (Changelog)', () => {
 
     // Prüfen, dass localStorage aktualisiert wurde
     const storedVersion = await page.evaluate(() => localStorage.getItem('starshooter_last_seen_version'));
-    expect(storedVersion).toBe('1.5.6');
+    expect(storedVersion).toBe('1.6.0');
 
     // Erneut öffnen über Start-Screen Button
     const openBtn = page.locator('#btn-open-whats-new');
@@ -906,3 +906,174 @@ test.describe('Mobile UI Positionierung - Tablet (iPad)', () => {
     expect(raketeBox.y).toBeGreaterThanOrEqual(feldBox.y + feldBox.height - 50);
   });
 });
+
+test.describe('Raketenwerfer am Schiff', () => {
+  test('Zeigt auf Stufe 1 bei Viper-X nur den linken Werfer, bei Phantom-NX nur den rechten Werfer', async ({ page }) => {
+    // Spiel starten mit Viper-X (Standard)
+    await page.keyboard.down('KeyW');
+    await page.waitForTimeout(50);
+    await page.keyboard.up('KeyW');
+
+    const werferLinks = page.locator('#spieler .werfer-links');
+    const werferRechts = page.locator('#spieler .werfer-rechts');
+    const werferCenter = page.locator('#spieler .werfer-center');
+
+    await expect(werferLinks).toBeVisible();
+    await expect(werferRechts).toBeHidden();
+    await expect(werferCenter).toBeHidden();
+
+    // Zu Phantom-NX wechseln
+    await page.evaluate(async () => {
+      const stateMod = await import('./js/state.js');
+      const utilsMod = await import('./js/utils.js');
+      stateMod.state.selectedShipModel = 'phantom';
+      utilsMod.updatePlayerShipVisuals();
+    });
+
+    await expect(werferLinks).toBeHidden();
+    await expect(werferRechts).toBeVisible();
+    await expect(werferCenter).toBeHidden();
+  });
+
+  test('Auf Stufe 3 und 4 erscheinen beide seitlichen Werfer, auf Stufe 5 der dritte mittlere Werfer', async ({ page }) => {
+    await page.keyboard.down('KeyW');
+    await page.waitForTimeout(50);
+    await page.keyboard.up('KeyW');
+
+    const werferLinks = page.locator('#spieler .werfer-links');
+    const werferRechts = page.locator('#spieler .werfer-rechts');
+    const werferCenter = page.locator('#spieler .werfer-center');
+
+    // Stufe 3
+    await page.evaluate(async () => {
+      const stateMod = await import('./js/state.js');
+      const utilsMod = await import('./js/utils.js');
+      stateMod.state.raketenStufe = 3;
+      utilsMod.updateAktivePowerupsUI();
+    });
+
+    await expect(werferLinks).toBeVisible();
+    await expect(werferRechts).toBeVisible();
+    await expect(werferCenter).toBeHidden();
+
+    // Stufe 4
+    await page.evaluate(async () => {
+      const stateMod = await import('./js/state.js');
+      const utilsMod = await import('./js/utils.js');
+      stateMod.state.raketenStufe = 4;
+      utilsMod.updateAktivePowerupsUI();
+    });
+
+    await expect(werferLinks).toBeVisible();
+    await expect(werferRechts).toBeVisible();
+    await expect(werferCenter).toBeHidden();
+
+    // Stufe 5
+    await page.evaluate(async () => {
+      const stateMod = await import('./js/state.js');
+      const utilsMod = await import('./js/utils.js');
+      stateMod.state.raketenStufe = 5;
+      utilsMod.updateAktivePowerupsUI();
+    });
+
+    await expect(werferLinks).toBeVisible();
+    await expect(werferRechts).toBeVisible();
+    await expect(werferCenter).toBeVisible();
+  });
+
+  test('Raketen starten geradeaus direkt aus den aktiven Werfern (Viper links, Phantom rechts)', async ({ page }) => {
+    await page.keyboard.down('KeyW');
+    await page.waitForTimeout(50);
+    await page.keyboard.up('KeyW');
+
+    // 1. Viper-X: Feuern auf Stufe 1 -> Rakete startet links vom Schiff und fliegt geradeaus (kein schräger Auswurf)
+    await page.keyboard.down('KeyK');
+    await page.waitForTimeout(50);
+    await page.keyboard.up('KeyK');
+
+    const raketeViper = page.locator('.raketen-projektil').first();
+    await expect(raketeViper).toBeAttached();
+
+    const viperX = await page.evaluate(async () => {
+      const stateMod = await import('./js/state.js');
+      const r = stateMod.arrays.raketenArray[0];
+      return { shipX: stateMod.state.x, rocketX: r.x, vx: r.vx };
+    });
+
+    // Rakete muss links vom Rumpf starten
+    expect(viperX.rocketX).toBeLessThan(viperX.shipX + 5);
+    // Rakete startet geradeaus nach vorne (vx = 0)
+    expect(viperX.vx).toBe(0);
+
+    // 2. Zweiter Schuss mit Viper -> muss IMMER noch links starten (nicht mehr alternierend)
+    await page.evaluate(async () => {
+      const stateMod = await import('./js/state.js');
+      stateMod.arrays.raketenArray.forEach(r => r.el.remove());
+      stateMod.arrays.raketenArray.length = 0;
+      stateMod.state.raketenCooldown = 0;
+    });
+
+    await page.keyboard.down('KeyK');
+    await page.waitForTimeout(50);
+    await page.keyboard.up('KeyK');
+
+    const viperX2 = await page.evaluate(async () => {
+      const stateMod = await import('./js/state.js');
+      const r = stateMod.arrays.raketenArray[0];
+      return { shipX: stateMod.state.x, rocketX: r.x, vx: r.vx };
+    });
+    expect(viperX2.rocketX).toBeLessThan(viperX2.shipX + 5);
+    expect(viperX2.vx).toBe(0);
+
+    // 3. Phantom-NX: Auf Stufe 1 startet Rakete rechts vom Schiff und geradeaus
+    await page.evaluate(async () => {
+      const stateMod = await import('./js/state.js');
+      const utilsMod = await import('./js/utils.js');
+      stateMod.arrays.raketenArray.forEach(r => r.el.remove());
+      stateMod.arrays.raketenArray.length = 0;
+      stateMod.state.raketenCooldown = 0;
+      stateMod.state.selectedShipModel = 'phantom';
+      utilsMod.updatePlayerShipVisuals();
+    });
+
+    await page.keyboard.down('KeyK');
+    await page.waitForTimeout(50);
+    await page.keyboard.up('KeyK');
+
+    const phantomX = await page.evaluate(async () => {
+      const stateMod = await import('./js/state.js');
+      const r = stateMod.arrays.raketenArray[0];
+      return { shipX: stateMod.state.x, rocketX: r.x, vx: r.vx };
+    });
+
+    // Rakete muss rechts vom Rumpf starten
+    expect(phantomX.rocketX).toBeGreaterThan(phantomX.shipX + 20);
+    expect(phantomX.vx).toBe(0);
+  });
+
+  test('Beim Downgrade löst sich der verlorene Werfer mit Wegschleuder-Animation', async ({ page }) => {
+    await page.keyboard.down('KeyW');
+    await page.waitForTimeout(50);
+    await page.keyboard.up('KeyW');
+
+    // Auf Stufe 5 setzen
+    await page.evaluate(async () => {
+      const stateMod = await import('./js/state.js');
+      const utilsMod = await import('./js/utils.js');
+      stateMod.state.raketenStufe = 5;
+      utilsMod.updateAktivePowerupsUI();
+    });
+
+    // Downgrade von Stufe 5 auf Stufe 3 (mittlerer Werfer geht verloren)
+    await page.evaluate(async () => {
+      const stateMod = await import('./js/state.js');
+      const utilsMod = await import('./js/utils.js');
+      stateMod.state.raketenStufe = 3;
+      utilsMod.updateAktivePowerupsUI();
+    });
+
+    const ejectedPod = page.locator('.werfer-abgeworfen');
+    await expect(ejectedPod).toBeAttached();
+  });
+});
+

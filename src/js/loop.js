@@ -939,34 +939,34 @@ export function gameLoop() {
 
     let offsets = [];
     if (anzahl === 1) {
-      let side = (state.lastRocketSide = (state.lastRocketSide === 1 ? -1 : 1));
+      const isPhantom = state.selectedShipModel === 'phantom';
       offsets = [{
-        ox: side > 0 ? 18 : 2,
-        ejectVx: side * 3.2,
+        ox: isPhantom ? 29 : -9,
+        ejectVx: 0,
         homing: false
       }];
     } else if (anzahl === 2) {
       offsets = [{
-        ox: 0,
-        ejectVx: -3.0,
+        ox: -9,
+        ejectVx: 0,
         homing: false
       }, {
-        ox: 20,
-        ejectVx: 3.0,
+        ox: 29,
+        ejectVx: 0,
         homing: state.raketenStufe >= 3 // Ab Stufe 3 ist eine Rakete zielsuchend
       }];
     } else if (anzahl === 3) {
       offsets = [{
-        ox: -2,
-        ejectVx: -3.8,
+        ox: -9,
+        ejectVx: 0,
         homing: true // Linke Flanken-Rakete ist zielsuchend
       }, {
         ox: 10,
         ejectVx: 0,
         homing: false // Mittlere Rakete schießt geradeaus
       }, {
-        ox: 22,
-        ejectVx: 3.8,
+        ox: 29,
+        ejectVx: 0,
         homing: true // Rechte Flanken-Rakete ist zielsuchend
       }];
     }
@@ -1459,7 +1459,12 @@ export function gameLoop() {
       p.el.style.left = p.x + 'px';
       p.el.style.top = p.y + 'px';
       p.el.style.opacity = p.leben;
-      p.el.style.transform = `scale(${p.leben})`;
+      if (p.vRot) {
+        p.rot = (p.rot || 0) + p.vRot;
+        p.el.style.transform = `scale(${p.leben}) rotate(${p.rot}deg)`;
+      } else {
+        p.el.style.transform = `scale(${p.leben})`;
+      }
     }
   }
   requestAnimationFrame(gameLoop);

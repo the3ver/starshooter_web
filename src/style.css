@@ -913,6 +913,120 @@
             transform-origin: bottom center;
         }
 
+        /* ==========================================================================
+           Raketenwerfer am Schiff
+           ========================================================================== */
+        .werfer-pod {
+            position: absolute;
+            pointer-events: none;
+            z-index: 5;
+            transition: opacity 0.2s ease, transform 0.2s ease;
+        }
+
+        .werfer-links {
+            left: -8px;
+            top: 7px;
+            width: 7px;
+            height: 16px;
+        }
+
+        .werfer-rechts {
+            right: -8px;
+            top: 7px;
+            width: 7px;
+            height: 16px;
+        }
+
+        .werfer-center {
+            left: 11.5px;
+            top: 18px;
+            width: 7px;
+            height: 14px;
+            z-index: 1;
+        }
+
+        .werfer-body {
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(to bottom, #7f8c8d 0%, #2c3e50 45%, #1a252f 100%);
+            border-radius: 3px 3px 2px 2px;
+            border: 1px solid rgba(255, 255, 255, 0.25);
+            box-shadow: 0 0 4px rgba(0, 0, 0, 0.6);
+            position: relative;
+            box-sizing: border-box;
+        }
+
+        .werfer-nozzle {
+            position: absolute;
+            top: -2px;
+            left: 1px;
+            right: 1px;
+            height: 3px;
+            background: #111;
+            border-radius: 2px;
+            border: 1px solid #e67e22;
+            box-shadow: 0 0 3px #e67e22;
+        }
+
+        .werfer-core {
+            position: absolute;
+            top: 4px;
+            left: 1.5px;
+            right: 1.5px;
+            height: 6px;
+            background: #e67e22;
+            border-radius: 1px;
+            box-shadow: 0 0 4px #e67e22;
+            animation: werferPulse 1.2s infinite alternate ease-in-out;
+        }
+
+        .werfer-beam {
+            position: absolute;
+            top: 6px;
+            height: 2px;
+            background: linear-gradient(to right, rgba(230, 126, 34, 0.8), rgba(243, 156, 18, 1));
+            box-shadow: 0 0 4px #f39c12;
+            animation: beamFluctuate 0.8s infinite alternate ease-in-out;
+        }
+
+        .werfer-links .werfer-beam {
+            right: -5px;
+            width: 5px;
+        }
+
+        .werfer-rechts .werfer-beam {
+            left: -5px;
+            width: 5px;
+        }
+
+        @keyframes werferPulse {
+            0% { opacity: 0.6; filter: brightness(1); }
+            100% { opacity: 1; filter: brightness(1.5); }
+        }
+
+        @keyframes beamFluctuate {
+            0% { opacity: 0.4; transform: scaleY(0.7); }
+            50% { opacity: 1; transform: scaleY(1.4); }
+            100% { opacity: 0.7; transform: scaleY(0.9); }
+        }
+
+        /* Upgrade Stufen Visuals */
+        .werfer-pod.werfer-lvl-2 .werfer-core,
+        .werfer-pod.werfer-lvl-2 .werfer-nozzle {
+            background-color: #f39c12;
+            box-shadow: 0 0 6px #f39c12;
+            border-color: #f39c12;
+        }
+
+        .werfer-pod.werfer-lvl-4 .werfer-core,
+        .werfer-pod.werfer-lvl-4 .werfer-nozzle,
+        .werfer-pod.werfer-lvl-5 .werfer-core,
+        .werfer-pod.werfer-lvl-5 .werfer-nozzle {
+            background-color: #e74c3c;
+            box-shadow: 0 0 8px #ff4757;
+            border-color: #ff4757;
+        }
+
         #spieler {
             width: 30px;
             height: 30px;

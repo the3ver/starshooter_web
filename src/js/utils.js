@@ -110,6 +110,8 @@ export function updateAktivePowerupsUI() {
   prevPuState.laserDurchschlag = state.laserDurchschlag;
   prevPuState.schildStufe = state.schildStufe;
   prevPuState.autolaserAktiv = state.autolaserAktiv;
+
+  updateRaketenWerferVisuals();
 }
 export function zerstoereZiel(ziel) {
   let fIndex = arrays.feinde.indexOf(ziel);
@@ -524,4 +526,106 @@ export function updatePlayerShipVisuals() {
   document.querySelectorAll('.hangar-color-btn').forEach(btn => {
     btn.classList.toggle('active', btn.getAttribute('data-color') === colorId);
   });
+
+  updateRaketenWerferVisuals();
 }
+
+let prevWerferStates = null;
+
+export function erzeugeAbgeworfenenWerfer(x, y, vx, vy, vRot) {
+  const el = document.createElement('div');
+  el.classList.add('werfer-pod', 'werfer-abgeworfen');
+  el.style.position = 'absolute';
+  el.style.left = x + 'px';
+  el.style.top = y + 'px';
+  el.style.width = '7px';
+  el.style.height = '16px';
+  el.style.zIndex = '6';
+  el.innerHTML = `
+    <div class="werfer-body" style="border-color: #e67e22; box-shadow: 0 0 8px #e67e22;">
+      <div class="werfer-nozzle" style="background:#333;"></div>
+      <div class="werfer-core" style="background:#e74c3c;"></div>
+    </div>
+  `;
+  (dom.spielfeld || document.getElementById('spielfeld')).appendChild(el);
+
+  // Kleine Funken/Rauchwolke am Abreißpunkt
+  for (let i = 0; i < 3; i++) {
+    erzeugeRauchFunken(x, y, 8);
+  }
+
+  arrays.partikelArray.push({
+    el: el,
+    x: x,
+    y: y,
+    vx: vx,
+    vy: vy,
+    rot: 0,
+    vRot: vRot || (vx > 0 ? 8 : -8),
+    leben: 1.0,
+    zerfall: 0.02
+  });
+}
+
+export function updateRaketenWerferVisuals() {
+  const model = state.selectedShipModel || 'viper';
+  const lvl = state.raketenStufe || 1;
+
+  const spielerEl = dom.spieler || document.getElementById('spieler');
+  if (!spielerEl) return;
+
+  const werferLinks = spielerEl.querySelector('.werfer-links');
+  const werferRechts = spielerEl.querySelector('.werfer-rechts');
+  const werferCenter = spielerEl.querySelector('.werfer-center');
+
+  if (!werferLinks || !werferRechts || !werferCenter) return;
+
+  let showLeft = false;
+  let showRight = false;
+  let showCenter = false;
+
+  if (lvl <= 2) {
+    if (model === 'phantom') {
+      showRight = true;
+    } else {
+      showLeft = true;
+    }
+  } else if (lvl <= 4) {
+    showLeft = true;
+    showRight = true;
+  } else {
+    // lvl >= 5
+    showLeft = true;
+    showRight = true;
+    showCenter = true;
+  }
+
+  // Prüfen, ob Werfer durch Downgrade verloren gingen
+  if (prevWerferStates) {
+    if (prevWerferStates.left && !showLeft) {
+      erzeugeAbgeworfenenWerfer(state.x - 8, state.y + 7, -3 - Math.random() * 2, 2 + Math.random() * 2, -10);
+    }
+    if (prevWerferStates.right && !showRight) {
+      erzeugeAbgeworfenenWerfer(state.x + 31, state.y + 7, 3 + Math.random() * 2, 2 + Math.random() * 2, 10);
+    }
+    if (prevWerferStates.center && !showCenter) {
+      erzeugeAbgeworfenenWerfer(state.x + 11.5, state.y + 18, (Math.random() - 0.5) * 2, 3 + Math.random() * 2, (Math.random() - 0.5) * 12);
+    }
+  }
+
+  prevWerferStates = {
+    left: showLeft,
+    right: showRight,
+    center: showCenter
+  };
+
+  werferLinks.style.display = showLeft ? 'block' : 'none';
+  werferRechts.style.display = showRight ? 'block' : 'none';
+  werferCenter.style.display = showCenter ? 'block' : 'none';
+
+  // Stufen-Klassen für Visuals aktualisieren
+  [werferLinks, werferRechts, werferCenter].forEach(w => {
+    w.classList.remove('werfer-lvl-1', 'werfer-lvl-2', 'werfer-lvl-3', 'werfer-lvl-4', 'werfer-lvl-5');
+    w.classList.add(`werfer-lvl-${Math.min(5, Math.max(1, lvl))}`);
+  });
+}
