@@ -3,7 +3,7 @@ const { test, expect } = require('@playwright/test');
 test.beforeEach(async ({ page }) => {
   // Standardmäßig als bereits gesehen markieren, damit die Tests direkt interagieren können
   await page.addInitScript(() => {
-    localStorage.setItem('starshooter_last_seen_version', '1.6.1');
+    localStorage.setItem('starshooter_last_seen_version', '1.6.2');
   });
   await page.goto('/');
 });
@@ -835,7 +835,7 @@ test.describe('Was gibt es Neues Modal (Changelog)', () => {
     await expect(title).toContainText("WAS GIBT'S NEUES");
 
     const intro = page.locator('#whats-new-intro');
-    await expect(intro).toContainText('1.6.1');
+    await expect(intro).toContainText('1.6.2');
 
     const items = page.locator('#whats-new-list li');
     await expect(items).toHaveCount(3);
@@ -848,7 +848,7 @@ test.describe('Was gibt es Neues Modal (Changelog)', () => {
 
     // Prüfen, dass localStorage aktualisiert wurde
     const storedVersion = await page.evaluate(() => localStorage.getItem('starshooter_last_seen_version'));
-    expect(storedVersion).toBe('1.6.1');
+    expect(storedVersion).toBe('1.6.2');
 
     // Erneut öffnen über Start-Screen Button
     const openBtn = page.locator('#btn-open-whats-new');
@@ -1225,6 +1225,75 @@ test.describe('Late-Game Difficulty & Gegner-Mechaniken', () => {
       return stateMod.arrays.bossBombenArray.length;
     });
     expect(bombenCount).toBe(0);
+  });
+
+  test('Boss feuert seitlich startende, zielsuchende Raketen ab, die vom Spieler im Flug abgeschossen werden können', async ({ page }) => {
+    await page.keyboard.down('KeyW');
+    await page.waitForTimeout(50);
+    await page.keyboard.up('KeyW');
+
+    // 1. Boss-Rakete seitlich ausklinken
+    await page.evaluate(async () => {
+      const stateMod = await import('./js/state.js');
+      const entitiesMod = await import('./js/entities.js');
+
+      if (stateMod.arrays.bossRaketenArray) {
+        stateMod.arrays.bossRaketenArray.forEach(r => r.el.remove());
+        stateMod.arrays.bossRaketenArray.length = 0;
+      }
+
+      stateMod.state.x = 200;
+      stateMod.state.y = 350;
+
+      // Boss-Rakete links ausklinken (dir = -1)
+      entitiesMod.erzeugeBossRakete(150, 100, -1);
+    });
+
+    const raketeEl = page.locator('.boss-rakete');
+    await expect(raketeEl).toBeVisible();
+
+    // 2. Anfangsgeschwindigkeit prüfen: nach links startend (vx < 0)
+    const initialVx = await page.evaluate(async () => {
+      const stateMod = await import('./js/state.js');
+      return stateMod.arrays.bossRaketenArray[0].vx;
+    });
+    expect(initialVx).toBeLessThan(0);
+
+    // 3. Nach kurzer Zeit sollte sich die Rakete Richtung Spieler ausrichten (Homing)
+    await page.waitForTimeout(200);
+    const trackingInfo = await page.evaluate(async () => {
+      const stateMod = await import('./js/state.js');
+      const r = stateMod.arrays.bossRaketenArray[0];
+      return r ? { x: r.x, y: r.y, vy: r.vy } : null;
+    });
+    expect(trackingInfo).not.toBeNull();
+    expect(trackingInfo.vy).toBeGreaterThan(0); // Fliegt nach unten Richtung Spieler
+
+    // 4. Zerstörbarkeit durch Spielerschuss testen
+    await page.evaluate(async () => {
+      const stateMod = await import('./js/state.js');
+      const r = stateMod.arrays.bossRaketenArray[0];
+      // Spieler direkt vor die Flugbahn positionieren
+      stateMod.state.x = r.x - 10;
+      stateMod.state.y = r.y + 120;
+      stateMod.state.energie = 50;
+      stateMod.state.laserStufe = 2;
+      stateMod.state.spielerSchussCooldown = 0;
+    });
+
+    await page.keyboard.down('KeyL');
+    await page.waitForTimeout(100);
+    await page.keyboard.up('KeyL');
+
+    await page.waitForTimeout(250);
+
+    // Boss-Rakete sollte abgeschossen worden sein
+    await expect(raketeEl).toBeHidden();
+    const remainingCount = await page.evaluate(async () => {
+      const stateMod = await import('./js/state.js');
+      return stateMod.arrays.bossRaketenArray.length;
+    });
+    expect(remainingCount).toBe(0);
   });
 });
 

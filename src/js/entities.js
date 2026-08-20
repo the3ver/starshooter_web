@@ -449,4 +449,44 @@ export function erzeugeBossBombe(bx, by) {
     immune: 0
   });
 }
+
+export function erzeugeBossRakete(bx, by, sideDirection = 1) {
+  const el = document.createElement('div');
+  el.classList.add('boss-rakete');
+  el.innerHTML = `
+    <svg viewBox="0 0 14 24" style="width: 100%; height: 100%;">
+      <path d="M7 0 L12 8 L11 20 L3 20 L2 8 Z" fill="#c0392b" stroke="#e74c3c" stroke-width="1"/>
+      <polygon points="7,1 11,8 3,8" fill="#e67e22"/>
+      <polygon points="2,14 0,22 3,20" fill="#d35400"/>
+      <polygon points="12,14 14,22 11,20" fill="#d35400"/>
+      <circle cx="7" cy="11" r="1.5" fill="#f1c40f"/>
+    </svg>
+    <div class="boss-rakete-flame"></div>
+  `;
+  el.style.left = bx + 'px';
+  el.style.top = by + 'px';
+  dom.spielfeld.appendChild(el);
+
+  let initVx = sideDirection * (3.0 + Math.random() * 1.0);
+  let initVy = 0.8 + Math.random() * 0.4;
+  let rHp = 15;
+  arrays.bossRaketenArray.push({
+    el: el,
+    x: bx,
+    y: by,
+    groesse: 18,
+    width: 14,
+    height: 24,
+    hp: rHp,
+    maxHp: rHp,
+    vx: initVx,
+    vy: initVy,
+    turnRate: 0.045,
+    speed: 2.3,
+    age: 0,
+    istBossRakete: true,
+    istUnzerstoerbar: false,
+    immune: 0
+  });
+}
 // ------------------------------

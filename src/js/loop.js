@@ -633,6 +633,17 @@ export function gameLoop() {
         Entities.erzeugeBossBombe(b.x + b.groesse / 2 - 13, b.y + b.groesse * 0.7);
         b.bombenTimer = Math.max(160, 360 - (state.level - 1) * 30);
       }
+
+      // Boss-Raketen Abwurf (seitlich zielsuchend)
+      b.raketenTimer = (b.raketenTimer !== undefined ? b.raketenTimer : (Math.random() * 140 + 200)) - 1;
+      if (b.raketenTimer <= 0) {
+        let side = Math.random() < 0.5 ? -1 : 1;
+        Entities.erzeugeBossRakete(b.x + (side < 0 ? 0 : b.groesse - 14), b.y + b.groesse * 0.5, side);
+        if (b.enragePhaseAktiv || state.level >= 4) {
+          Entities.erzeugeBossRakete(b.x + (-side < 0 ? 0 : b.groesse - 14), b.y + b.groesse * 0.5, -side);
+        }
+        b.raketenTimer = Math.max(180, 360 - (state.level - 1) * 25);
+      }
     }
     b.el.style.left = b.x + 'px';
     b.el.style.top = b.y + 'px';
@@ -725,7 +736,85 @@ export function gameLoop() {
     }
   }
 
-  const alleZiele = [...arrays.asteroiden, ...arrays.feinde, ...arrays.bosses, ...arrays.bossBombenArray];
+  // --- 9.8d BOSS RAKETEN UPDATE ---
+  for (let i = arrays.bossRaketenArray.length - 1; i >= 0; i--) {
+    let br = arrays.bossRaketenArray[i];
+    if (!br) break;
+    br.age = (br.age || 0) + 1;
+
+    // Homing Richtung Spieler (weich einlenkend)
+    let zielX = state.x + config.spielerGroesse / 2;
+    let zielY = state.y + config.spielerGroesse / 2;
+    let dx = zielX - (br.x + br.width / 2);
+    let dy = zielY - (br.y + br.height / 2);
+    let targetAngle = Math.atan2(dy, dx);
+
+    let currentAngle = Math.atan2(br.vy, br.vx);
+    let angleDiff = targetAngle - currentAngle;
+    while (angleDiff < -Math.PI) angleDiff += Math.PI * 2;
+    while (angleDiff > Math.PI) angleDiff -= Math.PI * 2;
+
+    let turnSpeed = br.turnRate || 0.045;
+    let newAngle = currentAngle + Math.sign(angleDiff) * Math.min(Math.abs(angleDiff), turnSpeed);
+
+    let currentSpeed = br.speed || 2.3;
+    br.vx = Math.cos(newAngle) * currentSpeed;
+    br.vy = Math.sin(newAngle) * currentSpeed;
+
+    br.x += br.vx;
+    br.y += br.vy;
+    br.el.style.left = br.x + 'px';
+    br.el.style.top = br.y + 'px';
+    let rotDeg = Math.atan2(br.vy, br.vx) * 180 / Math.PI - 90;
+    br.el.style.transform = `rotate(${rotDeg}deg)`;
+
+    // Partikel-Schweif
+    if (Math.random() < 0.4) {
+      const pEl = document.createElement('div');
+      pEl.classList.add('partikel');
+      pEl.style.backgroundColor = Math.random() < 0.6 ? '#e74c3c' : '#f39c12';
+      let px = br.x + br.width / 2;
+      let py = br.y + br.height;
+      pEl.style.left = px + 'px';
+      pEl.style.top = py + 'px';
+      dom.spielfeld.appendChild(pEl);
+      arrays.partikelArray.push({
+        el: pEl,
+        x: px,
+        y: py,
+        vx: (Math.random() - 0.5) * 0.4,
+        vy: 0.5 + Math.random() * 0.5,
+        leben: 0.8,
+        zerfall: 0.05
+      });
+    }
+
+    // Wenn vom Spieler zerstört
+    if (br.hp <= 0) {
+      Utils.addScore(100);
+      Utils.erzeugeExplosion(br.x + br.width / 2, br.y + br.height / 2, '#e67e22', 20);
+      br.el.remove();
+      arrays.bossRaketenArray.splice(i, 1);
+      continue;
+    }
+
+    // Bildschirm weit verlassen
+    if (br.y > config.spielfeldHoehe + 60 || br.x < -80 || br.x > config.spielfeldBreite + 80 || br.y < -100) {
+      br.el.remove();
+      arrays.bossRaketenArray.splice(i, 1);
+      continue;
+    }
+
+    // Kollision mit Spieler
+    if (state.x < br.x + br.width && state.x + config.spielerGroesse > br.x && state.y < br.y + br.height && state.y + config.spielerGroesse > br.y) {
+      Utils.spielerGetroffen(br, false);
+      Utils.erzeugeExplosion(br.x + br.width / 2, br.y + br.height / 2, '#e74c3c', 25);
+      br.el.remove();
+      arrays.bossRaketenArray.splice(i, 1);
+    }
+  }
+
+  const alleZiele = [...arrays.asteroiden, ...arrays.feinde, ...arrays.bosses, ...arrays.bossBombenArray, ...arrays.bossRaketenArray];
 
   // --- 9.9 AUTOLASER ---
   if (state.autolaserTimer > 0) {
