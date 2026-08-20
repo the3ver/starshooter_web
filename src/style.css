@@ -485,7 +485,8 @@
         #highscore-tabelle {
             margin-bottom: 30px;
             border-collapse: collapse;
-            width: 200px;
+            width: 270px;
+            max-width: 92%;
         }
 
         #highscore-tabelle th {
@@ -493,11 +494,38 @@
             border-bottom: 1px solid #1abc9c;
             padding-bottom: 5px;
             margin-bottom: 10px;
+            font-size: 13px;
+            letter-spacing: 1px;
         }
 
         #highscore-tabelle td {
-            padding: 5px;
+            padding: 6px 4px;
             text-align: center;
+            font-size: 13px;
+        }
+
+        .hs-ship-badge {
+            display: inline-block;
+            font-size: 10px;
+            font-weight: bold;
+            letter-spacing: 0.5px;
+            padding: 2px 5px;
+            border-radius: 4px;
+            text-transform: uppercase;
+        }
+
+        .hs-ship-viper {
+            background: rgba(231, 76, 60, 0.2);
+            border: 1px solid #e74c3c;
+            color: #ff7675;
+            box-shadow: 0 0 5px rgba(231, 76, 60, 0.3);
+        }
+
+        .hs-ship-phantom {
+            background: rgba(52, 152, 219, 0.2);
+            border: 1px solid #3498db;
+            color: #74b9ff;
+            box-shadow: 0 0 5px rgba(52, 152, 219, 0.3);
         }
 
         #warning-overlay {

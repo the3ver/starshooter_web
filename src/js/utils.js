@@ -347,11 +347,13 @@ function getHighscores() {
   let hs = localStorage.getItem('spaceShooterHighscores');
   return hs ? JSON.parse(hs) : [];
 }
-export function saveHighscore(name, scoreValue) {
+export function saveHighscore(name, scoreValue, shipModel = null) {
   let hs = getHighscores();
+  let model = shipModel || state.selectedShipModel || 'viper';
   hs.push({
     name: name.toUpperCase(),
-    score: scoreValue
+    score: scoreValue,
+    ship: model
   });
   hs.sort((a, b) => b.score - a.score);
   localStorage.setItem('spaceShooterHighscores', JSON.stringify(hs.slice(0, 10)));
@@ -361,10 +363,13 @@ export function renderHighscores() {
   const tbody = document.getElementById('highscore-body');
   tbody.innerHTML = '';
   if (hs.length === 0) {
-    tbody.innerHTML = '<tr><td colspan="2">- Keine Einträge -</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="3">- Keine Einträge -</td></tr>';
   } else {
     hs.forEach(entry => {
-      tbody.innerHTML += `<tr><td>${entry.name}</td><td>${entry.score}</td></tr>`;
+      let isPhantom = entry.ship === 'phantom';
+      let shipLabel = isPhantom ? 'Phantom-NX' : 'Viper-X';
+      let badgeClass = isPhantom ? 'hs-ship-phantom' : 'hs-ship-viper';
+      tbody.innerHTML += `<tr><td>${entry.name}</td><td>${entry.score}</td><td><span class="hs-ship-badge ${badgeClass}">${shipLabel}</span></td></tr>`;
     });
   }
 }

@@ -3,7 +3,7 @@ const { test, expect } = require('@playwright/test');
 test.beforeEach(async ({ page }) => {
   // Standardmäßig als bereits gesehen markieren, damit die Tests direkt interagieren können
   await page.addInitScript(() => {
-    localStorage.setItem('starshooter_last_seen_version', '1.6.3');
+    localStorage.setItem('starshooter_last_seen_version', '1.6.4');
   });
   await page.goto('/');
 });
@@ -246,6 +246,35 @@ test.describe('Space Shooter', () => {
     await expect(hsForm).toBeHidden();
     const table = page.locator('#highscore-tabelle');
     await expect(table).toContainText('XYZ');
+  });
+
+  test('Highscore-Tabelle speichert und zeigt den verwendeten Schiffstyp hinter jedem Highscore an', async ({ page }) => {
+    await page.keyboard.down('KeyW');
+    await page.waitForTimeout(50);
+    await page.keyboard.up('KeyW');
+
+    await page.evaluate(async () => {
+      const utilsMod = await import('./js/utils.js');
+      localStorage.removeItem('spaceShooterHighscores');
+      utilsMod.saveHighscore('VIP', 800, 'viper');
+      utilsMod.saveHighscore('PHA', 1200, 'phantom');
+      utilsMod.renderHighscores();
+    });
+
+    const rows = page.locator('#highscore-body tr');
+    await expect(rows).toHaveCount(2);
+
+    // Erste Zeile: PHA mit 1200 und Phantom-NX
+    const row1 = rows.nth(0);
+    await expect(row1).toContainText('PHA');
+    await expect(row1).toContainText('1200');
+    await expect(row1).toContainText('Phantom-NX');
+
+    // Zweite Zeile: VIP mit 800 und Viper-X
+    const row2 = rows.nth(1);
+    await expect(row2).toContainText('VIP');
+    await expect(row2).toContainText('800');
+    await expect(row2).toContainText('Viper-X');
   });
 
   test('Ab Stufe 2 besitzen Raketen ein Heavy-Warhead-Design mit Canards', async ({ page }) => {
@@ -868,10 +897,10 @@ test.describe('Was gibt es Neues Modal (Changelog)', () => {
     await expect(title).toContainText("WAS GIBT'S NEUES");
 
     const intro = page.locator('#whats-new-intro');
-    await expect(intro).toContainText('1.6.3');
+    await expect(intro).toContainText('1.6.4');
 
     const items = page.locator('#whats-new-list li');
-    await expect(items).toHaveCount(3);
+    await expect(items).toHaveCount(2);
 
     // Schließen
     const closeBtn = page.locator('#btn-close-whats-new');
@@ -881,7 +910,7 @@ test.describe('Was gibt es Neues Modal (Changelog)', () => {
 
     // Prüfen, dass localStorage aktualisiert wurde
     const storedVersion = await page.evaluate(() => localStorage.getItem('starshooter_last_seen_version'));
-    expect(storedVersion).toBe('1.6.3');
+    expect(storedVersion).toBe('1.6.4');
 
     // Erneut öffnen über Start-Screen Button
     const openBtn = page.locator('#btn-open-whats-new');

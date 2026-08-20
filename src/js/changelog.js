@@ -1,6 +1,14 @@
-export const GAME_VERSION = '1.6.3';
+export const GAME_VERSION = '1.6.4';
 
 export const changelogData = {
+  '1.6.4': {
+    version: '1.6.4',
+    intro: 'Hey, es ist jetzt Version 1.6.4 rausgekommen, folgendes wurde geändert oder ist neu:',
+    highlights: [
+      '🏆 Schiffstyp in Highscores: Hinter jedem Highscore-Eintrag wird nun mit stilvollem Badge angezeigt, mit welchem Schiff (Viper-X oder Phantom-NX) der Rekord erzielt wurde',
+      '📊 Detaillierte Rekord-Übersicht in der Bestenliste'
+    ]
+  },
   '1.6.3': {
     version: '1.6.3',
     intro: 'Hey, es ist jetzt Version 1.6.3 rausgekommen, folgendes wurde geändert oder ist neu:',
