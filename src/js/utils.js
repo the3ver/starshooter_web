@@ -170,7 +170,7 @@ export function zerstoereZiel(ziel) {
 export function spielerGetroffen(kollisionsObjekt, explodiert = true) {
   if (state.godMode || state.invulnerableTimer > 0) return;
   
-  state.invulnerableTimer = 90;
+  state.invulnerableTimer = 45;
   dom.spieler.classList.add('spieler-blink');
 
   if (state.schildStufe > 0) {

@@ -3,7 +3,7 @@ const { test, expect } = require('@playwright/test');
 test.beforeEach(async ({ page }) => {
   // Standardmäßig als bereits gesehen markieren, damit die Tests direkt interagieren können
   await page.addInitScript(() => {
-    localStorage.setItem('starshooter_last_seen_version', '1.6.4');
+    localStorage.setItem('starshooter_last_seen_version', '1.6.5');
   });
   await page.goto('/');
 });
@@ -897,7 +897,7 @@ test.describe('Was gibt es Neues Modal (Changelog)', () => {
     await expect(title).toContainText("WAS GIBT'S NEUES");
 
     const intro = page.locator('#whats-new-intro');
-    await expect(intro).toContainText('1.6.4');
+    await expect(intro).toContainText('1.6.5');
 
     const items = page.locator('#whats-new-list li');
     await expect(items).toHaveCount(2);
@@ -910,7 +910,7 @@ test.describe('Was gibt es Neues Modal (Changelog)', () => {
 
     // Prüfen, dass localStorage aktualisiert wurde
     const storedVersion = await page.evaluate(() => localStorage.getItem('starshooter_last_seen_version'));
-    expect(storedVersion).toBe('1.6.4');
+    expect(storedVersion).toBe('1.6.5');
 
     // Erneut öffnen über Start-Screen Button
     const openBtn = page.locator('#btn-open-whats-new');
@@ -1356,6 +1356,24 @@ test.describe('Late-Game Difficulty & Gegner-Mechaniken', () => {
       return stateMod.arrays.bossRaketenArray.length;
     });
     expect(remainingCount).toBe(0);
+  });
+
+  test('Unverwundbarkeitsdauer nach Treffer ist halbiert (45 Frames / ca. 0.75s)', async ({ page }) => {
+    await page.keyboard.down('KeyW');
+    await page.waitForTimeout(50);
+    await page.keyboard.up('KeyW');
+
+    // Treffer simulieren
+    const timerVal = await page.evaluate(async () => {
+      const utilsMod = await import('./js/utils.js');
+      const stateMod = await import('./js/state.js');
+      stateMod.state.invulnerableTimer = 0;
+      stateMod.state.godMode = false;
+      utilsMod.spielerGetroffen({ x: 0, y: 0, el: document.createElement('div') }, false);
+      return stateMod.state.invulnerableTimer;
+    });
+
+    expect(timerVal).toBe(45);
   });
 });
 

@@ -1,6 +1,14 @@
-export const GAME_VERSION = '1.6.4';
+export const GAME_VERSION = '1.6.5';
 
 export const changelogData = {
+  '1.6.5': {
+    version: '1.6.5',
+    intro: 'Hey, es ist jetzt Version 1.6.5 rausgekommen, folgendes wurde geändert oder ist neu:',
+    highlights: [
+      '⏱️ Kürzere Unverwundbarkeit: Die i-Frames nach einem Treffer wurden halbiert (von 1.5s auf 0.75s) für ein knackigeres Gameplay-Gefühl',
+      '⚡ Höhere Herausforderung bei feindlichen Salven'
+    ]
+  },
   '1.6.4': {
     version: '1.6.4',
     intro: 'Hey, es ist jetzt Version 1.6.4 rausgekommen, folgendes wurde geändert oder ist neu:',
