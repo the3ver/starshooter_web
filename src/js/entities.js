@@ -138,7 +138,7 @@ export function erzeugeAsteroid(startX, startY, startGroesse, startVx, startVy, 
     vRot: vRot
   });
 }
-export function erzeugeFeind(sX, sY, forceMuster = null, forceVx = 0) {
+export function erzeugeFeind(sX, sY, forceMuster = null, forceVx = 0, forceShield = null) {
   const el = document.createElement('div');
   el.classList.add('feind-schiff');
   
@@ -150,6 +150,15 @@ export function erzeugeFeind(sX, sY, forceMuster = null, forceVx = 0) {
   if (muster === 'stopAndGo') {
     stopY = 80 + Math.random() * 120;
   }
+
+  let hatSchild = false;
+  if (forceShield !== null) {
+    hatSchild = forceShield;
+  } else if (state.level >= 3 && Math.random() < Math.min(0.5, (state.level - 2) * 0.15)) {
+    hatSchild = true;
+  }
+
+  let schildHtml = hatSchild ? '<div class="feind-schild"></div>' : '';
 
   let svgHtml = '';
   let color = '#9b59b6';
@@ -163,6 +172,7 @@ export function erzeugeFeind(sX, sY, forceMuster = null, forceVx = 0) {
           <rect x="13" y="0" width="4" height="4" fill="#7f8c8d"/>
       </svg>
       <div class="feind-flame" style="left: 13px;"></div>
+      ${schildHtml}
     `;
     color = '#9b59b6';
   } else if (muster === 'stopAndGo') {
@@ -176,6 +186,7 @@ export function erzeugeFeind(sX, sY, forceMuster = null, forceVx = 0) {
       </svg>
       <div class="feind-flame" style="left: 10px; width: 4px;"></div>
       <div class="feind-flame" style="left: 16px; width: 4px;"></div>
+      ${schildHtml}
     `;
     color = '#e67e22';
   } else if (muster === 'crossfire') {
@@ -186,6 +197,7 @@ export function erzeugeFeind(sX, sY, forceMuster = null, forceVx = 0) {
           <polygon points="15,18 12,12 18,12" fill="#f1c40f"/>
       </svg>
       <div class="feind-flame" style="left: 13px;"></div>
+      ${schildHtml}
     `;
     color = '#1abc9c';
   } else if (muster === 'swoop') {
@@ -197,6 +209,7 @@ export function erzeugeFeind(sX, sY, forceMuster = null, forceVx = 0) {
           <rect x="13" y="0" width="4" height="6" fill="#7f8c8d"/>
       </svg>
       <div class="feind-flame" style="left: 13px;"></div>
+      ${schildHtml}
     `;
     color = '#2ecc71';
   }
@@ -210,7 +223,7 @@ export function erzeugeFeind(sX, sY, forceMuster = null, forceVx = 0) {
   el.style.top = startY + 'px';
   dom.spielfeld.appendChild(el);
 
-  let schussBasis = Math.max(25, 40 - (state.level - 1) * 3);
+  let schussBasis = Math.max(25, 60 - (state.level - 1) * 8);
   arrays.feinde.push({
     el: el,
     x: startX,
@@ -218,11 +231,16 @@ export function erzeugeFeind(sX, sY, forceMuster = null, forceVx = 0) {
     groesse: 30,
     hp: 20,
     maxHp: 20,
+    schildHp: hatSchild ? 20 : 0,
+    maxSchildHp: hatSchild ? 20 : 0,
+    schildEl: hatSchild ? el.querySelector('.feind-schild') : null,
     vy: 1.2,
     vx: forceVx,
     basisX: startX,
     zeit: 0,
     schussTimer: Math.random() * schussBasis + schussBasis,
+    burstCount: 0,
+    burstTimer: 0,
     istFeind: true,
     istUnzerstoerbar: false,
     traegtPowerup: Math.random() < 0.2,
@@ -399,6 +417,36 @@ export function erzeugeBossLaser(fx, fy, vx = 0, vy = 6) {
     vy: vy,
     width: 8,
     height: 25
+  });
+}
+
+export function erzeugeBossBombe(bx, by) {
+  const el = document.createElement('div');
+  el.classList.add('boss-bombe');
+  el.innerHTML = `
+    <div class="boss-bombe-aura"></div>
+    <div class="boss-bombe-body"></div>
+    <div class="boss-bombe-core"></div>
+  `;
+  el.style.left = bx + 'px';
+  el.style.top = by + 'px';
+  dom.spielfeld.appendChild(el);
+
+  let bHp = 20 + state.level * 5;
+  arrays.bossBombenArray.push({
+    el: el,
+    x: bx,
+    y: by,
+    groesse: 26,
+    hp: bHp,
+    maxHp: bHp,
+    vx: (Math.random() - 0.5) * 0.8,
+    vy: 1.3,
+    timer: 180, // 3 Sekunden bis Detonation
+    radius: 90,
+    istBossBombe: true,
+    istUnzerstoerbar: false,
+    immune: 0
   });
 }
 // ------------------------------

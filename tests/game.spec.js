@@ -3,7 +3,7 @@ const { test, expect } = require('@playwright/test');
 test.beforeEach(async ({ page }) => {
   // Standardmäßig als bereits gesehen markieren, damit die Tests direkt interagieren können
   await page.addInitScript(() => {
-    localStorage.setItem('starshooter_last_seen_version', '1.6.0');
+    localStorage.setItem('starshooter_last_seen_version', '1.6.1');
   });
   await page.goto('/');
 });
@@ -835,7 +835,7 @@ test.describe('Was gibt es Neues Modal (Changelog)', () => {
     await expect(title).toContainText("WAS GIBT'S NEUES");
 
     const intro = page.locator('#whats-new-intro');
-    await expect(intro).toContainText('1.6.0');
+    await expect(intro).toContainText('1.6.1');
 
     const items = page.locator('#whats-new-list li');
     await expect(items).toHaveCount(3);
@@ -848,7 +848,7 @@ test.describe('Was gibt es Neues Modal (Changelog)', () => {
 
     // Prüfen, dass localStorage aktualisiert wurde
     const storedVersion = await page.evaluate(() => localStorage.getItem('starshooter_last_seen_version'));
-    expect(storedVersion).toBe('1.6.0');
+    expect(storedVersion).toBe('1.6.1');
 
     // Erneut öffnen über Start-Screen Button
     const openBtn = page.locator('#btn-open-whats-new');
@@ -1076,4 +1076,156 @@ test.describe('Raketenwerfer am Schiff', () => {
     await expect(ejectedPod).toBeAttached();
   });
 });
+
+test.describe('Late-Game Difficulty & Gegner-Mechaniken', () => {
+  test('Gegner-Schussrate skaliert mit Level und feuert ab Level 3 2er-Salven (Burst)', async ({ page }) => {
+    await page.keyboard.down('KeyW');
+    await page.waitForTimeout(50);
+    await page.keyboard.up('KeyW');
+
+    // 1. Schussintervall auf Level 1 vs Level 5 prüfen
+    const timers = await page.evaluate(async () => {
+      const stateMod = await import('./js/state.js');
+      const entitiesMod = await import('./js/entities.js');
+
+      stateMod.state.level = 1;
+      entitiesMod.erzeugeFeind(100, 50, 'normal', 0);
+      const f1 = stateMod.arrays.feinde[stateMod.arrays.feinde.length - 1];
+
+      stateMod.state.level = 5;
+      entitiesMod.erzeugeFeind(200, 50, 'normal', 0);
+      const f5 = stateMod.arrays.feinde[stateMod.arrays.feinde.length - 1];
+
+      return { f1Timer: f1.schussTimer, f5Timer: f5.schussTimer };
+    });
+
+    expect(timers.f5Timer).toBeLessThan(timers.f1Timer);
+
+    // 2. Auf Level 3+ 2er-Burst-Salven prüfen
+    await page.evaluate(async () => {
+      const stateMod = await import('./js/state.js');
+      const entitiesMod = await import('./js/entities.js');
+      stateMod.arrays.feinde.forEach(f => f.el.remove());
+      stateMod.arrays.feinde.length = 0;
+      stateMod.arrays.feindLaserArray.forEach(l => l.el.remove());
+      stateMod.arrays.feindLaserArray.length = 0;
+
+      stateMod.state.level = 3;
+      entitiesMod.erzeugeFeind(150, 50, 'normal', 0);
+      const f = stateMod.arrays.feinde[0];
+      f.forceBurst = true;
+      f.schussTimer = 1; // Unmittelbar feuern
+    });
+
+    // Nach kurzem Warten sollten durch den Burst 2 Feind-Laser abgefeuert worden sein
+    await page.waitForTimeout(250);
+    const laserCount = await page.evaluate(async () => {
+      const stateMod = await import('./js/state.js');
+      return stateMod.arrays.feindLaserArray.length;
+    });
+
+    expect(laserCount).toBeGreaterThanOrEqual(2);
+  });
+
+  test('Schild-Gegner besitzen ab Level 3 einen schützenden Energieschild, der erst zerstört werden muss', async ({ page }) => {
+    await page.keyboard.down('KeyW');
+    await page.waitForTimeout(50);
+    await page.keyboard.up('KeyW');
+
+    // Feind mit Schild spawnen
+    await page.evaluate(async () => {
+      const stateMod = await import('./js/state.js');
+      const entitiesMod = await import('./js/entities.js');
+      stateMod.arrays.feinde.forEach(f => f.el.remove());
+      stateMod.arrays.feinde.length = 0;
+
+      stateMod.state.level = 4;
+      // Mit forceShield = true und muster crossfire spawnen
+      entitiesMod.erzeugeFeind(185, 100, 'crossfire', 0, true);
+      const f = stateMod.arrays.feinde[0];
+      f.vy = 0; // Stationär für präzisen Treffertest
+      f.hp = 50;
+      f.maxHp = 50;
+    });
+
+    const schildEl = page.locator('.feind-schiff .feind-schild');
+    await expect(schildEl).toBeVisible();
+
+    // Laserschuss abfeuern
+    await page.evaluate(async () => {
+      const stateMod = await import('./js/state.js');
+      stateMod.state.x = 185;
+      stateMod.state.y = 250;
+      stateMod.state.energie = 50;
+      stateMod.state.laserStufe = 2;
+      stateMod.state.spielerSchussCooldown = 0;
+    });
+
+    await page.keyboard.down('KeyL');
+    await page.waitForTimeout(80);
+    await page.keyboard.up('KeyL');
+
+    // Warten bis die Laser-Projektile das Ziel bei y=100 erreicht und getroffen haben
+    await page.waitForTimeout(300);
+
+    // Schild sollte zerstört sein, aber Feind lebt noch
+    const feindStatus = await page.evaluate(async () => {
+      const stateMod = await import('./js/state.js');
+      const f = stateMod.arrays.feinde[0];
+      return f ? { alive: true, schildHp: f.schildHp, hp: f.hp } : { alive: false };
+    });
+
+    expect(feindStatus.alive).toBe(true);
+    expect(feindStatus.schildHp).toBeLessThanOrEqual(0);
+    expect(feindStatus.hp).toBeGreaterThan(0);
+    await expect(schildEl).toBeHidden();
+  });
+
+  test('Boss kann eine zerstörbare Boss-Bombe abwerfen, die vor der Detonation abgeschossen werden kann', async ({ page }) => {
+    await page.keyboard.down('KeyW');
+    await page.waitForTimeout(50);
+    await page.keyboard.up('KeyW');
+
+    // Boss-Bombe erzeugen
+    await page.evaluate(async () => {
+      const stateMod = await import('./js/state.js');
+      const entitiesMod = await import('./js/entities.js');
+
+      stateMod.arrays.bossBombenArray.forEach(b => b.el.remove());
+      stateMod.arrays.bossBombenArray.length = 0;
+
+      // Erzeuge Boss-Bombe bei (185, 100)
+      entitiesMod.erzeugeBossBombe(185, 100);
+    });
+
+    const bombeEl = page.locator('.boss-bombe');
+    await expect(bombeEl).toBeVisible();
+
+    // Laserschuss auf die Boss-Bombe abfeuern
+    await page.evaluate(async () => {
+      const stateMod = await import('./js/state.js');
+      stateMod.state.x = 185;
+      stateMod.state.y = 250;
+      stateMod.state.energie = 50;
+      stateMod.state.laserStufe = 2;
+      stateMod.state.spielerSchussCooldown = 0;
+    });
+
+    await page.keyboard.down('KeyL');
+    await page.waitForTimeout(100);
+    await page.keyboard.up('KeyL');
+
+    // Warten bis Laser die Bombe zerstört
+    await page.waitForTimeout(300);
+
+    // Bombe sollte zerstört und entfernt sein
+    await expect(bombeEl).toBeHidden();
+    const bombenCount = await page.evaluate(async () => {
+      const stateMod = await import('./js/state.js');
+      return stateMod.arrays.bossBombenArray.length;
+    });
+    expect(bombenCount).toBe(0);
+  });
+});
+
 

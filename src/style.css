@@ -337,6 +337,26 @@
             transition: filter 0.1s;
         }
 
+        .feind-schild {
+            position: absolute;
+            width: 38px;
+            height: 38px;
+            left: -4px;
+            top: -4px;
+            border-radius: 50%;
+            border: 2px solid #00d2d3;
+            background: radial-gradient(circle, rgba(0, 210, 211, 0.15) 0%, rgba(0, 210, 211, 0.35) 70%, rgba(0, 210, 211, 0.7) 100%);
+            box-shadow: 0 0 10px #00d2d3, inset 0 0 6px #00d2d3;
+            z-index: 10;
+            pointer-events: none;
+            animation: feindSchildPulse 1s infinite alternate ease-in-out;
+        }
+
+        @keyframes feindSchildPulse {
+            0% { transform: scale(0.96); opacity: 0.8; }
+            100% { transform: scale(1.05); opacity: 1; filter: brightness(1.3); }
+        }
+
         .feind-laser {
             position: absolute;
             width: 4px;
@@ -581,6 +601,59 @@
             box-shadow: 0 0 12px #f1c40f;
             z-index: 8;
             border-radius: 4px;
+        }
+
+        .boss-bombe {
+            position: absolute;
+            width: 26px;
+            height: 26px;
+            z-index: 9;
+            pointer-events: none;
+        }
+
+        .boss-bombe-aura {
+            position: absolute;
+            width: 44px;
+            height: 44px;
+            left: -9px;
+            top: -9px;
+            border-radius: 50%;
+            background: radial-gradient(circle, rgba(231, 76, 60, 0.8) 0%, rgba(192, 57, 43, 0.4) 40%, rgba(231, 76, 60, 0) 70%);
+            box-shadow: 0 0 15px #e74c3c;
+            animation: bossBombePulse 0.5s infinite alternate ease-in-out;
+        }
+
+        .boss-bombe-body {
+            position: absolute;
+            width: 26px;
+            height: 26px;
+            border-radius: 50%;
+            background: radial-gradient(circle at 35% 35%, #e74c3c, #962d22, #1a252f);
+            border: 2px solid #ff7675;
+            box-shadow: 0 0 8px #e74c3c;
+            box-sizing: border-box;
+        }
+
+        .boss-bombe-core {
+            position: absolute;
+            width: 8px;
+            height: 8px;
+            left: 9px;
+            top: 9px;
+            border-radius: 50%;
+            background-color: #f1c40f;
+            box-shadow: 0 0 6px #f1c40f;
+            animation: bossBombeBlink 0.25s infinite alternate;
+        }
+
+        @keyframes bossBombePulse {
+            0% { transform: scale(0.9); opacity: 0.7; }
+            100% { transform: scale(1.15); opacity: 1; }
+        }
+
+        @keyframes bossBombeBlink {
+            0% { opacity: 0.4; filter: brightness(0.8); }
+            100% { opacity: 1; filter: brightness(2); }
         }
 
         .powerup {

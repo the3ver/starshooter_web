@@ -98,5 +98,5 @@ export const state = {
 
 export const arrays = {
     laserArray: [], raketenArray: [], bombenArray: [], feinde: [], asteroiden: [],
-    bosses: [], partikelArray: [], explosionenArray: [], powerups: [], feindLaserArray: [], bossLaserArray: [], sterne: []
+    bosses: [], bossBombenArray: [], partikelArray: [], explosionenArray: [], powerups: [], feindLaserArray: [], bossLaserArray: [], sterne: []
 };

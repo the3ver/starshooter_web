@@ -464,10 +464,26 @@ export function gameLoop() {
       continue;
     }
     if (f.muster !== 'stopAndGo' && f.muster !== 'clingOn') {
+      if (f.burstTimer > 0) {
+        f.burstTimer--;
+        if (f.burstTimer <= 0 && f.burstCount > 0) {
+          Entities.erzeugeFeindLaser(f.x + f.groesse / 2 - 2, f.y + f.groesse);
+          f.burstCount--;
+          if (f.burstCount > 0) f.burstTimer = 8;
+        }
+      }
+
       f.schussTimer--;
       if (f.schussTimer <= 0) {
         Entities.erzeugeFeindLaser(f.x + f.groesse / 2 - 2, f.y + f.groesse);
-        f.schussTimer = Math.random() * 60 + 60;
+        let schussBasis = Math.max(25, 60 - (state.level - 1) * 8);
+        f.schussTimer = Math.random() * schussBasis + schussBasis;
+
+        // 2er-Salven (Burst) ab Level 3
+        if (state.level >= 3 && (Math.random() < Math.min(0.9, 0.5 + (state.level - 3) * 0.2) || f.forceBurst)) {
+          f.burstCount = 1;
+          f.burstTimer = 8;
+        }
       }
     }
     if (state.x < f.x + f.groesse && state.x + config.spielerGroesse > f.x && state.y < f.y + f.groesse && state.y + config.spielerGroesse > f.y) {
@@ -610,6 +626,13 @@ export function gameLoop() {
         }
         b.schussTimer = b.baseSchussRate;
       }
+
+      // Boss-Bomben Abwurf
+      b.bombenTimer = (b.bombenTimer !== undefined ? b.bombenTimer : (Math.random() * 120 + 240)) - 1;
+      if (b.bombenTimer <= 0) {
+        Entities.erzeugeBossBombe(b.x + b.groesse / 2 - 13, b.y + b.groesse * 0.7);
+        b.bombenTimer = Math.max(160, 360 - (state.level - 1) * 30);
+      }
     }
     b.el.style.left = b.x + 'px';
     b.el.style.top = b.y + 'px';
@@ -636,7 +659,73 @@ export function gameLoop() {
       arrays.bossLaserArray.splice(i, 1);
     }
   }
-  const alleZiele = [...arrays.asteroiden, ...arrays.feinde, ...arrays.bosses];
+
+  // --- 9.8c BOSS BOMBEN UPDATE ---
+  for (let i = arrays.bossBombenArray.length - 1; i >= 0; i--) {
+    let bb = arrays.bossBombenArray[i];
+    if (!bb) break;
+    bb.x += bb.vx;
+    bb.y += bb.vy;
+    bb.el.style.left = bb.x + 'px';
+    bb.el.style.top = bb.y + 'px';
+    bb.timer--;
+
+    if (bb.hp <= 0) {
+      Utils.addScore(150);
+      Utils.erzeugeExplosion(bb.x + 13, bb.y + 13, '#2ecc71', 25);
+      bb.el.remove();
+      arrays.bossBombenArray.splice(i, 1);
+      continue;
+    }
+
+    if (bb.y > config.spielfeldHoehe + 40 || bb.x < -40 || bb.x > config.spielfeldBreite + 40) {
+      bb.el.remove();
+      arrays.bossBombenArray.splice(i, 1);
+      continue;
+    }
+
+    if (bb.timer <= 0 || bb.y >= config.spielfeldHoehe - 60) {
+      let cx = bb.x + 13;
+      let cy = bb.y + 13;
+      Utils.erzeugeExplosion(cx, cy, '#e74c3c', 40);
+
+      const sw = document.createElement('div');
+      sw.classList.add('boss-shockwave');
+      sw.style.position = 'absolute';
+      sw.style.width = bb.radius * 2 + 'px';
+      sw.style.height = bb.radius * 2 + 'px';
+      sw.style.left = cx - bb.radius + 'px';
+      sw.style.top = cy - bb.radius + 'px';
+      sw.style.borderRadius = '50%';
+      sw.style.backgroundColor = 'rgba(231, 76, 60, 0.45)';
+      sw.style.boxShadow = '0 0 30px #e74c3c';
+      sw.style.zIndex = '9';
+      sw.style.pointerEvents = 'none';
+      sw.style.transition = 'all 0.4s ease-out';
+      dom.spielfeld.appendChild(sw);
+      setTimeout(() => {
+        sw.style.opacity = '0';
+        sw.style.transform = 'scale(1.25)';
+      }, 10);
+      setTimeout(() => sw.remove(), 400);
+
+      let distPlayer = Math.hypot((state.x + config.spielerGroesse / 2) - cx, (state.y + config.spielerGroesse / 2) - cy);
+      if (distPlayer <= bb.radius) {
+        Utils.spielerGetroffen(bb, false);
+      }
+
+      bb.el.remove();
+      arrays.bossBombenArray.splice(i, 1);
+      continue;
+    }
+
+    if (state.x < bb.x + bb.groesse && state.x + config.spielerGroesse > bb.x && state.y < bb.y + bb.groesse && state.y + config.spielerGroesse > bb.y) {
+      Utils.spielerGetroffen(bb, false);
+      bb.hp = 0;
+    }
+  }
+
+  const alleZiele = [...arrays.asteroiden, ...arrays.feinde, ...arrays.bosses, ...arrays.bossBombenArray];
 
   // --- 9.9 AUTOLASER ---
   if (state.autolaserTimer > 0) {
@@ -677,17 +766,28 @@ export function gameLoop() {
       dom.autolaserEl.style.left = sx - 2 + 'px';
       dom.autolaserEl.style.transform = `rotate(${angle}deg)`;
       if (!target.istUnzerstoerbar) {
-        target.hp -= 1.5;
-        if (target.rissEl) {
-          let basisRiss = target.traegtPowerup ? 0.5 : 0;
-          let schadenProzent = basisRiss + (1 - basisRiss) * (1 - target.hp / target.maxHp);
-          target.rissEl.style.opacity = schadenProzent;
+        if ((target.schildHp || 0) > 0) {
+          target.schildHp -= 1.5;
+          if (target.schildHp <= 0) {
+            target.schildHp = 0;
+            if (target.schildEl) {
+              target.schildEl.remove();
+              target.schildEl = null;
+            }
+          }
+        } else {
+          target.hp -= 1.5;
+          if (target.rissEl) {
+            let basisRiss = target.traegtPowerup ? 0.5 : 0;
+            let schadenProzent = basisRiss + (1 - basisRiss) * (1 - target.hp / target.maxHp);
+            target.rissEl.style.opacity = schadenProzent;
+          }
+          target.el.style.filter = 'brightness(2.5)';
+          setTimeout(() => {
+            if (target.el) target.el.style.filter = '';
+          }, 50);
+          if (target.hp <= 0) Utils.zerstoereZiel(target);
         }
-        target.el.style.filter = 'brightness(2.5)';
-        setTimeout(() => {
-          if (target.el) target.el.style.filter = '';
-        }, 50);
-        if (target.hp <= 0) Utils.zerstoereZiel(target);
       }
     } else {
       dom.autolaserEl.style.display = 'none';
@@ -717,20 +817,31 @@ export function gameLoop() {
     if (target) {
       hitscanLaserEl.style.display = 'block';
       hitscanLaserEl.style.height = closestDist + 'px';
-      hitscanLaserEl.style.top = sy - closestDist + 'px';
-      hitscanLaserEl.style.left = sx - 3 + 'px';
+      hitscanLaserEl.style.top = (sy - closestDist) + 'px';
+      hitscanLaserEl.style.left = (sx - 3) + 'px';
       if (!target.istUnzerstoerbar) {
-        target.hp -= 2.5; // Starker konstanter Schaden
-        if (target.rissEl) {
-          let basisRiss = target.traegtPowerup ? 0.5 : 0;
-          let schadenProzent = basisRiss + (1 - basisRiss) * (1 - target.hp / target.maxHp);
-          target.rissEl.style.opacity = schadenProzent;
+        if ((target.schildHp || 0) > 0) {
+          target.schildHp -= 5;
+          if (target.schildHp <= 0) {
+            target.schildHp = 0;
+            if (target.schildEl) {
+              target.schildEl.remove();
+              target.schildEl = null;
+            }
+          }
+        } else {
+          target.hp -= 5;
+          if (target.rissEl) {
+            let basisRiss = target.traegtPowerup ? 0.5 : 0;
+            let schadenProzent = basisRiss + (1 - basisRiss) * (1 - target.hp / target.maxHp);
+            target.rissEl.style.opacity = schadenProzent;
+          }
+          target.el.style.filter = 'brightness(3)';
+          setTimeout(() => {
+            if (target.el) target.el.style.filter = '';
+          }, 50);
+          if (target.hp <= 0) Utils.zerstoereZiel(target);
         }
-        target.el.style.filter = 'brightness(2.5)';
-        setTimeout(() => {
-          if (target.el) target.el.style.filter = '';
-        }, 50);
-        if (target.hp <= 0) Utils.zerstoereZiel(target);
       }
     } else {
       hitscanLaserEl.style.display = 'block';
@@ -865,17 +976,35 @@ export function gameLoop() {
     }
     if (getroffenZiel) {
       if (!getroffenZiel.istUnzerstoerbar) {
-        getroffenZiel.hp -= l.schaden;
-        if (getroffenZiel.rissEl) {
-          let basisRiss = getroffenZiel.traegtPowerup ? 0.5 : 0;
-          let schadenProzent = basisRiss + (1 - basisRiss) * (1 - getroffenZiel.hp / getroffenZiel.maxHp);
-          getroffenZiel.rissEl.style.opacity = schadenProzent;
+        if ((getroffenZiel.schildHp || 0) > 0) {
+          getroffenZiel.schildHp -= l.schaden;
+          if (getroffenZiel.schildHp <= 0) {
+            getroffenZiel.schildHp = 0;
+            if (getroffenZiel.schildEl) {
+              getroffenZiel.schildEl.remove();
+              getroffenZiel.schildEl = null;
+            }
+            for (let k = 0; k < 5; k++) {
+              Utils.erzeugeRauchFunken(getroffenZiel.x + 15, getroffenZiel.y + 15, 10);
+            }
+          }
+          getroffenZiel.el.style.filter = 'brightness(2.2)';
+          setTimeout(() => {
+            if (getroffenZiel.el) getroffenZiel.el.style.filter = '';
+          }, 50);
+        } else {
+          getroffenZiel.hp -= l.schaden;
+          if (getroffenZiel.rissEl) {
+            let basisRiss = getroffenZiel.traegtPowerup ? 0.5 : 0;
+            let schadenProzent = basisRiss + (1 - basisRiss) * (1 - getroffenZiel.hp / getroffenZiel.maxHp);
+            getroffenZiel.rissEl.style.opacity = schadenProzent;
+          }
+          getroffenZiel.el.style.filter = 'brightness(2.5)';
+          setTimeout(() => {
+            if (getroffenZiel.el) getroffenZiel.el.style.filter = '';
+          }, 50);
+          if (getroffenZiel.hp <= 0) Utils.zerstoereZiel(getroffenZiel);
         }
-        getroffenZiel.el.style.filter = 'brightness(2.5)';
-        setTimeout(() => {
-          if (getroffenZiel.el) getroffenZiel.el.style.filter = '';
-        }, 50);
-        if (getroffenZiel.hp <= 0) Utils.zerstoereZiel(getroffenZiel);
         if (!state.laserDurchschlag) {
           l.el.remove();
           arrays.laserArray.splice(i, 1);
@@ -1162,17 +1291,35 @@ export function gameLoop() {
           let dist = Math.hypot(zcx - rcx, zcy - rcy);
           if (dist <= r.radius) {
             if (!z.istUnzerstoerbar) {
-              z.hp -= r.schaden;
-              if (z.rissEl) {
-                let basisRiss = z.traegtPowerup ? 0.5 : 0;
-                let schadenProzent = basisRiss + (1 - basisRiss) * (1 - z.hp / z.maxHp);
-                z.rissEl.style.opacity = schadenProzent;
+              if ((z.schildHp || 0) > 0) {
+                z.schildHp -= r.schaden;
+                if (z.schildHp <= 0) {
+                  z.schildHp = 0;
+                  if (z.schildEl) {
+                    z.schildEl.remove();
+                    z.schildEl = null;
+                  }
+                  for (let k = 0; k < 5; k++) {
+                    Utils.erzeugeRauchFunken(z.x + 15, z.y + 15, 10);
+                  }
+                }
+                z.el.style.filter = 'brightness(2.2)';
+                setTimeout(() => {
+                  if (z.el) z.el.style.filter = '';
+                }, 50);
+              } else {
+                z.hp -= r.schaden;
+                if (z.rissEl) {
+                  let basisRiss = z.traegtPowerup ? 0.5 : 0;
+                  let schadenProzent = basisRiss + (1 - basisRiss) * (1 - z.hp / z.maxHp);
+                  z.rissEl.style.opacity = schadenProzent;
+                }
+                z.el.style.filter = 'brightness(2.5)';
+                setTimeout(() => {
+                  if (z.el) z.el.style.filter = '';
+                }, 50);
+                if (z.hp <= 0) Utils.zerstoereZiel(z);
               }
-              z.el.style.filter = 'brightness(2.5)';
-              setTimeout(() => {
-                if (z.el) z.el.style.filter = '';
-              }, 50);
-              if (z.hp <= 0) Utils.zerstoereZiel(z);
             }
           }
         }
@@ -1424,6 +1571,13 @@ export function gameLoop() {
               }
             }
             if (!z.istUnzerstoerbar) {
+              if ((z.schildHp || 0) > 0) {
+                z.schildHp = 0;
+                if (z.schildEl) {
+                  z.schildEl.remove();
+                  z.schildEl = null;
+                }
+              }
               z.hp -= b.schaden;
               if (z.rissEl) {
                 let basisRiss = z.traegtPowerup ? 0.5 : 0;

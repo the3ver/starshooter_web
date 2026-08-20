@@ -1,6 +1,15 @@
-export const GAME_VERSION = '1.6.0';
+export const GAME_VERSION = '1.6.1';
 
 export const changelogData = {
+  '1.6.1': {
+    version: '1.6.1',
+    intro: 'Hey, es ist jetzt Version 1.6.1 rausgekommen, folgendes wurde geändert oder ist neu:',
+    highlights: [
+      '🔥 Feind-Schussrate & 2er-Salven: Gegner schießen mit steigendem Level schneller und feuern ab Level 3 gefährliche 2er-Salven (Burst)',
+      '🛡️ Schild-Gegner (Level 3+): Einige Gegner besitzen jetzt einen pulsierenden Energieschild, der erst zerschossen werden muss',
+      '💣 Boss-Bombe: Bosse werfen schwere Plasma-Bomben ab – schieße sie ab, bevor ihre rote Schockwelle detoniert!'
+    ]
+  },
   '1.6.0': {
     version: '1.6.0',
     intro: 'Hey, es ist jetzt Version 1.6.0 rausgekommen, folgendes wurde geändert oder ist neu:',
