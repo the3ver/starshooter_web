@@ -1,6 +1,15 @@
-export const GAME_VERSION = '1.6.11';
+export const GAME_VERSION = '1.6.12';
 
 export const changelogData = {
+  '1.6.12': {
+    version: '1.6.12',
+    intro: 'Hey, es ist jetzt Version 1.6.12 rausgekommen, folgendes wurde geändert oder ist neu:',
+    highlights: [
+      '🧹 Saubere Rundenübergänge: Boss-Raketen, Boss-Bomben und alle Projektile werden beim Neustart restlos bereinigt',
+      '🛸 Fehlerfreie Cutszenen nach Neustart: Keine Artefakte aus vorherigen Runden mehr im Spielfeld',
+      '🛡️ Optimierte Entitäten-Verwaltung beim Neustart & Game Over'
+    ]
+  },
   '1.6.11': {
     version: '1.6.11',
     intro: 'Hey, es ist jetzt Version 1.6.11 rausgekommen, folgendes wurde geändert oder ist neu:',

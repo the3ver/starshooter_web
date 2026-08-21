@@ -1,8 +1,9 @@
-
 import { state, dom, config, arrays } from './state.js';
 import { setupInput } from './input.js';
 import { gameLoop } from './loop.js';
 import * as Audio from './audio.js';
+import * as Utils from './utils.js';
+import * as Changelog from './changelog.js';
 
 document.addEventListener('DOMContentLoaded', () => {
     Audio.initSoundState();
@@ -18,24 +19,32 @@ document.addEventListener('DOMContentLoaded', () => {
     setupInput();
     
     // Initialisiere Sterne
-    for (let i = 0; i < 100; i++) {
+    for (let i = 0; i < 60; i++) {
         let stern = document.createElement('div');
         stern.className = 'stern';
         let x = Math.random() * config.spielfeldBreite;
         let y = Math.random() * config.spielfeldHoehe;
-        let groesse = Math.random() * 2 + 1;
-        let speed = Math.random() * 3.0 + 1.0;
+        let size = Math.random() * 2 + 1;
+        let speed = Math.random() * 2 + 0.5;
         
         stern.style.left = x + 'px';
         stern.style.top = y + 'px';
-        stern.style.width = groesse + 'px';
-        stern.style.height = groesse + 'px';
-        stern.style.opacity = Math.random() * 0.5 + 0.3;
+        stern.style.width = size + 'px';
+        stern.style.height = size + 'px';
         
         dom.spielfeld.appendChild(stern);
-        arrays.sterne.push({ el: stern, x, y, speed });
+        arrays.sterne.push({
+            el: stern,
+            x: x,
+            y: y,
+            speed: speed
+        });
     }
 
+    // Start Game Loop
+    requestAnimationFrame(gameLoop);
+
+    // Responsive Skalierung
     function resizeGame() {
         const isTouch = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
         const mobileControls = document.getElementById('mobile-controls');
@@ -63,58 +72,55 @@ document.addEventListener('DOMContentLoaded', () => {
             mobileControls.style.width = (400 * scale) + 'px';
         }
     }
-    window.resizeGame = resizeGame;
-    
+
     window.addEventListener('resize', resizeGame);
+    window.resizeGame = resizeGame;
     resizeGame();
 
     state.spielLaeuft = false;
     if (dom.spieler) dom.spieler.style.display = 'none';
+
     // UI & Hangar initialisieren
-    import('./utils.js').then(Utils => {
-        Utils.updateMaxEnergieMarker();
-        Utils.updateLebenUI();
-        Utils.updateAktivePowerupsUI();
-        Utils.updatePlayerShipVisuals();
-        if (dom.spieler) dom.spieler.style.display = 'none';
+    Utils.updateMaxEnergieMarker();
+    Utils.updateLebenUI();
+    Utils.updateAktivePowerupsUI();
+    Utils.updatePlayerShipVisuals();
+    if (!state.spielLaeuft && dom.spieler) {
+        dom.spieler.style.display = 'none';
+    }
 
-        // Hangar Event Listeners
-        document.querySelectorAll('.hangar-model-btn').forEach(btn => {
-            btn.addEventListener('click', (e) => {
-                e.stopPropagation();
-                state.selectedShipModel = btn.getAttribute('data-model');
-                Utils.updatePlayerShipVisuals();
-            });
+    // Hangar Event Listeners
+    document.querySelectorAll('.hangar-model-btn').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            state.selectedShipModel = btn.getAttribute('data-model');
+            Utils.updatePlayerShipVisuals();
         });
+    });
 
-        document.querySelectorAll('.hangar-color-btn').forEach(btn => {
-            btn.addEventListener('click', (e) => {
-                e.stopPropagation();
-                state.selectedShipColor = btn.getAttribute('data-color');
-                Utils.updatePlayerShipVisuals();
-            });
+    document.querySelectorAll('.hangar-color-btn').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            state.selectedShipColor = btn.getAttribute('data-color');
+            Utils.updatePlayerShipVisuals();
         });
     });
 
     // Was gibt's Neues Changelog
-    import('./changelog.js').then(Changelog => {
-        Changelog.checkAndShowWhatsNew();
+    Changelog.checkAndShowWhatsNew();
 
-        const btnClose = document.getElementById('btn-close-whats-new');
-        if (btnClose) {
-            btnClose.addEventListener('click', () => {
-                Changelog.closeWhatsNewModal();
-            });
-        }
+    const btnClose = document.getElementById('btn-close-whats-new');
+    if (btnClose) {
+        btnClose.addEventListener('click', () => {
+            Changelog.closeWhatsNewModal();
+        });
+    }
 
-        const btnOpen = document.getElementById('btn-open-whats-new');
-        if (btnOpen) {
-            btnOpen.addEventListener('click', (e) => {
-                e.stopPropagation();
-                Changelog.showWhatsNewModal();
-            });
-        }
-    });
-
-    requestAnimationFrame(gameLoop);
+    const btnOpenWhatsNew = document.getElementById('btn-open-whats-new');
+    if (btnOpenWhatsNew) {
+        btnOpenWhatsNew.addEventListener('click', (e) => {
+            e.stopPropagation();
+            Changelog.showWhatsNewModal();
+        });
+    }
 });

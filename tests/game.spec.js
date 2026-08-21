@@ -3,7 +3,7 @@ const { test, expect } = require('@playwright/test');
 test.beforeEach(async ({ page }) => {
   // Standardmäßig als bereits gesehen markieren, damit die Tests direkt interagieren können
   await page.addInitScript(() => {
-    localStorage.setItem('starshooter_last_seen_version', '1.6.11');
+    localStorage.setItem('starshooter_last_seen_version', '1.6.12');
     localStorage.setItem('starshooter_skip_cutscene', 'true');
   });
   await page.goto('/');
@@ -898,7 +898,7 @@ test.describe('Was gibt es Neues Modal (Changelog)', () => {
     await expect(title).toContainText("WAS GIBT'S NEUES");
 
     const intro = page.locator('#whats-new-intro');
-    await expect(intro).toContainText('1.6.11');
+    await expect(intro).toContainText('1.6.12');
 
     const items = page.locator('#whats-new-list li');
     await expect(items).toHaveCount(3);
@@ -911,7 +911,7 @@ test.describe('Was gibt es Neues Modal (Changelog)', () => {
 
     // Prüfen, dass localStorage aktualisiert wurde
     const storedVersion = await page.evaluate(() => localStorage.getItem('starshooter_last_seen_version'));
-    expect(storedVersion).toBe('1.6.11');
+    expect(storedVersion).toBe('1.6.12');
 
     // Erneut öffnen über Start-Screen Button
     const openBtn = page.locator('#btn-open-whats-new');
@@ -2054,7 +2054,50 @@ test.describe('Story Intro-Cutszene', () => {
     });
     expect(isRunning).toBe(true);
   });
+
+  test('Neustart nach Bosskampf entfernt alle Boss-Raketen, Boss-Bomben und Artefakte vollständig', async ({ page }) => {
+    // Spiel starten und künstlich Boss-Rakete & Boss-Bombe erzeugen
+    await page.keyboard.down('w');
+    await page.waitForTimeout(50);
+    await page.keyboard.up('w');
+
+    await page.evaluate(async () => {
+      const entitiesMod = await import('./js/entities.js');
+      const stateMod = await import('./js/state.js');
+      stateMod.state.spielLaeuft = true;
+      // Boss-Rakete und Boss-Bombe erzeugen
+      entitiesMod.erzeugeBossRakete(150, 200, 1);
+      entitiesMod.erzeugeBossBombe(200, 250);
+    });
+
+    // Prüfen, dass die Elemente im DOM existieren
+    const bossRakete = page.locator('.boss-rakete');
+    const bossBombe = page.locator('.boss-bombe');
+    await expect(bossRakete).toHaveCount(1);
+    await expect(bossBombe).toHaveCount(1);
+
+    // Nun Neustart ausführen (wie bei Game Over oder Klick auf Neustart)
+    await page.evaluate(async () => {
+      const utilsMod = await import('./js/utils.js');
+      utilsMod.restartGame();
+    });
+
+    // Prüfen, dass alle Boss-Raketen, Boss-Bomben und Arrays vollständig geräumt sind
+    await expect(bossRakete).toHaveCount(0);
+    await expect(bossBombe).toHaveCount(0);
+
+    const arrayLengths = await page.evaluate(async () => {
+      const stateMod = await import('./js/state.js');
+      return {
+        bossRaketen: stateMod.arrays.bossRaketenArray.length,
+        bossBomben: stateMod.arrays.bossBombenArray.length
+      };
+    });
+    expect(arrayLengths.bossRaketen).toBe(0);
+    expect(arrayLengths.bossBomben).toBe(0);
+  });
 });
+
 
 
 

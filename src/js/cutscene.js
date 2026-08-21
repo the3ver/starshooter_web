@@ -114,7 +114,8 @@ export function startCutscene(callback) {
     if (!spielfeld) return;
 
     if (dom.spieler) dom.spieler.style.display = 'none';
-    document.querySelectorAll('.werfer-abgeworfen').forEach(el => el.remove());
+    const orphanSelectors = '.boss-rakete, .boss-bombe, .boss-laser, .feind-laser, .laser, .rakete, .bombe, .powerup, .feind, .asteroid, .boss, .partikel, .werfer-abgeworfen, .shockwave, .schockwelle, .cutscene-fireball, .cutscene-shockwave, .cutscene-debris';
+    spielfeld.querySelectorAll(orphanSelectors).forEach(el => el.remove());
 
     // Cutscene DOM Container
     cutsceneContainer = document.getElementById('cutscene-container');

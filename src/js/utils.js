@@ -311,12 +311,20 @@ export function restartGame() {
   clearArray(arrays.feindLaserArray);
   clearArray(arrays.bosses);
   clearArray(arrays.bossLaserArray);
+  clearArray(arrays.bossBombenArray);
+  clearArray(arrays.bossRaketenArray);
   clearArray(arrays.powerups);
   clearArray(arrays.partikelArray);
   clearArray(arrays.laserArray);
   clearArray(arrays.raketenArray);
   clearArray(arrays.bombenArray);
   clearArray(arrays.explosionenArray);
+
+  // Verwaiste Spiel-Entitäten und Projektile aus dem DOM entfernen
+  const orphanSelectors = '.boss-rakete, .boss-bombe, .boss-laser, .feind-laser, .laser, .rakete, .bombe, .powerup, .feind, .asteroid, .boss, .partikel, .werfer-abgeworfen, .shockwave, .schockwelle, .cutscene-fireball, .cutscene-shockwave, .cutscene-debris';
+  if (dom.spielfeld) {
+    dom.spielfeld.querySelectorAll(orphanSelectors).forEach(el => el.remove());
+  }
 
   state.bossAktiv = false;
   state.bossWarningAktiv = false;
