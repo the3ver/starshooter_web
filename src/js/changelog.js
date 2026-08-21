@@ -1,6 +1,33 @@
-export const GAME_VERSION = '1.6.8';
+export const GAME_VERSION = '1.6.11';
 
 export const changelogData = {
+  '1.6.11': {
+    version: '1.6.11',
+    intro: 'Hey, es ist jetzt Version 1.6.11 rausgekommen, folgendes wurde geändert oder ist neu:',
+    highlights: [
+      '💥 Spektakuläre Schiffsexplosionen: Konvoi-Schiffe detonieren mit Feuerbällen, Schockwellen & Trümmerteilen',
+      '🛸 Sauberes Hangar-UI: Keine störenden Raketenwerfer-Geister mehr im Bildschirmzentrum',
+      '🔥 Mehrstufige Zerstörung: Große Schiffe erleiden Sekundärexplosionen und brechen in Trümmer'
+    ]
+  },
+  '1.6.10': {
+    version: '1.6.10',
+    intro: 'Hey, es ist jetzt Version 1.6.10 rausgekommen, folgendes wurde geändert oder ist neu:',
+    highlights: [
+      '🎥 Kameraverfolgung im Konvoi: Der Raumschiff-Konvoi fliegt ins Zentrum und wird von der Kamera begleitet',
+      '💥 Sichtbare Zerstörung im Bild: Der feindliche Hinterhalt und alle Schiffsexplosionen finden direkt im Sichtfeld statt',
+      '🛸 Saubere Hangar- & Cutszenen-Darstellung: Spielerschiff wird erst beim Spielstart aktiv eingeblendet'
+    ]
+  },
+  '1.6.9': {
+    version: '1.6.9',
+    intro: 'Hey, es ist jetzt Version 1.6.9 rausgekommen, folgendes wurde geändert oder ist neu:',
+    highlights: [
+      '🎬 Story Intro-Cutszene: Epische DOM-Cutszene nach dem Hangar mit Schiffskonvoi, Alien-Funkspruch & Überraschungsangriff',
+      '⚡ Nahtloser Übergang: Mysteriöser Lichtstrahl und automatischer Einflug ins Spielfeld',
+      '⏩ Schnelles Überspringen: Cutszene jederzeit per ESC-Taste oder Touch-Button abbrechbar'
+    ]
+  },
   '1.6.8': {
     version: '1.6.8',
     intro: 'Hey, es ist jetzt Version 1.6.8 rausgekommen, folgendes wurde geändert oder ist neu:',

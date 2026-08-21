@@ -1,0 +1,3 @@
+* 2 Spieler Modus auf einer Tastatur
+* Globale Weltrangliste / Bestenliste
+* Cut-Szene beim Einstieg

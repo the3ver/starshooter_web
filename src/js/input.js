@@ -4,12 +4,21 @@ import * as Utils from './utils.js';
 import * as Entities from './entities.js';
 import * as Loop from './loop.js';
 import * as Audio from './audio.js';
+import * as Cutscene from './cutscene.js';
 
 
 export function setupInput() {
   window.addEventListener('keydown', e => {
     if (e.target && e.target.tagName === 'INPUT') return;
     Audio.initAudio();
+
+    if (e.key === 'Escape' || e.key === 'Esc') {
+      if (state.cutsceneAktiv) {
+        Cutscene.skipCutscene();
+        return;
+      }
+    }
+
     if (state.tastenGedrueckt.hasOwnProperty(e.key.toLowerCase())) {
       state.tastenGedrueckt[e.key.toLowerCase()] = true;
       if (e.key === ' ') e.preventDefault();
@@ -170,11 +179,10 @@ export function setupInput() {
     const whatsNew = document.getElementById('whats-new-overlay');
     if (whatsNew && whatsNew.style.display !== 'none') return;
 
-    if (!state.spielLaeuft && !state.gameOverAktiv) {
-      state.spielLaeuft = true;
+    if (!state.spielLaeuft && !state.cutsceneAktiv && !state.gameOverAktiv) {
       let startScreen = document.getElementById('start-screen');
       if (startScreen) startScreen.style.display = 'none';
-      Utils.updateMobileControlsVisibility();
+      Cutscene.startCutscene();
       return;
     }
     

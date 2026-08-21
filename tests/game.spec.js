@@ -3,7 +3,8 @@ const { test, expect } = require('@playwright/test');
 test.beforeEach(async ({ page }) => {
   // Standardmäßig als bereits gesehen markieren, damit die Tests direkt interagieren können
   await page.addInitScript(() => {
-    localStorage.setItem('starshooter_last_seen_version', '1.6.8');
+    localStorage.setItem('starshooter_last_seen_version', '1.6.11');
+    localStorage.setItem('starshooter_skip_cutscene', 'true');
   });
   await page.goto('/');
 });
@@ -897,7 +898,7 @@ test.describe('Was gibt es Neues Modal (Changelog)', () => {
     await expect(title).toContainText("WAS GIBT'S NEUES");
 
     const intro = page.locator('#whats-new-intro');
-    await expect(intro).toContainText('1.6.8');
+    await expect(intro).toContainText('1.6.11');
 
     const items = page.locator('#whats-new-list li');
     await expect(items).toHaveCount(3);
@@ -910,7 +911,7 @@ test.describe('Was gibt es Neues Modal (Changelog)', () => {
 
     // Prüfen, dass localStorage aktualisiert wurde
     const storedVersion = await page.evaluate(() => localStorage.getItem('starshooter_last_seen_version'));
-    expect(storedVersion).toBe('1.6.8');
+    expect(storedVersion).toBe('1.6.11');
 
     // Erneut öffnen über Start-Screen Button
     const openBtn = page.locator('#btn-open-whats-new');
@@ -1838,5 +1839,225 @@ test.describe('Late-Game Difficulty & Gegner-Mechaniken', () => {
     expect(rocketFlightEvents.length).toBeGreaterThan(0);
   });
 });
+
+test.describe('Story Intro-Cutszene', () => {
+
+  test.beforeEach(async ({ page }) => {
+    await page.addInitScript(() => {
+      localStorage.removeItem('starshooter_skip_cutscene');
+    });
+    await page.goto('/');
+  });
+
+  test('Startet nach Schiffsauswahl und zeigt Raumschiff-Konvoi mit allen Schiffstypen', async ({ page }) => {
+    // Schiffsmodell auf Phantom-NX und Farbe auf Blue stellen
+    const phantomBtn = page.locator('.hangar-model-btn[data-model="phantom"]');
+    await phantomBtn.click();
+    const blueBtn = page.locator('.hangar-color-btn[data-color="blue"]');
+    await blueBtn.click();
+
+    // Starten via Tastendruck
+    await page.keyboard.down('w');
+    await page.waitForTimeout(50);
+    await page.keyboard.up('w');
+
+    // Startbildschirm ist weg
+    const startScreen = page.locator('#start-screen');
+    await expect(startScreen).toBeHidden();
+
+    // In-Game Spielerschiff ist während der Cutszene ausgeblendet
+    const inGameSpieler = page.locator('#spieler');
+    await expect(inGameSpieler).toBeHidden();
+
+    // Cutscene Container ist sichtbar
+    const cutsceneContainer = page.locator('#cutscene-container');
+    await expect(cutsceneContainer).toBeVisible();
+
+    // Skip Button (ESC) ist vorhanden
+    const skipBtn = page.locator('#cutscene-skip-btn');
+    await expect(skipBtn).toBeVisible();
+    await expect(skipBtn).toContainText('ESC');
+
+    // Prüfen, dass alle Konvoi-Schiffe vorhanden sind
+    const playerConvoyShip = page.locator('.cutscene-ship.ship-player');
+    await expect(playerConvoyShip).toBeAttached();
+    // Prüfen, dass das Spielerschiff das gewählte Modell (Phantom) & Farbe (Blue) widerspiegelt
+    const playerSvg = playerConvoyShip.locator('svg');
+    await expect(playerSvg).toBeAttached();
+    const svgHtml = await playerSvg.innerHTML();
+    expect(svgHtml).toContain('#3498db'); // Blue color
+
+    const freighter = page.locator('.cutscene-ship.ship-freighter');
+    await expect(freighter).toBeAttached();
+
+    const hospitalShip = page.locator('.cutscene-ship.ship-hospital');
+    await expect(hospitalShip).toBeAttached();
+
+    const destroyer = page.locator('.cutscene-ship.ship-destroyer');
+    await expect(destroyer).toBeAttached();
+
+    const escorts = page.locator('.cutscene-ship.ship-escort');
+    await expect(escorts).toHaveCount(2);
+
+    // Prüfen, dass die Schiffe fliegen (Animation / Bewegung von links nach rechts)
+    const initialX = await playerConvoyShip.evaluate(el => parseFloat(el.style.left || window.getComputedStyle(el).left));
+    await page.waitForTimeout(300);
+    const newX = await playerConvoyShip.evaluate(el => parseFloat(el.style.left || window.getComputedStyle(el).left));
+    expect(newX).toBeGreaterThan(initialX);
+  });
+
+  test('Alien-Sprechblasen erscheinen mit unleserlichen Glyphen im Vordergrund und lösen Audio aus', async ({ page }) => {
+    // Spiel starten
+    await page.keyboard.down('w');
+    await page.waitForTimeout(50);
+    await page.keyboard.up('w');
+
+    // Warten auf die erste Alien-Sprechblase
+    const bubble = page.locator('.alien-speech-bubble');
+    await expect(bubble.first()).toBeVisible({ timeout: 4000 });
+
+    // Prüfen, dass unleserliche Glyphen enthalten sind
+    const alienText = page.locator('.alien-speech-bubble .alien-text');
+    await expect(alienText.first()).toBeVisible();
+    const textContent = await alienText.first().textContent();
+    expect(textContent.length).toBeGreaterThan(5);
+
+    // Audio-History prüfen
+    const hasAlienChatter = await page.evaluate(async () => {
+      const audioMod = await import('./js/audio.js');
+      return audioMod.audioHistory.some(h => h.name === 'alienChatter');
+    });
+    expect(hasAlienChatter).toBe(true);
+  });
+
+  test('Überraschungsangriff aus dem Verborgenen zerstört alle Begleitschiffe bis auf das Spielerschiff', async ({ page }) => {
+    // Starten
+    await page.keyboard.down('w');
+    await page.waitForTimeout(50);
+    await page.keyboard.up('w');
+
+    // Beschleunigen bzw. Warten auf das Ende der Angriffsphase
+    // Alle Begleitschiffe sollen nach der Angriffsphase zerstört sein
+    const destroyer = page.locator('.cutscene-ship.ship-destroyer');
+    const freighter = page.locator('.cutscene-ship.ship-freighter');
+    const hospitalShip = page.locator('.cutscene-ship.ship-hospital');
+    const escorts = page.locator('.cutscene-ship.ship-escort');
+    const playerShip = page.locator('.cutscene-ship.ship-player');
+
+    // Während der Zerstörungsphase entstehen Feuerbälle, Schockwellen & Trümmerteile
+    const fireball = page.locator('.cutscene-fireball');
+    await expect(fireball.first()).toBeAttached({ timeout: 11000 });
+
+    // Nach Abschluss der Zerstörungsphase (~12 Sekunden in Echtzeit)
+    await expect(destroyer).toBeHidden({ timeout: 14000 });
+    await expect(freighter).toBeHidden();
+    await expect(hospitalShip).toBeHidden();
+    await expect(escorts).toHaveCount(0);
+
+    // Spielerschiff ist weiterhin vorhanden
+    await expect(playerShip).toBeAttached();
+
+    // Audio-History prüfen
+    const history = await page.evaluate(async () => {
+      const audioMod = await import('./js/audio.js');
+      return audioMod.audioHistory;
+    });
+    const hasArtillery = history.some(h => h.name === 'incomingArtillery');
+    const hasExplosion = history.some(h => h.name === 'explosion');
+    expect(hasArtillery).toBe(true);
+    expect(hasExplosion).toBe(true);
+  });
+
+  test('Lichtstrahl erscheint, Schiff dreht nach oben und geht nahtlos ins eigentliche Spiel über', async ({ page }) => {
+    // Starten
+    await page.keyboard.down('w');
+    await page.waitForTimeout(50);
+    await page.keyboard.up('w');
+
+    // Warten auf den Lichtstrahl (~12.5s)
+    const lightBeam = page.locator('#cutscene-light-beam.cutscene-beam-active');
+    await expect(lightBeam).toBeVisible({ timeout: 14500 });
+
+    // Warten auf Abschluss der Cutszene und Übergang ins Spiel (~15s)
+    const cutsceneContainer = page.locator('#cutscene-container');
+    await expect(cutsceneContainer).toBeHidden({ timeout: 17500 });
+
+    // Spiel ist nun aktiv (spielLaeuft = true, cutsceneAktiv = false)
+    const gameState = await page.evaluate(async () => {
+      const stateMod = await import('./js/state.js');
+      return {
+        spielLaeuft: stateMod.state.spielLaeuft,
+        cutsceneAktiv: stateMod.state.cutsceneAktiv,
+        y: stateMod.state.y
+      };
+    });
+    expect(gameState.spielLaeuft).toBe(true);
+    expect(gameState.cutsceneAktiv).toBe(false);
+
+    // In-game Spielerschiff ist nun sichtbar
+    const inGameSpieler = page.locator('#spieler');
+    await expect(inGameSpieler).toBeVisible();
+
+    // Audio-History prüfen
+    const hasLightWhoosh = await page.evaluate(async () => {
+      const audioMod = await import('./js/audio.js');
+      return audioMod.audioHistory.some(h => h.name === 'lightBeamWhoosh');
+    });
+    expect(hasLightWhoosh).toBe(true);
+  });
+
+  test('Cutszene kann jederzeit per ESC-Taste oder Skip-Button sofort übersprungen werden', async ({ page }) => {
+    // 1. Test per ESC-Taste
+    await page.keyboard.down('w');
+    await page.waitForTimeout(50);
+    await page.keyboard.up('w');
+
+    const cutsceneContainer = page.locator('#cutscene-container');
+    await expect(cutsceneContainer).toBeVisible();
+
+    // ESC drücken
+    await page.keyboard.press('Escape');
+
+    // Container sofort verschwunden und Spiel gestartet
+    await expect(cutsceneContainer).toBeHidden();
+    let isRunning = await page.evaluate(async () => {
+      const stateMod = await import('./js/state.js');
+      return stateMod.state.spielLaeuft && !stateMod.state.cutsceneAktiv;
+    });
+    expect(isRunning).toBe(true);
+
+    // 2. Neustart & Test per Skip-Button
+    await page.evaluate(async () => {
+      const utilsMod = await import('./js/utils.js');
+      utilsMod.restartGame();
+    });
+
+    const startScreen = page.locator('#start-screen');
+    await expect(startScreen).toBeVisible();
+
+    // Erneut Cutszene starten
+    await page.keyboard.down('w');
+    await page.waitForTimeout(50);
+    await page.keyboard.up('w');
+
+    await expect(cutsceneContainer).toBeVisible();
+
+    // Auf den Skip Button klicken
+    const skipBtn = page.locator('#cutscene-skip-btn');
+    await skipBtn.click();
+
+    // Container sofort verschwunden und Spiel gestartet
+    await expect(cutsceneContainer).toBeHidden();
+    isRunning = await page.evaluate(async () => {
+      const stateMod = await import('./js/state.js');
+      return stateMod.state.spielLaeuft && !stateMod.state.cutsceneAktiv;
+    });
+    expect(isRunning).toBe(true);
+  });
+});
+
+
+
+
 
 

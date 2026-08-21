@@ -295,6 +295,7 @@ export function restartGame() {
   state.y = 285;
   dom.spieler.style.left = state.x + 'px';
   dom.spieler.style.top = state.y + 'px';
+  dom.spieler.style.display = 'none';
   dom.spieler.setAttribute('data-rotate', '0');
   dom.spieler.style.transform = 'rotate(0deg)';
   
@@ -336,6 +337,13 @@ export function restartGame() {
   
   state.frameZaehler = 0;
   state.spielLaeuft = false;
+  state.cutsceneAktiv = false;
+
+  const cutsceneContainer = document.getElementById('cutscene-container');
+  if (cutsceneContainer) {
+    cutsceneContainer.innerHTML = '';
+    cutsceneContainer.style.display = 'none';
+  }
   
   for (let key in state.tastenGedrueckt) {
     state.tastenGedrueckt[key] = false;
@@ -611,7 +619,7 @@ export function updateRaketenWerferVisuals() {
   }
 
   // Prüfen, ob Werfer durch Downgrade verloren gingen
-  if (prevWerferStates) {
+  if (prevWerferStates && state.spielLaeuft) {
     if (prevWerferStates.left && !showLeft) {
       erzeugeAbgeworfenenWerfer(state.x - 8, state.y + 7, -3 - Math.random() * 2, 2 + Math.random() * 2, -10);
     }

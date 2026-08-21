@@ -69,12 +69,14 @@ document.addEventListener('DOMContentLoaded', () => {
     resizeGame();
 
     state.spielLaeuft = false;
+    if (dom.spieler) dom.spieler.style.display = 'none';
     // UI & Hangar initialisieren
     import('./utils.js').then(Utils => {
         Utils.updateMaxEnergieMarker();
         Utils.updateLebenUI();
         Utils.updateAktivePowerupsUI();
         Utils.updatePlayerShipVisuals();
+        if (dom.spieler) dom.spieler.style.display = 'none';
 
         // Hangar Event Listeners
         document.querySelectorAll('.hangar-model-btn').forEach(btn => {

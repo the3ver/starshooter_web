@@ -4,6 +4,7 @@ import * as Utils from './utils.js';
 import * as Entities from './entities.js';
 import * as Input from './input.js';
 import * as Audio from './audio.js';
+import * as Cutscene from './cutscene.js';
 
 
 export function verwalteFeindSpawns() {
@@ -60,27 +61,20 @@ export function gameLoop() {
     return;
   }
 
+  if (state.cutsceneAktiv) {
+    requestAnimationFrame(gameLoop);
+    return;
+  }
+
   if (!state.spielLaeuft) {
     const whatsNew = document.getElementById('whats-new-overlay');
     const isWhatsNewOpen = whatsNew && whatsNew.style.display !== 'none';
     if (!isWhatsNewOpen && (state.tastenGedrueckt.w || state.tastenGedrueckt.a || state.tastenGedrueckt.s || state.tastenGedrueckt.d || state.tastenGedrueckt.l || state.tastenGedrueckt.k || state.tastenGedrueckt[' '])) {
-      state.spielLaeuft = true;
       let startScreen = document.getElementById('start-screen');
       if (startScreen) startScreen.style.display = 'none';
-      Utils.updateMobileControlsVisibility();
-      
-      // Schiff-spezifische Start-Eigenschaften anwenden (z.B. Phantom Start-Schild)
-      const currentShip = shipModels && shipModels[state.selectedShipModel || 'viper'];
-      if (currentShip && currentShip.startShield > 0) {
-        state.schildStufe = currentShip.startShield;
-        dom.spieler.classList.add(`schild-aktiv-${state.schildStufe}`);
-        Utils.updateAktivePowerupsUI();
-      }
-      
-      // Verhindere sofortiges Feuern beim Spielstart
-      state.tastenGedrueckt[' '] = false;
-      state.tastenGedrueckt.k = false;
-      state.tastenGedrueckt.l = false;
+      Cutscene.startCutscene();
+      requestAnimationFrame(gameLoop);
+      return;
     } else {
       // Nur Sterne und Spieler rendern
       arrays.sterne.forEach(stern => {

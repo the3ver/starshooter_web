@@ -85,7 +85,7 @@ export const state = {
     energie: 50, minZuendEnergie: 15, energieTimer: 0, laserSchiesst: false,
     laserDurchschlag: false, durchschlagTimer: 0, schildStufe: 0, laserStufe: 1,
     autolaserAktiv: false, autolaserTimer: 0, raketenStufe: 1, raketenCooldown: 0,
-    bombenStufe: 1, bombenCooldown: 0, frameZaehler: 0, spielLaeuft: false,
+    bombenStufe: 1, bombenCooldown: 0, frameZaehler: 0, spielLaeuft: false, cutsceneAktiv: false,
     feindSpawnZeit: 1200, bossKampfAktiv: false, tastenGedrueckt: {w: false, a: false, s: false, d: false, l: false, k: false, ' ': false}, mausGedrueckt: false,
     bossAktiv: false, bossWarningAktiv: false, bossWarningTimer: 0, gameOverAktiv: false,
     spielerSchussCooldown: 0, finalerScore: 0, cheatUsed: false, typedCheatKeys: '',
