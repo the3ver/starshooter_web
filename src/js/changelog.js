@@ -1,6 +1,32 @@
-export const GAME_VERSION = '1.6.5';
+export const GAME_VERSION = '1.6.8';
 
 export const changelogData = {
+  '1.6.8': {
+    version: '1.6.8',
+    intro: 'Hey, es ist jetzt Version 1.6.8 rausgekommen, folgendes wurde geändert oder ist neu:',
+    highlights: [
+      '💥 Zischender Raketen-Knall: Neue wuchtige Detonations-SFX mit Rausch-Zischen für Spieler- und Boss-Raketen',
+      '⏱️ Beschleunigendes Bomben-Piepsen: Fliegende Bomben (Spieler & Boss) geben ein dynamisch schneller werdendes Warn-Piepsen bis zur Detonation ab',
+      '🚀 Boss-Raketen Fluggeräusch: Seitliche Boss-Raketen erzeugen während des Flugs ein bedrohliches Triebwerks-Fauchen'
+    ]
+  },
+  '1.6.7': {
+    version: '1.6.7',
+    intro: 'Hey, es ist jetzt Version 1.6.7 rausgekommen, folgendes wurde geändert oder ist neu:',
+    highlights: [
+      '⚡ Zero-Latency Audio-Engine: Vorab generierte Noise-Buffer und optimierte AudioContext-Latenz für lag-freies Feedback in Chrome und Firefox',
+      '🎆 Silvester-Raketen-Zischen: Neuer authentischer Zisch- und Pfeif-Synthesizer mit Resonanzfilter für das Abfeuern von Raketen',
+      '👾 Boss- & Gegner-Vertonung: Eigene Soundeffekte für feindliche Laser, Boss-Laser, Boss-Plasma-Bomben und zielsuchende Boss-Raketen'
+    ]
+  },
+  '1.6.6': {
+    version: '1.6.6',
+    intro: 'Hey, es ist jetzt Version 1.6.6 rausgekommen, folgendes wurde geändert oder ist neu:',
+    highlights: [
+      '🔊 Synthetische Retro-Sounds (Web Audio API): Dynamische Audio-Effekte für Laser, Autolaser, Raketen, Bomben, Explosionen, Powerups und Boss-Warnungen ohne externe Ladezeiten',
+      '🔇 Sound-Mute Steuerung: Schnelles Stummschalten per Tastenkürzel M oder Button in der Benutzeroberfläche (mit Speicher-Persistenz)'
+    ]
+  },
   '1.6.5': {
     version: '1.6.5',
     intro: 'Hey, es ist jetzt Version 1.6.5 rausgekommen, folgendes wurde geändert oder ist neu:',

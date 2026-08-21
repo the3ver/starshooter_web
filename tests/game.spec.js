@@ -3,7 +3,7 @@ const { test, expect } = require('@playwright/test');
 test.beforeEach(async ({ page }) => {
   // Standardmäßig als bereits gesehen markieren, damit die Tests direkt interagieren können
   await page.addInitScript(() => {
-    localStorage.setItem('starshooter_last_seen_version', '1.6.5');
+    localStorage.setItem('starshooter_last_seen_version', '1.6.8');
   });
   await page.goto('/');
 });
@@ -897,10 +897,10 @@ test.describe('Was gibt es Neues Modal (Changelog)', () => {
     await expect(title).toContainText("WAS GIBT'S NEUES");
 
     const intro = page.locator('#whats-new-intro');
-    await expect(intro).toContainText('1.6.5');
+    await expect(intro).toContainText('1.6.8');
 
     const items = page.locator('#whats-new-list li');
-    await expect(items).toHaveCount(2);
+    await expect(items).toHaveCount(3);
 
     // Schließen
     const closeBtn = page.locator('#btn-close-whats-new');
@@ -910,7 +910,7 @@ test.describe('Was gibt es Neues Modal (Changelog)', () => {
 
     // Prüfen, dass localStorage aktualisiert wurde
     const storedVersion = await page.evaluate(() => localStorage.getItem('starshooter_last_seen_version'));
-    expect(storedVersion).toBe('1.6.5');
+    expect(storedVersion).toBe('1.6.8');
 
     // Erneut öffnen über Start-Screen Button
     const openBtn = page.locator('#btn-open-whats-new');
@@ -1374,6 +1374,468 @@ test.describe('Late-Game Difficulty & Gegner-Mechaniken', () => {
     });
 
     expect(timerVal).toBe(45);
+  });
+  test('Sound-Mute Toggle: M-Taste und Sound-Button schalten Sound um und synchronisieren mit localStorage', async ({ page }) => {
+    const soundBtn = page.locator('#btn-sound-toggle');
+    await expect(soundBtn).toBeVisible();
+    await expect(soundBtn).toHaveText('🔊');
+
+    // Klick auf den Button mutet den Sound
+    await soundBtn.click();
+    await expect(soundBtn).toHaveText('🔇');
+
+    let isMutedInStorage = await page.evaluate(() => localStorage.getItem('starshooter_muted'));
+    expect(isMutedInStorage).toBe('true');
+
+    // Drücken von Taste 'M' unmutet den Sound wieder
+    await page.keyboard.press('KeyM');
+    await expect(soundBtn).toHaveText('🔊');
+
+    isMutedInStorage = await page.evaluate(() => localStorage.getItem('starshooter_muted'));
+    expect(isMutedInStorage).toBe('false');
+  });
+
+  test('Sound-Trigger: Laser- und Autolaser-Schüsse lösen playLaser bzw. playAutolaser aus', async ({ page }) => {
+    await page.keyboard.down('KeyW');
+    await page.waitForTimeout(50);
+    await page.keyboard.up('KeyW');
+
+    // Laserstufe 3 und Energie setzen, History leeren
+    await page.evaluate(async () => {
+      const audioMod = await import('./js/audio.js');
+      const stateMod = await import('./js/state.js');
+      audioMod.clearAudioHistory();
+      stateMod.state.laserStufe = 3;
+      stateMod.state.energie = 50;
+      stateMod.state.laserSchiesst = false;
+      stateMod.state.spielerSchussCooldown = 0;
+    });
+
+    // Laser abfeuern
+    await page.keyboard.down('KeyL');
+    await page.waitForTimeout(100);
+    await page.keyboard.up('KeyL');
+
+    let history = await page.evaluate(async () => {
+      const audioMod = await import('./js/audio.js');
+      return audioMod.audioHistory;
+    });
+
+    const laserEvents = history.filter(h => h.name === 'laser');
+    expect(laserEvents.length).toBeGreaterThan(0);
+    expect(laserEvents[0].details.level).toBe(3);
+
+    // Autolaser aktivieren und mit Ziel testen (vorherige Laser aufräumen)
+    await page.evaluate(async () => {
+      const audioMod = await import('./js/audio.js');
+      const stateMod = await import('./js/state.js');
+      const entitiesMod = await import('./js/entities.js');
+      audioMod.clearAudioHistory();
+      stateMod.arrays.laserArray.forEach(l => l.el.remove());
+      stateMod.arrays.laserArray.length = 0;
+      stateMod.state.spielLaeuft = true;
+      stateMod.state.pausiert = false;
+      stateMod.state.laserSchiesst = false;
+      stateMod.state.tastenGedrueckt.l = false;
+      stateMod.state.y = 400; // Positioniere Spieler weiter unten
+      stateMod.state.autolaserAktiv = true;
+      stateMod.state.autolaserTimer = 100;
+      entitiesMod.erzeugeAsteroid(185, 100, 30, 0, 0, 0, true);
+    });
+
+    await page.waitForTimeout(400);
+
+    const historyAfter = await page.evaluate(async () => {
+      const audioMod = await import('./js/audio.js');
+      return audioMod.audioHistory;
+    });
+
+    const autolaserEvents = historyAfter.filter(h => h.name === 'autolaser');
+    expect(autolaserEvents.length).toBeGreaterThan(0);
+  });
+
+  test('Sound-Trigger: Raketen- und Bomben-Abwurf lösen playMissile bzw. playBomb aus', async ({ page }) => {
+    await page.keyboard.down('KeyW');
+    await page.waitForTimeout(50);
+    await page.keyboard.up('KeyW');
+
+    // Raketen feuern
+    await page.evaluate(async () => {
+      const audioMod = await import('./js/audio.js');
+      const stateMod = await import('./js/state.js');
+      audioMod.clearAudioHistory();
+      stateMod.state.raketenCooldown = 0;
+      stateMod.state.raketenStufe = 2;
+    });
+
+    await page.keyboard.down('KeyK');
+    await page.waitForTimeout(100);
+    await page.keyboard.up('KeyK');
+
+    let history = await page.evaluate(async () => {
+      const audioMod = await import('./js/audio.js');
+      return audioMod.audioHistory;
+    });
+    const missileEvents = history.filter(h => h.name === 'missile');
+    expect(missileEvents.length).toBeGreaterThan(0);
+
+    // Bombe abwerfen
+    await page.evaluate(async () => {
+      const audioMod = await import('./js/audio.js');
+      const stateMod = await import('./js/state.js');
+      audioMod.clearAudioHistory();
+      stateMod.state.bombenCooldown = 0;
+      stateMod.state.bombenStufe = 1;
+    });
+
+    await page.keyboard.down('Space');
+    await page.waitForTimeout(100);
+    await page.keyboard.up('Space');
+
+    history = await page.evaluate(async () => {
+      const audioMod = await import('./js/audio.js');
+      return audioMod.audioHistory;
+    });
+    const bombEvents = history.filter(h => h.name === 'bomb');
+    expect(bombEvents.length).toBeGreaterThan(0);
+  });
+
+  test('Sound-Trigger: Zerstörung, Treffer und Magma-Abpraller lösen playExplosion bzw. playHit aus', async ({ page }) => {
+    await page.keyboard.down('KeyW');
+    await page.waitForTimeout(50);
+    await page.keyboard.up('KeyW');
+
+    // 1. Ziel-Zerstörung testen
+    await page.evaluate(async () => {
+      const audioMod = await import('./js/audio.js');
+      const utilsMod = await import('./js/utils.js');
+      const stateMod = await import('./js/state.js');
+      audioMod.clearAudioHistory();
+
+      const dummyTarget = {
+        x: 100, y: 100, groesse: 30, maxHp: 30, hp: 0,
+        el: document.createElement('div'),
+        istBoss: false, istFeind: true
+      };
+      stateMod.arrays.feinde.push(dummyTarget);
+      utilsMod.zerstoereZiel(dummyTarget);
+    });
+
+    let history = await page.evaluate(async () => {
+      const audioMod = await import('./js/audio.js');
+      return audioMod.audioHistory;
+    });
+    const explosionEvents = history.filter(h => h.name === 'explosion');
+    expect(explosionEvents.length).toBeGreaterThan(0);
+
+    // 2. Spieler-Treffer testen
+    await page.evaluate(async () => {
+      const audioMod = await import('./js/audio.js');
+      const utilsMod = await import('./js/utils.js');
+      const stateMod = await import('./js/state.js');
+      audioMod.clearAudioHistory();
+      stateMod.state.invulnerableTimer = 0;
+      stateMod.state.godMode = false;
+      const dummyLaser = { x: 185, y: 285, width: 4, height: 10, el: document.createElement('div') };
+      utilsMod.spielerGetroffen(dummyLaser, false);
+    });
+
+    history = await page.evaluate(async () => {
+      const audioMod = await import('./js/audio.js');
+      return audioMod.audioHistory;
+    });
+    const hitEvents = history.filter(h => h.name === 'hit' && h.details.type === 'player');
+    expect(hitEvents.length).toBeGreaterThan(0);
+  });
+
+  test('Sound-Trigger: Powerup-Einsammeln und Schild-Regeneration lösen playPowerup bzw. playShieldRegen aus', async ({ page }) => {
+    await page.keyboard.down('KeyW');
+    await page.waitForTimeout(50);
+    await page.keyboard.up('KeyW');
+
+    // 1. Powerup einsammeln testen
+    await page.evaluate(async () => {
+      const audioMod = await import('./js/audio.js');
+      const stateMod = await import('./js/state.js');
+      const entitiesMod = await import('./js/entities.js');
+      audioMod.clearAudioHistory();
+      stateMod.state.spielLaeuft = true;
+      stateMod.state.x = 185;
+      stateMod.state.y = 285;
+      // Powerup direkt auf Spielerschiff spawnen
+      entitiesMod.erzeugePowerup(185, 285, 'laserWaffe');
+    });
+
+    await page.waitForTimeout(100);
+
+    let history = await page.evaluate(async () => {
+      const audioMod = await import('./js/audio.js');
+      return audioMod.audioHistory;
+    });
+    const powerupEvents = history.filter(h => h.name === 'powerup');
+    expect(powerupEvents.length).toBeGreaterThan(0);
+
+    // 2. Phantom-NX Schild-Regeneration testen
+    await page.evaluate(async () => {
+      const audioMod = await import('./js/audio.js');
+      const stateMod = await import('./js/state.js');
+      audioMod.clearAudioHistory();
+      stateMod.state.selectedShipModel = 'phantom';
+      stateMod.state.schildStufe = 0;
+      stateMod.state.phantomSchildRegenTimer = (stateMod.state.phantomSchildRegenMax || 900) - 2;
+    });
+
+    await page.waitForTimeout(100);
+
+    history = await page.evaluate(async () => {
+      const audioMod = await import('./js/audio.js');
+      return audioMod.audioHistory;
+    });
+    const shieldEvents = history.filter(h => h.name === 'shieldRegen');
+    expect(shieldEvents.length).toBeGreaterThan(0);
+  });
+
+  test('Sound-Trigger: Boss Warning und Game Over lösen playBossAlert bzw. playGameOver aus', async ({ page }) => {
+    await page.keyboard.down('KeyW');
+    await page.waitForTimeout(50);
+    await page.keyboard.up('KeyW');
+
+    // 1. Boss Warning Alert Sound testen
+    await page.evaluate(async () => {
+      const audioMod = await import('./js/audio.js');
+      const stateMod = await import('./js/state.js');
+      audioMod.clearAudioHistory();
+      stateMod.state.bossAktiv = false;
+      stateMod.state.bossWarningAktiv = false;
+      stateMod.state.frameZaehler = 3599; // Frame vor dem Boss-Warning Trigger
+    });
+
+    await page.waitForTimeout(100);
+
+    let history = await page.evaluate(async () => {
+      const audioMod = await import('./js/audio.js');
+      return audioMod.audioHistory;
+    });
+    const bossAlertEvents = history.filter(h => h.name === 'bossAlert');
+    expect(bossAlertEvents.length).toBeGreaterThan(0);
+
+    // 2. Game Over Sound testen
+    await page.evaluate(async () => {
+      const audioMod = await import('./js/audio.js');
+      const utilsMod = await import('./js/utils.js');
+      const stateMod = await import('./js/state.js');
+      audioMod.clearAudioHistory();
+      stateMod.state.leben = 1;
+      stateMod.state.schildStufe = 0;
+      stateMod.state.invulnerableTimer = 0;
+      stateMod.state.godMode = false;
+      const dummyLaser = { x: 185, y: 285, width: 4, height: 10, el: document.createElement('div') };
+      utilsMod.spielerGetroffen(dummyLaser, false);
+    });
+
+    history = await page.evaluate(async () => {
+      const audioMod = await import('./js/audio.js');
+      return audioMod.audioHistory;
+    });
+    const gameOverEvents = history.filter(h => h.name === 'gameOver');
+    expect(gameOverEvents.length).toBeGreaterThan(0);
+  });
+
+  test('Sound-Trigger: Gegner- und Boss-Laser lösen playEnemyLaser bzw. playBossLaser aus', async ({ page }) => {
+    await page.keyboard.down('KeyW');
+    await page.waitForTimeout(50);
+    await page.keyboard.up('KeyW');
+
+    // 1. Feind-Laser feuern
+    await page.evaluate(async () => {
+      const audioMod = await import('./js/audio.js');
+      const entitiesMod = await import('./js/entities.js');
+      audioMod.clearAudioHistory();
+      entitiesMod.erzeugeFeindLaser(100, 100);
+    });
+
+    let history = await page.evaluate(async () => {
+      const audioMod = await import('./js/audio.js');
+      return audioMod.audioHistory;
+    });
+    const enemyLaserEvents = history.filter(h => h.name === 'enemyLaser');
+    expect(enemyLaserEvents.length).toBeGreaterThan(0);
+
+    // 2. Boss-Laser feuern
+    await page.evaluate(async () => {
+      const audioMod = await import('./js/audio.js');
+      const entitiesMod = await import('./js/entities.js');
+      audioMod.clearAudioHistory();
+      entitiesMod.erzeugeBossLaser(150, 50, 0, 6);
+    });
+
+    history = await page.evaluate(async () => {
+      const audioMod = await import('./js/audio.js');
+      return audioMod.audioHistory;
+    });
+    const bossLaserEvents = history.filter(h => h.name === 'bossLaser');
+    expect(bossLaserEvents.length).toBeGreaterThan(0);
+  });
+
+  test('Sound-Trigger: Boss-Bomben und Boss-Raketen lösen playBossBombLaunch bzw. playBossRocketLaunch aus', async ({ page }) => {
+    await page.keyboard.down('KeyW');
+    await page.waitForTimeout(50);
+    await page.keyboard.up('KeyW');
+
+    // 1. Boss-Bombe spawnen
+    await page.evaluate(async () => {
+      const audioMod = await import('./js/audio.js');
+      const entitiesMod = await import('./js/entities.js');
+      audioMod.clearAudioHistory();
+      entitiesMod.erzeugeBossBombe(180, 100);
+    });
+
+    let history = await page.evaluate(async () => {
+      const audioMod = await import('./js/audio.js');
+      return audioMod.audioHistory;
+    });
+    const bombLaunchEvents = history.filter(h => h.name === 'bossBombLaunch');
+    expect(bombLaunchEvents.length).toBeGreaterThan(0);
+
+    // 2. Boss-Rakete spawnen
+    await page.evaluate(async () => {
+      const audioMod = await import('./js/audio.js');
+      const entitiesMod = await import('./js/entities.js');
+      audioMod.clearAudioHistory();
+      entitiesMod.erzeugeBossRakete(150, 100, 1);
+    });
+
+    history = await page.evaluate(async () => {
+      const audioMod = await import('./js/audio.js');
+      return audioMod.audioHistory;
+    });
+    const rocketLaunchEvents = history.filter(h => h.name === 'bossRocketLaunch');
+    expect(rocketLaunchEvents.length).toBeGreaterThan(0);
+  });
+
+  test('Sound-Synthesizer: playMissile erzeugt ein realistisches Silvester-Raketen-Zischen mit Rauschfilter', async ({ page }) => {
+    await page.keyboard.down('KeyW');
+    await page.waitForTimeout(50);
+    await page.keyboard.up('KeyW');
+
+    const result = await page.evaluate(async () => {
+      const audioMod = await import('./js/audio.js');
+      audioMod.clearAudioHistory();
+      audioMod.initAudio();
+
+      // playMissile direkt aufrufen und prüfen, dass keine Exception fliegt
+      let threwError = false;
+      try {
+        audioMod.playMissile();
+      } catch (err) {
+        threwError = true;
+      }
+
+      return {
+        threwError,
+        history: audioMod.audioHistory,
+        hasNoiseBuffer: !!audioMod.getNoiseBuffer(audioMod.getAudioContext())
+      };
+    });
+
+    expect(result.threwError).toBe(false);
+    expect(result.hasNoiseBuffer).toBe(true);
+    const missileEvent = result.history.find(h => h.name === 'missile');
+    expect(missileEvent).toBeDefined();
+  });
+
+  test('Sound-Trigger: Raketen-Detonation löst playMissileExplosion aus', async ({ page }) => {
+    await page.keyboard.down('KeyW');
+    await page.waitForTimeout(50);
+    await page.keyboard.up('KeyW');
+
+    // 1. Spieler-Rakete spawnen und Ziel in Zündnähe platzieren
+    await page.evaluate(async () => {
+      const audioMod = await import('./js/audio.js');
+      const stateMod = await import('./js/state.js');
+      audioMod.clearAudioHistory();
+      stateMod.state.spielLaeuft = true;
+
+      const rEl = document.createElement('div');
+      rEl.classList.add('rakete');
+      document.getElementById('spielfeld').appendChild(rEl);
+
+      // Rakete spawnen
+      stateMod.arrays.raketenArray.push({
+        el: rEl,
+        x: 200,
+        y: 200,
+        vx: 0,
+        vy: -8,
+        stufe: 1,
+        radius: 60,
+        schaden: 50,
+        isHoming: false
+      });
+
+      // Feind in Zündnähe
+      const entitiesMod = await import('./js/entities.js');
+      entitiesMod.erzeugeFeind(200, 180);
+    });
+
+    await page.waitForTimeout(100);
+
+    let history = await page.evaluate(async () => {
+      const audioMod = await import('./js/audio.js');
+      return audioMod.audioHistory;
+    });
+    const missileExpEvents = history.filter(h => h.name === 'missileExplosion');
+    expect(missileExpEvents.length).toBeGreaterThan(0);
+  });
+
+  test('Sound-Trigger: Fliegende Bomben (Spieler & Boss) erzeugen ein beschleunigendes Piepsen (playBombBeep)', async ({ page }) => {
+    await page.keyboard.down('KeyW');
+    await page.waitForTimeout(50);
+    await page.keyboard.up('KeyW');
+
+    // 1. Boss-Bombe spawnen und fliegen lassen
+    await page.evaluate(async () => {
+      const audioMod = await import('./js/audio.js');
+      const stateMod = await import('./js/state.js');
+      const entitiesMod = await import('./js/entities.js');
+      audioMod.clearAudioHistory();
+      stateMod.state.spielLaeuft = true;
+      entitiesMod.erzeugeBossBombe(200, 100);
+    });
+
+    await page.waitForTimeout(200);
+
+    let history = await page.evaluate(async () => {
+      const audioMod = await import('./js/audio.js');
+      return audioMod.audioHistory;
+    });
+    const bombBeepEvents = history.filter(h => h.name === 'bombBeep');
+    expect(bombBeepEvents.length).toBeGreaterThan(0);
+  });
+
+  test('Sound-Trigger: Boss-Raketen erzeugen im Flug periodisch Triebwerksgeräusche (playBossRocketFlight)', async ({ page }) => {
+    await page.keyboard.down('KeyW');
+    await page.waitForTimeout(50);
+    await page.keyboard.up('KeyW');
+
+    // Boss-Rakete spawnen und fliegen lassen
+    await page.evaluate(async () => {
+      const audioMod = await import('./js/audio.js');
+      const stateMod = await import('./js/state.js');
+      const entitiesMod = await import('./js/entities.js');
+      audioMod.clearAudioHistory();
+      stateMod.state.spielLaeuft = true;
+      entitiesMod.erzeugeBossRakete(150, 100, 1);
+    });
+
+    await page.waitForTimeout(200);
+
+    let history = await page.evaluate(async () => {
+      const audioMod = await import('./js/audio.js');
+      return audioMod.audioHistory;
+    });
+    const rocketFlightEvents = history.filter(h => h.name === 'bossRocketFlight');
+    expect(rocketFlightEvents.length).toBeGreaterThan(0);
   });
 });
 

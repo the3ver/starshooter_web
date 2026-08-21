@@ -20,6 +20,6 @@ module.exports = defineConfig({
   webServer: {
     command: 'npx http-server src -p 8080 -c-1',
     url: 'http://localhost:8080',
-    reuseExistingServer: false,
+    reuseExistingServer: true,
   },
 });

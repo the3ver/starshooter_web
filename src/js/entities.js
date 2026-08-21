@@ -3,6 +3,7 @@ import { state, dom, config, arrays } from './state.js';
 import * as Utils from './utils.js';
 import * as Input from './input.js';
 import * as Loop from './loop.js';
+import * as Audio from './audio.js';
 
 
 export function generiereAsteroidPolygon() {
@@ -269,6 +270,7 @@ export function erzeugeClingOnFeind() {
   flames.forEach(fl => fl.style.display = 'none');
 }
 export function erzeugeFeindLaser(fx, fy, zielX = null, zielY = null) {
+  Audio.playEnemyLaser();
   const el = document.createElement('div');
   el.classList.add('feind-laser');
   el.style.left = fx + 'px';
@@ -400,6 +402,7 @@ export function erzeugeBoss() {
   });
 }
 export function erzeugeBossLaser(fx, fy, vx = 0, vy = 6) {
+  Audio.playBossLaser();
   const el = document.createElement('div');
   el.classList.add('boss-laser');
   el.style.left = fx + 'px';
@@ -421,6 +424,7 @@ export function erzeugeBossLaser(fx, fy, vx = 0, vy = 6) {
 }
 
 export function erzeugeBossBombe(bx, by) {
+  Audio.playBossBombLaunch();
   const el = document.createElement('div');
   el.classList.add('boss-bombe');
   el.innerHTML = `
@@ -443,6 +447,8 @@ export function erzeugeBossBombe(bx, by) {
     vx: (Math.random() - 0.5) * 0.8,
     vy: 1.3,
     timer: 180, // 3 Sekunden bis Detonation
+    maxTimer: 180,
+    beepTimer: 999,
     radius: 90,
     istBossBombe: true,
     istUnzerstoerbar: false,
@@ -451,6 +457,7 @@ export function erzeugeBossBombe(bx, by) {
 }
 
 export function erzeugeBossRakete(bx, by, sideDirection = 1) {
+  Audio.playBossRocketLaunch();
   const el = document.createElement('div');
   el.classList.add('boss-rakete');
   el.innerHTML = `

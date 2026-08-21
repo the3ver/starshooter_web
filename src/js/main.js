@@ -2,8 +2,19 @@
 import { state, dom, config, arrays } from './state.js';
 import { setupInput } from './input.js';
 import { gameLoop } from './loop.js';
+import * as Audio from './audio.js';
 
 document.addEventListener('DOMContentLoaded', () => {
+    Audio.initSoundState();
+    const btnSoundToggle = document.getElementById('btn-sound-toggle');
+    if (btnSoundToggle) {
+        btnSoundToggle.addEventListener('click', (e) => {
+            e.stopPropagation();
+            Audio.initAudio();
+            Audio.toggleMute();
+        });
+    }
+
     setupInput();
     
     // Initialisiere Sterne

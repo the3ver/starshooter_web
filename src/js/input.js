@@ -3,16 +3,21 @@ import { state, dom, config, arrays } from './state.js';
 import * as Utils from './utils.js';
 import * as Entities from './entities.js';
 import * as Loop from './loop.js';
+import * as Audio from './audio.js';
 
 
 export function setupInput() {
   window.addEventListener('keydown', e => {
     if (e.target && e.target.tagName === 'INPUT') return;
+    Audio.initAudio();
     if (state.tastenGedrueckt.hasOwnProperty(e.key.toLowerCase())) {
       state.tastenGedrueckt[e.key.toLowerCase()] = true;
       if (e.key === ' ') e.preventDefault();
     }
     if (e.key.length === 1) {
+      if (e.key.toLowerCase() === 'm') {
+        Audio.toggleMute();
+      }
       if (e.key.toLowerCase() === 'p' && state.spielLaeuft && !state.gameOverAktiv) {
         state.pausiert = !state.pausiert;
         dom.pauseOverlay.style.display = state.pausiert ? 'block' : 'none';
@@ -160,6 +165,7 @@ export function setupInput() {
 
   // 1. Tap to Pause on Spielfeld
   spielfeldContainer.addEventListener('touchstart', e => {
+    Audio.initAudio();
     if (e.target.closest('#whats-new-overlay') || e.target.closest('#btn-open-whats-new') || e.target.closest('#hangar-container button')) return;
     const whatsNew = document.getElementById('whats-new-overlay');
     if (whatsNew && whatsNew.style.display !== 'none') return;

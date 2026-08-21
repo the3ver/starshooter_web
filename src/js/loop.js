@@ -3,6 +3,7 @@ import { state, dom, config, arrays, shipModels } from './state.js';
 import * as Utils from './utils.js';
 import * as Entities from './entities.js';
 import * as Input from './input.js';
+import * as Audio from './audio.js';
 
 
 export function verwalteFeindSpawns() {
@@ -250,6 +251,7 @@ export function gameLoop() {
     if (state.frameZaehler === 3600 && !state.bossAktiv && !state.bossWarningAktiv) {
       state.bossWarningAktiv = true;
       state.bossWarningTimer = 120; // 2 Sekunden Pause bei 60 FPS
+      Audio.playBossAlert();
       dom.warningOverlay.style.display = 'flex';
     }
   }
@@ -292,6 +294,7 @@ export function gameLoop() {
     if (state.phantomSchildRegenTimer >= maxRegen) {
       state.schildStufe = 1;
       state.phantomSchildRegenTimer = 0;
+      Audio.playShieldRegen();
       dom.spieler.classList.remove('schild-aktiv-1', 'schild-aktiv-2', 'schild-aktiv-3');
       dom.spieler.classList.add('schild-aktiv-1');
       Utils.updateAktivePowerupsUI();
@@ -311,6 +314,7 @@ export function gameLoop() {
       continue;
     }
     if (state.x < p.x + p.groesse && state.x + config.spielerGroesse > p.x && state.y < p.y + p.groesse && state.y + config.spielerGroesse > p.y) {
+      Audio.playPowerup(p.type);
       if (p.type === 'leben') {
         state.leben++;
         Utils.updateLebenUI();
@@ -681,6 +685,16 @@ export function gameLoop() {
     bb.el.style.top = bb.y + 'px';
     bb.timer--;
 
+    // Beep-Takt beschleunigen je näher an der Detonation
+    let bbProgress = Math.max(0, bb.timer / (bb.maxTimer || 180));
+    let bbUrgency = 1.0 - bbProgress;
+    bb.beepTimer = (bb.beepTimer || 0) + 1;
+    let bbBeepInterval = Math.max(3, Math.floor(bbProgress * 20));
+    if (bb.beepTimer >= bbBeepInterval) {
+      bb.beepTimer = 0;
+      Audio.playBombBeep(bbUrgency, true);
+    }
+
     if (bb.hp <= 0) {
       Utils.addScore(150);
       Utils.erzeugeExplosion(bb.x + 13, bb.y + 13, '#2ecc71', 25);
@@ -742,6 +756,10 @@ export function gameLoop() {
     if (!br) break;
     br.age = (br.age || 0) + 1;
 
+    if (br.age % 8 === 0) {
+      Audio.playBossRocketFlight();
+    }
+
     // Homing Richtung Spieler (weich einlenkend)
     let zielX = state.x + config.spielerGroesse / 2;
     let zielY = state.y + config.spielerGroesse / 2;
@@ -792,6 +810,7 @@ export function gameLoop() {
     // Wenn vom Spieler zerstört
     if (br.hp <= 0) {
       Utils.addScore(100);
+      Audio.playMissileExplosion();
       Utils.erzeugeExplosion(br.x + br.width / 2, br.y + br.height / 2, '#e67e22', 20);
       br.el.remove();
       arrays.bossRaketenArray.splice(i, 1);
@@ -808,6 +827,7 @@ export function gameLoop() {
     // Kollision mit Spieler
     if (state.x < br.x + br.width && state.x + config.spielerGroesse > br.x && state.y < br.y + br.height && state.y + config.spielerGroesse > br.y) {
       Utils.spielerGetroffen(br, false);
+      Audio.playMissileExplosion();
       Utils.erzeugeExplosion(br.x + br.width / 2, br.y + br.height / 2, '#e74c3c', 25);
       br.el.remove();
       arrays.bossRaketenArray.splice(i, 1);
@@ -843,6 +863,9 @@ export function gameLoop() {
       }
     }
     if (target) {
+      if (state.autolaserTimer % 10 === 0) {
+        Audio.playAutolaser();
+      }
       let tx = target.x + target.groesse / 2;
       let ty = target.y + target.groesse / 2;
       let dx = tx - sx;
@@ -946,6 +969,7 @@ export function gameLoop() {
   if (state.spielerSchussCooldown > 0) state.spielerSchussCooldown--;
   if (laserAktiv && state.spielerSchussCooldown <= 0) {
     state.spielerSchussCooldown = 6; // Schussrate
+    Audio.playLaser(state.laserStufe);
 
     // Schaden pro Projektil (skaliert umgekehrt zur Projektilanzahl, damit Gesamt-DPS kontrolliert wächst)
     let grundSchaden = 16; // 1 Projektil = 160 DPS (Stufe 1)
@@ -1100,6 +1124,7 @@ export function gameLoop() {
         }
       } else {
         // Abpraller-Logik (Magma-Asteroiden etc.)
+        Audio.playHit('magma');
         // Querschläger fliegen nun vorwiegend weiter nach oben, 
         // mit einer leichten bis mittleren Ablenkung nach links oder rechts.
         l.vy = 8 + Math.random() * 7; // vy zwischen 8 und 15 (aufwärts)
@@ -1139,6 +1164,7 @@ export function gameLoop() {
   }
   if (state.tastenGedrueckt.k && state.raketenCooldown <= 0) {
     state.raketenCooldown = maxRaketenCd;
+    Audio.playMissile();
     let rSchaden = 25;
     let rRadius = 80;
     let anzahl = 1;
@@ -1342,6 +1368,7 @@ export function gameLoop() {
     }
     if (zielGefunden) {
       r.detoniert = true;
+      Audio.playMissileExplosion();
       // Explosion auslösen
       let rcx = r.x + 3;
       let rcy = r.y + 9;
@@ -1433,6 +1460,7 @@ export function gameLoop() {
   }
   if (state.tastenGedrueckt[' '] && state.bombenCooldown <= 0) {
     state.bombenCooldown = maxBombenCd;
+    Audio.playBomb();
     const el = document.createElement('div');
     el.classList.add('bomben-projektil', `bombe-lvl-${state.bombenStufe}`);
     el.innerHTML = `
@@ -1468,6 +1496,7 @@ export function gameLoop() {
       stufe: state.bombenStufe,
       color: stufeColors[state.bombenStufe] || '#f39c12',
       isMini: false,
+      beepTimer: 999,
       delayFrames: 0
     });
   }
@@ -1537,6 +1566,15 @@ export function gameLoop() {
       const aura = b.el.querySelector('.bombe-aura');
       if (aura) {
         aura.style.animationDuration = auraPulseSpeed + 's';
+      }
+
+      // Beep-Takt beschleunigen je näher am Ziel
+      let urgency = 1.0 - progress;
+      b.beepTimer = (b.beepTimer || 0) + 1;
+      let beepInterval = Math.max(3, Math.floor(progress * 22));
+      if (b.beepTimer >= beepInterval) {
+        b.beepTimer = 0;
+        Audio.playBombBeep(urgency, false);
       }
     } else {
       // Level 5 Jericho-Split: Hauptbombe teilt sich in 4 Sub-Bomben auf

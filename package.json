@@ -1,9 +1,11 @@
 {
   "name": "webproject",
-  "version": "1.6.5",
+  "version": "1.6.8",
   "description": "Ein klassisches \"Space Shooter\"-Browserspiel, das komplett **ohne HTML5-Canvas** auskommt und stattdessen die Positionierung von DOM-Elementen (via `CSS position: absolute` und `transform`) nutzt.",
   "main": "index.js",
   "scripts": {
+    "dev": "http-server src -p 8080 -c-1",
+    "start": "http-server src -p 8080 -c-1",
     "test": "playwright test"
   },
   "repository": {

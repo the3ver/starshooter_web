@@ -3,6 +3,7 @@ import { state, dom, config, arrays, shipColors, shipModels } from './state.js';
 import * as Entities from './entities.js';
 import * as Input from './input.js';
 import * as Loop from './loop.js';
+import * as Audio from './audio.js';
 
 
 export function addScore(punkte) {
@@ -121,6 +122,7 @@ export function zerstoereZiel(ziel) {
 
   // Boss Logik beim Zerstören
   if (ziel.istBoss) {
+    Audio.playExplosion('boss');
     addScore(1000 * state.level);
     erzeugeExplosion(ziel.x + ziel.groesse / 2, ziel.y + ziel.groesse / 2, '#f1c40f', 50);
 
@@ -142,6 +144,7 @@ export function zerstoereZiel(ziel) {
     dom.bossHpContainer.style.display = 'none';
     state.frameZaehler = 0; // Setzt Level-Timer zurück
   } else {
+    Audio.playExplosion(ziel.groesse >= 35 ? 'medium' : 'small');
     addScore(ziel.istFeind ? 100 : ziel.traegtPowerup ? 50 : ziel.groesse >= 35 ? 20 : 10);
     if (ziel.istFeind) {
       const currentShip = shipModels && shipModels[state.selectedShipModel || 'viper'];
@@ -170,6 +173,7 @@ export function zerstoereZiel(ziel) {
 export function spielerGetroffen(kollisionsObjekt, explodiert = true) {
   if (state.godMode || state.invulnerableTimer > 0) return;
   
+  Audio.playHit('player');
   state.invulnerableTimer = 45;
   dom.spieler.classList.add('spieler-blink');
 
@@ -221,6 +225,7 @@ export function spielerGetroffen(kollisionsObjekt, explodiert = true) {
     erzeugeExplosion(kollisionsObjekt.x + (kollisionsObjekt.groesse || 4) / 2, kollisionsObjekt.y + (kollisionsObjekt.groesse || 15) / 2, c, 10);
   }
   if (state.leben <= 0) {
+    Audio.playGameOver();
     state.gameOverAktiv = true;
     state.finalerScore = state.cheatUsed ? 0 : state.score;
     document.getElementById('final-score').innerText = state.finalerScore;
