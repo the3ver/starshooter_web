@@ -1,6 +1,23 @@
-export const GAME_VERSION = '1.6.15';
+export const GAME_VERSION = '1.6.17';
 
 export const changelogData = {
+  '1.6.17': {
+    version: '1.6.17',
+    intro: 'Hey, es ist jetzt Version 1.6.17 rausgekommen, folgendes wurde geändert oder ist neu:',
+    highlights: [
+      '🎬 Co-op Story Cutszene: Beide Spielerschiffe fliegen im 2-Spieler-Modus gemeinsam im Raumschiff-Konvoi',
+      '🛡️ Gemeinsames Überleben: Beide Spieler überstehen den Überraschungsangriff und steigen parallel im Lichtstrahl auf'
+    ]
+  },
+  '1.6.16': {
+    version: '1.6.16',
+    intro: 'Hey, es ist jetzt Version 1.6.16 rausgekommen, folgendes wurde geändert oder ist neu:',
+    highlights: [
+      '🏆 Getrennte Bestenliste: Separate Highscore-Ranglisten für Solo- und 2-Spieler-Modus (Co-op)',
+      '👥 Team-Highscores: Speicherung und Anzeige von Team-Namen und den Schiffstypen beider Co-op-Piloten',
+      '📑 Interaktive Highscore-Tabs: Bequemes Umschalten zwischen Solo- und Co-op-Bestenliste auf dem Game-Over-Screen'
+    ]
+  },
   '1.6.15': {
     version: '1.6.15',
     intro: 'Hey, es ist jetzt Version 1.6.15 rausgekommen, folgendes wurde geändert oder ist neu:',

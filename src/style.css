@@ -709,6 +709,51 @@
             background-color: #2980b9;
         }
 
+        .highscore-tabs {
+            display: flex;
+            justify-content: center;
+            gap: 6px;
+            margin-bottom: 12px;
+        }
+
+        .highscore-tab {
+            background: rgba(26, 37, 47, 0.8);
+            border: 1px solid #34495e;
+            color: #7f8c8d;
+            padding: 4px 12px;
+            font-size: 11px;
+            font-weight: bold;
+            letter-spacing: 0.5px;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            font-family: inherit;
+        }
+
+        .highscore-tab:hover {
+            border-color: #1abc9c;
+            color: #ecf0f1;
+        }
+
+        .highscore-tab.active {
+            border-color: #f1c40f;
+            color: #f1c40f;
+            background: rgba(241, 196, 15, 0.15);
+            box-shadow: 0 0 8px rgba(241, 196, 15, 0.3);
+        }
+
+        .hs-coop-badges {
+            display: inline-flex;
+            gap: 4px;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .hs-badge-mini {
+            font-size: 9px;
+            padding: 1px 4px;
+        }
+
         #highscore-tabelle {
             margin-bottom: 30px;
             border-collapse: collapse;

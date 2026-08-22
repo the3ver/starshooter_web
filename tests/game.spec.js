@@ -3,7 +3,7 @@ const { test, expect } = require('@playwright/test');
 test.beforeEach(async ({ page }) => {
   // Standardmäßig als bereits gesehen markieren, damit die Tests direkt interagieren können
   await page.addInitScript(() => {
-    localStorage.setItem('starshooter_last_seen_version', '1.6.15');
+    localStorage.setItem('starshooter_last_seen_version', '1.6.17');
     localStorage.setItem('starshooter_skip_cutscene', 'true');
   });
   await page.goto('/');
@@ -898,10 +898,10 @@ test.describe('Was gibt es Neues Modal (Changelog)', () => {
     await expect(title).toContainText("WAS GIBT'S NEUES");
 
     const intro = page.locator('#whats-new-intro');
-    await expect(intro).toContainText('1.6.15');
+    await expect(intro).toContainText('1.6.17');
 
     const items = page.locator('#whats-new-list li');
-    await expect(items).toHaveCount(3);
+    await expect(items).toHaveCount(2);
 
     // Schließen
     const closeBtn = page.locator('#btn-close-whats-new');
@@ -911,7 +911,7 @@ test.describe('Was gibt es Neues Modal (Changelog)', () => {
 
     // Prüfen, dass localStorage aktualisiert wurde
     const storedVersion = await page.evaluate(() => localStorage.getItem('starshooter_last_seen_version'));
-    expect(storedVersion).toBe('1.6.15');
+    expect(storedVersion).toBe('1.6.17');
 
     // Erneut öffnen über Start-Screen Button
     const openBtn = page.locator('#btn-open-whats-new');
@@ -2876,6 +2876,198 @@ test.describe('2-Spieler-Modus (Co-op)', () => {
     });
 
     expect(p1OnlyOwners).toEqual(['p1', 'p1', 'p1', 'p1']);
+  });
+
+  test('Highscore-Trennung: saveHighscore und getHighscores speichern Solo- und Co-op-Bestenlisten in separaten localStorage-Keys', async ({ page }) => {
+    const result = await page.evaluate(async () => {
+      localStorage.removeItem('spaceShooterHighscores');
+      localStorage.removeItem('spaceShooterHighscores_coop');
+
+      const Utils = await import('./js/utils.js');
+      Utils.saveHighscore('SOL', 1500, 'viper', 'single');
+      Utils.saveHighscore('COP', 3200, 'phantom', 'coop', 'viper');
+
+      return {
+        singleList: Utils.getHighscores('single'),
+        coopList: Utils.getHighscores('coop'),
+        rawSingleStorage: localStorage.getItem('spaceShooterHighscores'),
+        rawCoopStorage: localStorage.getItem('spaceShooterHighscores_coop')
+      };
+    });
+
+    expect(result.singleList.length).toBe(1);
+    expect(result.singleList[0].name).toBe('SOL');
+    expect(result.singleList[0].score).toBe(1500);
+
+    expect(result.coopList.length).toBe(1);
+    expect(result.coopList[0].name).toBe('COP');
+    expect(result.coopList[0].score).toBe(3200);
+    expect(result.coopList[0].shipP1).toBe('phantom');
+    expect(result.coopList[0].shipP2).toBe('viper');
+
+    expect(result.rawSingleStorage).not.toBeNull();
+    expect(result.rawCoopStorage).not.toBeNull();
+    expect(result.rawSingleStorage).not.toContain('COP');
+    expect(result.rawCoopStorage).not.toContain('SOL');
+  });
+
+  test('Game Over im Co-op Modus: Highscore-Eingabe qualifiziert sich für Co-op Bestenliste und speichert Schiffe beider Spieler', async ({ page }) => {
+    await page.locator('#gamemode-btn-coop').click();
+    await page.keyboard.down('w');
+    await page.waitForTimeout(50);
+    await page.keyboard.up('w');
+
+    const skipBtn = page.locator('#cutscene-skip-btn');
+    if (await skipBtn.isVisible()) {
+      await skipBtn.click();
+    }
+
+    // Setze Schiffe und Score
+    await page.evaluate(async () => {
+      localStorage.removeItem('spaceShooterHighscores');
+      localStorage.removeItem('spaceShooterHighscores_coop');
+      const { state } = await import('./js/state.js');
+      const Utils = await import('./js/utils.js');
+      state.score = 2400;
+      state.selectedShipModel = 'viper';
+      state.p2.selectedShipModel = 'phantom';
+      Utils.triggerGameOver();
+    });
+
+    const hsForm = page.locator('#highscore-form');
+    await expect(hsForm).toBeVisible();
+
+    const hsInput = page.locator('#highscore-name');
+    await hsInput.fill('DUO');
+    await page.locator('#btn-save-score').click();
+
+    await expect(hsForm).toBeHidden();
+
+    const storedData = await page.evaluate(async () => {
+      const Utils = await import('./js/utils.js');
+      return {
+        coopList: Utils.getHighscores('coop'),
+        singleList: Utils.getHighscores('single')
+      };
+    });
+
+    expect(storedData.coopList.length).toBe(1);
+    expect(storedData.coopList[0].name).toBe('DUO');
+    expect(storedData.coopList[0].score).toBe(2400);
+    expect(storedData.coopList[0].shipP1).toBe('viper');
+    expect(storedData.coopList[0].shipP2).toBe('phantom');
+    expect(storedData.singleList.length).toBe(0);
+  });
+
+  test('Highscore-Tabs: Game-Over Screen erlaubt Umschalten zwischen Solo- und Co-op-Bestenliste', async ({ page }) => {
+    await page.locator('#gamemode-btn-coop').click();
+    await page.keyboard.down('w');
+    await page.waitForTimeout(50);
+    await page.keyboard.up('w');
+
+    const skipBtn = page.locator('#cutscene-skip-btn');
+    if (await skipBtn.isVisible()) {
+      await skipBtn.click();
+    }
+
+    await page.evaluate(async () => {
+      localStorage.removeItem('spaceShooterHighscores');
+      localStorage.removeItem('spaceShooterHighscores_coop');
+
+      const Utils = await import('./js/utils.js');
+      Utils.saveHighscore('SOL', 1111, 'viper', 'single');
+      Utils.saveHighscore('DUO', 9999, 'viper', 'coop', 'phantom');
+
+      Utils.triggerGameOver();
+    });
+
+    const tabSingle = page.locator('#hs-tab-single');
+    const tabCoop = page.locator('#hs-tab-coop');
+
+    await expect(tabSingle).toBeVisible();
+    await expect(tabCoop).toBeVisible();
+
+    // Solo Tab anklicken
+    await tabSingle.click();
+    await expect(tabSingle).toHaveClass(/active/);
+    await expect(page.locator('#highscore-body')).toContainText('SOL');
+    await expect(page.locator('#highscore-body')).toContainText('1111');
+    await expect(page.locator('#highscore-body')).not.toContainText('DUO');
+
+    // Co-op Tab anklicken
+    await tabCoop.click();
+    await expect(tabCoop).toHaveClass(/active/);
+    await expect(page.locator('#highscore-body')).toContainText('DUO');
+    await expect(page.locator('#highscore-body')).toContainText('9999');
+    await expect(page.locator('#highscore-body')).not.toContainText('SOL');
+    await expect(page.locator('#highscore-body .hs-coop-badges')).toBeVisible();
+  });
+
+  test('Co-op Cutszene: Im 2-Spieler-Modus erscheinen beide Spielerschiffe (P1 und P2) im Konvoi', async ({ page }) => {
+    await page.evaluate(() => {
+      localStorage.removeItem('starshooter_skip_cutscene');
+    });
+
+    await page.locator('#gamemode-btn-coop').click();
+
+    // Wähle P1 und P2 Modelle im Hangar
+    await page.locator('#hangar-player-tabs button[data-player="p1"]').click();
+    await page.locator('.hangar-model-btn[data-model="viper"]').click();
+    await page.locator('#hangar-player-tabs button[data-player="p2"]').click();
+    await page.locator('.hangar-model-btn[data-model="phantom"]').click();
+
+    // Start
+    await page.keyboard.down('w');
+    await page.waitForTimeout(50);
+    await page.keyboard.up('w');
+
+    await expect(page.locator('#cutscene-container')).toBeVisible();
+
+    const p1CutsceneShip = page.locator('.cutscene-ship.ship-player-p1');
+    const p2CutsceneShip = page.locator('.cutscene-ship.ship-player-p2');
+
+    await expect(p1CutsceneShip).toBeVisible();
+    await expect(p2CutsceneShip).toBeVisible();
+  });
+
+  test('Co-op Cutszene: Beide Spielerschiffe überleben den Angriff und steigen gemeinsam im Lichtstrahl auf', async ({ page }) => {
+    await page.evaluate(() => {
+      localStorage.removeItem('starshooter_skip_cutscene');
+    });
+
+    await page.locator('#gamemode-btn-coop').click();
+
+    // Start
+    await page.keyboard.down('w');
+    await page.waitForTimeout(50);
+    await page.keyboard.up('w');
+
+    await expect(page.locator('#cutscene-container')).toBeVisible();
+
+    // Schneller Vorlauf bis kurz nach Beginn der Lichtstrahl-Phase (~12.5s)
+    await page.waitForTimeout(12600);
+
+    const p1CutsceneShip = page.locator('.cutscene-ship.ship-player-p1');
+    const p2CutsceneShip = page.locator('.cutscene-ship.ship-player-p2');
+
+    // Beide Schiffe müssen überlebt haben
+    await expect(p1CutsceneShip).toBeAttached();
+    await expect(p2CutsceneShip).toBeAttached();
+
+    // Lichtstrahl aktiv
+    const lightBeam = page.locator('#cutscene-light-beam');
+    await expect(lightBeam).toBeVisible();
+
+    // Nach weiteren 1.5s steigen beide nach oben auf (top < 200)
+    await page.waitForTimeout(1600);
+
+    const p1Box = await p1CutsceneShip.boundingBox();
+    const p2Box = await p2CutsceneShip.boundingBox();
+
+    if (p1Box && p2Box) {
+      expect(p1Box.y).toBeLessThan(200);
+      expect(p2Box.y).toBeLessThan(200);
+    }
   });
 });
 

@@ -315,7 +315,7 @@ export function zerstoereZiel(ziel, killer = 'p1') {
   if (bIndex > -1) arrays.bosses.splice(bIndex, 1);
 }
 
-function triggerGameOver() {
+export function triggerGameOver() {
   Audio.playGameOver();
   state.gameOverAktiv = true;
   state.finalerScore = state.cheatUsed ? 0 : state.score;
@@ -323,11 +323,17 @@ function triggerGameOver() {
   if (finalScoreEl) finalScoreEl.innerText = state.finalerScore;
   const gameOverScreen = document.getElementById('game-over-screen');
   if (gameOverScreen) gameOverScreen.style.display = 'flex';
-  let hs = getHighscores();
+  
+  const currentMode = state.gameMode || 'single';
+  let hs = getHighscores(currentMode);
+  const hsInput = document.getElementById('highscore-name');
+  if (hsInput) {
+    hsInput.placeholder = currentMode === 'coop' ? 'TEAM' : 'AAA';
+    hsInput.maxLength = currentMode === 'coop' ? 6 : 3;
+  }
   if (hs.length < 10 || state.finalerScore > hs[hs.length - 1].score) {
     const hsForm = document.getElementById('highscore-form');
     if (hsForm) hsForm.style.display = 'block';
-    const hsInput = document.getElementById('highscore-name');
     if (hsInput) {
       hsInput.value = '';
       setTimeout(() => {
@@ -338,7 +344,7 @@ function triggerGameOver() {
     const hsForm = document.getElementById('highscore-form');
     if (hsForm) hsForm.style.display = 'none';
   }
-  renderHighscores();
+  renderHighscores(currentMode);
   updateMobileControlsVisibility();
 }
 
@@ -621,35 +627,79 @@ export function restartGame() {
   updatePlayerShipVisuals();
   updateMobileControlsVisibility();
 }
-export
 // --- HIGHSCORE LOGIK ---
-function getHighscores() {
-  let hs = localStorage.getItem('spaceShooterHighscores');
+export function getHighscores(mode = (state.gameMode || 'single')) {
+  const key = mode === 'coop' ? 'spaceShooterHighscores_coop' : 'spaceShooterHighscores';
+  let hs = localStorage.getItem(key);
   return hs ? JSON.parse(hs) : [];
 }
-export function saveHighscore(name, scoreValue, shipModel = null) {
-  let hs = getHighscores();
-  let model = shipModel || state.selectedShipModel || 'viper';
-  hs.push({
-    name: name.toUpperCase(),
-    score: scoreValue,
-    ship: model
-  });
+export function saveHighscore(name, scoreValue, shipModel = null, mode = (state.gameMode || 'single'), shipP2Model = null) {
+  let hs = getHighscores(mode);
+  let modelP1 = shipModel || state.selectedShipModel || 'viper';
+  let modelP2 = shipP2Model || (state.p2 && state.p2.selectedShipModel) || 'phantom';
+  if (mode === 'coop') {
+    hs.push({
+      name: name.toUpperCase(),
+      score: scoreValue,
+      shipP1: modelP1,
+      shipP2: modelP2,
+      ship: `${modelP1}+${modelP2}`,
+      mode: 'coop'
+    });
+  } else {
+    hs.push({
+      name: name.toUpperCase(),
+      score: scoreValue,
+      ship: modelP1,
+      mode: 'single'
+    });
+  }
   hs.sort((a, b) => b.score - a.score);
-  localStorage.setItem('spaceShooterHighscores', JSON.stringify(hs.slice(0, 10)));
+  const key = mode === 'coop' ? 'spaceShooterHighscores_coop' : 'spaceShooterHighscores';
+  localStorage.setItem(key, JSON.stringify(hs.slice(0, 10)));
 }
-export function renderHighscores() {
-  let hs = getHighscores();
+export function renderHighscores(targetMode = null) {
+  const currentMode = targetMode || state.gameMode || 'single';
+  let hs = getHighscores(currentMode);
+  
+  // Highscore-Tabs aktualisieren (falls vorhanden)
+  const tabSingle = document.getElementById('hs-tab-single');
+  const tabCoop = document.getElementById('hs-tab-coop');
+  if (tabSingle && tabCoop) {
+    if (currentMode === 'coop') {
+      tabCoop.classList.add('active');
+      tabSingle.classList.remove('active');
+    } else {
+      tabSingle.classList.add('active');
+      tabCoop.classList.remove('active');
+    }
+  }
+
+  // Header-Spalte anpassen (SCHIFF vs SCHIFFE)
+  const colHeaderShip = document.getElementById('hs-col-ship');
+  if (colHeaderShip) {
+    colHeaderShip.innerText = currentMode === 'coop' ? 'SCHIFFE' : 'SCHIFF';
+  }
+
   const tbody = document.getElementById('highscore-body');
+  if (!tbody) return;
   tbody.innerHTML = '';
   if (hs.length === 0) {
     tbody.innerHTML = '<tr><td colspan="3">- Keine Einträge -</td></tr>';
   } else {
     hs.forEach(entry => {
-      let isPhantom = entry.ship === 'phantom';
-      let shipLabel = isPhantom ? 'Phantom-NX' : 'Viper-X';
-      let badgeClass = isPhantom ? 'hs-ship-phantom' : 'hs-ship-viper';
-      tbody.innerHTML += `<tr><td>${entry.name}</td><td>${entry.score}</td><td><span class="hs-ship-badge ${badgeClass}">${shipLabel}</span></td></tr>`;
+      if (currentMode === 'coop') {
+        let p1Phantom = entry.shipP1 === 'phantom';
+        let p2Phantom = entry.shipP2 === 'phantom';
+        let p1Badge = `<span class="hs-ship-badge hs-badge-mini ${p1Phantom ? 'hs-ship-phantom' : 'hs-ship-viper'}" title="P1: ${p1Phantom ? 'Phantom-NX' : 'Viper-X'}">P1:${p1Phantom ? 'P' : 'V'}</span>`;
+        let p2Badge = `<span class="hs-ship-badge hs-badge-mini ${p2Phantom ? 'hs-ship-phantom' : 'hs-ship-viper'}" title="P2: ${p2Phantom ? 'Phantom-NX' : 'Viper-X'}">P2:${p2Phantom ? 'P' : 'V'}</span>`;
+        tbody.innerHTML += `<tr><td>${entry.name}</td><td>${entry.score}</td><td><div class="hs-coop-badges">${p1Badge} ${p2Badge}</div></td></tr>`;
+      } else {
+        let isPhantom = entry.ship === 'phantom';
+        let shipLabel = isPhantom ? 'Phantom-NX' : 'Viper-X';
+        let badgeClass = isPhantom ? 'hs-ship-phantom' : 'hs-ship-viper';
+        tbody.innerHTML += `<tr><td>${entry.name}</td><td>${entry.score}</td><td><span class="hs-ship-badge ${badgeClass}">${shipLabel}</span></td></tr>`;
+      }
     });
   }
 }

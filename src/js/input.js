@@ -156,11 +156,25 @@ export function setupInput() {
   }
   document.getElementById('btn-save-score').addEventListener('click', () => {
     let nameInput = document.getElementById('highscore-name').value;
-    if (!nameInput || nameInput.trim() === '') nameInput = 'AAA';
-    Utils.saveHighscore(nameInput, state.finalerScore);
+    if (!nameInput || nameInput.trim() === '') nameInput = (state.gameMode === 'coop' ? 'TEAM' : 'AAA');
+    Utils.saveHighscore(nameInput, state.finalerScore, state.selectedShipModel, state.gameMode, state.p2 ? state.p2.selectedShipModel : null);
     document.getElementById('highscore-form').style.display = 'none';
-    Utils.renderHighscores();
+    Utils.renderHighscores(state.gameMode);
   });
+
+  const hsTabSingle = document.getElementById('hs-tab-single');
+  const hsTabCoop = document.getElementById('hs-tab-coop');
+  if (hsTabSingle) {
+    hsTabSingle.addEventListener('click', () => {
+      Utils.renderHighscores('single');
+    });
+  }
+  if (hsTabCoop) {
+    hsTabCoop.addEventListener('click', () => {
+      Utils.renderHighscores('coop');
+    });
+  }
+
   document.getElementById('btn-restart').addEventListener('click', Utils.restartGame);
 
   // --- MOBILE TOUCH CONTROLS (VIRTUAL JOYSTICK & TAP) ---

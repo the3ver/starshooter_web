@@ -215,27 +215,46 @@ export function startCutscene(callback) {
         return shipObj;
     }
 
-    // Formation inside visible viewport (400px width):
+    // Convoy formation inside visible viewport:
+    const isCoop = state.gameMode === 'coop';
+    const targetOffset = isCoop ? 80 : 0;
+
     // 1. Destroyer (Center-Rear / Heavy)
-    createShipElement('destroyer', 'ship-destroyer', 66, 32, -190, 110, 250, getDestroyerSVG());
+    createShipElement('destroyer', 'ship-destroyer', 66, 32, -190, 110 + targetOffset, 250, getDestroyerSVG());
 
     // 2. Freighter (Upper Convoy)
-    createShipElement('freighter', 'ship-freighter', 54, 34, -140, 160, 155, getFreighterSVG());
+    createShipElement('freighter', 'ship-freighter', 54, 34, -140, 160 + targetOffset, 155, getFreighterSVG());
 
     // 3. Hospital Ship (Lower Convoy)
-    createShipElement('hospital', 'ship-hospital', 50, 30, -150, 150, 345, getHospitalShipSVG());
+    createShipElement('hospital', 'ship-hospital', 50, 30, -150, 150 + targetOffset, 345, getHospitalShipSVG());
 
     // 4. Escort Fighter 1 (Top flank)
-    createShipElement('escort', 'ship-escort', 24, 24, -90, 220, 95, getEscortFighterSVG());
+    createShipElement('escort', 'ship-escort', 24, 24, -90, 220 + targetOffset, 95, getEscortFighterSVG());
 
     // 5. Escort Fighter 2 (Bottom flank)
-    createShipElement('escort', 'ship-escort', 24, 24, -100, 210, 415, getEscortFighterSVG());
+    createShipElement('escort', 'ship-escort', 24, 24, -100, 210 + targetOffset, 415, getEscortFighterSVG());
 
-    // 6. Player Ship (Center Escort/Lead position)
+    // Player Ships (Center Escort/Lead position)
+    const playerShips = [];
     const playerModel = state.selectedShipModel || 'viper';
     const playerColor = state.selectedShipColor || 'red';
     const playerSvg = Utils.getShipSVGContent(playerModel, playerColor);
-    const playerShip = createShipElement('player', 'ship-player', 30, 30, -70, 215, 250, playerSvg, true);
+
+    if (isCoop) {
+        // Spieler 1 (Upper Center Lead)
+        const p1Ship = createShipElement('player', 'ship-player ship-player-p1', 30, 30, -80, 215 + targetOffset, 220, playerSvg, true);
+        playerShips.push(p1Ship);
+
+        // Spieler 2 (Lower Center Lead)
+        const p2Model = (state.p2 && state.p2.selectedShipModel) || 'phantom';
+        const p2Color = (state.p2 && state.p2.selectedShipColor) || 'blue';
+        const p2Svg = Utils.getShipSVGContent(p2Model, p2Color);
+        const p2Ship = createShipElement('player', 'ship-player ship-player-p2', 30, 30, -70, 215 + targetOffset, 280, p2Svg, true);
+        playerShips.push(p2Ship);
+    } else {
+        const p1Ship = createShipElement('player', 'ship-player ship-player-p1', 30, 30, -70, 215, 250, playerSvg, true);
+        playerShips.push(p1Ship);
+    }
 
     // Animation Loop: Camera tracks convoy while stars stream rapidly by
     let lastTime = performance.now();
@@ -370,17 +389,27 @@ export function startCutscene(callback) {
     const lightTimeout = setTimeout(() => {
         if (!cutsceneActive) return;
         
-        // Switch player ship to ascending phase and glide to center
-        playerShip.phase = 'ascending';
-        playerShip.el.style.transition = 'left 0.8s ease, top 0.8s ease';
-        playerShip.x = 185;
-        playerShip.y = 260;
-        playerShip.el.style.left = '185px';
-        playerShip.el.style.top = '260px';
+        // Switch player ships to ascending phase and glide to center
+        playerShips.forEach((pShip, pIdx) => {
+            pShip.phase = 'ascending';
+            pShip.el.style.transition = 'left 0.8s ease, top 0.8s ease';
+            if (isCoop) {
+                pShip.x = (pIdx === 0) ? 270 : 330;
+                pShip.y = 260;
+            } else {
+                pShip.x = 185;
+                pShip.y = 260;
+            }
+            pShip.el.style.left = `${pShip.x}px`;
+            pShip.el.style.top = `${pShip.y}px`;
+        });
 
         // Beam of light from top
         lightBeam.style.display = 'block';
         lightBeam.classList.add('cutscene-beam-active');
+        if (isCoop) {
+            lightBeam.style.width = '240px';
+        }
         Audio.playLightBeamWhoosh();
 
         // Screen subtle flash
@@ -388,35 +417,38 @@ export function startCutscene(callback) {
             dom.spielfeld.style.boxShadow = 'inset 0 0 50px rgba(52, 152, 219, 0.6)';
         }
 
-        // Rotate player ship upwards
+        // Rotate player ships upwards
         setTimeout(() => {
             if (!cutsceneActive) return;
-            const playerSvgEl = playerShip.el.querySelector('svg');
-            if (playerSvgEl) {
-                playerSvgEl.style.transition = 'transform 0.6s cubic-bezier(0.34, 1.56, 0.64, 1)';
-                playerSvgEl.style.transform = 'rotate(0deg)';
-            }
-            // Move flames to bottom of ship
-            const flames = playerShip.el.querySelectorAll('.ship-flame');
-            flames.forEach(f => {
-                f.style.transform = 'rotate(0deg)';
+            playerShips.forEach(pShip => {
+                const playerSvgEl = pShip.el.querySelector('svg');
+                if (playerSvgEl) {
+                    playerSvgEl.style.transition = 'transform 0.6s cubic-bezier(0.34, 1.56, 0.64, 1)';
+                    playerSvgEl.style.transform = 'rotate(0deg)';
+                }
+                const flames = pShip.el.querySelectorAll('.ship-flame');
+                flames.forEach(f => {
+                    f.style.transform = 'rotate(0deg)';
+                });
+                const flame1 = pShip.el.querySelector('.cutscene-player-flame-1');
+                const flame2 = pShip.el.querySelector('.cutscene-player-flame-2');
+                if (flame1) { flame1.style.left = '7.5px'; flame1.style.top = '27px'; }
+                if (flame2) { flame2.style.left = '19.5px'; flame2.style.top = '27px'; }
             });
-            const flame1 = playerShip.el.querySelector('.cutscene-player-flame-1');
-            const flame2 = playerShip.el.querySelector('.cutscene-player-flame-2');
-            if (flame1) { flame1.style.left = '7.5px'; flame1.style.top = '27px'; }
-            if (flame2) { flame2.style.left = '19.5px'; flame2.style.top = '27px'; }
         }, 600);
 
         // Accelerate into the light (upwards)
         setTimeout(() => {
             if (!cutsceneActive) return;
-            playerShip.el.style.transition = 'top 0.8s cubic-bezier(0.55, 0.055, 0.675, 0.19), transform 0.8s ease';
-            playerShip.el.style.top = '-80px';
+            playerShips.forEach(pShip => {
+                pShip.el.style.transition = 'top 0.8s cubic-bezier(0.55, 0.055, 0.675, 0.19), transform 0.8s ease';
+                pShip.el.style.top = '-80px';
 
-            // Boost particles
-            for (let i = 0; i < 15; i++) {
-                Utils.erzeugeAntriebsRauch(playerShip.x + 15, playerShip.y + 30, 4);
-            }
+                // Boost particles
+                for (let i = 0; i < 15; i++) {
+                    Utils.erzeugeAntriebsRauch(pShip.x + 15, pShip.y + 30, 4);
+                }
+            });
         }, 1300);
 
         // Phase 5: Smooth Transition into the Game (~2.2s after light)
