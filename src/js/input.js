@@ -19,20 +19,23 @@ export function setupInput() {
       }
     }
 
-    if (state.tastenGedrueckt.hasOwnProperty(e.key.toLowerCase())) {
-      state.tastenGedrueckt[e.key.toLowerCase()] = true;
+    const k = e.key ? e.key.toLowerCase() : '';
+    if (state.tastenGedrueckt.hasOwnProperty(k)) {
+      state.tastenGedrueckt[k] = true;
       if (e.key === ' ') e.preventDefault();
     }
-    if (e.key.length === 1) {
-      if (e.key.toLowerCase() === 'm') {
+    if (e.code === 'Quote') state.tastenGedrueckt['ä'] = true;
+    if (e.code === 'Semicolon') state.tastenGedrueckt['ö'] = true;
+    if (e.key && e.key.length === 1) {
+      if (k === 'm') {
         Audio.toggleMute();
       }
-      if (e.key.toLowerCase() === 'p' && state.spielLaeuft && !state.gameOverAktiv) {
+      if (k === 'p' && state.spielLaeuft && !state.gameOverAktiv) {
         state.pausiert = !state.pausiert;
         dom.pauseOverlay.style.display = state.pausiert ? 'block' : 'none';
       }
       
-      state.typedCheatKeys += e.key.toLowerCase();
+      state.typedCheatKeys += k;
       if (state.typedCheatKeys.length > 10) state.typedCheatKeys = state.typedCheatKeys.slice(-10);
       function resetAllCooldowns() {
         state.bombenCooldown = 0;
@@ -101,21 +104,16 @@ export function setupInput() {
         state.laserStufe = 5;
         state.raketenStufe = 5;
         state.bombenStufe = 5;
+        state.laserDurchschlag = true;
+        state.durchschlagTimer = 999999;
         state.schildStufe = 3;
         dom.spieler.classList.remove('schild-aktiv-1', 'schild-aktiv-2');
         dom.spieler.classList.add('schild-aktiv-3');
-        state.maxEnergie = state.absMaxEnergie;
-        state.energie = state.maxEnergie;
-        state.laserDurchschlag = true;
-        state.durchschlagTimer = 600;
-        state.autolaserAktiv = true;
-        state.autolaserTimer = 600;
+        state.unbegrenzteEnergie = true;
         resetAllCooldowns();
         Utils.updateAktivePowerupsUI();
-        Utils.updateLebenUI();
-        Utils.updateMaxEnergieMarker();
         let overlay = document.getElementById('warning-overlay');
-        overlay.innerHTML = 'IDKFA<br>Very Happy Ammo!';
+        overlay.innerHTML = 'IDKFA<br>Full Weapons & Ammo!';
         overlay.style.display = 'block';
         overlay.style.color = '#f1c40f';
         setTimeout(() => {
@@ -142,7 +140,10 @@ export function setupInput() {
   });
   window.addEventListener('keyup', e => {
     if (e.target && e.target.tagName === 'INPUT') return;
-    if (state.tastenGedrueckt.hasOwnProperty(e.key.toLowerCase())) state.tastenGedrueckt[e.key.toLowerCase()] = false;
+    const k = e.key ? e.key.toLowerCase() : '';
+    if (state.tastenGedrueckt.hasOwnProperty(k)) state.tastenGedrueckt[k] = false;
+    if (e.code === 'Quote') state.tastenGedrueckt['ä'] = false;
+    if (e.code === 'Semicolon') state.tastenGedrueckt['ö'] = false;
   });
   const hsInput = document.getElementById('highscore-name');
   if (hsInput) {

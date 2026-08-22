@@ -18,12 +18,35 @@ export function generiereAsteroidPolygon() {
   }
   return `polygon(${punkte.join(', ')})`;
 }
-export function erzeugePowerup(px, py, forceType = null) {
+let nextCoopLootOwner = 'p1';
+
+export function erzeugePowerup(px, py, forceType = null, forceOwner = null) {
   const puTypes = ['leben', 'energie', 'durchschlag', 'schild', 'laserWaffe', 'raketenWaffe', 'bombenWaffe'];
   if (state.laserStufe >= 5) puTypes.push('autolaser');
-  const type = forceType ? forceType : puTypes[Math.floor(Math.random() * puTypes.length)];
+  let rawType = forceType ? forceType : puTypes[Math.floor(Math.random() * puTypes.length)];
+  
+  // Normalisiere Kurzbezeichnungen
+  let type = rawType;
+  if (rawType === 'laser') type = 'laserWaffe';
+  else if (rawType === 'rakete') type = 'raketenWaffe';
+  else if (rawType === 'bombe') type = 'bombenWaffe';
+
+  let owner = null;
+  if (state.gameMode === 'coop') {
+    if (forceOwner) {
+      owner = forceOwner;
+    } else {
+      owner = nextCoopLootOwner;
+      nextCoopLootOwner = nextCoopLootOwner === 'p1' ? 'p2' : 'p1';
+    }
+  }
+
   const el = document.createElement('div');
   el.classList.add('powerup');
+  if (owner) {
+    el.classList.add(`pu-owner-${owner}`);
+  }
+
   let farbe, symbol;
   if (type === 'leben') {
     farbe = '#e74c3c';
@@ -57,7 +80,13 @@ export function erzeugePowerup(px, py, forceType = null) {
   el.style.border = `2px solid ${farbe}`;
   el.style.color = farbe;
   el.style.boxShadow = `0 0 10px ${farbe}, inset 0 0 5px ${farbe}`;
-  el.innerHTML = symbol;
+  
+  let innerHtml = symbol;
+  if (owner) {
+    innerHtml += `<span class="pu-owner-tag tag-${owner}">${owner.toUpperCase()}</span>`;
+  }
+  el.innerHTML = innerHtml;
+
   el.style.left = px + 'px';
   el.style.top = py + 'px';
   dom.spielfeld.appendChild(el);
@@ -68,7 +97,8 @@ export function erzeugePowerup(px, py, forceType = null) {
     groesse: 24,
     vy: 2,
     type: type,
-    farbe: farbe
+    farbe: farbe,
+    owner: owner
   });
 }
 export function erzeugeAsteroid(startX, startY, startGroesse, startVx, startVy, immunFrames = 0, forceDestructible = false) {
@@ -223,17 +253,19 @@ export function erzeugeFeind(sX, sY, forceMuster = null, forceVx = 0, forceShiel
   el.style.left = startX + 'px';
   el.style.top = startY + 'px';
   dom.spielfeld.appendChild(el);
-
   let schussBasis = Math.max(25, 60 - (state.level - 1) * 8);
+  const feindHpMult = state.gameMode === 'coop' ? 1.25 : 1.0;
+  const feindHp = Math.round(20 * feindHpMult);
+  const feindSchildHp = hatSchild ? Math.round(20 * feindHpMult) : 0;
   arrays.feinde.push({
     el: el,
     x: startX,
     y: startY,
     groesse: 30,
-    hp: 20,
-    maxHp: 20,
-    schildHp: hatSchild ? 20 : 0,
-    maxSchildHp: hatSchild ? 20 : 0,
+    hp: feindHp,
+    maxHp: feindHp,
+    schildHp: feindSchildHp,
+    maxSchildHp: feindSchildHp,
     schildEl: hatSchild ? el.querySelector('.feind-schild') : null,
     vy: 1.2,
     vx: forceVx,
@@ -378,8 +410,9 @@ export function erzeugeBoss() {
   el.style.top = '-150px';
   dom.spielfeld.appendChild(el);
 
-  // SKALIERUNG: HP wachsen nun deutlich stärker, um mit höheren Waffenstufen mitzuhalten
-  let bossHp = 400 + (state.level - 1) * 350;
+  // SKALIERUNG: HP wachsen im Co-op Modus moderat (+40%), im Solomodus Standard
+  const bossHpMult = state.gameMode === 'coop' ? 1.4 : 1.0;
+  let bossHp = Math.round((400 + (state.level - 1) * 350) * bossHpMult);
   let bossVx = 2 + (state.level - 1) * 0.2;
   let schussRhythmus = Math.max(45, 90 - (state.level - 1) * 10);
   arrays.bosses.push({

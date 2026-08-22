@@ -33,6 +33,26 @@
                 </div>
                 <div id="aktive-powerups"></div>
             </div>
+
+            <div id="ui-container-p2" class="ui-container-p2" style="display: none;">
+                <div id="leben-anzeige-p2" class="leben-anzeige"></div>
+                <div id="energie-cd-container-p2" class="cooldown-container">
+                    <div class="cooldown-letter cooldown-letter-e">E</div>
+                    <div id="energie-container-p2" class="energie-container">
+                        <div id="energie-balken-p2" class="energie-balken"></div>
+                        <div id="max-energie-marker-p2" class="max-energie-marker"></div>
+                    </div>
+                </div>
+                <div id="raketen-cd-container-p2" class="cooldown-container">
+                    <div class="cooldown-letter cooldown-letter-r">R</div>
+                    <div class="cooldown-balken-wrap"><div id="raketen-cd-balken-p2" class="cooldown-balken"></div></div>
+                </div>
+                <div id="bomben-cd-container-p2" class="cooldown-container">
+                    <div class="cooldown-letter cooldown-letter-b">B</div>
+                    <div class="cooldown-balken-wrap"><div id="bomben-cd-balken-p2" class="cooldown-balken" style="background-color: #f39c12;"></div></div>
+                </div>
+                <div id="aktive-powerups-p2" class="aktive-powerups-p2"></div>
+            </div>
             
             <div id="warning-overlay">WARNING<br>BOSS APPROACHING</div>
             <div id="pause-overlay" style="display: none; position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); color: #3498db; font-size: 40px; font-weight: bold; z-index: 1000; letter-spacing: 5px; text-shadow: 0 0 15px #3498db;">PAUSED</div>
@@ -49,9 +69,18 @@
             <div id="start-screen">
                 <div class="start-title">STAR SHOOTER</div>
 
+                <div class="gamemode-selector">
+                    <button type="button" id="gamemode-btn-single" class="gamemode-btn active">1 SPIELER</button>
+                    <button type="button" id="gamemode-btn-coop" class="gamemode-btn">2 SPIELER (CO-OP)</button>
+                </div>
+
                 <!-- HANGAR: SCHIFFS- & FARBAUSWAHL -->
                 <div id="hangar-container">
                     <div class="hangar-header">HANGAR: SCHIFFS-AUSWAHL</div>
+                    <div id="hangar-player-tabs" class="hangar-player-tabs" style="display: none;">
+                        <button type="button" class="hangar-player-tab active" data-player="p1">SPIELER 1</button>
+                        <button type="button" class="hangar-player-tab" data-player="p2">SPIELER 2</button>
+                    </div>
                     <div class="hangar-preview-box">
                         <div class="hangar-ship-display">
                             <svg id="hangar-preview-svg" viewBox="0 0 30 30"></svg>
@@ -74,9 +103,28 @@
                     </div>
                 </div>
 
-                <div class="steuerung-titel">Steuerung (PC)</div>
-                <b>W A S D</b> &nbsp;&rarr; Bewegen &nbsp;|&nbsp; <b>L</b> &rarr; Laser<br>
-                <b>K</b> &rarr; Raketen &nbsp;|&nbsp; <b>LEER</b> &rarr; Bomben &nbsp;|&nbsp; <b>P</b> &rarr; Pause &nbsp;|&nbsp; <b>M</b> &rarr; Sound
+                <div id="steuerung-info-single" class="steuerung-info">
+                    <div class="steuerung-titel">Steuerung (PC)</div>
+                    <b>W A S D</b> &nbsp;&rarr; Bewegen &nbsp;|&nbsp; <b>L</b> &rarr; Laser<br>
+                    <b>K</b> &rarr; Raketen &nbsp;|&nbsp; <b>LEER</b> &rarr; Bomben &nbsp;|&nbsp; <b>P</b> &rarr; Pause &nbsp;|&nbsp; <b>M</b> &rarr; Sound
+                </div>
+                <div id="steuerung-info-coop" class="steuerung-info" style="display: none;">
+                    <div class="steuerung-titel">Steuerung 2-Spieler (PC)</div>
+                    <div class="steuerung-coop-grid">
+                        <div class="steuerung-col">
+                            <strong style="color: #e74c3c;">SPIELER 1:</strong><br>
+                            <b>W A S D</b> &rarr; Bewegen<br>
+                            <b>B</b> &rarr; Laser &nbsp;|&nbsp; <b>V</b> &rarr; Raketen<br>
+                            <b>C</b> &rarr; Bombe
+                        </div>
+                        <div class="steuerung-col">
+                            <strong style="color: #3498db;">SPIELER 2:</strong><br>
+                            <b>&uarr; &larr; &darr; &rarr;</b> &rarr; Bewegen<br>
+                            <b>Ä</b> &rarr; Laser &nbsp;|&nbsp; <b>Ö</b> &rarr; Raketen<br>
+                            <b>L</b> &rarr; Bombe
+                        </div>
+                    </div>
+                </div>
 
                 <div id="start-text">TAP OR PRESS ANY KEY TO START</div>
                 <button id="btn-open-whats-new" class="btn-whats-new">WAS IST NEU?</button>
@@ -108,7 +156,7 @@
             <button id="btn-sound-toggle" class="sound-toggle-btn" title="Sound stummschalten (M)" aria-label="Sound stummschalten (M)">🔊</button>
             <div id="score-anzeige">00000</div>
             <div id="level-anzeige">LEVEL 1</div>
-            <div id="version-anzeige">V 1.6.12</div>
+            <div id="version-anzeige">V 1.6.13</div>
             
             <div id="boss-hp-container">
                 <div id="boss-hp-balken"></div>
@@ -121,7 +169,8 @@
             <div id="autolaser"></div>
             <div id="hitscan-laser" class="hitscan-strahl"></div>
 
-            <div id="spieler" data-rotate="0" style="display: none;">
+            <div id="spieler" class="spieler-schiff" data-rotate="0" style="display: none;">
+                <div class="player-tag tag-p1" style="display: none;">P1</div>
                 <div class="werfer-pod werfer-links">
                     <div class="werfer-beam"></div>
                     <div class="werfer-body">
@@ -155,6 +204,41 @@
                 </svg>
                 <div id="flame-left" class="ship-flame" style="left: 7.5px;"></div>
                 <div id="flame-right" class="ship-flame" style="left: 19.5px;"></div>
+            </div>
+
+            <div id="spieler-2" class="spieler-schiff" data-rotate="0" style="display: none;">
+                <div class="player-tag tag-p2">P2</div>
+                <div class="werfer-pod werfer-links" style="display: none;">
+                    <div class="werfer-beam"></div>
+                    <div class="werfer-body">
+                        <div class="werfer-nozzle"></div>
+                        <div class="werfer-core"></div>
+                    </div>
+                </div>
+                <div class="werfer-pod werfer-rechts">
+                    <div class="werfer-beam"></div>
+                    <div class="werfer-body">
+                        <div class="werfer-nozzle"></div>
+                        <div class="werfer-core"></div>
+                    </div>
+                </div>
+                <div class="werfer-pod werfer-center" style="display: none;">
+                    <div class="werfer-body">
+                        <div class="werfer-nozzle"></div>
+                        <div class="werfer-core"></div>
+                    </div>
+                </div>
+                <svg viewBox="0 0 30 30" style="position: absolute; width: 100%; height: 100%; z-index: 2;">
+                    <!-- Phantom-NX Default -->
+                    <path d="M15 3 L4 12 L2 24 L7 22 L15 18 L23 22 L28 24 L26 12 Z" fill="#2980b9"/>
+                    <path d="M15 1 L9 14 L15 26 L21 14 Z" fill="#3498db"/>
+                    <path d="M15 7 L11 15 L15 17 L19 15 Z" fill="#00ffff"/>
+                    <polygon points="15,19 13,24 17,24" fill="#1a252f"/>
+                    <rect x="5" y="22" width="3" height="4" fill="#7f8c8d"/>
+                    <rect x="22" y="22" width="3" height="4" fill="#7f8c8d"/>
+                </svg>
+                <div id="flame-left-p2" class="ship-flame" style="left: 5.5px;"></div>
+                <div id="flame-right-p2" class="ship-flame" style="left: 21.5px;"></div>
             </div>
         </div>
         </div> <!-- Closes spielfeld-container -->

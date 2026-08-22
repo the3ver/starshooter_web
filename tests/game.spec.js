@@ -3,7 +3,7 @@ const { test, expect } = require('@playwright/test');
 test.beforeEach(async ({ page }) => {
   // Standardmäßig als bereits gesehen markieren, damit die Tests direkt interagieren können
   await page.addInitScript(() => {
-    localStorage.setItem('starshooter_last_seen_version', '1.6.12');
+    localStorage.setItem('starshooter_last_seen_version', '1.6.13');
     localStorage.setItem('starshooter_skip_cutscene', 'true');
   });
   await page.goto('/');
@@ -321,7 +321,7 @@ test.describe('Space Shooter', () => {
     await page.keyboard.up('k');
 
     // Kurz warten (über die Ejektions- & Stallphase hinweg) und prüfen, dass die Homing-Rakete ihren X-Wert nach rechts lenkt
-    await page.waitForTimeout(400);
+    await page.waitForTimeout(200);
     const homingX = await page.evaluate(() => {
       const el = document.querySelector('.raketen-projektil.rakete-homing');
       return el ? parseFloat(el.style.left) : null;
@@ -898,7 +898,7 @@ test.describe('Was gibt es Neues Modal (Changelog)', () => {
     await expect(title).toContainText("WAS GIBT'S NEUES");
 
     const intro = page.locator('#whats-new-intro');
-    await expect(intro).toContainText('1.6.12');
+    await expect(intro).toContainText('1.6.13');
 
     const items = page.locator('#whats-new-list li');
     await expect(items).toHaveCount(3);
@@ -911,7 +911,7 @@ test.describe('Was gibt es Neues Modal (Changelog)', () => {
 
     // Prüfen, dass localStorage aktualisiert wurde
     const storedVersion = await page.evaluate(() => localStorage.getItem('starshooter_last_seen_version'));
-    expect(storedVersion).toBe('1.6.12');
+    expect(storedVersion).toBe('1.6.13');
 
     // Erneut öffnen über Start-Screen Button
     const openBtn = page.locator('#btn-open-whats-new');
@@ -2097,6 +2097,545 @@ test.describe('Story Intro-Cutszene', () => {
     expect(arrayLengths.bossBomben).toBe(0);
   });
 });
+
+test.describe('2-Spieler-Modus (Co-op)', () => {
+  test.beforeEach(async ({ page }) => {
+    await page.goto('http://localhost:8080');
+    await page.evaluate(() => localStorage.clear());
+    await page.reload();
+  });
+
+  test('Modus-Auswahl auf Startscreen schaltet zwischen 1-Spieler (400px) und 2-Spieler Co-op (600px) um', async ({ page }) => {
+    const btnSingle = page.locator('#gamemode-btn-single');
+    const btnCoop = page.locator('#gamemode-btn-coop');
+    const spielfeld = page.locator('#spielfeld');
+
+    // Beide Buttons sichtbar auf dem Startscreen
+    await expect(btnSingle).toBeVisible();
+    await expect(btnCoop).toBeVisible();
+    await expect(btnSingle).toHaveClass(/active/);
+    await expect(btnCoop).not.toHaveClass(/active/);
+
+    // Standardmäßig Solo: 400px
+    let modeInfo = await page.evaluate(async () => {
+      const { state, config } = await import('./js/state.js');
+      return { gameMode: state.gameMode, width: config.spielfeldBreite };
+    });
+    expect(modeInfo.gameMode).toBe('single');
+    expect(modeInfo.width).toBe(400);
+
+    // Klick auf 2-Spieler Co-op Modus
+    await btnCoop.click();
+
+    await expect(btnCoop).toHaveClass(/active/);
+    await expect(btnSingle).not.toHaveClass(/active/);
+
+    modeInfo = await page.evaluate(async () => {
+      const { state, config } = await import('./js/state.js');
+      return { gameMode: state.gameMode, width: config.spielfeldBreite };
+    });
+    expect(modeInfo.gameMode).toBe('coop');
+    expect(modeInfo.width).toBe(600);
+
+    // Spielfeld-Element hat 600px Breite
+    const box = await spielfeld.boundingBox();
+    // BoundingBox ist im Unscaled/Scaled Zustand äquivalent zur berechneten Breite
+    const styleWidth = await page.evaluate(() => document.getElementById('spielfeld').style.width);
+    expect(styleWidth).toBe('600px');
+
+    // Zurück auf 1-Spieler
+    await btnSingle.click();
+    await expect(btnSingle).toHaveClass(/active/);
+    modeInfo = await page.evaluate(async () => {
+      const { state, config } = await import('./js/state.js');
+      return { gameMode: state.gameMode, width: config.spielfeldBreite };
+    });
+    expect(modeInfo.gameMode).toBe('single');
+    expect(modeInfo.width).toBe(400);
+  });
+
+  test('Hangar: Separate Schiffs- und Farbauswahl für Spieler 1 und Spieler 2', async ({ page }) => {
+    const btnCoop = page.locator('#gamemode-btn-coop');
+    await btnCoop.click();
+
+    const tabP1 = page.locator('.hangar-player-tab[data-player="p1"]');
+    const tabP2 = page.locator('.hangar-player-tab[data-player="p2"]');
+    await expect(tabP1).toBeVisible();
+    await expect(tabP2).toBeVisible();
+
+    // Spieler 1 auswählen: Viper-X, Gelb
+    await tabP1.click();
+    await expect(tabP1).toHaveClass(/active/);
+    await page.locator('.hangar-model-btn[data-model="viper"]').click();
+    await page.locator('.hangar-color-btn[data-color="yellow"]').click();
+
+    // Spieler 2 auswählen: Phantom-NX, Grün
+    await tabP2.click();
+    await expect(tabP2).toHaveClass(/active/);
+    await expect(tabP1).not.toHaveClass(/active/);
+    await page.locator('.hangar-model-btn[data-model="phantom"]').click();
+    await page.locator('.hangar-color-btn[data-color="green"]').click();
+
+    // Zustand in state prüfen
+    const shipsState = await page.evaluate(async () => {
+      const { state } = await import('./js/state.js');
+      return {
+        p1Model: state.selectedShipModel,
+        p1Color: state.selectedShipColor,
+        p2Model: state.p2.selectedShipModel,
+        p2Color: state.p2.selectedShipColor
+      };
+    });
+    expect(shipsState.p1Model).toBe('viper');
+    expect(shipsState.p1Color).toBe('yellow');
+    expect(shipsState.p2Model).toBe('phantom');
+    expect(shipsState.p2Color).toBe('green');
+
+    // Tab P1 erneut anklicken: Buttons müssen Viper & Gelb als aktiv anzeigen
+    await tabP1.click();
+    await expect(page.locator('.hangar-model-btn[data-model="viper"]')).toHaveClass(/active/);
+    await expect(page.locator('.hangar-color-btn[data-color="yellow"]')).toHaveClass(/active/);
+
+    // Tab P2 erneut anklicken: Buttons müssen Phantom & Grün als aktiv anzeigen
+    await tabP2.click();
+    await expect(page.locator('.hangar-model-btn[data-model="phantom"]')).toHaveClass(/active/);
+    await expect(page.locator('.hangar-color-btn[data-color="green"]')).toHaveClass(/active/);
+  });
+
+  test('Tastatur-Steuerung im 2-Spieler Modus: Spieler 1 bewegt sich mit WASD, Spieler 2 mit den Pfeiltasten unabhängig voneinander', async ({ page }) => {
+    // 2-Spieler Modus aktivieren und Spiel starten
+    await page.locator('#gamemode-btn-coop').click();
+
+    // Spiel starten (per Tastendruck)
+    await page.keyboard.down('w');
+    await page.waitForTimeout(50);
+    await page.keyboard.up('w');
+
+    // Skip Cutscene
+    const skipBtn = page.locator('#cutscene-skip-btn');
+    if (await skipBtn.isVisible()) {
+      await skipBtn.click();
+    }
+
+    const spieler1 = page.locator('#spieler');
+    const spieler2 = page.locator('#spieler-2');
+    await expect(spieler1).toBeVisible();
+    await expect(spieler2).toBeVisible();
+
+    const startPos = await page.evaluate(async () => {
+      const { state } = await import('./js/state.js');
+      return {
+        p1X: state.x,
+        p1Y: state.y,
+        p2X: state.p2.x,
+        p2Y: state.p2.y
+      };
+    });
+
+    // 1. Spieler 1 bewegt sich nach rechts (Taste 'd')
+    await page.keyboard.down('d');
+    await page.waitForTimeout(100);
+    await page.keyboard.up('d');
+
+    const posAfterP1Move = await page.evaluate(async () => {
+      const { state } = await import('./js/state.js');
+      return {
+        p1X: state.x,
+        p1Y: state.y,
+        p2X: state.p2.x,
+        p2Y: state.p2.y
+      };
+    });
+
+    expect(posAfterP1Move.p1X).toBeGreaterThan(startPos.p1X);
+    expect(posAfterP1Move.p2X).toBe(startPos.p2X); // P2 hat sich nicht bewegt
+
+    // 2. Spieler 2 bewegt sich nach links (Taste 'ArrowLeft')
+    await page.keyboard.down('ArrowLeft');
+    await page.waitForTimeout(100);
+    await page.keyboard.up('ArrowLeft');
+
+    const posAfterP2Move = await page.evaluate(async () => {
+      const { state } = await import('./js/state.js');
+      return {
+        p1X: state.x,
+        p1Y: state.y,
+        p2X: state.p2.x,
+        p2Y: state.p2.y
+      };
+    });
+
+    expect(posAfterP2Move.p2X).toBeLessThan(posAfterP1Move.p2X);
+    expect(posAfterP2Move.p1X).toBe(posAfterP1Move.p1X); // P1 hat sich nicht bewegt
+  });
+
+  test('Waffen-Systeme im 2-Spieler Modus: P1 feuert mit B/V/C, P2 mit Ä/Ö/L mit separaten Cooldowns und Energiebalken', async ({ page }) => {
+    // 2-Spieler Modus aktivieren und Spiel starten
+    await page.locator('#gamemode-btn-coop').click();
+
+    await page.keyboard.down('w');
+    await page.waitForTimeout(50);
+    await page.keyboard.up('w');
+
+    const skipBtn = page.locator('#cutscene-skip-btn');
+    if (await skipBtn.isVisible()) {
+      await skipBtn.click();
+    }
+
+    // 1. LASER TEST: P1 feuert mit 'b', P2 mit 'ä'
+    await page.keyboard.down('b');
+    await page.waitForTimeout(100);
+    await page.keyboard.up('b');
+
+    let weaponState = await page.evaluate(async () => {
+      const { state, arrays } = await import('./js/state.js');
+      return {
+        p1Energie: state.energie,
+        p2Energie: state.p2.energie,
+        laserCount: arrays.laserArray.length,
+        p1Lasers: arrays.laserArray.filter(l => l.owner === 'p1').length,
+        p2Lasers: arrays.laserArray.filter(l => l.owner === 'p2').length
+      };
+    });
+
+    expect(weaponState.p1Energie).toBeLessThan(50);
+    expect(weaponState.p2Energie).toBe(50);
+    expect(weaponState.p1Lasers).toBeGreaterThan(0);
+    expect(weaponState.p2Lasers).toBe(0);
+
+    // P2 feuert mit 'ä' (Quote Key)
+    await page.keyboard.down('Quote');
+    await page.waitForTimeout(100);
+    await page.keyboard.up('Quote');
+
+    weaponState = await page.evaluate(async () => {
+      const { state, arrays } = await import('./js/state.js');
+      return {
+        p1Energie: state.energie,
+        p2Energie: state.p2.energie,
+        p2Lasers: arrays.laserArray.filter(l => l.owner === 'p2').length
+      };
+    });
+
+    expect(weaponState.p2Energie).toBeLessThan(50);
+    expect(weaponState.p2Lasers).toBeGreaterThan(0);
+
+    // 2. RAKETEN TEST: P1 feuert mit 'v', P2 mit 'ö' (Semicolon Key)
+    await page.keyboard.down('v');
+    await page.waitForTimeout(50);
+    await page.keyboard.up('v');
+
+    weaponState = await page.evaluate(async () => {
+      const { state, arrays } = await import('./js/state.js');
+      return {
+        p1RaketenCd: state.raketenCooldown,
+        p2RaketenCd: state.p2.raketenCooldown,
+        raketenCount: arrays.raketenArray.length
+      };
+    });
+
+    expect(weaponState.p1RaketenCd).toBeGreaterThan(0);
+    expect(weaponState.p2RaketenCd).toBe(0);
+    expect(weaponState.raketenCount).toBeGreaterThan(0);
+
+    // P2 feuert Rakete mit 'ö' (Semicolon)
+    await page.keyboard.down('Semicolon');
+    await page.waitForTimeout(50);
+    await page.keyboard.up('Semicolon');
+
+    weaponState = await page.evaluate(async () => {
+      const { state } = await import('./js/state.js');
+      return {
+        p2RaketenCd: state.p2.raketenCooldown
+      };
+    });
+    expect(weaponState.p2RaketenCd).toBeGreaterThan(0);
+
+    // 3. BOMBEN TEST: P1 wirft mit 'c', P2 mit 'l'
+    await page.keyboard.down('c');
+    await page.waitForTimeout(50);
+    await page.keyboard.up('c');
+
+    weaponState = await page.evaluate(async () => {
+      const { state, arrays } = await import('./js/state.js');
+      return {
+        p1BombenCd: state.bombenCooldown,
+        p2BombenCd: state.p2.bombenCooldown,
+        bombenCount: arrays.bombenArray.length
+      };
+    });
+
+    expect(weaponState.p1BombenCd).toBeGreaterThan(0);
+    expect(weaponState.p2BombenCd).toBe(0);
+    expect(weaponState.bombenCount).toBeGreaterThan(0);
+
+    // P2 wirft Bombe mit 'l'
+    await page.keyboard.down('l');
+    await page.waitForTimeout(50);
+    await page.keyboard.up('l');
+
+    weaponState = await page.evaluate(async () => {
+      const { state } = await import('./js/state.js');
+      return {
+        p2BombenCd: state.p2.bombenCooldown
+      };
+    });
+    expect(weaponState.p2BombenCd).toBeGreaterThan(0);
+  });
+
+  test('Dedicated Loot-System im 2-Spieler Modus: Powerups sind P1 oder P2 zugeordnet und können nur vom jeweiligen Spieler aufgesammelt werden', async ({ page }) => {
+    // 2-Spieler Modus aktivieren und Spiel starten
+    await page.locator('#gamemode-btn-coop').click();
+
+    await page.keyboard.down('w');
+    await page.waitForTimeout(50);
+    await page.keyboard.up('w');
+
+    const skipBtn = page.locator('#cutscene-skip-btn');
+    if (await skipBtn.isVisible()) {
+      await skipBtn.click();
+    }
+
+    // 1. Spawne P1-Powerup direkt auf P2 Position (x=370, y=285)
+    await page.evaluate(async () => {
+      const Entities = await import('./js/entities.js');
+      const { state } = await import('./js/state.js');
+      // Setze P1 & P2 Positionen
+      state.x = 100;
+      state.y = 285;
+      state.p2.x = 370;
+      state.p2.y = 285;
+      // Spawne P1 Powerup direkt bei P2
+      Entities.erzeugePowerup(370, 285, 'laser', 'p1');
+    });
+
+    await page.waitForTimeout(200);
+
+    // P2 berührt P1-Powerup -> Darf NICHT eingesammelt werden!
+    let lootState = await page.evaluate(async () => {
+      const { state, arrays } = await import('./js/state.js');
+      return {
+        p1LaserStufe: state.laserStufe,
+        p2LaserStufe: state.p2.laserStufe,
+        powerupCount: arrays.powerups.length
+      };
+    });
+
+    expect(lootState.p2LaserStufe).toBe(1);
+    expect(lootState.powerupCount).toBe(1);
+
+    // Jetzt bewegt sich P1 zu der Powerup-Position
+    await page.evaluate(async () => {
+      const { state } = await import('./js/state.js');
+      state.x = 370;
+      state.y = 285;
+    });
+
+    await page.waitForTimeout(200);
+
+    // P1 berührt sein eigenes Powerup -> Wird eingesammelt!
+    lootState = await page.evaluate(async () => {
+      const { state, arrays } = await import('./js/state.js');
+      return {
+        p1LaserStufe: state.laserStufe,
+        p2LaserStufe: state.p2.laserStufe,
+        powerupCount: arrays.powerups.length
+      };
+    });
+
+    expect(lootState.p1LaserStufe).toBe(2);
+    expect(lootState.powerupCount).toBe(0);
+
+    // 2. Spawne P2-Powerup direkt auf P1 Position (x=100, y=285)
+    await page.evaluate(async () => {
+      const Entities = await import('./js/entities.js');
+      const { state } = await import('./js/state.js');
+      state.x = 100;
+      state.y = 285;
+      state.p2.x = 450;
+      state.p2.y = 285;
+      Entities.erzeugePowerup(100, 285, 'rakete', 'p2');
+    });
+
+    await page.waitForTimeout(200);
+
+    // P1 berührt P2-Powerup -> Darf NICHT eingesammelt werden!
+    lootState = await page.evaluate(async () => {
+      const { state, arrays } = await import('./js/state.js');
+      return {
+        p1RaketenStufe: state.raketenStufe,
+        p2RaketenStufe: state.p2.raketenStufe,
+        powerupCount: arrays.powerups.length
+      };
+    });
+
+    expect(lootState.p1RaketenStufe).toBe(1);
+    expect(lootState.powerupCount).toBe(1);
+
+    // P2 bewegt sich zu der Powerup-Position
+    await page.evaluate(async () => {
+      const { state } = await import('./js/state.js');
+      state.p2.x = 100;
+      state.p2.y = 285;
+    });
+
+    await page.waitForTimeout(200);
+
+    // P2 berührt sein eigenes Powerup -> Wird eingesammelt!
+    lootState = await page.evaluate(async () => {
+      const { state, arrays } = await import('./js/state.js');
+      return {
+        p1RaketenStufe: state.raketenStufe,
+        p2RaketenStufe: state.p2.raketenStufe,
+        powerupCount: arrays.powerups.length
+      };
+    });
+
+    expect(lootState.p2RaketenStufe).toBe(2);
+    expect(lootState.powerupCount).toBe(0);
+  });
+
+  test('Balancing & Spawns im 2-Spieler Modus: Breiteres Spielfeld (600px) nutzt angepasste Feind-Formationen und ausgewogenes HP-Scaling', async ({ page }) => {
+    // 1. SOLO-MODUS PRÜFUNG: Standard HP
+    await page.locator('#gamemode-btn-single').click();
+    let soloHp = await page.evaluate(async () => {
+      const Entities = await import('./js/entities.js');
+      const { arrays } = await import('./js/state.js');
+      Entities.erzeugeFeind(100, -30, 'normal', 0);
+      Entities.erzeugeBoss();
+      const feind = arrays.feinde[arrays.feinde.length - 1];
+      const boss = arrays.bosses[arrays.bosses.length - 1];
+      return {
+        feindHp: feind.hp,
+        bossHp: boss.hp
+      };
+    });
+
+    expect(soloHp.feindHp).toBe(20);
+    expect(soloHp.bossHp).toBe(400);
+
+    // 2. CO-OP MODUS PRÜFUNG: +25% Feind-HP, +40% Boss-HP
+    await page.locator('#gamemode-btn-coop').click();
+    let coopHp = await page.evaluate(async () => {
+      const Entities = await import('./js/entities.js');
+      const { arrays } = await import('./js/state.js');
+      Entities.erzeugeFeind(100, -30, 'normal', 0);
+      Entities.erzeugeBoss();
+      const feind = arrays.feinde[arrays.feinde.length - 1];
+      const boss = arrays.bosses[arrays.bosses.length - 1];
+      return {
+        feindHp: feind.hp,
+        bossHp: boss.hp
+      };
+    });
+
+    expect(coopHp.feindHp).toBe(25); // 20 * 1.25
+    expect(coopHp.bossHp).toBe(560); // 400 * 1.4
+  });
+
+  test('Lebens- & Revive-System im 2-Spieler Modus: Separate Leben, Game Over erst wenn beide Spieler zerstört sind, Revive bei Boss-Sieg', async ({ page }) => {
+    // 2-Spieler Modus aktivieren und Spiel starten
+    await page.locator('#gamemode-btn-coop').click();
+
+    await page.keyboard.down('w');
+    await page.waitForTimeout(50);
+    await page.keyboard.up('w');
+
+    const skipBtn = page.locator('#cutscene-skip-btn');
+    if (await skipBtn.isVisible()) {
+      await skipBtn.click();
+    }
+
+    // 1. Zerstöre Spieler 1 (3 Treffer)
+    await page.evaluate(async () => {
+      const Utils = await import('./js/utils.js');
+      const { state } = await import('./js/state.js');
+      const dummy = { istFeind: false, el: { dataset: {} }, x: 0, y: 0 };
+      Utils.spielerGetroffen(dummy, false, 'p1');
+      state.invulnerableTimer = 0;
+      Utils.spielerGetroffen(dummy, false, 'p1');
+      state.invulnerableTimer = 0;
+      Utils.spielerGetroffen(dummy, false, 'p1');
+    });
+
+    let liveState = await page.evaluate(async () => {
+      const { state, dom } = await import('./js/state.js');
+      return {
+        p1Leben: state.leben,
+        p1Dead: state.isDead,
+        p1Display: dom.spieler.style.display,
+        p2Leben: state.p2.leben,
+        p2Dead: state.p2.isDead,
+        gameOver: state.gameOverAktiv
+      };
+    });
+
+    expect(liveState.p1Leben).toBe(0);
+    expect(liveState.p1Dead).toBe(true);
+    expect(liveState.p1Display).toBe('none');
+    expect(liveState.p2Leben).toBe(3);
+    expect(liveState.p2Dead).toBe(false);
+    expect(liveState.gameOver).toBe(false); // Spiel geht weiter!
+
+    // 2. Boss besiegen -> Belebt toten Spieler 1 wieder!
+    await page.evaluate(async () => {
+      const Entities = await import('./js/entities.js');
+      const Utils = await import('./js/utils.js');
+      const { arrays } = await import('./js/state.js');
+      Entities.erzeugeBoss();
+      const boss = arrays.bosses[arrays.bosses.length - 1];
+      Utils.zerstoereZiel(boss, 'p2');
+    });
+
+    liveState = await page.evaluate(async () => {
+      const { state, dom } = await import('./js/state.js');
+      return {
+        p1Leben: state.leben,
+        p1Dead: state.isDead,
+        p1Display: dom.spieler.style.display,
+        p1Invuln: state.invulnerableTimer > 0
+      };
+    });
+
+    expect(liveState.p1Leben).toBe(1);
+    expect(liveState.p1Dead).toBe(false);
+    expect(liveState.p1Display).not.toBe('none');
+    expect(liveState.p1Invuln).toBe(true);
+
+    // 3. Jetzt beide Spieler eliminieren -> Löst Game Over aus
+    await page.evaluate(async () => {
+      const Utils = await import('./js/utils.js');
+      const { state } = await import('./js/state.js');
+      state.invulnerableTimer = 0;
+      state.p2.invulnerableTimer = 0;
+      state.p2.schildStufe = 0;
+      const dummy = { istFeind: false, el: { dataset: {} }, x: 0, y: 0 };
+      // P1 eliminieren (1 Leben verbleibend)
+      Utils.spielerGetroffen(dummy, false, 'p1');
+      // P2 eliminieren (3 Leben)
+      Utils.spielerGetroffen(dummy, false, 'p2');
+      state.p2.invulnerableTimer = 0;
+      Utils.spielerGetroffen(dummy, false, 'p2');
+      state.p2.invulnerableTimer = 0;
+      Utils.spielerGetroffen(dummy, false, 'p2');
+    });
+
+    liveState = await page.evaluate(async () => {
+      const { state } = await import('./js/state.js');
+      return {
+        p1Dead: state.isDead,
+        p2Dead: state.p2.isDead,
+        gameOver: state.gameOverAktiv
+      };
+    });
+
+    expect(liveState.p1Dead).toBe(true);
+    expect(liveState.p2Dead).toBe(true);
+    expect(liveState.gameOver).toBe(true);
+    await expect(page.locator('#game-over-screen')).toBeVisible();
+  });
+});
+
 
 
 

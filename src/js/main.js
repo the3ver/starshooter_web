@@ -3,7 +3,10 @@ import { setupInput } from './input.js';
 import { gameLoop } from './loop.js';
 import * as Audio from './audio.js';
 import * as Utils from './utils.js';
+import * as Entities from './entities.js';
 import * as Changelog from './changelog.js';
+
+export { state, dom, config, arrays, Utils, Entities, Audio };
 
 document.addEventListener('DOMContentLoaded', () => {
     Audio.initSoundState();
@@ -53,23 +56,27 @@ document.addEventListener('DOMContentLoaded', () => {
         let availableHeight = (window.innerHeight * 0.95) - controlsHeight;
         let scale = availableHeight / 600;
         
-        let availableWidth = window.innerWidth * 0.95; // Volle Breite nutzen, da Seitenmenü weg ist
-        if (400 * scale > availableWidth) {
-            scale = availableWidth / 400;
+        let width = config.spielfeldBreite || 400;
+        let availableWidth = window.innerWidth * 0.95;
+        if (width * scale > availableWidth) {
+            scale = availableWidth / width;
         }
         
         if (scale < 0.5) scale = 0.5;
 
-        dom.spielfeld.style.transform = `scale(${scale})`;
+        if (dom.spielfeld) {
+            dom.spielfeld.style.transform = `scale(${scale})`;
+            dom.spielfeld.style.width = width + 'px';
+        }
         
         let container = document.getElementById('spielfeld-container');
         if (container) {
-            container.style.width = (400 * scale) + 'px';
+            container.style.width = (width * scale) + 'px';
             container.style.height = (600 * scale) + 'px';
         }
 
         if (mobileControls && container) {
-            mobileControls.style.width = (400 * scale) + 'px';
+            mobileControls.style.width = (width * scale) + 'px';
         }
     }
 
@@ -79,6 +86,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     state.spielLaeuft = false;
     if (dom.spieler) dom.spieler.style.display = 'none';
+    if (dom.spieler2) dom.spieler2.style.display = 'none';
 
     // UI & Hangar initialisieren
     Utils.updateMaxEnergieMarker();
@@ -88,12 +96,46 @@ document.addEventListener('DOMContentLoaded', () => {
     if (!state.spielLaeuft && dom.spieler) {
         dom.spieler.style.display = 'none';
     }
+    if (!state.spielLaeuft && dom.spieler2) {
+        dom.spieler2.style.display = 'none';
+    }
 
-    // Hangar Event Listeners
+    // Gamemode Selection Event Listeners
+    const btnSingle = document.getElementById('gamemode-btn-single');
+    if (btnSingle) {
+        btnSingle.addEventListener('click', (e) => {
+            e.stopPropagation();
+            Utils.setGameMode('single');
+        });
+    }
+
+    const btnCoop = document.getElementById('gamemode-btn-coop');
+    if (btnCoop) {
+        btnCoop.addEventListener('click', (e) => {
+            e.stopPropagation();
+            Utils.setGameMode('coop');
+        });
+    }
+
+    // Hangar Player Tab Listeners (P1 vs P2)
+    document.querySelectorAll('.hangar-player-tab').forEach(tab => {
+        tab.addEventListener('click', (e) => {
+            e.stopPropagation();
+            state.activeHangarPlayer = tab.getAttribute('data-player') || 'p1';
+            Utils.updatePlayerShipVisuals();
+        });
+    });
+
+    // Hangar Event Listeners (Model & Color)
     document.querySelectorAll('.hangar-model-btn').forEach(btn => {
         btn.addEventListener('click', (e) => {
             e.stopPropagation();
-            state.selectedShipModel = btn.getAttribute('data-model');
+            const model = btn.getAttribute('data-model');
+            if (state.gameMode === 'coop' && state.activeHangarPlayer === 'p2') {
+                if (state.p2) state.p2.selectedShipModel = model;
+            } else {
+                state.selectedShipModel = model;
+            }
             Utils.updatePlayerShipVisuals();
         });
     });
@@ -101,7 +143,12 @@ document.addEventListener('DOMContentLoaded', () => {
     document.querySelectorAll('.hangar-color-btn').forEach(btn => {
         btn.addEventListener('click', (e) => {
             e.stopPropagation();
-            state.selectedShipColor = btn.getAttribute('data-color');
+            const colorId = btn.getAttribute('data-color');
+            if (state.gameMode === 'coop' && state.activeHangarPlayer === 'p2') {
+                if (state.p2) state.p2.selectedShipColor = colorId;
+            } else {
+                state.selectedShipColor = colorId;
+            }
             Utils.updatePlayerShipVisuals();
         });
     });

@@ -2,10 +2,15 @@
 export const dom = {
     spielfeld: document.getElementById('spielfeld'),
     spieler: document.getElementById('spieler'),
+    spieler2: document.getElementById('spieler-2'),
     lebenAnzeige: document.getElementById('leben-anzeige'),
+    lebenAnzeigeP2: document.getElementById('leben-anzeige-p2'),
     energieBalken: document.getElementById('energie-balken'),
+    energieBalkenP2: document.getElementById('energie-balken-p2'),
     maxEnergieMarker: document.getElementById('max-energie-marker'),
+    maxEnergieMarkerP2: document.getElementById('max-energie-marker-p2'),
     aktivePowerupsContainer: document.getElementById('aktive-powerups'),
+    aktivePowerupsContainerP2: document.getElementById('aktive-powerups-p2'),
     scoreAnzeige: document.getElementById('score-anzeige'),
     levelAnzeige: document.getElementById('level-anzeige'),
     bossHpContainer: document.getElementById('boss-hp-container'),
@@ -16,7 +21,9 @@ export const dom = {
     laserDiagLinks: document.getElementById('laser-diag-links'),
     laserDiagRechts: document.getElementById('laser-diag-rechts'),
     autolaserEl: document.getElementById('autolaser'),
-    pauseOverlay: document.getElementById('pause-overlay')
+    pauseOverlay: document.getElementById('pause-overlay'),
+    uiContainerP1: document.getElementById('ui-container'),
+    uiContainerP2: document.getElementById('ui-container-p2')
 };
 
 export const config = {
@@ -86,14 +93,36 @@ export const state = {
     laserDurchschlag: false, durchschlagTimer: 0, schildStufe: 0, laserStufe: 1,
     autolaserAktiv: false, autolaserTimer: 0, raketenStufe: 1, raketenCooldown: 0,
     bombenStufe: 1, bombenCooldown: 0, frameZaehler: 0, spielLaeuft: false, cutsceneAktiv: false,
-    feindSpawnZeit: 1200, bossKampfAktiv: false, tastenGedrueckt: {w: false, a: false, s: false, d: false, l: false, k: false, ' ': false}, mausGedrueckt: false,
+    feindSpawnZeit: 1200, bossKampfAktiv: false,
+    tastenGedrueckt: {
+        w: false, a: false, s: false, d: false,
+        l: false, k: false, ' ': false,
+        b: false, v: false, c: false,
+        ä: false, ö: false,
+        arrowup: false, arrowdown: false, arrowleft: false, arrowright: false,
+        numpad1: false, numpad2: false, numpad3: false, numpad0: false, enter: false
+    },
+    mausGedrueckt: false,
     bossAktiv: false, bossWarningAktiv: false, bossWarningTimer: 0, gameOverAktiv: false,
     spielerSchussCooldown: 0, finalerScore: 0, cheatUsed: false, typedCheatKeys: '',
     godMode: false, pausiert: false, unbegrenzteEnergie: false, invulnerableTimer: 0,
     phantomSchildRegenTimer: 0, phantomSchildRegenMax: 900,
     joystick: { x: 0, y: 0, active: false },
+    gameMode: 'single', // 'single' | 'coop'
+    activeHangarPlayer: 'p1', // 'p1' | 'p2'
     selectedShipModel: 'viper',
-    selectedShipColor: 'red'
+    selectedShipColor: 'red',
+    p2: {
+        x: 370, y: 285, prevX: 370, prevY: 285, spielerVx: 0, spielerVy: 0,
+        leben: 3, absMaxEnergie: 100, maxEnergie: 50, energie: 50, minZuendEnergie: 15,
+        laserStufe: 1, raketenStufe: 1, bombenStufe: 1, schildStufe: 1,
+        laserSchiesst: false, laserDurchschlag: false, durchschlagTimer: 0,
+        autolaserAktiv: false, autolaserTimer: 0, raketenCooldown: 0, bombenCooldown: 0,
+        spielerSchussCooldown: 0, invulnerableTimer: 0,
+        phantomSchildRegenTimer: 0, phantomSchildRegenMax: 900,
+        selectedShipModel: 'phantom', selectedShipColor: 'blue',
+        isDead: false, rotate: 0
+    }
 };
 
 export const arrays = {

@@ -33,8 +33,181 @@
             border: 4px solid #34495e;
             border-radius: 8px;
             overflow: hidden;
-            transition: background-color 0.1s;
+            transition: background-color 0.1s, width 0.25s ease;
             transform-origin: top left;
+        }
+
+        #spielfeld.mode-coop {
+            width: 600px;
+        }
+
+        /* 2-Spieler Gamemode Selector & Tabs */
+        .gamemode-selector {
+            display: flex;
+            justify-content: center;
+            gap: 8px;
+            margin-bottom: 12px;
+        }
+
+        .gamemode-btn {
+            background: rgba(26, 37, 47, 0.85);
+            border: 1.5px solid #34495e;
+            color: #95a5a6;
+            padding: 6px 14px;
+            font-size: 11px;
+            font-weight: bold;
+            letter-spacing: 1px;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            font-family: inherit;
+        }
+
+        .gamemode-btn:hover {
+            border-color: #1abc9c;
+            color: #ecf0f1;
+        }
+
+        .gamemode-btn.active {
+            background: linear-gradient(135deg, rgba(26, 188, 156, 0.25), rgba(52, 152, 219, 0.25));
+            border-color: #1abc9c;
+            color: #1abc9c;
+            box-shadow: 0 0 10px rgba(26, 188, 156, 0.4);
+        }
+
+        .hangar-player-tabs {
+            display: flex;
+            justify-content: center;
+            gap: 6px;
+            margin-bottom: 8px;
+        }
+
+        .hangar-player-tab {
+            background: rgba(26, 37, 47, 0.8);
+            border: 1px solid #34495e;
+            color: #7f8c8d;
+            padding: 4px 10px;
+            font-size: 10px;
+            font-weight: bold;
+            letter-spacing: 0.5px;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            font-family: inherit;
+        }
+
+        .hangar-player-tab[data-player="p1"].active {
+            border-color: #e74c3c;
+            color: #ff7675;
+            background: rgba(231, 76, 60, 0.2);
+            box-shadow: 0 0 8px rgba(231, 76, 60, 0.35);
+        }
+
+        .hangar-player-tab[data-player="p2"].active {
+            border-color: #3498db;
+            color: #74b9ff;
+            background: rgba(52, 152, 219, 0.2);
+            box-shadow: 0 0 8px rgba(52, 152, 219, 0.35);
+        }
+
+        .steuerung-coop-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+            text-align: left;
+            font-size: 11px;
+            line-height: 1.4;
+            background: rgba(11, 19, 25, 0.6);
+            padding: 8px 12px;
+            border-radius: 6px;
+            border: 1px solid #34495e;
+            margin: 5px 0 10px 0;
+        }
+
+        .steuerung-col {
+            display: flex;
+            flex-direction: column;
+            gap: 2px;
+        }
+
+        .ui-container-p2 {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            z-index: 20;
+            display: flex;
+            flex-direction: column;
+            align-items: flex-end;
+        }
+
+        .ui-container-p2 .cooldown-container {
+            justify-content: flex-end;
+        }
+
+        .spieler-schiff {
+            position: absolute;
+            width: 30px;
+            height: 30px;
+            z-index: 10;
+            transition: transform 0.05s linear;
+        }
+
+        .player-tag {
+            position: absolute;
+            top: -14px;
+            left: 50%;
+            transform: translateX(-50%);
+            font-size: 9px;
+            font-weight: bold;
+            letter-spacing: 0.5px;
+            padding: 1px 4px;
+            border-radius: 3px;
+            pointer-events: none;
+            z-index: 15;
+            line-height: 1;
+        }
+
+        .tag-p1 {
+            background: rgba(231, 76, 60, 0.85);
+            color: #ffffff;
+            box-shadow: 0 0 5px rgba(231, 76, 60, 0.8);
+        }
+
+        .tag-p2 {
+            background: rgba(52, 152, 219, 0.85);
+            color: #ffffff;
+            box-shadow: 0 0 5px rgba(52, 152, 219, 0.8);
+        }
+
+        .pu-owner-p1 {
+            box-shadow: 0 0 10px #e74c3c, inset 0 0 6px #e74c3c !important;
+            border-color: #e74c3c !important;
+        }
+
+        .pu-owner-p2 {
+            box-shadow: 0 0 10px #3498db, inset 0 0 6px #3498db !important;
+            border-color: #3498db !important;
+        }
+
+        .pu-owner-tag {
+            position: absolute;
+            top: -8px;
+            right: -4px;
+            font-size: 8px;
+            font-weight: bold;
+            padding: 1px 2px;
+            border-radius: 2px;
+            line-height: 1;
+        }
+
+        .pu-owner-tag.p1 {
+            background: #e74c3c;
+            color: #fff;
+        }
+
+        .pu-owner-tag.p2 {
+            background: #3498db;
+            color: #fff;
         }
 
         /* ==========================================================================

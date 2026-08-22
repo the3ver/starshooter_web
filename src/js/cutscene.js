@@ -608,6 +608,8 @@ function endCutsceneAndStartGame(instant = false) {
     if (startScreen) startScreen.style.display = 'none';
     Utils.updateMobileControlsVisibility();
 
+    const isCoop = state.gameMode === 'coop';
+
     // Apply ship model perks
     const currentShip = shipModels && shipModels[state.selectedShipModel || 'viper'];
     if (currentShip && currentShip.startShield > 0) {
@@ -616,19 +618,55 @@ function endCutsceneAndStartGame(instant = false) {
         Utils.updateAktivePowerupsUI();
     }
 
-    state.x = 185;
+    state.x = isCoop ? 200 : 185;
     dom.spieler.style.left = state.x + 'px';
     dom.spieler.style.display = 'block';
     dom.spieler.style.transform = 'rotate(0deg)';
     dom.spieler.setAttribute('data-rotate', '0');
 
+    // P2 Setup
+    if (isCoop && dom.spieler2 && state.p2) {
+        state.p2.isDead = false;
+        const p2Ship = shipModels && shipModels[state.p2.selectedShipModel || 'phantom'];
+        if (p2Ship && p2Ship.startShield > 0) {
+            state.p2.schildStufe = p2Ship.startShield;
+            dom.spieler2.classList.add(`schild-aktiv-${state.p2.schildStufe}`);
+        }
+        state.p2.x = 370;
+        state.p2.y = instant ? 285 : config.spielfeldHoehe + 40;
+        dom.spieler2.style.left = state.p2.x + 'px';
+        dom.spieler2.style.top = state.p2.y + 'px';
+        dom.spieler2.style.display = 'block';
+        dom.spieler2.style.transform = 'rotate(0deg)';
+        dom.spieler2.setAttribute('data-rotate', '0');
+
+        const tagP1 = document.querySelector('.tag-p1');
+        if (tagP1) tagP1.style.display = 'block';
+
+        if (dom.uiContainerP2) dom.uiContainerP2.style.display = 'flex';
+        Utils.updateP2UI();
+    } else {
+        if (dom.spieler2) dom.spieler2.style.display = 'none';
+        if (dom.uiContainerP2) dom.uiContainerP2.style.display = 'none';
+        const tagP1 = document.querySelector('.tag-p1');
+        if (tagP1) tagP1.style.display = 'none';
+    }
+
     if (instant) {
         state.y = 285;
         dom.spieler.style.top = state.y + 'px';
+        if (isCoop && state.p2 && dom.spieler2) {
+            state.p2.y = 285;
+            dom.spieler2.style.top = state.p2.y + 'px';
+        }
     } else {
         // Smooth entry: Player ship enters from bottom into play position
         state.y = config.spielfeldHoehe + 40;
         dom.spieler.style.top = state.y + 'px';
+        if (isCoop && state.p2 && dom.spieler2) {
+            state.p2.y = config.spielfeldHoehe + 40;
+            dom.spieler2.style.top = state.p2.y + 'px';
+        }
 
         let entryY = config.spielfeldHoehe + 40;
         const targetY = 285;
@@ -640,6 +678,11 @@ function endCutsceneAndStartGame(instant = false) {
                 state.y = entryY;
                 dom.spieler.style.top = state.y + 'px';
                 Utils.erzeugeAntriebsRauch(state.x + 15, state.y + 30, 2);
+                if (isCoop && state.p2 && dom.spieler2 && !state.p2.isDead) {
+                    state.p2.y = entryY;
+                    dom.spieler2.style.top = state.p2.y + 'px';
+                    Utils.erzeugeAntriebsRauch(state.p2.x + 15, state.p2.y + 30, 2);
+                }
                 requestAnimationFrame(flyInStep);
             }
         }
@@ -650,6 +693,11 @@ function endCutsceneAndStartGame(instant = false) {
     state.tastenGedrueckt[' '] = false;
     state.tastenGedrueckt.k = false;
     state.tastenGedrueckt.l = false;
+    state.tastenGedrueckt.b = false;
+    state.tastenGedrueckt.v = false;
+    state.tastenGedrueckt.c = false;
+    state.tastenGedrueckt.ä = false;
+    state.tastenGedrueckt.ö = false;
 
     if (typeof onCompleteCallback === 'function') {
         onCompleteCallback();

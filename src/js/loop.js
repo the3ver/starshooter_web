@@ -69,7 +69,11 @@ export function gameLoop() {
   if (!state.spielLaeuft) {
     const whatsNew = document.getElementById('whats-new-overlay');
     const isWhatsNewOpen = whatsNew && whatsNew.style.display !== 'none';
-    if (!isWhatsNewOpen && (state.tastenGedrueckt.w || state.tastenGedrueckt.a || state.tastenGedrueckt.s || state.tastenGedrueckt.d || state.tastenGedrueckt.l || state.tastenGedrueckt.k || state.tastenGedrueckt[' '])) {
+    const keys = state.tastenGedrueckt;
+    const startKeyPressed = keys.w || keys.a || keys.s || keys.d || keys.l || keys.k || keys[' '] ||
+                            keys.b || keys.v || keys.c || keys.ä || keys.ö ||
+                            keys.arrowup || keys.arrowdown || keys.arrowleft || keys.arrowright;
+    if (!isWhatsNewOpen && startKeyPressed) {
       let startScreen = document.getElementById('start-screen');
       if (startScreen) startScreen.style.display = 'none';
       Cutscene.startCutscene();
@@ -133,7 +137,7 @@ export function gameLoop() {
     }
   }
 
-  // --- 9.1 SPIELER-BEWEGUNG ---
+  // --- 9.1 SPIELER 1 BEWEGUNG ---
   let baseFlameScale = 1.0;
   let targetRotate = 0;
   const currentSpeed = (shipModels && shipModels[state.selectedShipModel]?.speed) || config.geschwindigkeit;
@@ -152,7 +156,7 @@ export function gameLoop() {
     
     if (state.joystick.x < -0.2) targetRotate = -15;
     else if (state.joystick.x > 0.2) targetRotate = 15;
-  } else {
+  } else if (!state.isDead) {
     if (state.tastenGedrueckt.w) {
       state.y -= currentSpeed;
       baseFlameScale = 1.8;
@@ -178,15 +182,20 @@ export function gameLoop() {
   state.spielerVy = (state.prevY !== undefined ? state.prevY : state.y) - state.y;
   state.prevX = state.x;
   state.prevY = state.y;
-  dom.spieler.style.left = state.x + 'px';
-  dom.spieler.style.top = state.y + 'px';
-  let currentRotate = parseFloat(dom.spieler.getAttribute('data-rotate') || 0);
-  currentRotate += (targetRotate - currentRotate) * 0.15; // Smooth rotation
-  dom.spieler.setAttribute('data-rotate', currentRotate);
-  dom.spieler.style.transform = `rotate(${currentRotate}deg)`;
-  document.getElementById('flame-left').style.transform = `scaleY(${baseFlameScale})`;
-  document.getElementById('flame-right').style.transform = `scaleY(${baseFlameScale})`;
-  if (baseFlameScale > 0.5 && Math.random() < (baseFlameScale > 1.0 ? 0.6 : 0.2)) {
+  if (dom.spieler) {
+    dom.spieler.style.left = state.x + 'px';
+    dom.spieler.style.top = state.y + 'px';
+    let currentRotate = parseFloat(dom.spieler.getAttribute('data-rotate') || 0);
+    currentRotate += (targetRotate - currentRotate) * 0.15; // Smooth rotation
+    dom.spieler.setAttribute('data-rotate', currentRotate);
+    dom.spieler.style.transform = `rotate(${currentRotate}deg)`;
+  }
+  const fLeft1 = document.getElementById('flame-left');
+  const fRight1 = document.getElementById('flame-right');
+  if (fLeft1) fLeft1.style.transform = `scaleY(${baseFlameScale})`;
+  if (fRight1) fRight1.style.transform = `scaleY(${baseFlameScale})`;
+
+  if (!state.isDead && baseFlameScale > 0.5 && Math.random() < (baseFlameScale > 1.0 ? 0.6 : 0.2)) {
     const pEl = document.createElement('div');
     pEl.classList.add('partikel');
     pEl.style.backgroundColor = Math.random() < 0.5 ? '#f1c40f' : '#e74c3c';
@@ -204,6 +213,81 @@ export function gameLoop() {
       leben: 1.0,
       zerfall: 0.05
     });
+  }
+
+  // --- 9.1b SPIELER 2 BEWEGUNG (Co-op) ---
+  if (state.gameMode === 'coop' && state.p2 && dom.spieler2) {
+    if (state.p2.invulnerableTimer > 0) {
+      state.p2.invulnerableTimer--;
+      if (state.p2.invulnerableTimer === 0) {
+        dom.spieler2.classList.remove('spieler-blink');
+      }
+    }
+
+    if (!state.p2.isDead) {
+      let baseFlameScaleP2 = 1.0;
+      let targetRotateP2 = 0;
+      const p2Speed = (shipModels && shipModels[state.p2.selectedShipModel]?.speed) || config.geschwindigkeit;
+      if (state.tastenGedrueckt.arrowup) {
+        state.p2.y -= p2Speed;
+        baseFlameScaleP2 = 1.8;
+      }
+      if (state.tastenGedrueckt.arrowdown) {
+        state.p2.y += p2Speed;
+        baseFlameScaleP2 = 0.4;
+      }
+      if (state.tastenGedrueckt.arrowleft) {
+        state.p2.x -= p2Speed;
+        targetRotateP2 = -15;
+      }
+      if (state.tastenGedrueckt.arrowright) {
+        state.p2.x += p2Speed;
+        targetRotateP2 = 15;
+      }
+
+      if (state.p2.x < 0) state.p2.x = 0;
+      if (state.p2.y < 0) state.p2.y = 0;
+      if (state.p2.x > config.spielfeldBreite - config.spielerGroesse) state.p2.x = config.spielfeldBreite - config.spielerGroesse;
+      if (state.p2.y > config.spielfeldHoehe - config.spielerGroesse) state.p2.y = config.spielfeldHoehe - config.spielerGroesse;
+
+      state.p2.spielerVx = state.p2.x - (state.p2.prevX !== undefined ? state.p2.prevX : state.p2.x);
+      state.p2.spielerVy = (state.p2.prevY !== undefined ? state.p2.prevY : state.p2.y) - state.p2.y;
+      state.p2.prevX = state.p2.x;
+      state.p2.prevY = state.p2.y;
+
+      dom.spieler2.style.left = state.p2.x + 'px';
+      dom.spieler2.style.top = state.p2.y + 'px';
+
+      let currentRotateP2 = parseFloat(dom.spieler2.getAttribute('data-rotate') || 0);
+      currentRotateP2 += (targetRotateP2 - currentRotateP2) * 0.15;
+      dom.spieler2.setAttribute('data-rotate', currentRotateP2);
+      dom.spieler2.style.transform = `rotate(${currentRotateP2}deg)`;
+
+      const fLeftP2 = document.getElementById('flame-left-p2');
+      const fRightP2 = document.getElementById('flame-right-p2');
+      if (fLeftP2) fLeftP2.style.transform = `scaleY(${baseFlameScaleP2})`;
+      if (fRightP2) fRightP2.style.transform = `scaleY(${baseFlameScaleP2})`;
+
+      if (baseFlameScaleP2 > 0.5 && Math.random() < (baseFlameScaleP2 > 1.0 ? 0.6 : 0.2)) {
+        const pEl2 = document.createElement('div');
+        pEl2.classList.add('partikel');
+        pEl2.style.backgroundColor = Math.random() < 0.5 ? '#74b9ff' : '#0984e3';
+        let px2 = state.p2.x + 15 + (Math.random() * 8 - 4);
+        let py2 = state.p2.y + 28;
+        pEl2.style.left = px2 + 'px';
+        pEl2.style.top = py2 + 'px';
+        dom.spielfeld.appendChild(pEl2);
+        arrays.partikelArray.push({
+          el: pEl2,
+          x: px2,
+          y: py2,
+          vx: (Math.random() - 0.5) * 0.5,
+          vy: 1 + Math.random() * baseFlameScaleP2,
+          leben: 1.0,
+          zerfall: 0.05
+        });
+      }
+    }
   }
   if (state.durchschlagTimer > 0) {
     state.durchschlagTimer--;
@@ -251,14 +335,15 @@ export function gameLoop() {
   }
   if (state.frameZaehler % 60 === 0) Utils.addScore(5);
 
-  // --- 9.4 ENERGIE ---
-  if (state.tastenGedrueckt.l) {
+  // --- 9.4 ENERGIE SPIELER 1 ---
+  const p1LaserKey = state.gameMode === 'coop' ? state.tastenGedrueckt.b : (state.tastenGedrueckt.l || state.tastenGedrueckt.b);
+  if (p1LaserKey && !state.isDead) {
     if (!state.laserSchiesst && state.energie >= state.minZuendEnergie) state.laserSchiesst = true;
     if (state.energie <= 0) state.laserSchiesst = false;
   } else {
     state.laserSchiesst = false;
   }
-  let laserAktiv = state.laserSchiesst && state.energie > 0;
+  let laserAktiv = state.laserSchiesst && state.energie > 0 && !state.isDead;
   if (laserAktiv) {
     if (!state.unbegrenzteEnergie) {
       state.energie -= 0.8 + Math.min(state.laserStufe, 5) * 0.1;
@@ -270,11 +355,58 @@ export function gameLoop() {
   }
   if (state.energie < 0) state.energie = 0;
   if (state.energie > state.maxEnergie) state.energie = state.maxEnergie;
-  dom.energieBalken.style.width = state.energie / state.absMaxEnergie * 100 + '%';
-  if (state.unbegrenzteEnergie) {
-    dom.energieBalken.style.backgroundColor = '#f1c40f';
-  } else {
-    dom.energieBalken.style.backgroundColor = state.energie < state.minZuendEnergie && !state.laserSchiesst ? '#e67e22' : '#1abc9c';
+  if (dom.energieBalken) {
+    dom.energieBalken.style.width = state.energie / state.absMaxEnergie * 100 + '%';
+    if (state.unbegrenzteEnergie) {
+      dom.energieBalken.style.backgroundColor = '#f1c40f';
+    } else {
+      dom.energieBalken.style.backgroundColor = state.energie < state.minZuendEnergie && !state.laserSchiesst ? '#e67e22' : '#1abc9c';
+    }
+  }
+
+  // --- 9.4 ENERGIE SPIELER 2 (Co-op) ---
+  let laserAktivP2 = false;
+  if (state.gameMode === 'coop' && state.p2 && !state.p2.isDead) {
+    const p2LaserKey = state.tastenGedrueckt.ä || state.tastenGedrueckt.l || state.tastenGedrueckt.numpad1 || state.tastenGedrueckt['.'];
+    if (p2LaserKey) {
+      if (!state.p2.laserSchiesst && state.p2.energie >= state.p2.minZuendEnergie) state.p2.laserSchiesst = true;
+      if (state.p2.energie <= 0) state.p2.laserSchiesst = false;
+    } else {
+      state.p2.laserSchiesst = false;
+    }
+    laserAktivP2 = state.p2.laserSchiesst && state.p2.energie > 0;
+    if (laserAktivP2) {
+      state.p2.energie -= 0.8 + Math.min(state.p2.laserStufe, 5) * 0.1;
+    } else {
+      const p2RegenRate = (shipModels && shipModels[state.p2.selectedShipModel]?.energyRegen) || 0.4;
+      if (state.p2.energie < state.p2.maxEnergie) state.p2.energie += p2RegenRate;
+    }
+    if (state.p2.energie < 0) state.p2.energie = 0;
+    if (state.p2.energie > state.p2.maxEnergie) state.p2.energie = state.p2.maxEnergie;
+    if (dom.energieBalkenP2) {
+      dom.energieBalkenP2.style.width = state.p2.energie / state.p2.absMaxEnergie * 100 + '%';
+      dom.energieBalkenP2.style.backgroundColor = state.p2.energie < state.p2.minZuendEnergie && !state.p2.laserSchiesst ? '#e67e22' : '#3498db';
+    }
+
+    // P2 Schild Regen (Phantom-NX)
+    const p2Ship = shipModels && shipModels[state.p2.selectedShipModel || 'phantom'];
+    if (p2Ship && p2Ship.shieldRegen && state.p2.schildStufe === 0 && state.p2.leben > 0 && !state.gameOverAktiv) {
+      const maxRegen = state.p2.phantomSchildRegenMax || p2Ship.shieldRegenMax || 900;
+      state.p2.phantomSchildRegenTimer = (state.p2.phantomSchildRegenTimer || 0) + 1;
+      if (state.p2.phantomSchildRegenTimer % 6 === 0) {
+        Utils.updateAktivePowerupsP2UI();
+      }
+      if (state.p2.phantomSchildRegenTimer >= maxRegen) {
+        state.p2.schildStufe = 1;
+        state.p2.phantomSchildRegenTimer = 0;
+        Audio.playShieldRegen();
+        if (dom.spieler2) {
+          dom.spieler2.classList.remove('schild-aktiv-1', 'schild-aktiv-2', 'schild-aktiv-3');
+          dom.spieler2.classList.add('schild-aktiv-1');
+        }
+        Utils.updateAktivePowerupsP2UI();
+      }
+    }
   }
 
   // --- 9.4b SCHILD REGENERATION (Phantom-NX) ---
@@ -307,15 +439,37 @@ export function gameLoop() {
       arrays.powerups.splice(i, 1);
       continue;
     }
-    if (state.x < p.x + p.groesse && state.x + config.spielerGroesse > p.x && state.y < p.y + p.groesse && state.y + config.spielerGroesse > p.y) {
+
+    // Prüfe Einsammeln durch Spieler 1
+    const p1Col = !state.isDead && (!p.owner || p.owner === 'p1') &&
+      state.x < p.x + p.groesse && state.x + config.spielerGroesse > p.x &&
+      state.y < p.y + p.groesse && state.y + config.spielerGroesse > p.y;
+
+    // Prüfe Einsammeln durch Spieler 2 (Co-op)
+    const p2Col = state.gameMode === 'coop' && state.p2 && !state.p2.isDead && (!p.owner || p.owner === 'p2') &&
+      state.p2.x < p.x + p.groesse && state.p2.x + config.spielerGroesse > p.x &&
+      state.p2.y < p.y + p.groesse && state.p2.y + config.spielerGroesse > p.y;
+
+    if (p1Col) {
       Audio.playPowerup(p.type);
       if (p.type === 'leben') {
         state.leben++;
+        if (state.gameMode === 'coop' && state.p2 && state.p2.isDead) {
+          state.p2.isDead = false;
+          state.p2.leben = 1;
+          state.p2.energie = state.p2.maxEnergie / 2;
+          state.p2.invulnerableTimer = 180;
+          if (dom.spieler2) {
+            dom.spieler2.style.display = 'block';
+            dom.spieler2.classList.add('spieler-blink');
+          }
+          Utils.updateLebenP2UI();
+        }
         Utils.updateLebenUI();
       } else if (p.type === 'energie') {
         if (state.maxEnergie >= state.absMaxEnergie) {
           state.unbegrenzteEnergie = true;
-          dom.maxEnergieMarker.style.display = 'none';
+          if (dom.maxEnergieMarker) dom.maxEnergieMarker.style.display = 'none';
           state.energie = state.absMaxEnergie;
         } else {
           state.maxEnergie = Math.min(state.absMaxEnergie, state.maxEnergie + 10);
@@ -363,6 +517,73 @@ export function gameLoop() {
       }, 100);
       p.el.remove();
       arrays.powerups.splice(i, 1);
+    } else if (p2Col) {
+      Audio.playPowerup(p.type);
+      if (p.type === 'leben') {
+        state.p2.leben++;
+        if (state.isDead) {
+          state.isDead = false;
+          state.leben = 1;
+          state.energie = state.maxEnergie / 2;
+          state.invulnerableTimer = 180;
+          if (dom.spieler) {
+            dom.spieler.style.display = 'block';
+            dom.spieler.classList.add('spieler-blink');
+          }
+          Utils.updateLebenUI();
+        }
+        Utils.updateLebenP2UI();
+      } else if (p.type === 'energie') {
+        if (state.p2.maxEnergie >= state.p2.absMaxEnergie) {
+          state.p2.unbegrenzteEnergie = true;
+          if (dom.maxEnergieMarkerP2) dom.maxEnergieMarkerP2.style.display = 'none';
+          state.p2.energie = state.p2.absMaxEnergie;
+        } else {
+          state.p2.maxEnergie = Math.min(state.p2.absMaxEnergie, state.p2.maxEnergie + 10);
+          state.p2.energie = state.p2.maxEnergie;
+          Utils.updateMaxEnergieMarkerP2();
+        }
+      } else if (p.type === 'durchschlag') {
+        state.p2.laserDurchschlag = true;
+        state.p2.durchschlagTimer = 600;
+        Utils.updateAktivePowerupsP2UI();
+      } else if (p.type === 'schild') {
+        if (state.p2.schildStufe > 0 && dom.spieler2) dom.spieler2.classList.remove(`schild-aktiv-${state.p2.schildStufe}`);
+        if (state.p2.schildStufe < 3) state.p2.schildStufe++;
+        if (dom.spieler2) dom.spieler2.classList.add(`schild-aktiv-${state.p2.schildStufe}`);
+        Utils.updateAktivePowerupsP2UI();
+      } else if (p.type === 'laserWaffe') {
+        if (state.p2.laserStufe < 5) {
+          state.p2.laserStufe++;
+          Utils.updateAktivePowerupsP2UI();
+        }
+      } else if (p.type === 'raketenWaffe') {
+        if (state.p2.raketenStufe < 5) {
+          state.p2.raketenStufe++;
+          Utils.updateAktivePowerupsP2UI();
+        }
+      } else if (p.type === 'bombenWaffe') {
+        if (state.p2.bombenStufe < 5) {
+          state.p2.bombenStufe++;
+          Utils.updateAktivePowerupsP2UI();
+        }
+      } else if (p.type === 'superWaffe') {
+        if (state.p2.laserStufe < 5) state.p2.laserStufe++;
+        if (state.p2.raketenStufe < 5) state.p2.raketenStufe++;
+        if (state.p2.bombenStufe < 5) state.p2.bombenStufe++;
+        Utils.updateAktivePowerupsP2UI();
+      } else if (p.type === 'autolaser') {
+        state.p2.autolaserAktiv = true;
+        state.p2.autolaserTimer = 600;
+        Utils.updateAktivePowerupsP2UI();
+      }
+      Utils.addScore(50);
+      dom.spielfeld.style.backgroundColor = p.farbe;
+      setTimeout(() => {
+        dom.spielfeld.style.backgroundColor = '#0b1319';
+      }, 100);
+      p.el.remove();
+      arrays.powerups.splice(i, 1);
     }
   }
 
@@ -384,10 +605,17 @@ export function gameLoop() {
       arrays.asteroiden.splice(i, 1);
       continue;
     }
-    if (state.x < ast.x + ast.groesse && state.x + config.spielerGroesse > ast.x && state.y < ast.y + ast.groesse && state.y + config.spielerGroesse > ast.y) {
-      Utils.spielerGetroffen(ast, true);
+    if (!state.isDead && state.x < ast.x + ast.groesse && state.x + config.spielerGroesse > ast.x && state.y < ast.y + ast.groesse && state.y + config.spielerGroesse > ast.y) {
+      Utils.spielerGetroffen(ast, true, 'p1');
       ast.el.remove();
       arrays.asteroiden.splice(i, 1);
+      continue;
+    }
+    if (state.gameMode === 'coop' && state.p2 && !state.p2.isDead && state.p2.x < ast.x + ast.groesse && state.p2.x + config.spielerGroesse > ast.x && state.p2.y < ast.y + ast.groesse && state.p2.y + config.spielerGroesse > ast.y) {
+      Utils.spielerGetroffen(ast, true, 'p2');
+      ast.el.remove();
+      arrays.asteroiden.splice(i, 1);
+      continue;
     }
   }
 
@@ -405,8 +633,18 @@ export function gameLoop() {
       } else if (f.phase === 'stop') {
         f.stopTimer--;
         if (f.stopTimer === 10) {
-          // Gezielter Schuss auf den Spieler kurz vor Abflug
-          Entities.erzeugeFeindLaser(f.x + f.groesse / 2 - 2, f.y + f.groesse, state.x + config.spielerGroesse / 2, state.y + config.spielerGroesse / 2);
+          // Gezielter Schuss auf den näheren Spieler
+          let targetX = state.x;
+          let targetY = state.y;
+          if (state.gameMode === 'coop' && state.p2 && !state.p2.isDead) {
+            let distP1 = Math.hypot(state.x - f.x, state.y - f.y);
+            let distP2 = Math.hypot(state.p2.x - f.x, state.p2.y - f.y);
+            if (state.isDead || distP2 < distP1) {
+              targetX = state.p2.x;
+              targetY = state.p2.y;
+            }
+          }
+          Entities.erzeugeFeindLaser(f.x + f.groesse / 2 - 2, f.y + f.groesse, targetX + config.spielerGroesse / 2, targetY + config.spielerGroesse / 2);
         }
         if (f.stopTimer <= 0) {
           f.phase = 'abflug';
@@ -416,7 +654,7 @@ export function gameLoop() {
         f.y += f.vy * 3.5; // Sehr schneller Abflug
       }
       f.zeit += 0.05;
-      f.x = f.basisX + Math.sin(f.zeit) * 20; // Weniger starkes Wackeln im Stop&Go
+      f.x = f.basisX + Math.sin(f.zeit) * 20;
     } else if (f.muster === 'swoop' || f.muster === 'crossfire') {
       f.x += f.vx;
       f.y += f.vy * 1.5;
@@ -426,48 +664,70 @@ export function gameLoop() {
         let asteroidExists = arrays.asteroiden.includes(f.attachedAsteroid);
         if (!asteroidExists || f.attachedAsteroid.y >= 150) {
           f.phase = 'attack';
-          f.vy = 2; // start speed
+          f.vy = 2;
           f.schussTimer = 9999;
           
           let flames = f.el.querySelectorAll('.feind-flame');
           flames.forEach(fl => fl.style.display = 'block');
           
-          Entities.erzeugeFeindLaser(f.x + f.groesse / 2 - 2, f.y + f.groesse, state.x + config.spielerGroesse / 2, state.y + config.spielerGroesse / 2);
+          let targetX = state.x;
+          let targetY = state.y;
+          if (state.gameMode === 'coop' && state.p2 && !state.p2.isDead) {
+            let distP1 = Math.hypot(state.x - f.x, state.y - f.y);
+            let distP2 = Math.hypot(state.p2.x - f.x, state.p2.y - f.y);
+            if (state.isDead || distP2 < distP1) {
+              targetX = state.p2.x;
+              targetY = state.p2.y;
+            }
+          }
+          Entities.erzeugeFeindLaser(f.x + f.groesse / 2 - 2, f.y + f.groesse, targetX + config.spielerGroesse / 2, targetY + config.spielerGroesse / 2);
         } else {
           f.x = f.attachedAsteroid.x + f.attachedAsteroid.groesse / 2 - f.groesse / 2;
           f.y = f.attachedAsteroid.y + f.attachedAsteroid.groesse / 2 - f.groesse / 2;
         }
       }
       if (f.phase === 'attack') {
-        f.vy += 0.1; // accelerate
+        let targetX = state.x;
+        let targetY = state.y;
+        if (state.gameMode === 'coop' && state.p2 && !state.p2.isDead) {
+          let distP1 = Math.hypot(state.x - f.x, state.y - f.y);
+          let distP2 = Math.hypot(state.p2.x - f.x, state.p2.y - f.y);
+          if (state.isDead || distP2 < distP1) {
+            targetX = state.p2.x;
+            targetY = state.p2.y;
+          }
+        }
+        let dx = (targetX + config.spielerGroesse / 2) - (f.x + f.groesse / 2);
+        let dy = (targetY + config.spielerGroesse / 2) - (f.y + f.groesse / 2);
+        let dist = Math.hypot(dx, dy);
+        if (dist > 5) {
+          f.vx = dx / dist * 3;
+          f.vy = dy / dist * 3;
+        }
+        f.x += f.vx;
         f.y += f.vy;
+        f.el.style.transform = `rotate(${Math.atan2(f.vy, f.vx) * 180 / Math.PI - 90}deg)`;
       }
     } else {
-      f.zeit += 0.05;
-      f.x = f.basisX + Math.sin(f.zeit) * 60;
       f.y += f.vy;
-    }
-    if (f.muster !== 'swoop' && f.muster !== 'crossfire' && f.muster !== 'clingOn') {
-      if (f.x < 0) f.x = 0;
-      if (f.x > config.spielfeldBreite - f.groesse) f.x = config.spielfeldBreite - f.groesse;
+      f.zeit += 0.05;
+      f.x = f.basisX + Math.sin(f.zeit) * 30;
     }
     f.el.style.left = f.x + 'px';
     f.el.style.top = f.y + 'px';
-    if (f.phase !== 'attached') {
-      Utils.erzeugeAntriebsRauch(f.x + 13, f.y - 2, -1.5);
-    }
-    if (f.y > config.spielfeldHoehe || f.x < -100 || f.x > config.spielfeldBreite + 100) {
+    if (f.y > config.spielfeldHoehe || f.x < -f.groesse - 50 || f.x > config.spielfeldBreite + 50) {
       f.el.remove();
       arrays.feinde.splice(i, 1);
       continue;
     }
-    if (f.muster !== 'stopAndGo' && f.muster !== 'clingOn') {
-      if (f.burstTimer > 0) {
+
+    if (f.muster !== 'clingOn' || f.phase !== 'attached') {
+      if (f.burstCount > 0) {
         f.burstTimer--;
-        if (f.burstTimer <= 0 && f.burstCount > 0) {
+        if (f.burstTimer <= 0) {
           Entities.erzeugeFeindLaser(f.x + f.groesse / 2 - 2, f.y + f.groesse);
           f.burstCount--;
-          if (f.burstCount > 0) f.burstTimer = 8;
+          f.burstTimer = 8;
         }
       }
 
@@ -477,17 +737,23 @@ export function gameLoop() {
         let schussBasis = Math.max(25, 60 - (state.level - 1) * 8);
         f.schussTimer = Math.random() * schussBasis + schussBasis;
 
-        // 2er-Salven (Burst) ab Level 3
         if (state.level >= 3 && (Math.random() < Math.min(0.9, 0.5 + (state.level - 3) * 0.2) || f.forceBurst)) {
           f.burstCount = 1;
           f.burstTimer = 8;
         }
       }
     }
-    if (state.x < f.x + f.groesse && state.x + config.spielerGroesse > f.x && state.y < f.y + f.groesse && state.y + config.spielerGroesse > f.y) {
-      Utils.spielerGetroffen(f, true);
+    if (!state.isDead && state.x < f.x + f.groesse && state.x + config.spielerGroesse > f.x && state.y < f.y + f.groesse && state.y + config.spielerGroesse > f.y) {
+      Utils.spielerGetroffen(f, true, 'p1');
       f.el.remove();
       arrays.feinde.splice(i, 1);
+      continue;
+    }
+    if (state.gameMode === 'coop' && state.p2 && !state.p2.isDead && state.p2.x < f.x + f.groesse && state.p2.x + config.spielerGroesse > f.x && state.p2.y < f.y + f.groesse && state.p2.y + config.spielerGroesse > f.y) {
+      Utils.spielerGetroffen(f, true, 'p2');
+      f.el.remove();
+      arrays.feinde.splice(i, 1);
+      continue;
     }
   }
 
@@ -504,10 +770,17 @@ export function gameLoop() {
       arrays.feindLaserArray.splice(i, 1);
       continue;
     }
-    if (state.x < fl.x + fl.width && state.x + config.spielerGroesse > fl.x && state.y < fl.y + fl.height && state.y + config.spielerGroesse > fl.y) {
-      Utils.spielerGetroffen(fl, false);
+    if (!state.isDead && state.x < fl.x + fl.width && state.x + config.spielerGroesse > fl.x && state.y < fl.y + fl.height && state.y + config.spielerGroesse > fl.y) {
+      Utils.spielerGetroffen(fl, false, 'p1');
       fl.el.remove();
       arrays.feindLaserArray.splice(i, 1);
+      continue;
+    }
+    if (state.gameMode === 'coop' && state.p2 && !state.p2.isDead && state.p2.x < fl.x + fl.width && state.p2.x + config.spielerGroesse > fl.x && state.p2.y < fl.y + fl.height && state.p2.y + config.spielerGroesse > fl.y) {
+      Utils.spielerGetroffen(fl, false, 'p2');
+      fl.el.remove();
+      arrays.feindLaserArray.splice(i, 1);
+      continue;
     }
   }
 
@@ -646,8 +919,11 @@ export function gameLoop() {
     b.el.style.left = b.x + 'px';
     b.el.style.top = b.y + 'px';
     let bossPadding = b.groesse * 0.15;
-    if (state.x < b.x + b.groesse - bossPadding && state.x + config.spielerGroesse > b.x + bossPadding && state.y < b.y + b.groesse - bossPadding && state.y + config.spielerGroesse > b.y + bossPadding) {
-      Utils.spielerGetroffen(b, false);
+    if (!state.isDead && state.x < b.x + b.groesse - bossPadding && state.x + config.spielerGroesse > b.x + bossPadding && state.y < b.y + b.groesse - bossPadding && state.y + config.spielerGroesse > b.y + bossPadding) {
+      Utils.spielerGetroffen(b, false, 'p1');
+    }
+    if (state.gameMode === 'coop' && state.p2 && !state.p2.isDead && state.p2.x < b.x + b.groesse - bossPadding && state.p2.x + config.spielerGroesse > b.x + bossPadding && state.p2.y < b.y + b.groesse - bossPadding && state.p2.y + config.spielerGroesse > b.y + bossPadding) {
+      Utils.spielerGetroffen(b, false, 'p2');
     }
   }
   for (let i = arrays.bossLaserArray.length - 1; i >= 0; i--) {
@@ -662,10 +938,17 @@ export function gameLoop() {
       arrays.bossLaserArray.splice(i, 1);
       continue;
     }
-    if (state.x < bl.x + bl.width && state.x + config.spielerGroesse > bl.x && state.y < bl.y + bl.height && state.y + config.spielerGroesse > bl.y) {
-      Utils.spielerGetroffen(bl, false);
+    if (!state.isDead && state.x < bl.x + bl.width && state.x + config.spielerGroesse > bl.x && state.y < bl.y + bl.height && state.y + config.spielerGroesse > bl.y) {
+      Utils.spielerGetroffen(bl, false, 'p1');
       bl.el.remove();
       arrays.bossLaserArray.splice(i, 1);
+      continue;
+    }
+    if (state.gameMode === 'coop' && state.p2 && !state.p2.isDead && state.p2.x < bl.x + bl.width && state.p2.x + config.spielerGroesse > bl.x && state.p2.y < bl.y + bl.height && state.p2.y + config.spielerGroesse > bl.y) {
+      Utils.spielerGetroffen(bl, false, 'p2');
+      bl.el.remove();
+      arrays.bossLaserArray.splice(i, 1);
+      continue;
     }
   }
 
@@ -728,9 +1011,15 @@ export function gameLoop() {
       }, 10);
       setTimeout(() => sw.remove(), 400);
 
-      let distPlayer = Math.hypot((state.x + config.spielerGroesse / 2) - cx, (state.y + config.spielerGroesse / 2) - cy);
-      if (distPlayer <= bb.radius) {
-        Utils.spielerGetroffen(bb, false);
+      let distP1 = Math.hypot((state.x + config.spielerGroesse / 2) - cx, (state.y + config.spielerGroesse / 2) - cy);
+      if (!state.isDead && distP1 <= bb.radius) {
+        Utils.spielerGetroffen(bb, false, 'p1');
+      }
+      if (state.gameMode === 'coop' && state.p2 && !state.p2.isDead) {
+        let distP2 = Math.hypot((state.p2.x + config.spielerGroesse / 2) - cx, (state.p2.y + config.spielerGroesse / 2) - cy);
+        if (distP2 <= bb.radius) {
+          Utils.spielerGetroffen(bb, false, 'p2');
+        }
       }
 
       bb.el.remove();
@@ -738,8 +1027,12 @@ export function gameLoop() {
       continue;
     }
 
-    if (state.x < bb.x + bb.groesse && state.x + config.spielerGroesse > bb.x && state.y < bb.y + bb.groesse && state.y + config.spielerGroesse > bb.y) {
-      Utils.spielerGetroffen(bb, false);
+    if (!state.isDead && state.x < bb.x + bb.groesse && state.x + config.spielerGroesse > bb.x && state.y < bb.y + bb.groesse && state.y + config.spielerGroesse > bb.y) {
+      Utils.spielerGetroffen(bb, false, 'p1');
+      bb.hp = 0;
+    }
+    if (state.gameMode === 'coop' && state.p2 && !state.p2.isDead && state.p2.x < bb.x + bb.groesse && state.p2.x + config.spielerGroesse > bb.x && state.p2.y < bb.y + bb.groesse && state.p2.y + config.spielerGroesse > bb.y) {
+      Utils.spielerGetroffen(bb, false, 'p2');
       bb.hp = 0;
     }
   }
@@ -754,9 +1047,17 @@ export function gameLoop() {
       Audio.playBossRocketFlight();
     }
 
-    // Homing Richtung Spieler (weich einlenkend)
+    // Homing Richtung näherer lebender Spieler
     let zielX = state.x + config.spielerGroesse / 2;
     let zielY = state.y + config.spielerGroesse / 2;
+    if (state.gameMode === 'coop' && state.p2 && !state.p2.isDead) {
+      let distP1 = Math.hypot(state.x - br.x, state.y - br.y);
+      let distP2 = Math.hypot(state.p2.x - br.x, state.p2.y - br.y);
+      if (state.isDead || distP2 < distP1) {
+        zielX = state.p2.x + config.spielerGroesse / 2;
+        zielY = state.p2.y + config.spielerGroesse / 2;
+      }
+    }
     let dx = zielX - (br.x + br.width / 2);
     let dy = zielY - (br.y + br.height / 2);
     let targetAngle = Math.atan2(dy, dx);
@@ -819,12 +1120,21 @@ export function gameLoop() {
     }
 
     // Kollision mit Spieler
-    if (state.x < br.x + br.width && state.x + config.spielerGroesse > br.x && state.y < br.y + br.height && state.y + config.spielerGroesse > br.y) {
-      Utils.spielerGetroffen(br, false);
+    if (!state.isDead && state.x < br.x + br.width && state.x + config.spielerGroesse > br.x && state.y < br.y + br.height && state.y + config.spielerGroesse > br.y) {
+      Utils.spielerGetroffen(br, false, 'p1');
       Audio.playMissileExplosion();
       Utils.erzeugeExplosion(br.x + br.width / 2, br.y + br.height / 2, '#e74c3c', 25);
       br.el.remove();
       arrays.bossRaketenArray.splice(i, 1);
+      continue;
+    }
+    if (state.gameMode === 'coop' && state.p2 && !state.p2.isDead && state.p2.x < br.x + br.width && state.p2.x + config.spielerGroesse > br.x && state.p2.y < br.y + br.height && state.p2.y + config.spielerGroesse > br.y) {
+      Utils.spielerGetroffen(br, false, 'p2');
+      Audio.playMissileExplosion();
+      Utils.erzeugeExplosion(br.x + br.width / 2, br.y + br.height / 2, '#e74c3c', 25);
+      br.el.remove();
+      arrays.bossRaketenArray.splice(i, 1);
+      continue;
     }
   }
 
@@ -960,93 +1270,106 @@ export function gameLoop() {
   }
 
   // --- 9.10 MANUELLE LASER (Projektile) ---
-  if (state.spielerSchussCooldown > 0) state.spielerSchussCooldown--;
-  if (laserAktiv && state.spielerSchussCooldown <= 0) {
-    state.spielerSchussCooldown = 6; // Schussrate
-    Audio.playLaser(state.laserStufe);
+  function feuerLaserFuerSpieler(pKey, pState, isFiring) {
+    if (!pState || pState.isDead) return;
+    if (pState.spielerSchussCooldown > 0) pState.spielerSchussCooldown--;
+    if (isFiring && pState.spielerSchussCooldown <= 0) {
+      pState.spielerSchussCooldown = 6; // Schussrate
+      Audio.playLaser(pState.laserStufe);
 
-    // Schaden pro Projektil (skaliert umgekehrt zur Projektilanzahl, damit Gesamt-DPS kontrolliert wächst)
-    let grundSchaden = 16; // 1 Projektil = 160 DPS (Stufe 1)
-    if (state.laserStufe === 2) grundSchaden = 10; // 2 Projektile = 200 DPS
-    else if (state.laserStufe === 3) grundSchaden = 12; // 2 Projektile = 240 DPS
-    else if (state.laserStufe >= 4) grundSchaden = 8; // 4 Projektile = 320 DPS
+      // Schaden pro Projektil (skaliert umgekehrt zur Projektilanzahl, damit Gesamt-DPS kontrolliert wächst)
+      let grundSchaden = 16; // 1 Projektil = 160 DPS (Stufe 1)
+      if (pState.laserStufe === 2) grundSchaden = 10; // 2 Projektile = 200 DPS
+      else if (pState.laserStufe === 3) grundSchaden = 12; // 2 Projektile = 240 DPS
+      else if (pState.laserStufe >= 4) grundSchaden = 8; // 4 Projektile = 320 DPS
 
-    let strahlenDef = [];
-    if (state.laserStufe === 1) {
-      strahlenDef.push({
-        offsetX: 11,
-        width: 8,
-        vx: 0,
-        color: '#00ffff'
-      });
-    } else if (state.laserStufe === 2) {
-      strahlenDef.push({
-        offsetX: 5,
-        width: 4,
-        vx: 0,
-        color: '#00ffff'
-      });
-      strahlenDef.push({
-        offsetX: 21,
-        width: 4,
-        vx: 0,
-        color: '#00ffff'
-      });
-    } else if (state.laserStufe >= 3) {
-      strahlenDef.push({
-        offsetX: 5,
-        width: 5,
-        vx: 0,
-        color: '#ffffff'
-      });
-      strahlenDef.push({
-        offsetX: 20,
-        width: 5,
-        vx: 0,
-        color: '#ffffff'
-      });
-      if (state.laserStufe >= 4) {
+      let strahlenDef = [];
+      const primaryColor = pKey === 'p2' ? '#3498db' : '#00ffff';
+      const quadColor = pKey === 'p2' ? '#00d2d3' : '#a000ff';
+      if (pState.laserStufe === 1) {
         strahlenDef.push({
-          offsetX: 0,
+          offsetX: 11,
+          width: 8,
+          vx: 0,
+          color: primaryColor
+        });
+      } else if (pState.laserStufe === 2) {
+        strahlenDef.push({
+          offsetX: 5,
           width: 4,
           vx: 0,
-          color: '#a000ff'
+          color: primaryColor
         });
         strahlenDef.push({
-          offsetX: 26,
+          offsetX: 21,
           width: 4,
           vx: 0,
-          color: '#a000ff'
+          color: primaryColor
         });
+      } else if (pState.laserStufe >= 3) {
+        strahlenDef.push({
+          offsetX: 5,
+          width: 5,
+          vx: 0,
+          color: '#ffffff'
+        });
+        strahlenDef.push({
+          offsetX: 20,
+          width: 5,
+          vx: 0,
+          color: '#ffffff'
+        });
+        if (pState.laserStufe >= 4) {
+          strahlenDef.push({
+            offsetX: 0,
+            width: 4,
+            vx: 0,
+            color: quadColor
+          });
+          strahlenDef.push({
+            offsetX: 26,
+            width: 4,
+            vx: 0,
+            color: quadColor
+          });
+        }
       }
+      strahlenDef.forEach(st => {
+        const el = document.createElement('div');
+        el.classList.add('laser-projektil');
+        if (pKey === 'p2') el.classList.add('laser-p2');
+        el.style.backgroundColor = st.color;
+        el.style.boxShadow = `0 0 10px ${st.color}`;
+        el.style.width = st.width + 'px';
+        el.style.height = '20px';
+        el.style.left = pState.x + st.offsetX + 'px';
+        el.style.top = pState.y + 'px';
+
+        // Rotiere den Laser leicht, wenn er seitlich fliegt
+        if (st.vx !== 0) {
+          let winkel = Math.atan2(-15, st.vx) * 180 / Math.PI;
+          el.style.transform = `rotate(${winkel + 90}deg)`;
+        }
+        dom.spielfeld.appendChild(el);
+        arrays.laserArray.push({
+          el: el,
+          x: pState.x + st.offsetX,
+          y: pState.y,
+          vx: st.vx,
+          vy: 15,
+          width: st.width,
+          height: 20,
+          schaden: grundSchaden,
+          owner: pKey,
+          durchschlag: pState.laserDurchschlag
+        });
+      });
     }
-    strahlenDef.forEach(st => {
-      const el = document.createElement('div');
-      el.classList.add('laser-projektil');
-      el.style.backgroundColor = st.color;
-      el.style.boxShadow = `0 0 10px ${st.color}`;
-      el.style.width = st.width + 'px';
-      el.style.height = '20px';
-      el.style.left = state.x + st.offsetX + 'px';
-      el.style.top = state.y + 'px';
+  }
 
-      // Rotiere den Laser leicht, wenn er seitlich fliegt
-      if (st.vx !== 0) {
-        let winkel = Math.atan2(-15, st.vx) * 180 / Math.PI;
-        el.style.transform = `rotate(${winkel + 90}deg)`;
-      }
-      dom.spielfeld.appendChild(el);
-      arrays.laserArray.push({
-        el: el,
-        x: state.x + st.offsetX,
-        y: state.y,
-        vx: st.vx,
-        vy: 15,
-        width: st.width,
-        height: 20,
-        schaden: grundSchaden
-      });
-    });
+  feuerLaserFuerSpieler('p1', state, laserAktiv);
+  if (state.gameMode === 'coop' && state.p2) {
+    feuerLaserFuerSpieler('p2', state.p2, laserAktivP2);
   }
 
   // --- 9.10b LASER UPDATE & KOLLISION ---
@@ -1139,106 +1462,132 @@ export function gameLoop() {
       }
     }
   }
+
   // --- 9.13 RAKETEN ---
-  if (state.raketenCooldown > 0) state.raketenCooldown--;
+  function feuerRaketenFuerSpieler(pKey, pState) {
+    if (!pState || pState.isDead) return;
+    if (pState.raketenCooldown > 0) pState.raketenCooldown--;
 
-  // Cooldown-Anzeige Update
-  let maxRaketenCd = 180;
-  if (state.raketenStufe >= 2 && state.raketenStufe <= 3) maxRaketenCd = 150;
-  if (state.raketenStufe >= 4) maxRaketenCd = 120;
-  const raketenCdBalken = document.getElementById('raketen-cd-balken');
-  let pctR = Math.max(0, 100 - state.raketenCooldown / maxRaketenCd * 100);
-  raketenCdBalken.style.width = pctR + '%';
-  raketenCdBalken.style.backgroundColor = state.raketenCooldown <= 0 ? '#2ecc71' : '#e74c3c';
-  
-  const mobileBtnRaketeCd = document.getElementById('btn-rakete-cd');
-  if (mobileBtnRaketeCd) {
-    mobileBtnRaketeCd.style.height = pctR + '%';
-    mobileBtnRaketeCd.style.backgroundColor = state.raketenCooldown <= 0 ? 'rgba(46, 204, 113, 0.5)' : 'rgba(231, 76, 60, 0.5)';
-  }
-  if (state.tastenGedrueckt.k && state.raketenCooldown <= 0) {
-    state.raketenCooldown = maxRaketenCd;
-    Audio.playMissile();
-    let rSchaden = 25;
-    let rRadius = 80;
-    let anzahl = 1;
-    if (state.raketenStufe >= 2) rSchaden = 30;
-    if (state.raketenStufe >= 3) anzahl = 2;
-    if (state.raketenStufe >= 4) {
-      rRadius = 100;
-      rSchaden = 35;
+    let maxRaketenCd = 180;
+    if (pState.raketenStufe >= 2 && pState.raketenStufe <= 3) maxRaketenCd = 150;
+    if (pState.raketenStufe >= 4) maxRaketenCd = 120;
+
+    if (pKey === 'p1') {
+      const raketenCdBalken = document.getElementById('raketen-cd-balken');
+      if (raketenCdBalken) {
+        let pctR = Math.max(0, 100 - pState.raketenCooldown / maxRaketenCd * 100);
+        raketenCdBalken.style.width = pctR + '%';
+        raketenCdBalken.style.backgroundColor = pState.raketenCooldown <= 0 ? '#2ecc71' : '#e74c3c';
+      }
+      const mobileBtnRaketeCd = document.getElementById('btn-rakete-cd');
+      if (mobileBtnRaketeCd) {
+        let pctR = Math.max(0, 100 - pState.raketenCooldown / maxRaketenCd * 100);
+        mobileBtnRaketeCd.style.height = pctR + '%';
+        mobileBtnRaketeCd.style.backgroundColor = pState.raketenCooldown <= 0 ? 'rgba(46, 204, 113, 0.5)' : 'rgba(231, 76, 60, 0.5)';
+      }
+    } else {
+      const raketenCdBalkenP2 = document.getElementById('raketen-cd-balken-p2');
+      if (raketenCdBalkenP2) {
+        let pctR = Math.max(0, 100 - pState.raketenCooldown / maxRaketenCd * 100);
+        raketenCdBalkenP2.style.width = pctR + '%';
+        raketenCdBalkenP2.style.backgroundColor = pState.raketenCooldown <= 0 ? '#2ecc71' : '#e74c3c';
+      }
     }
-    if (state.raketenStufe >= 5) anzahl = 3;
 
-    // Schiff-Bewegungsvektor zur Vererbung der Geschwindigkeit
-    let shipVx = state.spielerVx || 0;
-    let shipVy = state.spielerVy || 0;
-    let initVy = Math.max(0.5, 2.0 + shipVy * 0.6);
+    const isTriggered = pKey === 'p1'
+      ? (state.gameMode === 'coop' ? state.tastenGedrueckt.v : (state.tastenGedrueckt.k || state.tastenGedrueckt.v))
+      : (state.tastenGedrueckt.ö || state.tastenGedrueckt.numpad2 || state.tastenGedrueckt[',']);
 
-    let offsets = [];
-    if (anzahl === 1) {
-      const isPhantom = state.selectedShipModel === 'phantom';
-      offsets = [{
-        ox: isPhantom ? 29 : -9,
-        ejectVx: 0,
-        homing: false
-      }];
-    } else if (anzahl === 2) {
-      offsets = [{
-        ox: -9,
-        ejectVx: 0,
-        homing: false
-      }, {
-        ox: 29,
-        ejectVx: 0,
-        homing: state.raketenStufe >= 3 // Ab Stufe 3 ist eine Rakete zielsuchend
-      }];
-    } else if (anzahl === 3) {
-      offsets = [{
-        ox: -9,
-        ejectVx: 0,
-        homing: true // Linke Flanken-Rakete ist zielsuchend
-      }, {
-        ox: 10,
-        ejectVx: 0,
-        homing: false // Mittlere Rakete schießt geradeaus
-      }, {
-        ox: 29,
-        ejectVx: 0,
-        homing: true // Rechte Flanken-Rakete ist zielsuchend
-      }];
-    }
-    offsets.forEach(off => {
-      const el = document.createElement('div');
-      el.classList.add('raketen-projektil');
-      if (state.raketenStufe >= 2) el.classList.add('rakete-lvl-2');
-      if (off.homing) el.classList.add('rakete-homing');
-      el.innerHTML = `
-                        <div class="rakete-sensor"></div>
-                        <div class="rakete-canards"></div>
-                        <div class="rakete-rumpf"></div>
-                        <div class="rakete-fluegel"></div>
-                        <div class="rakete-feuer"></div>
-                    `;
-      el.style.left = state.x + off.ox + 'px';
-      el.style.top = state.y + 'px';
-      let vx = off.ejectVx + shipVx * 0.4;
-      let winkel = Math.atan2(-initVy, vx) * 180 / Math.PI;
-      el.style.transform = `rotate(${winkel + 90}deg)`;
-      dom.spielfeld.appendChild(el);
-      arrays.raketenArray.push({
-        el: el,
-        x: state.x + off.ox,
-        y: state.y,
-        vx: vx,
-        vy: initVy,
-        schaden: rSchaden,
-        radius: rRadius,
-        homing: off.homing,
-        age: 0,
-        detoniert: false
+    if (isTriggered && pState.raketenCooldown <= 0) {
+      pState.raketenCooldown = maxRaketenCd;
+      Audio.playMissile();
+      let rSchaden = 25;
+      let rRadius = 80;
+      let anzahl = 1;
+      if (pState.raketenStufe >= 2) rSchaden = 30;
+      if (pState.raketenStufe >= 3) anzahl = 2;
+      if (pState.raketenStufe >= 4) {
+        rRadius = 100;
+        rSchaden = 35;
+      }
+      if (pState.raketenStufe >= 5) anzahl = 3;
+
+      let shipVx = pState.spielerVx || 0;
+      let shipVy = pState.spielerVy || 0;
+      let initVy = Math.max(0.5, 2.0 + shipVy * 0.6);
+
+      let offsets = [];
+      if (anzahl === 1) {
+        const isPhantom = pState.selectedShipModel === 'phantom';
+        offsets = [{
+          ox: isPhantom ? 29 : -9,
+          ejectVx: 0,
+          homing: false
+        }];
+      } else if (anzahl === 2) {
+        offsets = [{
+          ox: -9,
+          ejectVx: 0,
+          homing: false
+        }, {
+          ox: 29,
+          ejectVx: 0,
+          homing: pState.raketenStufe >= 3
+        }];
+      } else if (anzahl === 3) {
+        offsets = [{
+          ox: -9,
+          ejectVx: 0,
+          homing: true
+        }, {
+          ox: 10,
+          ejectVx: 0,
+          homing: false
+        }, {
+          ox: 29,
+          ejectVx: 0,
+          homing: true
+        }];
+      }
+      offsets.forEach(off => {
+        const el = document.createElement('div');
+        el.classList.add('raketen-projektil');
+        if (pState.raketenStufe >= 2) el.classList.add('rakete-lvl-2');
+        if (off.homing) el.classList.add('rakete-homing');
+        if (pKey === 'p2') el.classList.add('rakete-p2');
+        el.innerHTML = `
+                          <div class="rakete-sensor"></div>
+                          <div class="rakete-canards"></div>
+                          <div class="rakete-rumpf"></div>
+                          <div class="rakete-fluegel"></div>
+                          <div class="rakete-feuer"></div>
+                      `;
+        el.style.left = pState.x + off.ox + 'px';
+        el.style.top = pState.y + 'px';
+        let vx = off.ejectVx + shipVx * 0.4;
+        let winkel = Math.atan2(-initVy, vx) * 180 / Math.PI;
+        el.style.transform = `rotate(${winkel + 90}deg)`;
+        dom.spielfeld.appendChild(el);
+        arrays.raketenArray.push({
+          el: el,
+          x: pState.x + off.ox,
+          y: pState.y,
+          vx: vx,
+          vy: initVy,
+          schaden: rSchaden,
+          radius: rRadius,
+          homing: off.homing,
+          owner: pKey,
+          age: 0,
+          detoniert: false
+        });
       });
-    });
+    }
+  }
+
+  feuerRaketenFuerSpieler('p1', state);
+  if (state.gameMode === 'coop' && state.p2) {
+    feuerRaketenFuerSpieler('p2', state.p2);
   }
 
   // Raketen Update & Kollision (3-Phasen-Flugdynamik, Näherungszünder & Zielsuche)
@@ -1249,174 +1598,125 @@ export function gameLoop() {
     // 3-Phasen-Flugdynamik:
     // Phase 1 (Frames 1-10): Seitliches Lösen / Ausklinken, erbt Schiffsgeschwindigkeit
     if (r.age <= 10) {
-      r.x += r.vx;
-      r.y -= r.vy;
+      r.vy += 0.4;
       r.vx *= 0.95;
-    }
-    // Phase 2 (Frames 11-18): Kurzes Verlangsamen ("Anlauf nehmen" & Triebwerkszündung)
-    else if (r.age <= 18) {
-      r.vx *= 0.82;
-      r.vy = Math.max(0.3, r.vy * 0.85);
-      r.x += r.vx;
-      r.y -= r.vy;
-    }
-    // Phase 3 (Frames 19+): Starke, lineare Beschleunigung (Triebwerks-Vollschub)
+    } 
+    // Phase 2 (Frames 11-25): Haupttriebwerk zündet, starke Beschleunigung nach vorn
+    else if (r.age <= 25) {
+      r.vy += 1.2;
+      r.vx *= 0.85;
+      if (Math.random() < 0.6) {
+        Utils.erzeugeAntriebsRauch(r.x + 3, r.y + 16, 2);
+      }
+    } 
+    // Phase 3 (ab Frame 26): Höchstgeschwindigkeit & Homing-Navigation
     else {
-      r.vy = Math.min(14, r.vy + 0.5); // Schneller, linearer Schubanstieg
-      r.vx *= 0.92;
+      r.vy = Math.min(18, r.vy + 0.5);
+      if (Math.random() < 0.4) {
+        Utils.erzeugeAntriebsRauch(r.x + 3, r.y + 16, 1.5);
+      }
 
-      // Zielsuchende Lenkung (nur gegen Feinde und Bosse) ab Phase 3 aktiv
+      // Homing-Verhalten: Dreht sanft in Richtung des nächsten Ziels
       if (r.homing) {
-        let bestDist = Infinity;
-        let target = null;
-        const feindZiele = [...arrays.feinde, ...arrays.bosses];
-        for (let f of feindZiele) {
-          if ((f.immune || 0) <= 0) {
-            let zcx = f.x + (f.groesse || 20) / 2;
-            let zcy = f.y + (f.groesse || 20) / 2;
-            let d = Math.hypot(zcx - (r.x + 5), zcy - (r.y + 12));
-            // Nur Feinde erfassen, die sich vor oder in vertretbarer Nähe der Rakete befinden
-            if (d < bestDist && zcy < r.y + 160) {
-              bestDist = d;
-              target = f;
+        let bestTarget = null;
+        let bestDist = 300; // Maximale Erfassungsreichweite
+        alleZiele.forEach(z => {
+          if (!z.istUnzerstoerbar && (z.immune || 0) <= 0) {
+            let zcx = z.x + (z.groesse || 20) / 2;
+            let zcy = z.y + (z.groesse || 20) / 2;
+            let dist = Math.hypot(zcx - (r.x + 3), zcy - (r.y + 8));
+            if (dist < bestDist && zcy < r.y + 50) { // Nur Ziele vor oder leicht hinter der Rakete
+              bestDist = dist;
+              bestTarget = z;
             }
           }
-        }
-
-        if (target) {
-          let zcx = target.x + (target.groesse || 20) / 2;
-          let zcy = target.y + (target.groesse || 20) / 2;
-          let targetAngle = Math.atan2(zcy - (r.y + 12), zcx - (r.x + 5));
-          let currentAngle = Math.atan2(-r.vy, r.vx || 0.0001);
-          let diff = targetAngle - currentAngle;
-          while (diff < -Math.PI) diff += Math.PI * 2;
-          while (diff > Math.PI) diff -= Math.PI * 2;
-
-          let maxTurn = 0.12; // Direktere Kurvenlenkung unter Schub
-          let newAngle = currentAngle + Math.sign(diff) * Math.min(Math.abs(diff), maxTurn);
-          let currentSpeed = Math.hypot(r.vx, r.vy) || r.vy;
-          r.vx = Math.cos(newAngle) * currentSpeed;
-          r.vy = -Math.sin(newAngle) * currentSpeed;
+        });
+        if (bestTarget) {
+          let zcx = bestTarget.x + (bestTarget.groesse || 20) / 2;
+          let targetDx = zcx - (r.x + 3);
+          r.vx += Math.sign(targetDx) * 0.8;
+          r.vx = Math.max(-8, Math.min(8, r.vx)); // Maximale Kurvengeschwindigkeit
         }
       }
-
-      r.x += r.vx;
-      r.y -= r.vy;
     }
 
-    // Raketenausrichtung & DOM-Position aktualisieren
-    let flightAngle = Math.atan2(-r.vy, r.vx || 0.0001) * 180 / Math.PI + 90;
-    r.el.style.transform = `rotate(${flightAngle}deg)`;
-    r.el.style.top = r.y + 'px';
+    r.x += r.vx;
+    r.y -= r.vy;
     r.el.style.left = r.x + 'px';
+    r.el.style.top = r.y + 'px';
 
-    // Partikelschweif (Rauch beim Ausklinken, Vollfeuer in Phase 3)
-    let flameProb = r.age > 18 ? 0.9 : (r.age > 10 ? 0.5 : 0.2);
-    if (Math.random() < flameProb) {
-      const pEl = document.createElement('div');
-      pEl.classList.add('partikel');
-      if (r.homing && r.age > 18) {
-        pEl.style.backgroundColor = Math.random() < 0.5 ? '#00ffff' : '#3498db';
-      } else if (r.age > 18) {
-        pEl.style.backgroundColor = Math.random() < 0.6 ? '#f1c40f' : '#e74c3c';
-      } else {
-        pEl.style.backgroundColor = '#7f8c8d'; // Rauch beim Abwurf
-      }
-      let px = r.x + 3 + Math.random() * 4; // Mitte der Rakete (Breite 10)
-      let py = r.y + 24; // Unten an der Rakete
-      pEl.style.left = px + 'px';
-      pEl.style.top = py + 'px';
-      dom.spielfeld.appendChild(pEl);
-      arrays.partikelArray.push({
-        el: pEl,
-        x: px,
-        y: py,
-        vx: (Math.random() - 0.5) * 0.5,
-        vy: 0.5 + Math.random(),
-        leben: 1.0,
-        zerfall: 0.04
-      });
-    }
-    if (r.y < -40 || r.x < -50 || r.x > config.spielfeldBreite + 50 || r.y > config.spielfeldHoehe + 50) {
+    // Drehung passend zur Flugbahn ausrichten
+    let winkel = Math.atan2(-r.vy, r.vx) * 180 / Math.PI;
+    r.el.style.transform = `rotate(${winkel + 90}deg)`;
+
+    if (r.y < -30 || r.x < -30 || r.x > config.spielfeldBreite + 30) {
       r.el.remove();
       arrays.raketenArray.splice(i, 1);
       continue;
     }
 
-    // Näherungszünder prüfen
-    let zielGefunden = false;
+    // Näherungszünder & Direkttreffer prüfen
+    let detoniert = false;
+    let rcx = r.x + 3;
+    let rcy = r.y + 8;
+
     for (let j = 0; j < alleZiele.length; j++) {
       let z = alleZiele[j];
       if ((z.immune || 0) <= 0) {
-        let zcx = z.x + z.groesse / 2;
-        let zcy = z.y + z.groesse / 2;
-        let rcx = r.x + 3; // 3 ist halbe Breite der Rakete
-        let rcy = r.y + 9; // 9 ist halbe Höhe
+        let zcx = z.x + (z.groesse || 20) / 2;
+        let zcy = z.y + (z.groesse || 20) / 2;
         let dist = Math.hypot(zcx - rcx, zcy - rcy);
-        if (dist < 50) {
-          // Zündradius
-          zielGefunden = true;
+        // Direkttreffer oder Näherungszündung bei naher Vorbeifahrt
+        if (dist < (z.groesse || 20) / 2 + 10) {
+          detoniert = true;
           break;
         }
       }
     }
-    if (zielGefunden) {
-      r.detoniert = true;
-      Audio.playMissileExplosion();
-      // Explosion auslösen
-      let rcx = r.x + 3;
-      let rcy = r.y + 9;
-      Utils.erzeugeExplosion(rcx, rcy, '#e74c3c', 30); // Rote Partikel
 
-      // Visuelle Schockwelle
+    if (detoniert) {
+      Audio.playMissileExplosion();
+      Utils.erzeugeExplosion(rcx, rcy, '#e67e22', 25);
+      Utils.erzeugeExplosion(rcx, rcy, '#f1c40f', 15);
+
+      // Schockwelle erzeugen
       const shockwave = document.createElement('div');
-      shockwave.style.position = 'absolute';
+      shockwave.classList.add('schockwelle');
       shockwave.style.width = r.radius * 2 + 'px';
       shockwave.style.height = r.radius * 2 + 'px';
       shockwave.style.left = rcx - r.radius + 'px';
       shockwave.style.top = rcy - r.radius + 'px';
       shockwave.style.borderRadius = '50%';
-      shockwave.style.backgroundColor = 'rgba(231, 76, 60, 0.5)';
+      shockwave.style.backgroundColor = 'rgba(231, 76, 60, 0.4)';
       shockwave.style.boxShadow = '0 0 20px #e74c3c';
       shockwave.style.zIndex = '9';
       shockwave.style.pointerEvents = 'none';
       shockwave.style.transition = 'all 0.3s ease-out';
       dom.spielfeld.appendChild(shockwave);
 
-      // Schockwelle animieren und entfernen
       setTimeout(() => {
         shockwave.style.opacity = '0';
         shockwave.style.transform = 'scale(1.2)';
       }, 10);
-      setTimeout(() => {
-        shockwave.remove();
-      }, 300);
+      setTimeout(() => shockwave.remove(), 300);
 
       // Flächenschaden
       for (let j = 0; j < alleZiele.length; j++) {
         let z = alleZiele[j];
         if ((z.immune || 0) <= 0) {
-          let zcx = z.x + z.groesse / 2;
-          let zcy = z.y + z.groesse / 2;
-          let dist = Math.hypot(zcx - rcx, zcy - rcy);
-          if (dist <= r.radius) {
+          let zcx = z.x + (z.groesse || 20) / 2;
+          let zcy = z.y + (z.groesse || 20) / 2;
+          if (Math.hypot(zcx - rcx, zcy - rcy) <= r.radius) {
             if (!z.istUnzerstoerbar) {
               if ((z.schildHp || 0) > 0) {
                 z.schildHp -= r.schaden;
                 if (z.schildHp <= 0) {
                   z.schildHp = 0;
-                  if (z.schildEl) {
-                    z.schildEl.remove();
-                    z.schildEl = null;
-                  }
-                  for (let k = 0; k < 5; k++) {
-                    Utils.erzeugeRauchFunken(z.x + 15, z.y + 15, 10);
-                  }
+                  if (z.schildEl) { z.schildEl.remove(); z.schildEl = null; }
+                  for (let k = 0; k < 5; k++) Utils.erzeugeRauchFunken(z.x + 15, z.y + 15, 10);
                 }
                 z.el.style.filter = 'brightness(2.2)';
-                setTimeout(() => {
-                  if (z.el) z.el.style.filter = '';
-                }, 50);
+                setTimeout(() => { if (z.el) z.el.style.filter = ''; }, 50);
               } else {
                 z.hp -= r.schaden;
                 if (z.rissEl) {
@@ -1428,7 +1728,7 @@ export function gameLoop() {
                 setTimeout(() => {
                   if (z.el) z.el.style.filter = '';
                 }, 50);
-                if (z.hp <= 0) Utils.zerstoereZiel(z);
+                if (z.hp <= 0) Utils.zerstoereZiel(z, r.owner || 'p1');
               }
             }
           }
@@ -1438,61 +1738,88 @@ export function gameLoop() {
       arrays.raketenArray.splice(i, 1);
     }
   }
+
   // --- 9.14 BOMBEN ---
-  if (state.bombenCooldown > 0) state.bombenCooldown--;
-  let maxBombenCd = 2400 - state.bombenStufe * 240; // 40s - 4s per level
+  function wirfBombeFuerSpieler(pKey, pState) {
+    if (!pState || pState.isDead) return;
+    if (pState.bombenCooldown > 0) pState.bombenCooldown--;
+    let maxBombenCd = 2400 - pState.bombenStufe * 240; // 40s - 4s per level
 
-  const bombenCdBalken = document.getElementById('bomben-cd-balken');
-  let pctB = Math.max(0, 100 - state.bombenCooldown / maxBombenCd * 100);
-  bombenCdBalken.style.width = pctB + '%';
-  bombenCdBalken.style.backgroundColor = state.bombenCooldown <= 0 ? '#2ecc71' : '#f39c12';
-  
-  const mobileBtnBombeCd = document.getElementById('btn-bombe-cd');
-  if (mobileBtnBombeCd) {
-    mobileBtnBombeCd.style.height = pctB + '%';
-    mobileBtnBombeCd.style.backgroundColor = state.bombenCooldown <= 0 ? 'rgba(46, 204, 113, 0.5)' : 'rgba(243, 156, 18, 0.5)';
+    if (pKey === 'p1') {
+      const bombenCdBalken = document.getElementById('bomben-cd-balken');
+      if (bombenCdBalken) {
+        let pctB = Math.max(0, 100 - pState.bombenCooldown / maxBombenCd * 100);
+        bombenCdBalken.style.width = pctB + '%';
+        bombenCdBalken.style.backgroundColor = pState.bombenCooldown <= 0 ? '#2ecc71' : '#f39c12';
+      }
+      const mobileBtnBombeCd = document.getElementById('btn-bombe-cd');
+      if (mobileBtnBombeCd) {
+        let pctB = Math.max(0, 100 - pState.bombenCooldown / maxBombenCd * 100);
+        mobileBtnBombeCd.style.height = pctB + '%';
+        mobileBtnBombeCd.style.backgroundColor = pState.bombenCooldown <= 0 ? 'rgba(46, 204, 113, 0.5)' : 'rgba(243, 156, 18, 0.5)';
+      }
+    } else {
+      const bombenCdBalkenP2 = document.getElementById('bomben-cd-balken-p2');
+      if (bombenCdBalkenP2) {
+        let pctB = Math.max(0, 100 - pState.bombenCooldown / maxBombenCd * 100);
+        bombenCdBalkenP2.style.width = pctB + '%';
+        bombenCdBalkenP2.style.backgroundColor = pState.bombenCooldown <= 0 ? '#2ecc71' : '#f39c12';
+      }
+    }
+
+    const isTriggered = pKey === 'p1'
+      ? (state.gameMode === 'coop' ? state.tastenGedrueckt.c : (state.tastenGedrueckt[' '] || state.tastenGedrueckt.c))
+      : (state.tastenGedrueckt.l || state.tastenGedrueckt.enter || state.tastenGedrueckt.numpad3 || state.tastenGedrueckt.numpad0);
+
+    if (isTriggered && pState.bombenCooldown <= 0) {
+      pState.bombenCooldown = maxBombenCd;
+      Audio.playBomb();
+      const el = document.createElement('div');
+      el.classList.add('bomben-projektil', `bombe-lvl-${pState.bombenStufe}`);
+      if (pKey === 'p2') el.classList.add('bombe-p2');
+      el.innerHTML = `
+                      <div class="bombe-aura"></div>
+                      <div class="bombe-body"></div>
+                      <div class="bombe-licht" style="top: 4px;"></div>
+                      <div class="bombe-licht" style="top: 13px;"></div>
+                      <div class="bombe-licht" style="top: 22px;"></div>
+                  `;
+      el.style.left = pState.x + 8 + 'px';
+      el.style.top = pState.y + 'px';
+
+      // Alle Lichter animieren
+      Array.from(el.querySelectorAll('.bombe-licht')).forEach(l => {
+        l.style.animation = 'bombeBlink 1s infinite alternate';
+      });
+      dom.spielfeld.appendChild(el);
+      let bSchaden = 100 + pState.bombenStufe * 50;
+      let bRadius = 150 + pState.bombenStufe * 50;
+      const stufeColors = { 1: '#e74c3c', 2: '#f39c12', 3: '#9b59b6', 4: '#00ffff', 5: '#f1c40f' };
+      const stufeSpeeds = { 1: 1.5, 2: 1.8, 3: 2.0, 4: 2.3, 5: 2.6 };
+      arrays.bombenArray.push({
+        el: el,
+        x: pState.x + 8,
+        y: pState.y,
+        targetX: config.spielfeldBreite / 2 - 7,
+        targetY: 285,
+        startDist: 0,
+        speed: stufeSpeeds[pState.bombenStufe] || 1.5,
+        rot: 0,
+        schaden: bSchaden,
+        radius: bRadius,
+        stufe: pState.bombenStufe,
+        color: stufeColors[pState.bombenStufe] || '#f39c12',
+        owner: pKey,
+        isMini: false,
+        beepTimer: 999,
+        delayFrames: 0
+      });
+    }
   }
-  if (state.tastenGedrueckt[' '] && state.bombenCooldown <= 0) {
-    state.bombenCooldown = maxBombenCd;
-    Audio.playBomb();
-    const el = document.createElement('div');
-    el.classList.add('bomben-projektil', `bombe-lvl-${state.bombenStufe}`);
-    el.innerHTML = `
-                    <div class="bombe-aura"></div>
-                    <div class="bombe-body"></div>
-                    <div class="bombe-licht" style="top: 4px;"></div>
-                    <div class="bombe-licht" style="top: 13px;"></div>
-                    <div class="bombe-licht" style="top: 22px;"></div>
-                `;
-    el.style.left = state.x + 8 + 'px'; // Mittig aus dem Schiff
-    el.style.top = state.y + 'px';
 
-    // Alle Lichter animieren
-    Array.from(el.querySelectorAll('.bombe-licht')).forEach(l => {
-      l.style.animation = 'bombeBlink 1s infinite alternate';
-    });
-    dom.spielfeld.appendChild(el);
-    let bSchaden = 100 + state.bombenStufe * 50;
-    let bRadius = 150 + state.bombenStufe * 50;
-    const stufeColors = { 1: '#e74c3c', 2: '#f39c12', 3: '#9b59b6', 4: '#00ffff', 5: '#f1c40f' };
-    const stufeSpeeds = { 1: 1.5, 2: 1.8, 3: 2.0, 4: 2.3, 5: 2.6 };
-    arrays.bombenArray.push({
-      el: el,
-      x: state.x + 8,
-      y: state.y,
-      targetX: 193,
-      targetY: 285,
-      startDist: 0,
-      speed: stufeSpeeds[state.bombenStufe] || 1.5,
-      rot: 0,
-      schaden: bSchaden,
-      radius: bRadius,
-      stufe: state.bombenStufe,
-      color: stufeColors[state.bombenStufe] || '#f39c12',
-      isMini: false,
-      beepTimer: 999,
-      delayFrames: 0
-    });
+  wirfBombeFuerSpieler('p1', state);
+  if (state.gameMode === 'coop' && state.p2) {
+    wirfBombeFuerSpieler('p2', state.p2);
   }
   for (let i = arrays.bombenArray.length - 1; i >= 0; i--) {
     let b = arrays.bombenArray[i];

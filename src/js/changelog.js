@@ -1,6 +1,15 @@
-export const GAME_VERSION = '1.6.12';
+export const GAME_VERSION = '1.6.13';
 
 export const changelogData = {
+  '1.6.13': {
+    version: '1.6.13',
+    intro: 'Hey, es ist jetzt Version 1.6.13 rausgekommen, folgendes wurde geändert oder ist neu:',
+    highlights: [
+      '🚀 2-Spieler-Modus (PC Co-op): Spiele gemeinsam mit einem Freund an einer Tastatur (P1: WASD + B/V/C, P2: Pfeiltasten + Ä/Ö/L)',
+      '🌌 Erweitertes Spielfeld & Balancing: 600px breites Kampfareal mit angepassten Feind- und Boss-Werten',
+      '💎 Dedicated Loot & Revive-System: Getrennte Powerups für P1 & P2 und Wiederbelebung gefallener Teammitglieder bei Boss-Sieg oder Herz-Powerups'
+    ]
+  },
   '1.6.12': {
     version: '1.6.12',
     intro: 'Hey, es ist jetzt Version 1.6.12 rausgekommen, folgendes wurde geändert oder ist neu:',
