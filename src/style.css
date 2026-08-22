@@ -270,7 +270,9 @@
             box-sizing: border-box;
         }
 
-        #energie-container {
+        #energie-container,
+        #energie-container-p2,
+        .energie-container {
             width: 80px;
             height: 8px;
             background-color: #1a252f;
@@ -280,7 +282,9 @@
             position: relative;
         }
 
-        #energie-balken {
+        #energie-balken,
+        #energie-balken-p2,
+        .energie-balken {
             width: 50%;
             height: 100%;
             background-color: #1abc9c;
@@ -344,7 +348,9 @@
             transition: width 0.1s linear;
         }
 
-        #max-energie-marker {
+        #max-energie-marker,
+        #max-energie-marker-p2,
+        .max-energie-marker {
             position: absolute;
             top: 0;
             bottom: 0;
@@ -1381,7 +1387,13 @@
 
         #spieler.schild-aktiv-1::after,
         #spieler.schild-aktiv-2::after,
-        #spieler.schild-aktiv-3::after {
+        #spieler.schild-aktiv-3::after,
+        #spieler-2.schild-aktiv-1::after,
+        #spieler-2.schild-aktiv-2::after,
+        #spieler-2.schild-aktiv-3::after,
+        .spieler-schiff.schild-aktiv-1::after,
+        .spieler-schiff.schild-aktiv-2::after,
+        .spieler-schiff.schild-aktiv-3::after {
             content: '';
             position: absolute;
             top: -5px; left: -5px; right: -5px; bottom: -5px;
@@ -1390,18 +1402,24 @@
             transition: box-shadow 0.3s, border 0.3s, top 0.3s, left 0.3s, right 0.3s, bottom 0.3s;
         }
 
-        #spieler.schild-aktiv-1::after {
+        #spieler.schild-aktiv-1::after,
+        #spieler-2.schild-aktiv-1::after,
+        .spieler-schiff.schild-aktiv-1::after {
             box-shadow: 0 0 15px 5px rgba(52, 152, 219, 0.7);
             border: 2px solid rgba(52, 152, 219, 0.8);
         }
 
-        #spieler.schild-aktiv-2::after {
+        #spieler.schild-aktiv-2::after,
+        #spieler-2.schild-aktiv-2::after,
+        .spieler-schiff.schild-aktiv-2::after {
             box-shadow: 0 0 25px 8px rgba(46, 204, 113, 0.8);
             border: 3px solid rgba(46, 204, 113, 0.9);
             top: -8px; left: -8px; right: -8px; bottom: -8px;
         }
 
-        #spieler.schild-aktiv-3::after {
+        #spieler.schild-aktiv-3::after,
+        #spieler-2.schild-aktiv-3::after,
+        .spieler-schiff.schild-aktiv-3::after {
             box-shadow: 0 0 40px 12px rgba(241, 196, 15, 0.9);
             border: 4px solid rgba(241, 196, 15, 1);
             top: -12px; left: -12px; right: -12px; bottom: -12px;

@@ -1,6 +1,15 @@
-export const GAME_VERSION = '1.6.13';
+export const GAME_VERSION = '1.6.14';
 
 export const changelogData = {
+  '1.6.14': {
+    version: '1.6.14',
+    intro: 'Hey, es ist jetzt Version 1.6.14 rausgekommen, folgendes wurde geändert oder ist neu:',
+    highlights: [
+      '⚡ Spieler 2 Energiebalken: Sichtbarkeit und Design des P2-Energiebalkens im HUD korrigiert',
+      '🛡️ Spieler 2 Schild-Aura: Schild-Effekt wird nun auch auf Spieler 2 bei aktiver Schildstufe visuell angezeigt',
+      '🎯 Boss-Zielerfassung im Co-op: Boss Typ 2 (Jäger) wechselt nach dem Ableben von Spieler 1 dynamisch auf Spieler 2'
+    ]
+  },
   '1.6.13': {
     version: '1.6.13',
     intro: 'Hey, es ist jetzt Version 1.6.13 rausgekommen, folgendes wurde geändert oder ist neu:',

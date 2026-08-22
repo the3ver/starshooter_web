@@ -3,7 +3,7 @@ const { test, expect } = require('@playwright/test');
 test.beforeEach(async ({ page }) => {
   // Standardmäßig als bereits gesehen markieren, damit die Tests direkt interagieren können
   await page.addInitScript(() => {
-    localStorage.setItem('starshooter_last_seen_version', '1.6.13');
+    localStorage.setItem('starshooter_last_seen_version', '1.6.14');
     localStorage.setItem('starshooter_skip_cutscene', 'true');
   });
   await page.goto('/');
@@ -898,7 +898,7 @@ test.describe('Was gibt es Neues Modal (Changelog)', () => {
     await expect(title).toContainText("WAS GIBT'S NEUES");
 
     const intro = page.locator('#whats-new-intro');
-    await expect(intro).toContainText('1.6.13');
+    await expect(intro).toContainText('1.6.14');
 
     const items = page.locator('#whats-new-list li');
     await expect(items).toHaveCount(3);
@@ -911,7 +911,7 @@ test.describe('Was gibt es Neues Modal (Changelog)', () => {
 
     // Prüfen, dass localStorage aktualisiert wurde
     const storedVersion = await page.evaluate(() => localStorage.getItem('starshooter_last_seen_version'));
-    expect(storedVersion).toBe('1.6.13');
+    expect(storedVersion).toBe('1.6.14');
 
     // Erneut öffnen über Start-Screen Button
     const openBtn = page.locator('#btn-open-whats-new');
@@ -2633,6 +2633,132 @@ test.describe('2-Spieler-Modus (Co-op)', () => {
     expect(liveState.p2Dead).toBe(true);
     expect(liveState.gameOver).toBe(true);
     await expect(page.locator('#game-over-screen')).toBeVisible();
+  });
+
+  test('Spieler 2 Energiebalken: #energie-container-p2 und #energie-balken-p2 sind im 2-Spieler Modus sichtbar und korrekt gestylt', async ({ page }) => {
+    await page.locator('#gamemode-btn-coop').click();
+    await page.keyboard.down('w');
+    await page.waitForTimeout(50);
+    await page.keyboard.up('w');
+
+    const skipBtn = page.locator('#cutscene-skip-btn');
+    if (await skipBtn.isVisible()) {
+      await skipBtn.click();
+    }
+
+    const energieContainerP2 = page.locator('#energie-container-p2');
+    const energieBalkenP2 = page.locator('#energie-balken-p2');
+    await expect(energieContainerP2).toBeVisible();
+    await expect(energieBalkenP2).toBeVisible();
+
+    const box = await energieContainerP2.boundingBox();
+    expect(box.width).toBeGreaterThanOrEqual(75);
+    expect(box.height).toBeGreaterThanOrEqual(6);
+
+    const balkenBox = await energieBalkenP2.boundingBox();
+    expect(balkenBox.width).toBeGreaterThan(0);
+    expect(balkenBox.height).toBeGreaterThanOrEqual(6);
+  });
+
+  test('Spieler 2 Schild: #spieler-2 zeigt bei aktiver Schildstufe (1, 2, 3) visuelle Schild-Aura ::after an', async ({ page }) => {
+    await page.locator('#gamemode-btn-coop').click();
+    await page.keyboard.down('w');
+    await page.waitForTimeout(50);
+    await page.keyboard.up('w');
+
+    const skipBtn = page.locator('#cutscene-skip-btn');
+    if (await skipBtn.isVisible()) {
+      await skipBtn.click();
+    }
+
+    // Schild Stufe 1 prüfen
+    await page.evaluate(async () => {
+      const { state, dom } = await import('./js/state.js');
+      state.p2.schildStufe = 1;
+      dom.spieler2.className = 'spieler-schiff schild-aktiv-1';
+    });
+
+    let shieldAfter1 = await page.evaluate(() => {
+      const el = document.getElementById('spieler-2');
+      const afterStyle = window.getComputedStyle(el, '::after');
+      return {
+        boxShadow: afterStyle.boxShadow,
+        borderRadius: afterStyle.borderRadius
+      };
+    });
+
+    expect(shieldAfter1.borderRadius).toBe('50%');
+    expect(shieldAfter1.boxShadow).toContain('52, 152, 219'); // #3498db
+
+    // Schild Stufe 2 prüfen
+    await page.evaluate(async () => {
+      const { state, dom } = await import('./js/state.js');
+      state.p2.schildStufe = 2;
+      dom.spieler2.className = 'spieler-schiff schild-aktiv-2';
+    });
+
+    await page.waitForTimeout(350);
+
+    let shieldAfter2 = await page.evaluate(() => {
+      const el = document.getElementById('spieler-2');
+      const afterStyle = window.getComputedStyle(el, '::after');
+      return {
+        className: el.className,
+        boxShadow: afterStyle.boxShadow
+      };
+    });
+
+    expect(shieldAfter2.boxShadow).toContain('46, 204, 113'); // #2ecc71
+  });
+
+  test('Boss-Zielerfassung im Co-op: Wenn Spieler 1 stirbt, verfolgt und visiert Boss Typ 2 (Jäger) Spieler 2 an', async ({ page }) => {
+    await page.locator('#gamemode-btn-coop').click();
+    await page.keyboard.down('w');
+    await page.waitForTimeout(50);
+    await page.keyboard.up('w');
+
+    const skipBtn = page.locator('#cutscene-skip-btn');
+    if (await skipBtn.isVisible()) {
+      await skipBtn.click();
+    }
+
+    // Setze Level 2 (Boss Typ 2 - Jäger) und spawne den Boss
+    await page.evaluate(async () => {
+      const { state, arrays } = await import('./js/state.js');
+      const Entities = await import('./js/entities.js');
+      state.level = 2;
+      Entities.erzeugeBoss();
+      const boss = arrays.bosses[arrays.bosses.length - 1];
+      boss.phase = 'kampf'; // Sofort in den Kampfmodus
+      boss.x = 200;
+
+      // Spieler 1 stirbt auf Position x=50
+      state.x = 50;
+      state.y = 500;
+      state.leben = 0;
+      state.isDead = true;
+
+      // Spieler 2 lebt auf Position x=450
+      state.p2.x = 450;
+      state.p2.y = 500;
+      state.p2.leben = 3;
+      state.p2.isDead = false;
+    });
+
+    // 200ms warten, damit der Loop den Boss bewegen kann
+    await page.waitForTimeout(200);
+
+    const bossState = await page.evaluate(async () => {
+      const { arrays } = await import('./js/state.js');
+      const boss = arrays.bosses[arrays.bosses.length - 1];
+      return {
+        x: boss.x
+      };
+    });
+
+    // Da P2 bei 450 ist und der Boss bei 200 startete, muss sich der Boss nach rechts bewegt haben (> 200)
+    // Wenn er stur auf P1 (x=50) fixiert wäre, hätte er sich nach links bewegt (< 200).
+    expect(bossState.x).toBeGreaterThan(200);
   });
 });
 

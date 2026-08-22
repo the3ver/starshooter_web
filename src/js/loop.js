@@ -831,8 +831,18 @@ export function gameLoop() {
         b.x += b.vx;
         if (b.x <= 10 || b.x >= config.spielfeldBreite - b.groesse - 10) b.vx *= -1;
       } else if (b.bossTyp === 2) {
-        // Jäger
-        let zielX = state.x + config.spielerGroesse / 2 - b.groesse / 2;
+        // Jäger - verfolgt den näheren lebenden Spieler
+        let targetX = state.x;
+        let targetY = state.y;
+        if (state.gameMode === 'coop' && state.p2 && !state.p2.isDead) {
+          let distP1 = Math.hypot(state.x - b.x, state.y - b.y);
+          let distP2 = Math.hypot(state.p2.x - b.x, state.p2.y - b.y);
+          if (state.isDead || distP2 < distP1) {
+            targetX = state.p2.x;
+            targetY = state.p2.y;
+          }
+        }
+        let zielX = targetX + config.spielerGroesse / 2 - b.groesse / 2;
         if (b.x < zielX - 5) b.x += b.vx;else if (b.x > zielX + 5) b.x -= b.vx;
       } else if (b.bossTyp === 3) {
         // Träger
@@ -872,10 +882,20 @@ export function gameLoop() {
             Entities.erzeugeBossLaser(b.x + b.groesse * 0.82, b.y + b.groesse * 0.5);
           }
         } else if (b.bossTyp === 2) {
-          // Gezielter Schuss
+          // Gezielter Schuss auf den näheren lebenden Spieler
+          let targetX = state.x + config.spielerGroesse / 2;
+          let targetY = state.y + config.spielerGroesse / 2;
+          if (state.gameMode === 'coop' && state.p2 && !state.p2.isDead) {
+            let distP1 = Math.hypot(state.x - b.x, state.y - b.y);
+            let distP2 = Math.hypot(state.p2.x - b.x, state.p2.y - b.y);
+            if (state.isDead || distP2 < distP1) {
+              targetX = state.p2.x + config.spielerGroesse / 2;
+              targetY = state.p2.y + config.spielerGroesse / 2;
+            }
+          }
           let startX = b.x + b.groesse / 2 - 4;
           let startY = b.y + b.groesse;
-          let winkel = Math.atan2(state.y - startY, state.x - startX);
+          let winkel = Math.atan2(targetY - startY, targetX - startX);
           Entities.erzeugeBossLaser(startX, startY, Math.cos(winkel) * 8, Math.sin(winkel) * 8);
           if (b.enragePhaseAktiv) {
             Entities.erzeugeBossLaser(startX, startY, Math.cos(winkel - 0.2) * 8, Math.sin(winkel - 0.2) * 8);
