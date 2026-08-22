@@ -1,6 +1,15 @@
-export const GAME_VERSION = '1.6.21';
+export const GAME_VERSION = '1.6.22';
 
 export const changelogData = {
+  '1.6.22': {
+    version: '1.6.22',
+    intro: 'Hey, es ist jetzt Version 1.6.22 rausgekommen, folgendes wurde hinzugefügt und verbessert:',
+    highlights: [
+      '👑 Garantierte Boss-Splitter: Jeder besiegte Boss droppt nun garantiert 3 zusätzliche Kristall-Splitter (Rot oder Weiß)',
+      '💎 Schnellerer Viper-Aufbau: Durch die Boss-Splitter erhalten Viper-Piloten deutlich zügiger Extra-Leben und Super-Waffen',
+      '✨ Feingeschliffene Drop-Verteilung im Solo- und 2-Spieler-Modus'
+    ]
+  },
   '1.6.21': {
     version: '1.6.21',
     intro: 'Hey, es ist jetzt Version 1.6.21 rausgekommen, folgendes wurde hinzugefügt und verbessert:',

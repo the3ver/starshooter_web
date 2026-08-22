@@ -3,7 +3,7 @@ const { test, expect } = require('@playwright/test');
 test.beforeEach(async ({ page }) => {
   // Standardmäßig als bereits gesehen markieren, damit die Tests direkt interagieren können
   await page.addInitScript(() => {
-    localStorage.setItem('starshooter_last_seen_version', '1.6.21');
+    localStorage.setItem('starshooter_last_seen_version', '1.6.22');
     localStorage.setItem('starshooter_skip_cutscene', 'true');
   });
   await page.goto('/');
@@ -899,10 +899,10 @@ test.describe('Was gibt es Neues Modal (Changelog)', () => {
     await expect(title).toContainText("WAS GIBT'S NEUES");
 
     const intro = page.locator('#whats-new-intro');
-    await expect(intro).toContainText('1.6.21');
+    await expect(intro).toContainText('1.6.22');
 
     const items = page.locator('#whats-new-list li');
-    await expect(items).toHaveCount(4);
+    await expect(items).toHaveCount(3);
 
     // Schließen
     const closeBtn = page.locator('#btn-close-whats-new');
@@ -912,7 +912,7 @@ test.describe('Was gibt es Neues Modal (Changelog)', () => {
 
     // Prüfen, dass localStorage aktualisiert wurde
     const storedVersion = await page.evaluate(() => localStorage.getItem('starshooter_last_seen_version'));
-    expect(storedVersion).toBe('1.6.21');
+    expect(storedVersion).toBe('1.6.22');
 
     // Erneut öffnen über Start-Screen Button
     const openBtn = page.locator('#btn-open-whats-new');
@@ -3836,6 +3836,50 @@ test.describe('2-Spieler-Modus (Co-op)', () => {
     const perksContainer = page.locator('#hangar-ship-perks');
     await expect(perksContainer).toBeVisible();
     await expect(perksContainer).toContainText('10% SPLITTER-DROP');
+  });
+
+  test('Boss Splitter-Drops: Besiegter Boss droppt immer garantiert 3 Splitter (Rot oder Weiß) zusätzlich zu seinen Belohnungen', async ({ page }) => {
+    // Start game
+    await page.keyboard.down('w');
+    await page.waitForTimeout(50);
+    await page.keyboard.up('w');
+
+    const skipBtn = page.locator('#cutscene-skip-btn');
+    if (await skipBtn.isVisible()) {
+      await skipBtn.click();
+    }
+
+    const result = await page.evaluate(async () => {
+      const { arrays, state } = await import('./js/state.js');
+      const { erzeugeBoss } = await import('./js/entities.js');
+      const { zerstoereZiel } = await import('./js/utils.js');
+
+      arrays.powerups.forEach(p => { if (p.el) p.el.remove(); });
+      arrays.powerups.length = 0;
+      arrays.bosses.forEach(b => { if (b.el) b.el.remove(); });
+      arrays.bosses.length = 0;
+
+      erzeugeBoss();
+      const boss = arrays.bosses[0];
+
+      zerstoereZiel(boss, 'p1');
+
+      const allDrops = arrays.powerups.map(p => p.type);
+      const shardDrops = allDrops.filter(t => t === 'splitterRot' || t === 'splitterWeiss');
+      const regularDrops = allDrops.filter(t => t !== 'splitterRot' && t !== 'splitterWeiss');
+
+      return {
+        totalPowerups: allDrops.length,
+        shardCount: shardDrops.length,
+        regularCount: regularDrops.length,
+        hasSuperWaffe: regularDrops.includes('superWaffe')
+      };
+    });
+
+    expect(result.shardCount).toBe(3);
+    expect(result.regularCount).toBe(3);
+    expect(result.totalPowerups).toBe(6);
+    expect(result.hasSuperWaffe).toBe(true);
   });
 });
 
