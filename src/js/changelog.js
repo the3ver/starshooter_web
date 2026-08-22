@@ -1,6 +1,24 @@
-export const GAME_VERSION = '1.6.17';
+export const GAME_VERSION = '1.6.19';
 
 export const changelogData = {
+  '1.6.19': {
+    version: '1.6.19',
+    intro: 'Hey, es ist jetzt Version 1.6.19 rausgekommen, folgendes wurde hinzugefügt und verbessert:',
+    highlights: [
+      '🔗 Traktorstrahl Powerup-Kopplung: Spieler können bis zu 3 Powerups für ihren Partner im Schlepptau mitziehen',
+      '⚖️ Dynamischer Gewichts-Debuff: Für jedes gezogene Powerup sinkt das Schiffstempo um 10%',
+      '🤝 Partner-Übergabe: Gezogene Powerups werden sofort aktiviert, sobald der Partner sie berührt'
+    ]
+  },
+  '1.6.18': {
+    version: '1.6.18',
+    intro: 'Hey, es ist jetzt Version 1.6.18 rausgekommen, folgendes wurde behoben und verbessert:',
+    highlights: [
+      '🚀 Raketenwerfer Spieler 2: Korrekte Pod-Anzeige auf dem Schiff passend zum Modell (Viper links, Phantom rechts) und Level',
+      '🎯 Boss-Raketen Ausrichtung: Raketen fliegen nun vorwärts mit der Spitze in Flugrichtung auf die Spieler zu',
+      '✨ Optimierte Raketendynamik: Ausgewogene Fluggeschwindigkeit und präzises Homing-Tracking im Solo- und 2-Spieler-Modus'
+    ]
+  },
   '1.6.17': {
     version: '1.6.17',
     intro: 'Hey, es ist jetzt Version 1.6.17 rausgekommen, folgendes wurde geändert oder ist neu:',

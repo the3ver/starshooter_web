@@ -140,7 +140,9 @@ export function gameLoop() {
   // --- 9.1 SPIELER 1 BEWEGUNG ---
   let baseFlameScale = 1.0;
   let targetRotate = 0;
-  const currentSpeed = (shipModels && shipModels[state.selectedShipModel]?.speed) || config.geschwindigkeit;
+  const towedCountP1 = (state.gameMode === 'coop') ? arrays.powerups.filter(p => p.towedBy === 'p1').length : 0;
+  const speedMultP1 = Math.max(0.1, 1.0 - 0.10 * towedCountP1);
+  const currentSpeed = ((shipModels && shipModels[state.selectedShipModel]?.speed) || config.geschwindigkeit) * speedMultP1;
   
   if (state.joystick && state.joystick.active) {
     let mag = Math.sqrt(state.joystick.x * state.joystick.x + state.joystick.y * state.joystick.y);
@@ -227,7 +229,9 @@ export function gameLoop() {
     if (!state.p2.isDead) {
       let baseFlameScaleP2 = 1.0;
       let targetRotateP2 = 0;
-      const p2Speed = (shipModels && shipModels[state.p2.selectedShipModel]?.speed) || config.geschwindigkeit;
+      const towedCountP2 = arrays.powerups.filter(p => p.towedBy === 'p2').length;
+      const speedMultP2 = Math.max(0.1, 1.0 - 0.10 * towedCountP2);
+      const p2Speed = ((shipModels && shipModels[state.p2.selectedShipModel]?.speed) || config.geschwindigkeit) * speedMultP2;
       if (state.tastenGedrueckt.arrowup) {
         state.p2.y -= p2Speed;
         baseFlameScaleP2 = 1.8;
@@ -430,160 +434,265 @@ export function gameLoop() {
   }
 
   // --- 9.5 POWERUPS ---
+  function wendePowerupAn(p, targetKey = 'p1') {
+    const isP1 = targetKey === 'p1';
+    const pState = isP1 ? state : state.p2;
+    const pDom = isP1 ? dom.spieler : dom.spieler2;
+    if (!pState) return;
+
+    Audio.playPowerup(p.type);
+    if (p.type === 'leben') {
+      pState.leben++;
+      if (state.gameMode === 'coop') {
+        const otherState = isP1 ? state.p2 : state;
+        const otherDom = isP1 ? dom.spieler2 : dom.spieler;
+        if (otherState && otherState.isDead) {
+          otherState.isDead = false;
+          otherState.leben = 1;
+          otherState.energie = otherState.maxEnergie / 2;
+          otherState.invulnerableTimer = 180;
+          if (otherDom) {
+            otherDom.style.display = 'block';
+            otherDom.classList.add('spieler-blink');
+          }
+          if (isP1) Utils.updateLebenP2UI();
+          else Utils.updateLebenUI();
+        }
+      }
+      if (isP1) Utils.updateLebenUI();
+      else Utils.updateLebenP2UI();
+    } else if (p.type === 'energie') {
+      if (pState.maxEnergie >= pState.absMaxEnergie) {
+        pState.unbegrenzteEnergie = true;
+        const marker = isP1 ? dom.maxEnergieMarker : dom.maxEnergieMarkerP2;
+        if (marker) marker.style.display = 'none';
+        pState.energie = pState.absMaxEnergie;
+      } else {
+        pState.maxEnergie = Math.min(pState.absMaxEnergie, pState.maxEnergie + 10);
+        pState.energie = pState.maxEnergie;
+        if (isP1) Utils.updateMaxEnergieMarker();
+        else Utils.updateMaxEnergieMarkerP2();
+      }
+    } else if (p.type === 'durchschlag') {
+      pState.laserDurchschlag = true;
+      pState.durchschlagTimer = 600;
+      if (isP1) Utils.updateAktivePowerupsUI();
+      else Utils.updateAktivePowerupsP2UI();
+    } else if (p.type === 'schild') {
+      if (pState.schildStufe > 0 && pDom) pDom.classList.remove(`schild-aktiv-${pState.schildStufe}`);
+      if (pState.schildStufe < 3) pState.schildStufe++;
+      if (pDom) pDom.classList.add(`schild-aktiv-${pState.schildStufe}`);
+      if (isP1) Utils.updateAktivePowerupsUI();
+      else Utils.updateAktivePowerupsP2UI();
+    } else if (p.type === 'laserWaffe') {
+      if (pState.laserStufe < 5) {
+        pState.laserStufe++;
+        if (isP1) Utils.updateAktivePowerupsUI();
+        else Utils.updateAktivePowerupsP2UI();
+      }
+    } else if (p.type === 'raketenWaffe') {
+      if (pState.raketenStufe < 5) {
+        pState.raketenStufe++;
+        if (isP1) Utils.updateAktivePowerupsUI();
+        else Utils.updateAktivePowerupsP2UI();
+      }
+    } else if (p.type === 'bombenWaffe') {
+      if (pState.bombenStufe < 5) {
+        pState.bombenStufe++;
+        if (isP1) Utils.updateAktivePowerupsUI();
+        else Utils.updateAktivePowerupsP2UI();
+      }
+    } else if (p.type === 'superWaffe') {
+      if (pState.laserStufe < 5) pState.laserStufe++;
+      if (pState.raketenStufe < 5) pState.raketenStufe++;
+      if (pState.bombenStufe < 5) pState.bombenStufe++;
+      if (isP1) Utils.updateAktivePowerupsUI();
+      else Utils.updateAktivePowerupsP2UI();
+    } else if (p.type === 'autolaser') {
+      pState.autolaserAktiv = true;
+      pState.autolaserTimer = 600;
+      if (isP1) Utils.updateAktivePowerupsUI();
+      else Utils.updateAktivePowerupsP2UI();
+    }
+    Utils.addScore(50);
+    if (dom.spielfeld) {
+      dom.spielfeld.style.backgroundColor = p.farbe;
+      setTimeout(() => {
+        if (dom.spielfeld) dom.spielfeld.style.backgroundColor = '#0b1319';
+      }, 100);
+    }
+  }
+
+  function updateTractorBeam(p, sx, sy) {
+    const spielfeld = dom.spielfeld || document.getElementById('spielfeld');
+    if (!spielfeld) return;
+
+    if (!p.beamEl) {
+      const beamSvg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+      beamSvg.setAttribute('class', 'tractor-beam-svg');
+      beamSvg.style.position = 'absolute';
+      beamSvg.style.top = '0';
+      beamSvg.style.left = '0';
+      beamSvg.style.width = '100%';
+      beamSvg.style.height = '100%';
+      beamSvg.style.pointerEvents = 'none';
+      beamSvg.style.zIndex = '6';
+
+      const lineGlow = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+      lineGlow.setAttribute('class', 'tractor-beam-glow');
+      lineGlow.setAttribute('stroke', p.towedBy === 'p1' ? '#3498db' : '#2ecc71');
+      lineGlow.setAttribute('stroke-width', '4');
+      lineGlow.setAttribute('opacity', '0.45');
+
+      const lineCore = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+      lineCore.setAttribute('class', 'tractor-beam-core');
+      lineCore.setAttribute('stroke', '#ffffff');
+      lineCore.setAttribute('stroke-width', '1.5');
+      lineCore.setAttribute('stroke-dasharray', '3 2');
+
+      beamSvg.appendChild(lineGlow);
+      beamSvg.appendChild(lineCore);
+      spielfeld.appendChild(beamSvg);
+      p.beamEl = beamSvg;
+    }
+
+    const px = p.x + p.groesse / 2;
+    const py = p.y + p.groesse / 2;
+
+    const lines = p.beamEl.querySelectorAll('line');
+    lines.forEach(l => {
+      l.setAttribute('x1', sx);
+      l.setAttribute('y1', sy);
+      l.setAttribute('x2', px);
+      l.setAttribute('y2', py);
+    });
+  }
+
   for (let i = arrays.powerups.length - 1; i >= 0; i--) {
     let p = arrays.powerups[i];
+
+    // --- CASE A: Von Spieler 1 geschleppt ---
+    if (p.towedBy === 'p1') {
+      if (state.isDead) {
+        p.towedBy = null;
+        if (p.beamEl) { p.beamEl.remove(); p.beamEl = null; }
+        p.el.classList.remove('powerup-towed', 'powerup-towed-p1', 'powerup-towed-p2');
+        p.vy = 1.0;
+      } else {
+        const p1Towed = arrays.powerups.filter(pu => pu.towedBy === 'p1');
+        const slotIdx = p1Towed.indexOf(p);
+        let targetX = state.x + config.spielerGroesse / 2 - p.groesse / 2;
+        let targetY = state.y + config.spielerGroesse + 16;
+        if (slotIdx === 1) { targetX -= 18; targetY += 16; }
+        else if (slotIdx === 2) { targetX += 18; targetY += 16; }
+
+        p.x += (targetX - p.x) * 0.28;
+        p.y += (targetY - p.y) * 0.28;
+        p.el.style.left = p.x + 'px';
+        p.el.style.top = p.y + 'px';
+
+        updateTractorBeam(p, state.x + config.spielerGroesse / 2, state.y + config.spielerGroesse);
+
+        // Übergabe an Spieler 2 prüfen
+        if (state.gameMode === 'coop' && state.p2 && !state.p2.isDead &&
+            state.p2.x < p.x + p.groesse && state.p2.x + config.spielerGroesse > p.x &&
+            state.p2.y < p.y + p.groesse && state.p2.y + config.spielerGroesse > p.y) {
+          if (p.beamEl) { p.beamEl.remove(); p.beamEl = null; }
+          wendePowerupAn(p, 'p2');
+          p.el.remove();
+          arrays.powerups.splice(i, 1);
+          continue;
+        }
+      }
+      continue;
+    }
+
+    // --- CASE B: Von Spieler 2 geschleppt ---
+    if (p.towedBy === 'p2') {
+      if (state.p2 && state.p2.isDead) {
+        p.towedBy = null;
+        if (p.beamEl) { p.beamEl.remove(); p.beamEl = null; }
+        p.el.classList.remove('powerup-towed', 'powerup-towed-p1', 'powerup-towed-p2');
+        p.vy = 1.0;
+      } else if (state.p2) {
+        const p2Towed = arrays.powerups.filter(pu => pu.towedBy === 'p2');
+        const slotIdx = p2Towed.indexOf(p);
+        let targetX = state.p2.x + config.spielerGroesse / 2 - p.groesse / 2;
+        let targetY = state.p2.y + config.spielerGroesse + 16;
+        if (slotIdx === 1) { targetX -= 18; targetY += 16; }
+        else if (slotIdx === 2) { targetX += 18; targetY += 16; }
+
+        p.x += (targetX - p.x) * 0.28;
+        p.y += (targetY - p.y) * 0.28;
+        p.el.style.left = p.x + 'px';
+        p.el.style.top = p.y + 'px';
+
+        updateTractorBeam(p, state.p2.x + config.spielerGroesse / 2, state.p2.y + config.spielerGroesse);
+
+        // Übergabe an Spieler 1 prüfen
+        if (!state.isDead &&
+            state.x < p.x + p.groesse && state.x + config.spielerGroesse > p.x &&
+            state.y < p.y + p.groesse && state.y + config.spielerGroesse > p.y) {
+          if (p.beamEl) { p.beamEl.remove(); p.beamEl = null; }
+          wendePowerupAn(p, 'p1');
+          p.el.remove();
+          arrays.powerups.splice(i, 1);
+          continue;
+        }
+      }
+      continue;
+    }
+
+    // --- CASE C: Freies Powerup ---
     p.y += p.vy;
     p.el.style.top = p.y + 'px';
     if (p.y > config.spielfeldHoehe) {
+      if (p.beamEl) p.beamEl.remove();
       p.el.remove();
       arrays.powerups.splice(i, 1);
       continue;
     }
 
     // Prüfe Einsammeln durch Spieler 1
-    const p1Col = !state.isDead && (!p.owner || p.owner === 'p1') &&
+    const p1Col = !state.isDead &&
       state.x < p.x + p.groesse && state.x + config.spielerGroesse > p.x &&
       state.y < p.y + p.groesse && state.y + config.spielerGroesse > p.y;
 
     // Prüfe Einsammeln durch Spieler 2 (Co-op)
-    const p2Col = state.gameMode === 'coop' && state.p2 && !state.p2.isDead && (!p.owner || p.owner === 'p2') &&
+    const p2Col = state.gameMode === 'coop' && state.p2 && !state.p2.isDead &&
       state.p2.x < p.x + p.groesse && state.p2.x + config.spielerGroesse > p.x &&
       state.p2.y < p.y + p.groesse && state.p2.y + config.spielerGroesse > p.y;
 
     if (p1Col) {
-      Audio.playPowerup(p.type);
-      if (p.type === 'leben') {
-        state.leben++;
-        if (state.gameMode === 'coop' && state.p2 && state.p2.isDead) {
-          state.p2.isDead = false;
-          state.p2.leben = 1;
-          state.p2.energie = state.p2.maxEnergie / 2;
-          state.p2.invulnerableTimer = 180;
-          if (dom.spieler2) {
-            dom.spieler2.style.display = 'block';
-            dom.spieler2.classList.add('spieler-blink');
-          }
-          Utils.updateLebenP2UI();
+      if (!p.owner || p.owner === 'p1') {
+        wendePowerupAn(p, 'p1');
+        p.el.remove();
+        arrays.powerups.splice(i, 1);
+        continue;
+      } else if (state.gameMode === 'coop' && p.owner === 'p2') {
+        const p1TowedCount = arrays.powerups.filter(pu => pu.towedBy === 'p1').length;
+        if (p1TowedCount < 3) {
+          p.towedBy = 'p1';
+          p.el.classList.add('powerup-towed', 'powerup-towed-p1');
+          Audio.playPowerup('tether');
+          updateTractorBeam(p, state.x + config.spielerGroesse / 2, state.y + config.spielerGroesse);
         }
-        Utils.updateLebenUI();
-      } else if (p.type === 'energie') {
-        if (state.maxEnergie >= state.absMaxEnergie) {
-          state.unbegrenzteEnergie = true;
-          if (dom.maxEnergieMarker) dom.maxEnergieMarker.style.display = 'none';
-          state.energie = state.absMaxEnergie;
-        } else {
-          state.maxEnergie = Math.min(state.absMaxEnergie, state.maxEnergie + 10);
-          state.energie = state.maxEnergie;
-          Utils.updateMaxEnergieMarker();
-        }
-      } else if (p.type === 'durchschlag') {
-        state.laserDurchschlag = true;
-        state.durchschlagTimer = 600;
-        Utils.updateAktivePowerupsUI();
-      } else if (p.type === 'schild') {
-        if (state.schildStufe > 0) dom.spieler.classList.remove(`schild-aktiv-${state.schildStufe}`);
-        if (state.schildStufe < 3) state.schildStufe++;
-        dom.spieler.classList.add(`schild-aktiv-${state.schildStufe}`);
-        Utils.updateAktivePowerupsUI();
-      } else if (p.type === 'laserWaffe') {
-        if (state.laserStufe < 5) {
-          state.laserStufe++;
-          Utils.updateAktivePowerupsUI();
-        }
-      } else if (p.type === 'raketenWaffe') {
-        if (state.raketenStufe < 5) {
-          state.raketenStufe++;
-          Utils.updateAktivePowerupsUI();
-        }
-      } else if (p.type === 'bombenWaffe') {
-        if (state.bombenStufe < 5) {
-          state.bombenStufe++;
-          Utils.updateAktivePowerupsUI();
-        }
-      } else if (p.type === 'superWaffe') {
-        if (state.laserStufe < 5) state.laserStufe++;
-        if (state.raketenStufe < 5) state.raketenStufe++;
-        if (state.bombenStufe < 5) state.bombenStufe++;
-        Utils.updateAktivePowerupsUI();
-      } else if (p.type === 'autolaser') {
-        state.autolaserAktiv = true;
-        state.autolaserTimer = 600;
-        Utils.updateAktivePowerupsUI();
       }
-      Utils.addScore(50);
-      dom.spielfeld.style.backgroundColor = p.farbe;
-      setTimeout(() => {
-        dom.spielfeld.style.backgroundColor = '#0b1319';
-      }, 100);
-      p.el.remove();
-      arrays.powerups.splice(i, 1);
     } else if (p2Col) {
-      Audio.playPowerup(p.type);
-      if (p.type === 'leben') {
-        state.p2.leben++;
-        if (state.isDead) {
-          state.isDead = false;
-          state.leben = 1;
-          state.energie = state.maxEnergie / 2;
-          state.invulnerableTimer = 180;
-          if (dom.spieler) {
-            dom.spieler.style.display = 'block';
-            dom.spieler.classList.add('spieler-blink');
-          }
-          Utils.updateLebenUI();
+      if (!p.owner || p.owner === 'p2') {
+        wendePowerupAn(p, 'p2');
+        p.el.remove();
+        arrays.powerups.splice(i, 1);
+        continue;
+      } else if (state.gameMode === 'coop' && p.owner === 'p1') {
+        const p2TowedCount = arrays.powerups.filter(pu => pu.towedBy === 'p2').length;
+        if (p2TowedCount < 3) {
+          p.towedBy = 'p2';
+          p.el.classList.add('powerup-towed', 'powerup-towed-p2');
+          Audio.playPowerup('tether');
+          updateTractorBeam(p, state.p2.x + config.spielerGroesse / 2, state.p2.y + config.spielerGroesse);
         }
-        Utils.updateLebenP2UI();
-      } else if (p.type === 'energie') {
-        if (state.p2.maxEnergie >= state.p2.absMaxEnergie) {
-          state.p2.unbegrenzteEnergie = true;
-          if (dom.maxEnergieMarkerP2) dom.maxEnergieMarkerP2.style.display = 'none';
-          state.p2.energie = state.p2.absMaxEnergie;
-        } else {
-          state.p2.maxEnergie = Math.min(state.p2.absMaxEnergie, state.p2.maxEnergie + 10);
-          state.p2.energie = state.p2.maxEnergie;
-          Utils.updateMaxEnergieMarkerP2();
-        }
-      } else if (p.type === 'durchschlag') {
-        state.p2.laserDurchschlag = true;
-        state.p2.durchschlagTimer = 600;
-        Utils.updateAktivePowerupsP2UI();
-      } else if (p.type === 'schild') {
-        if (state.p2.schildStufe > 0 && dom.spieler2) dom.spieler2.classList.remove(`schild-aktiv-${state.p2.schildStufe}`);
-        if (state.p2.schildStufe < 3) state.p2.schildStufe++;
-        if (dom.spieler2) dom.spieler2.classList.add(`schild-aktiv-${state.p2.schildStufe}`);
-        Utils.updateAktivePowerupsP2UI();
-      } else if (p.type === 'laserWaffe') {
-        if (state.p2.laserStufe < 5) {
-          state.p2.laserStufe++;
-          Utils.updateAktivePowerupsP2UI();
-        }
-      } else if (p.type === 'raketenWaffe') {
-        if (state.p2.raketenStufe < 5) {
-          state.p2.raketenStufe++;
-          Utils.updateAktivePowerupsP2UI();
-        }
-      } else if (p.type === 'bombenWaffe') {
-        if (state.p2.bombenStufe < 5) {
-          state.p2.bombenStufe++;
-          Utils.updateAktivePowerupsP2UI();
-        }
-      } else if (p.type === 'superWaffe') {
-        if (state.p2.laserStufe < 5) state.p2.laserStufe++;
-        if (state.p2.raketenStufe < 5) state.p2.raketenStufe++;
-        if (state.p2.bombenStufe < 5) state.p2.bombenStufe++;
-        Utils.updateAktivePowerupsP2UI();
-      } else if (p.type === 'autolaser') {
-        state.p2.autolaserAktiv = true;
-        state.p2.autolaserTimer = 600;
-        Utils.updateAktivePowerupsP2UI();
       }
-      Utils.addScore(50);
-      dom.spielfeld.style.backgroundColor = p.farbe;
-      setTimeout(() => {
-        dom.spielfeld.style.backgroundColor = '#0b1319';
-      }, 100);
-      p.el.remove();
-      arrays.powerups.splice(i, 1);
     }
   }
 
@@ -1098,7 +1207,7 @@ export function gameLoop() {
     br.y += br.vy;
     br.el.style.left = br.x + 'px';
     br.el.style.top = br.y + 'px';
-    let rotDeg = Math.atan2(br.vy, br.vx) * 180 / Math.PI - 90;
+    let rotDeg = Math.atan2(br.vy, br.vx) * 180 / Math.PI + 90;
     br.el.style.transform = `rotate(${rotDeg}deg)`;
 
     // Partikel-Schweif
@@ -1616,47 +1725,47 @@ export function gameLoop() {
     r.age = (r.age || 0) + 1;
 
     // 3-Phasen-Flugdynamik:
-    // Phase 1 (Frames 1-10): Seitliches Lösen / Ausklinken, erbt Schiffsgeschwindigkeit
-    if (r.age <= 10) {
-      r.vy += 0.4;
+    // Phase 1 (Frames 1-8): Seitliches Lösen / Ausklinken, erbt Schiffsgeschwindigkeit
+    if (r.age <= 8) {
+      r.vy = Math.min(6, r.vy + 0.3);
       r.vx *= 0.95;
     } 
-    // Phase 2 (Frames 11-25): Haupttriebwerk zündet, starke Beschleunigung nach vorn
-    else if (r.age <= 25) {
-      r.vy += 1.2;
-      r.vx *= 0.85;
+    // Phase 2 (Frames 9-18): Haupttriebwerk zündet, Beschleunigung nach vorn
+    else if (r.age <= 18) {
+      r.vy = Math.min(10, r.vy + 0.8);
+      r.vx *= 0.9;
       if (Math.random() < 0.6) {
         Utils.erzeugeAntriebsRauch(r.x + 3, r.y + 16, 2);
       }
     } 
-    // Phase 3 (ab Frame 26): Höchstgeschwindigkeit & Homing-Navigation
+    // Phase 3 (ab Frame 19): Ausgewogene Reisegeschwindigkeit (max 12) & Homing-Navigation
     else {
-      r.vy = Math.min(18, r.vy + 0.5);
+      r.vy = Math.min(12, r.vy + 0.4);
       if (Math.random() < 0.4) {
         Utils.erzeugeAntriebsRauch(r.x + 3, r.y + 16, 1.5);
       }
+    }
 
-      // Homing-Verhalten: Dreht sanft in Richtung des nächsten Ziels
-      if (r.homing) {
-        let bestTarget = null;
-        let bestDist = 300; // Maximale Erfassungsreichweite
-        alleZiele.forEach(z => {
-          if (!z.istUnzerstoerbar && (z.immune || 0) <= 0) {
-            let zcx = z.x + (z.groesse || 20) / 2;
-            let zcy = z.y + (z.groesse || 20) / 2;
-            let dist = Math.hypot(zcx - (r.x + 3), zcy - (r.y + 8));
-            if (dist < bestDist && zcy < r.y + 50) { // Nur Ziele vor oder leicht hinter der Rakete
-              bestDist = dist;
-              bestTarget = z;
-            }
+    // Homing-Verhalten: Aktiv ab Frame 10 sobald das Haupttriebwerk brennt
+    if (r.homing && r.age >= 10) {
+      let bestTarget = null;
+      let bestDist = (config.spielfeldBreite || 600) + 200; // Erfasst Feinde über die gesamte Spielfeldbreite
+      alleZiele.forEach(z => {
+        if (!z.istUnzerstoerbar && (z.immune || 0) <= 0) {
+          let zcx = z.x + (z.groesse || 20) / 2;
+          let zcy = z.y + (z.groesse || 20) / 2;
+          let dist = Math.hypot(zcx - (r.x + 3), zcy - (r.y + 8));
+          if (dist < bestDist && zcy < r.y + 60) { // Nur Ziele vor oder auf Höhe der Rakete
+            bestDist = dist;
+            bestTarget = z;
           }
-        });
-        if (bestTarget) {
-          let zcx = bestTarget.x + (bestTarget.groesse || 20) / 2;
-          let targetDx = zcx - (r.x + 3);
-          r.vx += Math.sign(targetDx) * 0.8;
-          r.vx = Math.max(-8, Math.min(8, r.vx)); // Maximale Kurvengeschwindigkeit
         }
+      });
+      if (bestTarget) {
+        let zcx = bestTarget.x + (bestTarget.groesse || 20) / 2;
+        let targetDx = zcx - (r.x + 3);
+        let steer = Math.sign(targetDx) * Math.min(1.4, Math.max(0.4, Math.abs(targetDx) * 0.04));
+        r.vx = Math.max(-8, Math.min(8, r.vx + steer));
       }
     }
 

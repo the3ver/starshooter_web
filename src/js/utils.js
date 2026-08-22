@@ -219,6 +219,8 @@ export function updateAktivePowerupsP2UI() {
   prevPuStateP2.laserDurchschlag = state.p2.laserDurchschlag;
   prevPuStateP2.schildStufe = state.p2.schildStufe;
   prevPuStateP2.autolaserAktiv = state.p2.autolaserAktiv;
+
+  updateRaketenWerferVisuals();
 }
 
 export function updateP2UI() {
@@ -586,7 +588,7 @@ export function restartGame() {
   clearArray(arrays.explosionenArray);
 
   // Verwaiste Spiel-Entitäten und Projektile aus dem DOM entfernen
-  const orphanSelectors = '.boss-rakete, .boss-bombe, .boss-laser, .feind-laser, .laser, .rakete, .bombe, .powerup, .feind, .asteroid, .boss, .partikel, .werfer-abgeworfen, .shockwave, .schockwelle, .cutscene-fireball, .cutscene-shockwave, .cutscene-debris';
+  const orphanSelectors = '.boss-rakete, .boss-bombe, .boss-laser, .feind-laser, .laser, .rakete, .bombe, .powerup, .feind, .asteroid, .boss, .partikel, .werfer-abgeworfen, .shockwave, .schockwelle, .cutscene-fireball, .cutscene-shockwave, .cutscene-debris, .tractor-beam-svg';
   if (dom.spielfeld) {
     dom.spielfeld.querySelectorAll(orphanSelectors).forEach(el => el.remove());
   }
@@ -918,8 +920,6 @@ export function updatePlayerShipVisuals() {
   updateRaketenWerferVisuals();
 }
 
-let prevWerferStates = null;
-
 export function erzeugeAbgeworfenenWerfer(x, y, vx, vy, vRot) {
   const el = document.createElement('div');
   el.classList.add('werfer-pod', 'werfer-abgeworfen');
@@ -955,12 +955,14 @@ export function erzeugeAbgeworfenenWerfer(x, y, vx, vy, vRot) {
   });
 }
 
-export function updateRaketenWerferVisuals() {
-  const model = state.selectedShipModel || 'viper';
-  const lvl = state.raketenStufe || 1;
+let prevWerferStatesP1 = null;
+let prevWerferStatesP2 = null;
 
-  const spielerEl = dom.spieler || document.getElementById('spieler');
-  if (!spielerEl) return;
+function updateWerferForShip(spielerEl, pState, prevKey) {
+  if (!spielerEl || !pState) return;
+
+  const model = pState.selectedShipModel || 'viper';
+  const lvl = pState.raketenStufe || 1;
 
   const werferLinks = spielerEl.querySelector('.werfer-links');
   const werferRechts = spielerEl.querySelector('.werfer-rechts');
@@ -988,24 +990,32 @@ export function updateRaketenWerferVisuals() {
     showCenter = true;
   }
 
+  const prevStates = (prevKey === 'p1') ? prevWerferStatesP1 : prevWerferStatesP2;
+
   // Prüfen, ob Werfer durch Downgrade verloren gingen
-  if (prevWerferStates && state.spielLaeuft) {
-    if (prevWerferStates.left && !showLeft) {
-      erzeugeAbgeworfenenWerfer(state.x - 8, state.y + 7, -3 - Math.random() * 2, 2 + Math.random() * 2, -10);
+  if (prevStates && state.spielLaeuft && !pState.isDead) {
+    if (prevStates.left && !showLeft) {
+      erzeugeAbgeworfenenWerfer(pState.x - 8, pState.y + 7, -3 - Math.random() * 2, 2 + Math.random() * 2, -10);
     }
-    if (prevWerferStates.right && !showRight) {
-      erzeugeAbgeworfenenWerfer(state.x + 31, state.y + 7, 3 + Math.random() * 2, 2 + Math.random() * 2, 10);
+    if (prevStates.right && !showRight) {
+      erzeugeAbgeworfenenWerfer(pState.x + 31, pState.y + 7, 3 + Math.random() * 2, 2 + Math.random() * 2, 10);
     }
-    if (prevWerferStates.center && !showCenter) {
-      erzeugeAbgeworfenenWerfer(state.x + 11.5, state.y + 18, (Math.random() - 0.5) * 2, 3 + Math.random() * 2, (Math.random() - 0.5) * 12);
+    if (prevStates.center && !showCenter) {
+      erzeugeAbgeworfenenWerfer(pState.x + 11.5, pState.y + 18, (Math.random() - 0.5) * 2, 3 + Math.random() * 2, (Math.random() - 0.5) * 12);
     }
   }
 
-  prevWerferStates = {
+  const currentStates = {
     left: showLeft,
     right: showRight,
     center: showCenter
   };
+
+  if (prevKey === 'p1') {
+    prevWerferStatesP1 = currentStates;
+  } else {
+    prevWerferStatesP2 = currentStates;
+  }
 
   werferLinks.style.display = showLeft ? 'block' : 'none';
   werferRechts.style.display = showRight ? 'block' : 'none';
@@ -1016,4 +1026,11 @@ export function updateRaketenWerferVisuals() {
     w.classList.remove('werfer-lvl-1', 'werfer-lvl-2', 'werfer-lvl-3', 'werfer-lvl-4', 'werfer-lvl-5');
     w.classList.add(`werfer-lvl-${Math.min(5, Math.max(1, lvl))}`);
   });
+}
+
+export function updateRaketenWerferVisuals() {
+  updateWerferForShip(dom.spieler || document.getElementById('spieler'), state, 'p1');
+  if (state.p2) {
+    updateWerferForShip(dom.spieler2 || document.getElementById('spieler-2'), state.p2, 'p2');
+  }
 }

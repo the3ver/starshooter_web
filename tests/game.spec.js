@@ -3,7 +3,7 @@ const { test, expect } = require('@playwright/test');
 test.beforeEach(async ({ page }) => {
   // Standardmäßig als bereits gesehen markieren, damit die Tests direkt interagieren können
   await page.addInitScript(() => {
-    localStorage.setItem('starshooter_last_seen_version', '1.6.17');
+    localStorage.setItem('starshooter_last_seen_version', '1.6.19');
     localStorage.setItem('starshooter_skip_cutscene', 'true');
   });
   await page.goto('/');
@@ -898,10 +898,10 @@ test.describe('Was gibt es Neues Modal (Changelog)', () => {
     await expect(title).toContainText("WAS GIBT'S NEUES");
 
     const intro = page.locator('#whats-new-intro');
-    await expect(intro).toContainText('1.6.17');
+    await expect(intro).toContainText('1.6.19');
 
     const items = page.locator('#whats-new-list li');
-    await expect(items).toHaveCount(2);
+    await expect(items).toHaveCount(3);
 
     // Schließen
     const closeBtn = page.locator('#btn-close-whats-new');
@@ -911,7 +911,7 @@ test.describe('Was gibt es Neues Modal (Changelog)', () => {
 
     // Prüfen, dass localStorage aktualisiert wurde
     const storedVersion = await page.evaluate(() => localStorage.getItem('starshooter_last_seen_version'));
-    expect(storedVersion).toBe('1.6.17');
+    expect(storedVersion).toBe('1.6.19');
 
     // Erneut öffnen über Start-Screen Button
     const openBtn = page.locator('#btn-open-whats-new');
@@ -2424,11 +2424,14 @@ test.describe('2-Spieler-Modus (Co-op)', () => {
     expect(lootState.p2LaserStufe).toBe(1);
     expect(lootState.powerupCount).toBe(1);
 
-    // Jetzt bewegt sich P1 zu der Powerup-Position
+    // Jetzt bewegt sich P1 zu der Powerup-Position (die von P2 geschleppt wird)
     await page.evaluate(async () => {
-      const { state } = await import('./js/state.js');
-      state.x = 370;
-      state.y = 285;
+      const { state, arrays } = await import('./js/state.js');
+      const pu = arrays.powerups[0];
+      if (pu) {
+        state.x = pu.x;
+        state.y = pu.y;
+      }
     });
 
     await page.waitForTimeout(200);
@@ -2472,11 +2475,14 @@ test.describe('2-Spieler-Modus (Co-op)', () => {
     expect(lootState.p1RaketenStufe).toBe(1);
     expect(lootState.powerupCount).toBe(1);
 
-    // P2 bewegt sich zu der Powerup-Position
+    // P2 bewegt sich zu der Powerup-Position (die von P1 geschleppt wird)
     await page.evaluate(async () => {
-      const { state } = await import('./js/state.js');
-      state.p2.x = 100;
-      state.p2.y = 285;
+      const { state, arrays } = await import('./js/state.js');
+      const pu = arrays.powerups[0];
+      if (pu) {
+        state.p2.x = pu.x;
+        state.p2.y = pu.y;
+      }
     });
 
     await page.waitForTimeout(200);
@@ -3068,6 +3074,424 @@ test.describe('2-Spieler-Modus (Co-op)', () => {
       expect(p1Box.y).toBeLessThan(200);
       expect(p2Box.y).toBeLessThan(200);
     }
+  });
+
+  test('Spieler 2 Raketenwerfer-Visuals: Zeigt je nach Schiffsmodell und Level die korrekten Werfer-Pods auf Spieler 2 an', async ({ page }) => {
+    await page.locator('#gamemode-btn-coop').click();
+
+    // Wähle für P2 Viper-X
+    await page.locator('#hangar-player-tabs button[data-player="p2"]').click();
+    await page.locator('.hangar-model-btn[data-model="viper"]').click();
+
+    // Start
+    await page.keyboard.down('w');
+    await page.waitForTimeout(50);
+    await page.keyboard.up('w');
+
+    const skipBtn = page.locator('#cutscene-skip-btn');
+    if (await skipBtn.isVisible()) {
+      await skipBtn.click();
+    }
+
+    const p2Links = page.locator('#spieler-2 .werfer-links');
+    const p2Rechts = page.locator('#spieler-2 .werfer-rechts');
+    const p2Center = page.locator('#spieler-2 .werfer-center');
+
+    // Viper-X auf Stufe 1: linker Werfer sichtbar, rechter unsichtbar
+    await expect(p2Links).toBeVisible();
+    await expect(p2Rechts).toBeHidden();
+    await expect(p2Center).toBeHidden();
+
+    // Wechsle P2 auf Phantom-NX Stufe 1
+    await page.evaluate(async () => {
+      const { state } = await import('./js/state.js');
+      const Utils = await import('./js/utils.js');
+      state.p2.selectedShipModel = 'phantom';
+      state.p2.raketenStufe = 1;
+      Utils.updateRaketenWerferVisuals();
+    });
+
+    await expect(p2Links).toBeHidden();
+    await expect(p2Rechts).toBeVisible();
+    await expect(p2Center).toBeHidden();
+
+    // Auf Stufe 3: beide seitlichen Werfer sichtbar
+    await page.evaluate(async () => {
+      const { state } = await import('./js/state.js');
+      const Utils = await import('./js/utils.js');
+      state.p2.raketenStufe = 3;
+      Utils.updateRaketenWerferVisuals();
+    });
+
+    await expect(p2Links).toBeVisible();
+    await expect(p2Rechts).toBeVisible();
+    await expect(p2Center).toBeHidden();
+
+    // Auf Stufe 5: alle 3 Werfer sichtbar
+    await page.evaluate(async () => {
+      const { state } = await import('./js/state.js');
+      const Utils = await import('./js/utils.js');
+      state.p2.raketenStufe = 5;
+      Utils.updateRaketenWerferVisuals();
+    });
+
+    await expect(p2Links).toBeVisible();
+    await expect(p2Rechts).toBeVisible();
+    await expect(p2Center).toBeVisible();
+  });
+
+  test('Boss-Raketen Ausrichtung: Raketen fliegen vorwärts mit der Spitze in Flugrichtung auf den Spieler zu', async ({ page }) => {
+    // Spiel starten
+    await page.keyboard.down('w');
+    await page.waitForTimeout(50);
+    await page.keyboard.up('w');
+
+    const result = await page.evaluate(async () => {
+      const { arrays, state } = await import('./js/state.js');
+      const { erzeugeBossRakete } = await import('./js/entities.js');
+      const { gameLoop } = await import('./js/loop.js');
+
+      // Spielerposition unten in der Mitte
+      state.x = 185;
+      state.y = 500;
+
+      // Boss-Rakete oben mittig erzeugen mit Richtung nach unten
+      erzeugeBossRakete(185, 100, 0);
+      const br = arrays.bossRaketenArray[arrays.bossRaketenArray.length - 1];
+      br.vx = 0;
+      br.vy = 2.5; // Fliegt senkrecht nach unten auf den Spieler zu
+
+      // Einen Loop-Frame ausführen
+      gameLoop();
+
+      return {
+        vx: br.vx,
+        vy: br.vy,
+        transform: br.el.style.transform
+      };
+    });
+
+    // Bei vertikalem Flug nach unten (vx=0, vy>0) muss die Drehung ~180deg betragen (Spitze zeigt nach unten auf Spieler)
+    const match = result.transform.match(/rotate\(([-\d.]+)deg\)/);
+    expect(match).not.toBeNull();
+    const deg = parseFloat(match[1]);
+    expect(Math.abs(deg - 180)).toBeLessThan(5);
+  });
+
+  test('Spieler-Raketen Flugdynamik & Homing: Raketen fliegen mit maximaler Geschwindigkeit (vy <= 12) und tracken Feinde im 600px Modus', async ({ page }) => {
+    await page.locator('#gamemode-btn-coop').click();
+
+    // Start
+    await page.keyboard.down('w');
+    await page.waitForTimeout(50);
+    await page.keyboard.up('w');
+
+    const skipBtn = page.locator('#cutscene-skip-btn');
+    if (await skipBtn.isVisible()) {
+      await skipBtn.click();
+    }
+
+    const testResult = await page.evaluate(async () => {
+      const { arrays, state, config } = await import('./js/state.js');
+      const { erzeugeFeind } = await import('./js/entities.js');
+      const { gameLoop } = await import('./js/loop.js');
+
+      // Leere bisherige Feinde und Raketen
+      arrays.feinde.forEach(f => { if (f.el) f.el.remove(); });
+      arrays.feinde.length = 0;
+      arrays.raketenArray.forEach(r => { if (r.el) r.el.remove(); });
+      arrays.raketenArray.length = 0;
+
+      // Erzeuge Feind auf der rechten Seite des 600px Feldes
+      erzeugeFeind(450, 100);
+
+      // Rakete auf der linken Seite des 600px Feldes mit Homing-Eigenschaft
+      const rEl = document.createElement('div');
+      rEl.className = 'raketen-projektil rakete-homing';
+      document.getElementById('spielfeld').appendChild(rEl);
+
+      const rocket = {
+        el: rEl,
+        x: 100,
+        y: 450,
+        vx: 0,
+        vy: 2.0,
+        schaden: 30,
+        radius: 80,
+        homing: true,
+        owner: 'p1',
+        age: 0,
+        detoniert: false
+      };
+      arrays.raketenArray.push(rocket);
+
+      let maxObservedVy = 0;
+      // Lasse 35 Frames laufen
+      for (let f = 0; f < 35; f++) {
+        gameLoop();
+        if (rocket.vy > maxObservedVy) maxObservedVy = rocket.vy;
+      }
+
+      return {
+        initialX: 100,
+        finalX: rocket.x,
+        finalVx: rocket.vx,
+        maxVy: maxObservedVy
+      };
+    });
+
+    // Raketengeschwindigkeit vy darf 12 nicht überschreiten
+    expect(testResult.maxVy).toBeLessThanOrEqual(12);
+    // Rakete muss sich deutlich nach rechts in Richtung des Feindes bei x=450 bewegt haben (vx > 0 und finalX > 150)
+    expect(testResult.finalVx).toBeGreaterThan(1.0);
+    expect(testResult.finalX).toBeGreaterThan(150);
+  });
+
+  test('Traktorstrahl-Kopplung im 2-Spieler Modus: Spieler koppelt bis zu 3 Powerups für den Partner an', async ({ page }) => {
+    await page.locator('#gamemode-btn-coop').click();
+
+    // Start
+    await page.keyboard.down('w');
+    await page.waitForTimeout(50);
+    await page.keyboard.up('w');
+
+    const skipBtn = page.locator('#cutscene-skip-btn');
+    if (await skipBtn.isVisible()) {
+      await skipBtn.click();
+    }
+
+    const result = await page.evaluate(async () => {
+      const { arrays, state } = await import('./js/state.js');
+      const { erzeugePowerup } = await import('./js/entities.js');
+      const { gameLoop } = await import('./js/loop.js');
+
+      // Leere vorhandene Powerups
+      arrays.powerups.forEach(p => { if (p.el) p.el.remove(); });
+      arrays.powerups.length = 0;
+
+      // Erzeuge 4 Powerups für Spieler 2 an der gleichen X/Y-Position von Spieler 1
+      state.x = 200;
+      state.y = 300;
+
+      erzeugePowerup(200, 300, 'laserWaffe', 'p2');
+      gameLoop();
+
+      erzeugePowerup(200, 300, 'raketenWaffe', 'p2');
+      gameLoop();
+
+      erzeugePowerup(200, 300, 'bombenWaffe', 'p2');
+      gameLoop();
+
+      erzeugePowerup(200, 300, 'schild', 'p2');
+      gameLoop();
+
+      return {
+        totalPowerups: arrays.powerups.length,
+        towedCount: arrays.powerups.filter(p => p.towedBy === 'p1').length,
+        untowedCount: arrays.powerups.filter(p => !p.towedBy).length
+      };
+    });
+
+    expect(result.totalPowerups).toBe(4);
+    expect(result.towedCount).toBe(3);
+    expect(result.untowedCount).toBe(1);
+  });
+
+  test('Traktorstrahl-Kopplung: Jedes gezogene Powerup verlangsamt das Schiff um 10% (1=90%, 2=80%, 3=70%)', async ({ page }) => {
+    await page.locator('#gamemode-btn-coop').click();
+
+    // Start
+    await page.keyboard.down('w');
+    await page.waitForTimeout(50);
+    await page.keyboard.up('w');
+
+    const skipBtn = page.locator('#cutscene-skip-btn');
+    if (await skipBtn.isVisible()) {
+      await skipBtn.click();
+    }
+
+    const testSpeeds = await page.evaluate(async () => {
+      const { arrays, state, config } = await import('./js/state.js');
+      const { erzeugePowerup } = await import('./js/entities.js');
+      const { gameLoop } = await import('./js/loop.js');
+
+      arrays.powerups.forEach(p => { if (p.el) p.el.remove(); });
+      arrays.powerups.length = 0;
+
+      // Base Speed mit 0 Powerups
+      state.y = 300;
+      state.tastenGedrueckt.w = true;
+      gameLoop();
+      const dist0 = 300 - state.y;
+      state.tastenGedrueckt.w = false;
+
+      // 1 Powerup angehängt
+      erzeugePowerup(state.x, state.y, 'laserWaffe', 'p2');
+      gameLoop(); // P1 koppelt an
+      state.y = 300;
+      state.tastenGedrueckt.w = true;
+      gameLoop();
+      const dist1 = 300 - state.y;
+      state.tastenGedrueckt.w = false;
+
+      // 2 Powerups angehängt
+      erzeugePowerup(state.x, state.y, 'raketenWaffe', 'p2');
+      gameLoop(); // P1 koppelt an
+      state.y = 300;
+      state.tastenGedrueckt.w = true;
+      gameLoop();
+      const dist2 = 300 - state.y;
+      state.tastenGedrueckt.w = false;
+
+      // 3 Powerups angehängt
+      erzeugePowerup(state.x, state.y, 'bombenWaffe', 'p2');
+      gameLoop(); // P1 koppelt an
+      state.y = 300;
+      state.tastenGedrueckt.w = true;
+      gameLoop();
+      const dist3 = 300 - state.y;
+      state.tastenGedrueckt.w = false;
+
+      return {
+        dist0: Math.round(dist0 * 100) / 100,
+        dist1: Math.round(dist1 * 100) / 100,
+        dist2: Math.round(dist2 * 100) / 100,
+        dist3: Math.round(dist3 * 100) / 100
+      };
+    });
+
+    expect(testSpeeds.dist0).toBe(6.0);
+    expect(testSpeeds.dist1).toBe(5.4); // 90% von 6.0
+    expect(testSpeeds.dist2).toBe(4.8); // 80% von 6.0
+    expect(testSpeeds.dist3).toBe(4.2); // 70% von 6.0
+  });
+
+  test('Traktorstrahl-Kopplung: Partner sammelt gezogenes Powerup durch Berührung ein und löst den Strahl', async ({ page }) => {
+    await page.locator('#gamemode-btn-coop').click();
+
+    // Start
+    await page.keyboard.down('w');
+    await page.waitForTimeout(50);
+    await page.keyboard.up('w');
+
+    const skipBtn = page.locator('#cutscene-skip-btn');
+    if (await skipBtn.isVisible()) {
+      await skipBtn.click();
+    }
+
+    const result = await page.evaluate(async () => {
+      const { arrays, state } = await import('./js/state.js');
+      const { erzeugePowerup } = await import('./js/entities.js');
+      const { gameLoop } = await import('./js/loop.js');
+
+      arrays.powerups.forEach(p => { if (p.el) p.el.remove(); });
+      arrays.powerups.length = 0;
+
+      state.laserStufe = 1;
+      state.p2.laserStufe = 1;
+
+      // P1 koppelt Powerup für P2 an
+      state.x = 200;
+      state.y = 300;
+      state.p2.x = 450;
+      state.p2.y = 300;
+
+      erzeugePowerup(200, 300, 'laserWaffe', 'p2');
+      gameLoop();
+
+      const pu = arrays.powerups[0];
+      const afterAttach = {
+        isTowed: pu && pu.towedBy === 'p1',
+        p1Laser: state.laserStufe,
+        p2Laser: state.p2.laserStufe,
+        hasBeam: !!document.querySelector('.tractor-beam-svg')
+      };
+
+      // P2 bewegt sich auf das gezogene Powerup zu
+      state.p2.x = pu.x;
+      state.p2.y = pu.y;
+
+      gameLoop();
+
+      const afterHandoff = {
+        totalPowerups: arrays.powerups.length,
+        p1Laser: state.laserStufe,
+        p2Laser: state.p2.laserStufe,
+        hasBeam: !!document.querySelector('.tractor-beam-svg')
+      };
+
+      return {
+        afterAttach,
+        afterHandoff
+      };
+    });
+
+    expect(result.afterAttach.isTowed).toBe(true);
+    expect(result.afterAttach.p1Laser).toBe(1);
+    expect(result.afterAttach.p2Laser).toBe(1);
+    expect(result.afterAttach.hasBeam).toBe(true);
+
+    expect(result.afterHandoff.totalPowerups).toBe(0);
+    expect(result.afterHandoff.p1Laser).toBe(1);
+    expect(result.afterHandoff.p2Laser).toBe(2); // P2 hat das Upgrade erhalten!
+    expect(result.afterHandoff.hasBeam).toBe(false); // Strahl wurde entfernt!
+  });
+
+  test('Traktorstrahl-Kopplung: Wenn der ziehende Spieler stirbt, löst sich der Traktorstrahl und das Powerup treibt frei weiter', async ({ page }) => {
+    await page.locator('#gamemode-btn-coop').click();
+
+    // Start
+    await page.keyboard.down('w');
+    await page.waitForTimeout(50);
+    await page.keyboard.up('w');
+
+    const skipBtn = page.locator('#cutscene-skip-btn');
+    if (await skipBtn.isVisible()) {
+      await skipBtn.click();
+    }
+
+    const result = await page.evaluate(async () => {
+      const { arrays, state } = await import('./js/state.js');
+      const { erzeugePowerup } = await import('./js/entities.js');
+      const { gameLoop } = await import('./js/loop.js');
+
+      arrays.powerups.forEach(p => { if (p.el) p.el.remove(); });
+      arrays.powerups.length = 0;
+
+      // P1 koppelt Powerup an
+      state.x = 200;
+      state.y = 300;
+      erzeugePowerup(200, 300, 'schild', 'p2');
+      gameLoop();
+
+      const pu = arrays.powerups[0];
+      const beforeDeath = {
+        isTowed: pu && pu.towedBy === 'p1',
+        hasBeam: !!document.querySelector('.tractor-beam-svg')
+      };
+
+      // P1 wird zerstört
+      state.isDead = true;
+      gameLoop();
+
+      const afterDeath = {
+        isTowed: pu && pu.towedBy !== null,
+        hasBeam: !!document.querySelector('.tractor-beam-svg'),
+        powerupExists: arrays.powerups.length === 1
+      };
+
+      return {
+        beforeDeath,
+        afterDeath
+      };
+    });
+
+    expect(result.beforeDeath.isTowed).toBe(true);
+    expect(result.beforeDeath.hasBeam).toBe(true);
+
+    expect(result.afterDeath.isTowed).toBe(false);
+    expect(result.afterDeath.hasBeam).toBe(false);
+    expect(result.afterDeath.powerupExists).toBe(true);
   });
 });
 
