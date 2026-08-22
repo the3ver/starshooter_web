@@ -1780,7 +1780,10 @@ export function gameLoop() {
     }
     // Phase 3 (Frames 19+): Starke, lineare Beschleunigung (Triebwerks-Vollschub)
     else {
-      r.vy = Math.min(13, r.vy + 0.45);
+      // Im Co-op (600px Feld) beschleunigen Raketen stärker, um das breitere Feld zu kompensieren
+      const rMaxVy = state.gameMode === 'coop' ? 15 : 13;
+      const rAccel = state.gameMode === 'coop' ? 0.5 : 0.45;
+      r.vy = Math.min(rMaxVy, r.vy + rAccel);
       r.vx *= 0.92;
 
       // Zielsuchende Lenkung (nur gegen Feinde und Bosse) ab Phase 3 aktiv
@@ -1794,7 +1797,9 @@ export function gameLoop() {
             let zcy = f.y + (f.groesse || 20) / 2;
             let d = Math.hypot(zcx - (r.x + 3), zcy - (r.y + 8));
             // Feinde vor oder auf Höhe der Rakete erfassen
-            if (d < bestDist && zcy < r.y + 140) {
+            // Im Co-op (600px) größeren Suchbereich nutzen, damit Feinde am breiten Rand gefunden werden
+            const homingYRange = state.gameMode === 'coop' ? 200 : 140;
+            if (d < bestDist && zcy < r.y + homingYRange) {
               bestDist = d;
               target = f;
             }
@@ -1810,7 +1815,8 @@ export function gameLoop() {
           while (diff < -Math.PI) diff += Math.PI * 2;
           while (diff > Math.PI) diff -= Math.PI * 2;
 
-          let maxTurn = 0.22; // Direkte, präzise Kurvenlenkung
+          // Im Co-op stärkere Lenkrate, damit Raketen den größeren horizontalen Abstand ausgleichen können
+          let maxTurn = state.gameMode === 'coop' ? 0.26 : 0.22;
           let newAngle = currentAngle + Math.sign(diff) * Math.min(Math.abs(diff), maxTurn);
           let currentSpeed = Math.hypot(r.vx, r.vy) || r.vy;
           r.vx = Math.cos(newAngle) * currentSpeed;

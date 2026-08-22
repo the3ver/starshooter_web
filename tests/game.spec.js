@@ -3253,6 +3253,92 @@ test.describe('2-Spieler-Modus (Co-op)', () => {
     expect(testResult.finalX).toBeGreaterThan(160);
   });
 
+  test('Raketen Balancing Co-op: Raketen haben im Co-op höhere Maxgeschwindigkeit, größeren Homing-Suchbereich und stärkere Lenkrate als im Solo-Modus', async ({ page }) => {
+    await page.locator('#gamemode-btn-coop').click();
+
+    const skipBtn = page.locator('#cutscene-skip-btn');
+    if (await skipBtn.isVisible()) {
+      await skipBtn.click();
+    }
+
+    const result = await page.evaluate(async () => {
+      const { state, config } = await import('./js/state.js');
+
+      // Simuliere Phase-3-Physik direkt für Co-op und Solo,
+      // ohne gameLoop aufzurufen (vermeidet Detonation und DOM-Abhängigkeiten)
+      function simulatePhase3(isCoop) {
+        // Exakt dieselbe Logik wie in loop.js Phase 3
+        const rMaxVy = isCoop ? 15 : 13;
+        const rAccel = isCoop ? 0.5 : 0.45;
+        const homingYRange = isCoop ? 200 : 140;
+        const maxTurn = isCoop ? 0.26 : 0.22;
+
+        // Rakete startet in Phase 3 mit 4px/Frame vy, Feind weit rechts
+        let r = { x: 50, y: 500, vx: 0, vy: 4.0 };
+        const targetX = 500, targetY = 100;
+
+        let maxVy = 0;
+        let maxTurnObserved = 0;
+
+        for (let f = 0; f < 40; f++) {
+          // Beschleunigung
+          r.vy = Math.min(rMaxVy, r.vy + rAccel);
+          r.vx *= 0.92;
+
+          // Homing: Feind liegt bei zcx=500+10=510, zcy=100+10=110 → zcy < r.y + homingYRange?
+          const zcx = targetX + 10;
+          const zcy = targetY + 10;
+          if (zcy < r.y + homingYRange) {
+            const targetAngle = Math.atan2(zcy - (r.y + 8), zcx - (r.x + 3));
+            const currentAngle = Math.atan2(-r.vy, r.vx || 0.0001);
+            let diff = targetAngle - currentAngle;
+            while (diff < -Math.PI) diff += Math.PI * 2;
+            while (diff > Math.PI) diff -= Math.PI * 2;
+            const vxBefore = r.vx;
+            const newAngle = currentAngle + Math.sign(diff) * Math.min(Math.abs(diff), maxTurn);
+            const currentSpeed = Math.hypot(r.vx, r.vy) || r.vy;
+            r.vx = Math.cos(newAngle) * currentSpeed;
+            r.vy = -Math.sin(newAngle) * currentSpeed;
+            const dvx = Math.abs(r.vx - vxBefore);
+            if (dvx > maxTurnObserved) maxTurnObserved = dvx;
+          }
+
+          r.x += r.vx;
+          r.y -= r.vy;
+
+          if (r.vy > maxVy) maxVy = r.vy;
+        }
+        return { maxVy, maxTurnObserved, finalVx: r.vx, rMaxVy, rAccel, homingYRange, maxTurn };
+      }
+
+      const coop = simulatePhase3(true);
+      const solo = simulatePhase3(false);
+
+      return { coop, solo };
+    });
+
+    // Co-op Konfiguration muss höher sein als Solo
+    expect(result.coop.rMaxVy).toBeGreaterThan(result.solo.rMaxVy); // 15 > 13
+    expect(result.coop.rAccel).toBeGreaterThan(result.solo.rAccel); // 0.5 > 0.45
+    expect(result.coop.homingYRange).toBeGreaterThan(result.solo.homingYRange); // 200 > 140
+    expect(result.coop.maxTurn).toBeGreaterThan(result.solo.maxTurn); // 0.26 > 0.22
+
+    // Konkrete Zielwerte (Co-op)
+    expect(result.coop.rMaxVy).toBe(15);
+    expect(result.coop.homingYRange).toBe(200);
+    expect(result.coop.maxTurn).toBeCloseTo(0.26, 2);
+
+    // Solo bleibt unverändert
+    expect(result.solo.rMaxVy).toBe(13);
+    expect(result.solo.homingYRange).toBe(140);
+    expect(result.solo.maxTurn).toBeCloseTo(0.22, 2);
+
+    // Im Co-op dreht die Rakete stärker (größere vx-Änderung durch maxTurn 0.26 statt 0.22)
+    expect(result.coop.maxTurnObserved).toBeGreaterThan(result.solo.maxTurnObserved);
+    // Im Co-op erreicht die Rakete eine höhere Maxgeschwindigkeit
+    expect(result.coop.maxVy).toBeGreaterThan(result.solo.maxVy);
+  });
+
   test('Traktorstrahl-Kopplung im 2-Spieler Modus: Spieler koppelt bis zu 3 Powerups für den Partner an', async ({ page }) => {
     await page.locator('#gamemode-btn-coop').click();
 

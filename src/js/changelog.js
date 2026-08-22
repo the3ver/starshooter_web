@@ -1,6 +1,15 @@
-export const GAME_VERSION = '1.6.23';
+export const GAME_VERSION = '1.6.24';
 
 export const changelogData = {
+  '1.6.24': {
+    version: '1.6.24',
+    intro: 'Hey, es ist jetzt Version 1.6.24 rausgekommen, folgendes wurde verbessert:',
+    highlights: [
+      '🚀 Raketen-Balancing im 2-Spieler Co-op: Höhere Maximalgeschwindigkeit (15 statt 13), stärkere Beschleunigung und präziseres Homing auf dem breiterem 600px-Spielfeld',
+      '🎯 Größerer Homing-Suchbereich im Co-op: Zielsuchende Raketen erfassen Feinde mit einem 200px-Radius (statt 140px im Solo-Modus)',
+      '↩️ Stärkere Lenkrate im Co-op: Raketen kurven flotter und treffen Ziele auch am weit entfernten Rand des Spielfelds'
+    ]
+  },
   '1.6.23': {
     version: '1.6.23',
     intro: 'Hey, es ist jetzt Version 1.6.23 rausgekommen, folgendes wurde verbessert:',
