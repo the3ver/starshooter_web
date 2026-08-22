@@ -513,6 +513,46 @@ export function gameLoop() {
       pState.autolaserTimer = 600;
       if (isP1) Utils.updateAktivePowerupsUI();
       else Utils.updateAktivePowerupsP2UI();
+    } else if (p.type === 'splitterRot') {
+      pState.splitterRot = (pState.splitterRot || 0) + 1;
+      if (pState.splitterRot >= 10) {
+        pState.splitterRot -= 10;
+        pState.leben++;
+        if (state.gameMode === 'coop') {
+          const otherState = isP1 ? state.p2 : state;
+          const otherDom = isP1 ? dom.spieler2 : dom.spieler;
+          if (otherState && otherState.isDead) {
+            otherState.isDead = false;
+            otherState.leben = 1;
+            otherState.energie = otherState.maxEnergie / 2;
+            otherState.invulnerableTimer = 180;
+            if (otherDom) {
+              otherDom.style.display = 'block';
+              otherDom.classList.add('spieler-blink');
+            }
+            if (isP1) Utils.updateLebenP2UI();
+            else Utils.updateLebenUI();
+          }
+        }
+        if (isP1) Utils.updateLebenUI();
+        else Utils.updateLebenP2UI();
+        Audio.playPowerup('leben');
+      }
+      if (isP1) Utils.updateSplitterUI();
+      else Utils.updateSplitterP2UI();
+    } else if (p.type === 'splitterWeiss') {
+      pState.splitterWeiss = (pState.splitterWeiss || 0) + 1;
+      if (pState.splitterWeiss >= 10) {
+        pState.splitterWeiss -= 10;
+        if (pState.laserStufe < 5) pState.laserStufe++;
+        if (pState.raketenStufe < 5) pState.raketenStufe++;
+        if (pState.bombenStufe < 5) pState.bombenStufe++;
+        if (isP1) Utils.updateAktivePowerupsUI();
+        else Utils.updateAktivePowerupsP2UI();
+        Audio.playPowerup('superWaffe');
+      }
+      if (isP1) Utils.updateSplitterUI();
+      else Utils.updateSplitterP2UI();
     }
     Utils.addScore(50);
     if (dom.spielfeld) {
@@ -1331,7 +1371,7 @@ export function gameLoop() {
           setTimeout(() => {
             if (target.el) target.el.style.filter = '';
           }, 50);
-          if (target.hp <= 0) Utils.zerstoereZiel(target);
+          if (target.hp <= 0) Utils.zerstoereZiel(target, 'p1');
         }
       }
     } else {
@@ -1385,7 +1425,7 @@ export function gameLoop() {
           setTimeout(() => {
             if (target.el) target.el.style.filter = '';
           }, 50);
-          if (target.hp <= 0) Utils.zerstoereZiel(target);
+          if (target.hp <= 0) Utils.zerstoereZiel(target, 'p1');
         }
       }
     } else {
@@ -1562,7 +1602,7 @@ export function gameLoop() {
           setTimeout(() => {
             if (getroffenZiel.el) getroffenZiel.el.style.filter = '';
           }, 50);
-          if (getroffenZiel.hp <= 0) Utils.zerstoereZiel(getroffenZiel);
+          if (getroffenZiel.hp <= 0) Utils.zerstoereZiel(getroffenZiel, l.owner || 'p1');
         }
         if (!state.laserDurchschlag) {
           l.el.remove();
@@ -2203,7 +2243,7 @@ export function gameLoop() {
               setTimeout(() => {
                 if (z.el) z.el.style.filter = '';
               }, 50);
-              if (z.hp <= 0) Utils.zerstoereZiel(z);
+              if (z.hp <= 0) Utils.zerstoereZiel(z, b.owner || 'p1');
             }
           }
         }

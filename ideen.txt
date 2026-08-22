@@ -1,3 +1,8 @@
 * 2 Spieler Modus auf einer Tastatur
+** Wenn ein Boss besiegt wird, soll jeder der beiden Spieler ein S(uper) Powerup erhalten. Zusätzlich soll es ein Herz für jeden Geben. 
 * Globale Weltrangliste / Bestenliste
 * DONE: Cut-Szene beim Einstieg
+* DONE: Der Viper ist zu schwach im Vergleich zum Phantom. Viper soll folgendes erhalten (für Solo- und 2-Spieler Modus)
+** Immer wenn man mit dem Viper einen Gegner zerstört, gibt es eine 10 % Chance, dass dieser eine Splitter hinterlässt.
+*** Roter Splitter: Wenn Viper 10 Rote Splitter hat, erhält er ein Leben
+*** weiße Splitter: 10 weiße Splitter führen zu einem S(uper) Powerup.

@@ -80,6 +80,15 @@ export function erzeugePowerup(px, py, forceType = null, forceOwner = null) {
     farbe = '#ffffff';
     symbol = 'S';
     el.style.animation = 'superWaffePulse 0.3s infinite alternate';
+  } else if (type === 'splitterRot') {
+    farbe = '#e74c3c';
+    symbol = '♦';
+    el.classList.add('powerup-splitter', 'splitter-rot');
+  } else if (type === 'splitterWeiss') {
+    farbe = '#ffffff';
+    symbol = '✦';
+    el.classList.add('powerup-splitter', 'splitter-weiss');
+    el.style.animation = 'superWaffePulse 0.3s infinite alternate';
   }
   el.style.border = `2px solid ${farbe}`;
   el.style.color = farbe;

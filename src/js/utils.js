@@ -221,12 +221,42 @@ export function updateAktivePowerupsP2UI() {
   prevPuStateP2.autolaserAktiv = state.p2.autolaserAktiv;
 
   updateRaketenWerferVisuals();
+  updateSplitterUI();
+}
+
+export function updateSplitterUI() {
+  const hud = dom.splitterHudP1 || document.getElementById('splitter-hud-p1');
+  const rotEl = dom.splitterRotCountP1 || document.getElementById('splitter-rot-count');
+  const weissEl = dom.splitterWeissCountP1 || document.getElementById('splitter-weiss-count');
+  if (!hud) return;
+  if (state.selectedShipModel === 'viper') {
+    hud.style.display = 'flex';
+    if (rotEl) rotEl.textContent = state.splitterRot || 0;
+    if (weissEl) weissEl.textContent = state.splitterWeiss || 0;
+  } else {
+    hud.style.display = 'none';
+  }
+}
+
+export function updateSplitterP2UI() {
+  const hud = dom.splitterHudP2 || document.getElementById('splitter-hud-p2');
+  const rotEl = dom.splitterRotCountP2 || document.getElementById('splitter-rot-count-p2');
+  const weissEl = dom.splitterWeissCountP2 || document.getElementById('splitter-weiss-count-p2');
+  if (!hud || !state.p2) return;
+  if (state.gameMode === 'coop' && state.p2.selectedShipModel === 'viper') {
+    hud.style.display = 'flex';
+    if (rotEl) rotEl.textContent = state.p2.splitterRot || 0;
+    if (weissEl) weissEl.textContent = state.p2.splitterWeiss || 0;
+  } else {
+    hud.style.display = 'none';
+  }
 }
 
 export function updateP2UI() {
   updateLebenP2UI();
   updateMaxEnergieMarkerP2();
   updateAktivePowerupsP2UI();
+  updateSplitterP2UI();
 }
 export function zerstoereZiel(ziel, killer = 'p1') {
   let fIndex = arrays.feinde.indexOf(ziel);
@@ -298,6 +328,11 @@ export function zerstoereZiel(ziel, killer = 'p1') {
           state.energie = Math.min(state.maxEnergie, state.energie + energyGain);
           if (dom.energieBalken) dom.energieBalken.style.width = state.energie / state.absMaxEnergie * 100 + '%';
         }
+      }
+      if (killerShipModel === 'viper' && Math.random() < 0.10) {
+        const shardType = Math.random() < 0.5 ? 'splitterRot' : 'splitterWeiss';
+        const owner = state.gameMode === 'coop' ? killer : null;
+        Entities.erzeugePowerup(ziel.x + ziel.groesse / 2 - 12, ziel.y + ziel.groesse / 2 - 12, shardType, owner);
       }
     }
     let farbe = ziel.istFeind ? '#9b59b6' : ziel.el.dataset.baseColor || ziel.el.style.backgroundColor || '#ffffff';
@@ -521,9 +556,12 @@ export function restartGame() {
   state.score = 0;
   addScore(0);
   state.level = 1;
+  state.splitterRot = 0;
+  state.splitterWeiss = 0;
   updateLebenUI();
   updateMaxEnergieMarker();
   updateAktivePowerupsUI();
+  updateSplitterUI();
   updateLevelUI();
   state.x = 185;
   state.y = 285;
@@ -537,6 +575,8 @@ export function restartGame() {
     state.p2.leben = 3;
     state.p2.maxEnergie = 50;
     state.p2.energie = 50;
+    state.p2.splitterRot = 0;
+    state.p2.splitterWeiss = 0;
     state.p2.laserStufe = 1;
     state.p2.raketenStufe = 1;
     state.p2.bombenStufe = 1;

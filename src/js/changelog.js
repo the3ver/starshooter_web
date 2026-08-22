@@ -1,6 +1,16 @@
-export const GAME_VERSION = '1.6.20';
+export const GAME_VERSION = '1.6.21';
 
 export const changelogData = {
+  '1.6.21': {
+    version: '1.6.21',
+    intro: 'Hey, es ist jetzt Version 1.6.21 rausgekommen, folgendes wurde hinzugefügt und verbessert:',
+    highlights: [
+      '💎 Viper Kristall-Splitter Drop-System: 10% Chance bei jedem Feind-Abschuss durch den Viper auf einen Splitter-Drop (Solo & 2-Spieler Co-op)',
+      '❤️ Roter Splitter (♦): 10 gesammelte rote Splitter gewähren dem Viper ein zusätzliches Leben',
+      '⭐ Weißer Splitter (✦): 10 gesammelte weiße Splitter lösen ein mächtiges Super-Waffen-Upgrade aus',
+      '📊 Neues Splitter-HUD: Dedizierte Zähler-Anzeige für Viper-Piloten im Cockpit'
+    ]
+  },
   '1.6.20': {
     version: '1.6.20',
     intro: 'Hey, es ist jetzt Version 1.6.20 rausgekommen, folgendes wurde verbessert:',
