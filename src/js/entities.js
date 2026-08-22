@@ -35,6 +35,10 @@ export function erzeugePowerup(px, py, forceType = null, forceOwner = null) {
   if (state.gameMode === 'coop') {
     if (forceOwner) {
       owner = forceOwner;
+    } else if (state.isDead && state.p2 && !state.p2.isDead) {
+      owner = 'p2';
+    } else if (state.p2 && state.p2.isDead && !state.isDead) {
+      owner = 'p1';
     } else {
       owner = nextCoopLootOwner;
       nextCoopLootOwner = nextCoopLootOwner === 'p1' ? 'p2' : 'p1';

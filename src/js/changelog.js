@@ -1,6 +1,15 @@
-export const GAME_VERSION = '1.6.14';
+export const GAME_VERSION = '1.6.15';
 
 export const changelogData = {
+  '1.6.15': {
+    version: '1.6.15',
+    intro: 'Hey, es ist jetzt Version 1.6.15 rausgekommen, folgendes wurde geändert oder ist neu:',
+    highlights: [
+      '🎯 Spieler 2 Tastenbelegung entkoppelt: Taste L feuert nur die Bombe und nicht mehr zusätzlich den Laser',
+      '📊 Optimiertes Co-op HUD: Punkte- und Levelanzeige sind im 2-Spieler-Modus zentriert und überdecken nicht mehr das P2-HUD',
+      '💎 Intelligentes Loot-System: Wenn ein Spieler zerstört ist, spawnen Powerup-Drops ausschließlich für den überlebenden Spieler'
+    ]
+  },
   '1.6.14': {
     version: '1.6.14',
     intro: 'Hey, es ist jetzt Version 1.6.14 rausgekommen, folgendes wurde geändert oder ist neu:',

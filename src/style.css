@@ -435,6 +435,26 @@
             z-index: 20;
         }
 
+        #spielfeld.mode-coop #score-anzeige {
+            right: auto;
+            left: 50%;
+            transform: translateX(-50%);
+            top: 10px;
+            text-align: center;
+        }
+
+        #spielfeld.mode-coop #level-anzeige {
+            right: auto;
+            left: 50%;
+            transform: translateX(-50%);
+            top: 36px;
+            text-align: center;
+        }
+
+        #spielfeld.mode-coop #boss-hp-container {
+            top: 58px;
+        }
+
         #version-anzeige {
             position: absolute;
             bottom: 5px;

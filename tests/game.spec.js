@@ -3,7 +3,7 @@ const { test, expect } = require('@playwright/test');
 test.beforeEach(async ({ page }) => {
   // Standardmäßig als bereits gesehen markieren, damit die Tests direkt interagieren können
   await page.addInitScript(() => {
-    localStorage.setItem('starshooter_last_seen_version', '1.6.14');
+    localStorage.setItem('starshooter_last_seen_version', '1.6.15');
     localStorage.setItem('starshooter_skip_cutscene', 'true');
   });
   await page.goto('/');
@@ -898,7 +898,7 @@ test.describe('Was gibt es Neues Modal (Changelog)', () => {
     await expect(title).toContainText("WAS GIBT'S NEUES");
 
     const intro = page.locator('#whats-new-intro');
-    await expect(intro).toContainText('1.6.14');
+    await expect(intro).toContainText('1.6.15');
 
     const items = page.locator('#whats-new-list li');
     await expect(items).toHaveCount(3);
@@ -911,7 +911,7 @@ test.describe('Was gibt es Neues Modal (Changelog)', () => {
 
     // Prüfen, dass localStorage aktualisiert wurde
     const storedVersion = await page.evaluate(() => localStorage.getItem('starshooter_last_seen_version'));
-    expect(storedVersion).toBe('1.6.14');
+    expect(storedVersion).toBe('1.6.15');
 
     // Erneut öffnen über Start-Screen Button
     const openBtn = page.locator('#btn-open-whats-new');
@@ -2759,6 +2759,123 @@ test.describe('2-Spieler-Modus (Co-op)', () => {
     // Da P2 bei 450 ist und der Boss bei 200 startete, muss sich der Boss nach rechts bewegt haben (> 200)
     // Wenn er stur auf P1 (x=50) fixiert wäre, hätte er sich nach links bewegt (< 200).
     expect(bossState.x).toBeGreaterThan(200);
+  });
+
+  test('Tastensteuerung Spieler 2: Taste L feuert im Co-op Modus nur die Bombe und NICHT den Laser', async ({ page }) => {
+    await page.locator('#gamemode-btn-coop').click();
+    await page.keyboard.down('w');
+    await page.waitForTimeout(50);
+    await page.keyboard.up('w');
+
+    const skipBtn = page.locator('#cutscene-skip-btn');
+    if (await skipBtn.isVisible()) {
+      await skipBtn.click();
+    }
+
+    // Cooldowns und Arrays leeren
+    await page.evaluate(async () => {
+      const { state, arrays } = await import('./js/state.js');
+      state.p2.energie = 50;
+      state.p2.bombenCooldown = 0;
+      state.p2.laserSchiesst = false;
+      arrays.bombenArray.length = 0;
+      arrays.laserArray.length = 0;
+    });
+
+    // Taste L drücken
+    await page.keyboard.down('KeyL');
+    await page.waitForTimeout(50);
+
+    const shotState = await page.evaluate(async () => {
+      const { state, arrays } = await import('./js/state.js');
+      return {
+        bombenCount: arrays.bombenArray.length,
+        laserCount: arrays.laserArray.length,
+        p2LaserSchiesst: state.p2.laserSchiesst
+      };
+    });
+
+    await page.keyboard.up('KeyL');
+
+    expect(shotState.bombenCount).toBe(1);
+    expect(shotState.laserCount).toBe(0);
+    expect(shotState.p2LaserSchiesst).toBe(false);
+  });
+
+  test('HUD Layout im Co-op Modus: Punkte- und Levelanzeige sind zentriert und überdecken nicht das P2-HUD', async ({ page }) => {
+    await page.locator('#gamemode-btn-coop').click();
+    await page.keyboard.down('w');
+    await page.waitForTimeout(50);
+    await page.keyboard.up('w');
+
+    const skipBtn = page.locator('#cutscene-skip-btn');
+    if (await skipBtn.isVisible()) {
+      await skipBtn.click();
+    }
+
+    const scoreBox = await page.locator('#score-anzeige').boundingBox();
+    const levelBox = await page.locator('#level-anzeige').boundingBox();
+    const uiP2Box = await page.locator('#ui-container-p2').boundingBox();
+
+    expect(scoreBox).not.toBeNull();
+    expect(levelBox).not.toBeNull();
+    expect(uiP2Box).not.toBeNull();
+
+    // In 600px breitem Spielfeld: Score und Level müssen links von P2-HUD liegen (kein Overlap in X)
+    expect(scoreBox.x + scoreBox.width).toBeLessThanOrEqual(uiP2Box.x + 5);
+    expect(levelBox.x + levelBox.width).toBeLessThanOrEqual(uiP2Box.x + 5);
+  });
+
+  test('Dedicated Loot bei alleinigem Überleben: Wenn ein Spieler tot ist, spawnen nur Powerups für den lebenden Spieler', async ({ page }) => {
+    await page.locator('#gamemode-btn-coop').click();
+    await page.keyboard.down('w');
+    await page.waitForTimeout(50);
+    await page.keyboard.up('w');
+
+    const skipBtn = page.locator('#cutscene-skip-btn');
+    if (await skipBtn.isVisible()) {
+      await skipBtn.click();
+    }
+
+    // Fall 1: Spieler 1 ist tot, Spieler 2 lebt
+    const p2OnlyOwners = await page.evaluate(async () => {
+      const { state, arrays } = await import('./js/state.js');
+      const Entities = await import('./js/entities.js');
+      state.isDead = true;
+      state.leben = 0;
+      state.p2.isDead = false;
+      state.p2.leben = 3;
+
+      arrays.powerups.forEach(p => p.el && p.el.remove());
+      arrays.powerups.length = 0;
+
+      for (let i = 0; i < 4; i++) {
+        Entities.erzeugePowerup(100 + i * 40, 100);
+      }
+      return arrays.powerups.map(p => p.owner);
+    });
+
+    expect(p2OnlyOwners).toEqual(['p2', 'p2', 'p2', 'p2']);
+
+    // Fall 2: Spieler 2 ist tot, Spieler 1 lebt
+    const p1OnlyOwners = await page.evaluate(async () => {
+      const { state, arrays } = await import('./js/state.js');
+      const Entities = await import('./js/entities.js');
+      state.isDead = false;
+      state.leben = 3;
+      state.p2.isDead = true;
+      state.p2.leben = 0;
+
+      arrays.powerups.forEach(p => p.el && p.el.remove());
+      arrays.powerups.length = 0;
+
+      for (let i = 0; i < 4; i++) {
+        Entities.erzeugePowerup(100 + i * 40, 100);
+      }
+      return arrays.powerups.map(p => p.owner);
+    });
+
+    expect(p1OnlyOwners).toEqual(['p1', 'p1', 'p1', 'p1']);
   });
 });
 

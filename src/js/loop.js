@@ -367,7 +367,7 @@ export function gameLoop() {
   // --- 9.4 ENERGIE SPIELER 2 (Co-op) ---
   let laserAktivP2 = false;
   if (state.gameMode === 'coop' && state.p2 && !state.p2.isDead) {
-    const p2LaserKey = state.tastenGedrueckt.ä || state.tastenGedrueckt.l || state.tastenGedrueckt.numpad1 || state.tastenGedrueckt['.'];
+    const p2LaserKey = state.tastenGedrueckt.ä || state.tastenGedrueckt.numpad1 || state.tastenGedrueckt['.'];
     if (p2LaserKey) {
       if (!state.p2.laserSchiesst && state.p2.energie >= state.p2.minZuendEnergie) state.p2.laserSchiesst = true;
       if (state.p2.energie <= 0) state.p2.laserSchiesst = false;
