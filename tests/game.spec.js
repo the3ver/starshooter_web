@@ -3,7 +3,7 @@ const { test, expect } = require('@playwright/test');
 test.beforeEach(async ({ page }) => {
   // Standardmäßig als bereits gesehen markieren, damit die Tests direkt interagieren können
   await page.addInitScript(() => {
-    localStorage.setItem('starshooter_last_seen_version', '1.6.19');
+    localStorage.setItem('starshooter_last_seen_version', '1.6.20');
     localStorage.setItem('starshooter_skip_cutscene', 'true');
   });
   await page.goto('/');
@@ -898,7 +898,7 @@ test.describe('Was gibt es Neues Modal (Changelog)', () => {
     await expect(title).toContainText("WAS GIBT'S NEUES");
 
     const intro = page.locator('#whats-new-intro');
-    await expect(intro).toContainText('1.6.19');
+    await expect(intro).toContainText('1.6.20');
 
     const items = page.locator('#whats-new-list li');
     await expect(items).toHaveCount(3);
@@ -911,7 +911,7 @@ test.describe('Was gibt es Neues Modal (Changelog)', () => {
 
     // Prüfen, dass localStorage aktualisiert wurde
     const storedVersion = await page.evaluate(() => localStorage.getItem('starshooter_last_seen_version'));
-    expect(storedVersion).toBe('1.6.19');
+    expect(storedVersion).toBe('1.6.20');
 
     // Erneut öffnen über Start-Screen Button
     const openBtn = page.locator('#btn-open-whats-new');
@@ -3178,7 +3178,7 @@ test.describe('2-Spieler-Modus (Co-op)', () => {
     expect(Math.abs(deg - 180)).toBeLessThan(5);
   });
 
-  test('Spieler-Raketen Flugdynamik & Homing: Raketen fliegen mit maximaler Geschwindigkeit (vy <= 12) und tracken Feinde im 600px Modus', async ({ page }) => {
+  test('Spieler-Raketen Flugdynamik & Homing: Raketen fliegen mit 3-Phasen-Physik und tracken Feinde im 600px Modus', async ({ page }) => {
     await page.locator('#gamemode-btn-coop').click();
 
     // Start
@@ -3225,10 +3225,12 @@ test.describe('2-Spieler-Modus (Co-op)', () => {
       };
       arrays.raketenArray.push(rocket);
 
+      let vyAtPhase2 = 0;
       let maxObservedVy = 0;
-      // Lasse 35 Frames laufen
-      for (let f = 0; f < 35; f++) {
+
+      for (let f = 0; f < 45; f++) {
         gameLoop();
+        if (rocket.age === 15) vyAtPhase2 = rocket.vy;
         if (rocket.vy > maxObservedVy) maxObservedVy = rocket.vy;
       }
 
@@ -3236,15 +3238,18 @@ test.describe('2-Spieler-Modus (Co-op)', () => {
         initialX: 100,
         finalX: rocket.x,
         finalVx: rocket.vx,
+        vyAtPhase2: vyAtPhase2,
         maxVy: maxObservedVy
       };
     });
 
-    // Raketengeschwindigkeit vy darf 12 nicht überschreiten
-    expect(testResult.maxVy).toBeLessThanOrEqual(12);
-    // Rakete muss sich deutlich nach rechts in Richtung des Feindes bei x=450 bewegt haben (vx > 0 und finalX > 150)
+    // In Phase 2 (Anlauf nehmen) verlangsamt sich die Rakete spürbar unter die Startgeschwindigkeit
+    expect(testResult.vyAtPhase2).toBeLessThan(1.5);
+    // Raketengeschwindigkeit vy bleibt kontrolliert (max <= 13)
+    expect(testResult.maxVy).toBeLessThanOrEqual(13);
+    // Rakete muss sich deutlich nach rechts in Richtung des Feindes bei x=450 eingedreht haben (vx > 0 und finalX > 160)
     expect(testResult.finalVx).toBeGreaterThan(1.0);
-    expect(testResult.finalX).toBeGreaterThan(150);
+    expect(testResult.finalX).toBeGreaterThan(160);
   });
 
   test('Traktorstrahl-Kopplung im 2-Spieler Modus: Spieler koppelt bis zu 3 Powerups für den Partner an', async ({ page }) => {

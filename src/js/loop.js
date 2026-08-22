@@ -1725,60 +1725,98 @@ export function gameLoop() {
     r.age = (r.age || 0) + 1;
 
     // 3-Phasen-Flugdynamik:
-    // Phase 1 (Frames 1-8): Seitliches Lösen / Ausklinken, erbt Schiffsgeschwindigkeit
-    if (r.age <= 8) {
-      r.vy = Math.min(6, r.vy + 0.3);
+    // Phase 1 (Frames 1-10): Seitliches Lösen / Ausklinken, erbt Schiffsgeschwindigkeit
+    if (r.age <= 10) {
+      r.x += r.vx;
+      r.y -= r.vy;
       r.vx *= 0.95;
-    } 
-    // Phase 2 (Frames 9-18): Haupttriebwerk zündet, Beschleunigung nach vorn
-    else if (r.age <= 18) {
-      r.vy = Math.min(10, r.vy + 0.8);
-      r.vx *= 0.9;
-      if (Math.random() < 0.6) {
-        Utils.erzeugeAntriebsRauch(r.x + 3, r.y + 16, 2);
-      }
-    } 
-    // Phase 3 (ab Frame 19): Ausgewogene Reisegeschwindigkeit (max 12) & Homing-Navigation
-    else {
-      r.vy = Math.min(12, r.vy + 0.4);
-      if (Math.random() < 0.4) {
-        Utils.erzeugeAntriebsRauch(r.x + 3, r.y + 16, 1.5);
-      }
     }
+    // Phase 2 (Frames 11-18): Kurzes Verlangsamen ("Anlauf nehmen" & Triebwerkszündung)
+    else if (r.age <= 18) {
+      r.vx *= 0.82;
+      r.vy = Math.max(0.3, r.vy * 0.85);
+      r.x += r.vx;
+      r.y -= r.vy;
+    }
+    // Phase 3 (Frames 19+): Starke, lineare Beschleunigung (Triebwerks-Vollschub)
+    else {
+      r.vy = Math.min(13, r.vy + 0.45);
+      r.vx *= 0.92;
 
-    // Homing-Verhalten: Aktiv ab Frame 10 sobald das Haupttriebwerk brennt
-    if (r.homing && r.age >= 10) {
-      let bestTarget = null;
-      let bestDist = (config.spielfeldBreite || 600) + 200; // Erfasst Feinde über die gesamte Spielfeldbreite
-      alleZiele.forEach(z => {
-        if (!z.istUnzerstoerbar && (z.immune || 0) <= 0) {
-          let zcx = z.x + (z.groesse || 20) / 2;
-          let zcy = z.y + (z.groesse || 20) / 2;
-          let dist = Math.hypot(zcx - (r.x + 3), zcy - (r.y + 8));
-          if (dist < bestDist && zcy < r.y + 60) { // Nur Ziele vor oder auf Höhe der Rakete
-            bestDist = dist;
-            bestTarget = z;
+      // Zielsuchende Lenkung (nur gegen Feinde und Bosse) ab Phase 3 aktiv
+      if (r.homing) {
+        let bestDist = Infinity;
+        let target = null;
+        const feindZiele = [...arrays.feinde, ...arrays.bosses];
+        for (let f of feindZiele) {
+          if (!f.istUnzerstoerbar && (f.immune || 0) <= 0) {
+            let zcx = f.x + (f.groesse || 20) / 2;
+            let zcy = f.y + (f.groesse || 20) / 2;
+            let d = Math.hypot(zcx - (r.x + 3), zcy - (r.y + 8));
+            // Feinde vor oder auf Höhe der Rakete erfassen
+            if (d < bestDist && zcy < r.y + 140) {
+              bestDist = d;
+              target = f;
+            }
           }
         }
-      });
-      if (bestTarget) {
-        let zcx = bestTarget.x + (bestTarget.groesse || 20) / 2;
-        let targetDx = zcx - (r.x + 3);
-        let steer = Math.sign(targetDx) * Math.min(1.4, Math.max(0.4, Math.abs(targetDx) * 0.04));
-        r.vx = Math.max(-8, Math.min(8, r.vx + steer));
+
+        if (target) {
+          let zcx = target.x + (target.groesse || 20) / 2;
+          let zcy = target.y + (target.groesse || 20) / 2;
+          let targetAngle = Math.atan2(zcy - (r.y + 8), zcx - (r.x + 3));
+          let currentAngle = Math.atan2(-r.vy, r.vx || 0.0001);
+          let diff = targetAngle - currentAngle;
+          while (diff < -Math.PI) diff += Math.PI * 2;
+          while (diff > Math.PI) diff -= Math.PI * 2;
+
+          let maxTurn = 0.22; // Direkte, präzise Kurvenlenkung
+          let newAngle = currentAngle + Math.sign(diff) * Math.min(Math.abs(diff), maxTurn);
+          let currentSpeed = Math.hypot(r.vx, r.vy) || r.vy;
+          r.vx = Math.cos(newAngle) * currentSpeed;
+          r.vy = -Math.sin(newAngle) * currentSpeed;
+        }
       }
+
+      r.x += r.vx;
+      r.y -= r.vy;
     }
 
-    r.x += r.vx;
-    r.y -= r.vy;
-    r.el.style.left = r.x + 'px';
+    // Raketenausrichtung & DOM-Position aktualisieren
+    let flightAngle = Math.atan2(-r.vy, r.vx || 0.0001) * 180 / Math.PI + 90;
+    r.el.style.transform = `rotate(${flightAngle}deg)`;
     r.el.style.top = r.y + 'px';
+    r.el.style.left = r.x + 'px';
 
-    // Drehung passend zur Flugbahn ausrichten
-    let winkel = Math.atan2(-r.vy, r.vx) * 180 / Math.PI;
-    r.el.style.transform = `rotate(${winkel + 90}deg)`;
+    // Partikelschweif (Rauch beim Ausklinken, Vollfeuer in Phase 3)
+    let flameProb = r.age > 18 ? 0.85 : (r.age > 10 ? 0.45 : 0.2);
+    if (Math.random() < flameProb) {
+      const pEl = document.createElement('div');
+      pEl.classList.add('partikel');
+      if (r.homing && r.age > 18) {
+        pEl.style.backgroundColor = Math.random() < 0.5 ? '#00ffff' : '#3498db';
+      } else if (r.age > 18) {
+        pEl.style.backgroundColor = Math.random() < 0.6 ? '#f1c40f' : '#e74c3c';
+      } else {
+        pEl.style.backgroundColor = '#7f8c8d'; // Rauch beim Abwurf
+      }
+      let px = r.x + 2 + Math.random() * 4;
+      let py = r.y + 20;
+      pEl.style.left = px + 'px';
+      pEl.style.top = py + 'px';
+      dom.spielfeld.appendChild(pEl);
+      arrays.partikelArray.push({
+        el: pEl,
+        x: px,
+        y: py,
+        vx: (Math.random() - 0.5) * 0.5,
+        vy: 0.5 + Math.random(),
+        leben: 1.0,
+        zerfall: 0.04
+      });
+    }
 
-    if (r.y < -30 || r.x < -30 || r.x > config.spielfeldBreite + 30) {
+    if (r.y < -40 || r.x < -50 || r.x > config.spielfeldBreite + 50 || r.y > config.spielfeldHoehe + 50) {
       r.el.remove();
       arrays.raketenArray.splice(i, 1);
       continue;
@@ -1795,8 +1833,8 @@ export function gameLoop() {
         let zcx = z.x + (z.groesse || 20) / 2;
         let zcy = z.y + (z.groesse || 20) / 2;
         let dist = Math.hypot(zcx - rcx, zcy - rcy);
-        // Direkttreffer oder Näherungszündung bei naher Vorbeifahrt
-        if (dist < (z.groesse || 20) / 2 + 10) {
+        // Näherungszündung bei Annäherung
+        if (dist < (z.groesse || 20) / 2 + 18) {
           detoniert = true;
           break;
         }

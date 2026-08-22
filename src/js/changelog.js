@@ -1,6 +1,15 @@
-export const GAME_VERSION = '1.6.19';
+export const GAME_VERSION = '1.6.20';
 
 export const changelogData = {
+  '1.6.20': {
+    version: '1.6.20',
+    intro: 'Hey, es ist jetzt Version 1.6.20 rausgekommen, folgendes wurde verbessert:',
+    highlights: [
+      '🚀 Authentische Raketen-Flugdynamik: Wiederherstellung der 3-Phasen-Flugphysik mit charakteristischem Anlaufnehmen in Phase 2',
+      '🎯 Präzise Zielsuch-Vektorlenkung: Zielsucher-Raketen drehen ihre Flugbahn exakt auf Feinde ein und treffen Ziele zuverlässig',
+      '💥 Proximity-Zünder: Ausgewogener Zündradius für verlässliche Trefferwirkung'
+    ]
+  },
   '1.6.19': {
     version: '1.6.19',
     intro: 'Hey, es ist jetzt Version 1.6.19 rausgekommen, folgendes wurde hinzugefügt und verbessert:',
