@@ -1044,30 +1044,41 @@
         }
 
         .powerup.powerup-splitter {
-            border-radius: 4px;
-            transform: rotate(45deg);
-            width: 20px;
-            height: 20px;
-            font-size: 11px;
+            background: none !important;
+            border: none !important;
+            box-shadow: none !important;
+            border-radius: 0 !important;
+            width: 18px;
+            height: 24px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            animation: shardGlowPulse 0.45s infinite alternate ease-in-out;
         }
 
-        .powerup.powerup-splitter > * {
-            transform: rotate(-45deg);
+        .splitter-shard-svg {
+            width: 100%;
+            height: 100%;
+            overflow: visible;
         }
 
         .powerup.splitter-rot {
-            background: radial-gradient(circle, rgba(231, 76, 60, 0.4) 0%, rgba(192, 57, 43, 0.2) 100%);
-            animation: shardFloat 0.6s ease-in-out infinite alternate;
+            filter: drop-shadow(0 0 6px rgba(255, 71, 87, 0.95)) drop-shadow(0 0 12px rgba(231, 76, 60, 0.75));
         }
 
         .powerup.splitter-weiss {
-            background: radial-gradient(circle, rgba(255, 255, 255, 0.6) 0%, rgba(189, 195, 199, 0.2) 100%);
-            animation: superWaffePulse 0.3s infinite alternate;
+            filter: drop-shadow(0 0 7px rgba(255, 255, 255, 0.95)) drop-shadow(0 0 14px rgba(0, 255, 255, 0.85));
         }
 
-        @keyframes shardFloat {
-            0% { transform: rotate(45deg) scale(0.95); }
-            100% { transform: rotate(45deg) scale(1.1); }
+        @keyframes shardGlowPulse {
+            0% {
+                transform: scale(0.9) rotate(-3deg);
+                filter: brightness(1);
+            }
+            100% {
+                transform: scale(1.15) rotate(3deg);
+                filter: brightness(1.6);
+            }
         }
 
         .hitscan-strahl {

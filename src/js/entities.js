@@ -82,19 +82,34 @@ export function erzeugePowerup(px, py, forceType = null, forceOwner = null) {
     el.style.animation = 'superWaffePulse 0.3s infinite alternate';
   } else if (type === 'splitterRot') {
     farbe = '#e74c3c';
-    symbol = '♦';
     el.classList.add('powerup-splitter', 'splitter-rot');
   } else if (type === 'splitterWeiss') {
     farbe = '#ffffff';
-    symbol = '✦';
     el.classList.add('powerup-splitter', 'splitter-weiss');
-    el.style.animation = 'superWaffePulse 0.3s infinite alternate';
   }
-  el.style.border = `2px solid ${farbe}`;
-  el.style.color = farbe;
-  el.style.boxShadow = `0 0 10px ${farbe}, inset 0 0 5px ${farbe}`;
+
+  const istSplitter = (type === 'splitterRot' || type === 'splitterWeiss');
+  if (!istSplitter) {
+    el.style.border = `2px solid ${farbe}`;
+    el.style.color = farbe;
+    el.style.boxShadow = `0 0 10px ${farbe}, inset 0 0 5px ${farbe}`;
+  }
   
-  let innerHtml = symbol;
+  let innerHtml = '';
+  if (istSplitter) {
+    const isRot = type === 'splitterRot';
+    const fillFarbe = isRot ? '#ff4757' : '#ffffff';
+    const strokeFarbe = isRot ? '#ffa502' : '#70a1ff';
+    const facetFarbe = isRot ? 'rgba(255, 255, 255, 0.45)' : 'rgba(112, 161, 255, 0.5)';
+    innerHtml = `
+      <svg viewBox="0 0 20 26" class="splitter-shard-svg">
+        <polygon points="2,22 17,2 8,25" fill="${fillFarbe}" stroke="${strokeFarbe}" stroke-width="1.2" stroke-linejoin="round"/>
+        <polygon points="17,2 8,25 6,14" fill="${facetFarbe}"/>
+      </svg>
+    `;
+  } else {
+    innerHtml = symbol;
+  }
   if (owner) {
     innerHtml += `<span class="pu-owner-tag tag-${owner}">${owner.toUpperCase()}</span>`;
   }

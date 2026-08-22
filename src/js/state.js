@@ -73,7 +73,7 @@ export const shipModels = {
             { icon: '⚡', label: '+20% TEMPO', desc: 'Höchste Wendigkeit & Fluggeschwindigkeit', type: 'buff' },
             { icon: '🔋', label: '+25% REGEN', desc: 'Laser lädt deutlich schneller wieder auf', type: 'buff' },
             { icon: '💥', label: '+5 ENERGIE BEI KILL', desc: 'Stellt für jeden zerstörten Feind 5 Laser-Energie wieder her', type: 'buff' },
-            { icon: '💎', label: '10% SPLITTER-DROP', desc: '10% Chance bei Kills auf Rote (10=Leben) oder Weiße (10=Super-Waffe) Splitter', type: 'buff' },
+            { icon: '💎', label: 'SPLITTER-DROP', desc: 'Jeder 10. zerstörte Feind hinterlässt einen Roten (10=Leben) oder Weißen (10=Super-Waffe) Splitter', type: 'buff' },
             { icon: '⚠️', label: 'TREFFER: -1 UPGRADE', desc: 'Verliert bei Treffern ohne Schild ein Waffen-Upgrade', type: 'nerf' }
         ]
     },
@@ -101,7 +101,7 @@ export const state = {
     autolaserAktiv: false, autolaserTimer: 0, raketenStufe: 1, raketenCooldown: 0,
     bombenStufe: 1, bombenCooldown: 0, frameZaehler: 0, spielLaeuft: false, cutsceneAktiv: false,
     feindSpawnZeit: 1200, bossKampfAktiv: false,
-    splitterRot: 0, splitterWeiss: 0,
+    splitterRot: 0, splitterWeiss: 0, viperKillCount: 0,
     tastenGedrueckt: {
         w: false, a: false, s: false, d: false,
         l: false, k: false, ' ': false,
@@ -128,7 +128,7 @@ export const state = {
         autolaserAktiv: false, autolaserTimer: 0, raketenCooldown: 0, bombenCooldown: 0,
         spielerSchussCooldown: 0, invulnerableTimer: 0,
         phantomSchildRegenTimer: 0, phantomSchildRegenMax: 900,
-        splitterRot: 0, splitterWeiss: 0,
+        splitterRot: 0, splitterWeiss: 0, viperKillCount: 0,
         selectedShipModel: 'phantom', selectedShipColor: 'blue',
         isDead: false, rotate: 0
     }

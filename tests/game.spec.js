@@ -3,7 +3,7 @@ const { test, expect } = require('@playwright/test');
 test.beforeEach(async ({ page }) => {
   // Standardmäßig als bereits gesehen markieren, damit die Tests direkt interagieren können
   await page.addInitScript(() => {
-    localStorage.setItem('starshooter_last_seen_version', '1.6.22');
+    localStorage.setItem('starshooter_last_seen_version', '1.6.23');
     localStorage.setItem('starshooter_skip_cutscene', 'true');
   });
   await page.goto('/');
@@ -842,7 +842,7 @@ test.describe('Space Shooter', () => {
     await expect(perksContainer).toContainText('+20% TEMPO');
     await expect(perksContainer).toContainText('+25% REGEN');
     await expect(perksContainer).toContainText('+5 ENERGIE BEI KILL');
-    await expect(perksContainer).toContainText('10% SPLITTER-DROP');
+    await expect(perksContainer).toContainText('SPLITTER-DROP');
     await expect(perksContainer).toContainText('TREFFER: -1 UPGRADE');
 
     // 2. Wechsel auf Phantom-NX
@@ -899,7 +899,7 @@ test.describe('Was gibt es Neues Modal (Changelog)', () => {
     await expect(title).toContainText("WAS GIBT'S NEUES");
 
     const intro = page.locator('#whats-new-intro');
-    await expect(intro).toContainText('1.6.22');
+    await expect(intro).toContainText('1.6.23');
 
     const items = page.locator('#whats-new-list li');
     await expect(items).toHaveCount(3);
@@ -912,7 +912,7 @@ test.describe('Was gibt es Neues Modal (Changelog)', () => {
 
     // Prüfen, dass localStorage aktualisiert wurde
     const storedVersion = await page.evaluate(() => localStorage.getItem('starshooter_last_seen_version'));
-    expect(storedVersion).toBe('1.6.22');
+    expect(storedVersion).toBe('1.6.23');
 
     // Erneut öffnen über Start-Screen Button
     const openBtn = page.locator('#btn-open-whats-new');
@@ -3500,7 +3500,7 @@ test.describe('2-Spieler-Modus (Co-op)', () => {
     expect(result.afterDeath.powerupExists).toBe(true);
   });
 
-  test('Viper Splitter-Drop: Feind-Abschuss durch Viper erzeugt mit 10% Chance einen Splitter (Rot oder Weiß), während Phantom keine Splitter erzeugt', async ({ page }) => {
+  test('Viper Splitter-Drop: Jeder 10. vom Viper zerstörte Feind droppt einen Splitter (Rot oder Weiß), während Phantom keine Splitter erzeugt', async ({ page }) => {
     // Start game
     await page.keyboard.down('w');
     await page.waitForTimeout(50);
@@ -3521,96 +3521,76 @@ test.describe('2-Spieler-Modus (Co-op)', () => {
       arrays.feinde.forEach(f => { if (f.el) f.el.remove(); });
       arrays.feinde.length = 0;
 
-      // Fall 1: Viper als P1 zerstört Feind bei Random < 0.10 (z. B. 0.05)
       state.selectedShipModel = 'viper';
-      const origRandom = Math.random;
+      state.viperKillCount = 0;
 
-      // Stelle sicher, dass Shared-Audio-Buffer vorher erstellt wurde, damit er Math.random nicht flutet
-      const AudioMod = await import('./js/audio.js');
-      const ctx = AudioMod.getAudioContext();
-      if (ctx) AudioMod.getNoiseBuffer(ctx);
+      // 1. Zerstöre 9 Feinde -> noch kein Splitter-Drop
+      for (let i = 0; i < 9; i++) {
+        erzeugeFeind(100, 100);
+        const f = arrays.feinde[arrays.feinde.length - 1];
+        f.traegtPowerup = false;
+        zerstoereZiel(f, 'p1');
+      }
 
-      // Mock random: 0.05 (< 0.10 => Drop Trigger) und 0.2 (< 0.5 => splitterRot)
-      let callCount = 0;
-      Math.random = () => {
-        callCount++;
-        if (callCount === 1) return 0.05; // 10% Splitter-Check
-        if (callCount === 2) return 0.2;  // Typ-Check: Rot
-        return 0.5;
-      };
+      const countAfter9 = arrays.powerups.length;
 
+      // 2. Zerstöre 10. Feind -> exakt 1 Splitter-Drop
       erzeugeFeind(100, 100);
-      const enemy1 = arrays.feinde[0];
-      enemy1.traegtPowerup = false;
-      callCount = 0;
-      zerstoereZiel(enemy1, 'p1');
+      const f10 = arrays.feinde[arrays.feinde.length - 1];
+      f10.traegtPowerup = false;
+      zerstoereZiel(f10, 'p1');
 
-      const p1ViperDrop = arrays.powerups.length > 0 ? arrays.powerups[0].type : null;
+      const countAfter10 = arrays.powerups.length;
+      const dropType10 = arrays.powerups.length > 0 ? arrays.powerups[0].type : null;
 
-      // Reset
+      // 3. Zerstöre weitere 9 Feinde (insgesamt 19)
+      for (let i = 0; i < 9; i++) {
+        erzeugeFeind(100, 100);
+        const f = arrays.feinde[arrays.feinde.length - 1];
+        f.traegtPowerup = false;
+        zerstoereZiel(f, 'p1');
+      }
+
+      const countAfter19 = arrays.powerups.length;
+
+      // 4. Zerstöre 20. Feind -> 2. Splitter-Drop
+      erzeugeFeind(100, 100);
+      const f20 = arrays.feinde[arrays.feinde.length - 1];
+      f20.traegtPowerup = false;
+      zerstoereZiel(f20, 'p1');
+
+      const countAfter20 = arrays.powerups.length;
+
+      // 5. Phantom-Check: Zerstöre 10 Feinde mit Phantom -> 0 Drops
       arrays.powerups.forEach(p => { if (p.el) p.el.remove(); });
       arrays.powerups.length = 0;
-
-      // Fall 2: Viper zerstört Feind bei Random = 0.05 und Typ-Check = 0.8 (=> splitterWeiss)
-      callCount = 0;
-      Math.random = () => {
-        callCount++;
-        if (callCount === 1) return 0.05; // 10% Splitter-Check
-        if (callCount === 2) return 0.8;  // Typ-Check: Weiß
-        return 0.5;
-      };
-
-      erzeugeFeind(100, 100);
-      const enemy2 = arrays.feinde[0];
-      enemy2.traegtPowerup = false;
-      callCount = 0;
-      zerstoereZiel(enemy2, 'p1');
-
-      const p1ViperWhiteDrop = arrays.powerups.length > 0 ? arrays.powerups[0].type : null;
-
-      // Reset
-      arrays.powerups.forEach(p => { if (p.el) p.el.remove(); });
-      arrays.powerups.length = 0;
-
-      // Fall 3: Viper zerstört Feind bei Random >= 0.10 (z. B. 0.15 => kein Drop)
-      callCount = 0;
-      Math.random = () => 0.15;
-      erzeugeFeind(100, 100);
-      const enemy3 = arrays.feinde[0];
-      enemy3.traegtPowerup = false;
-      zerstoereZiel(enemy3, 'p1');
-
-      const p1ViperNoDropCount = arrays.powerups.length;
-
-      // Reset
-      arrays.powerups.forEach(p => { if (p.el) p.el.remove(); });
-      arrays.powerups.length = 0;
-
-      // Fall 4: Phantom als P1 zerstört Feind bei Random = 0.05 (soll trotzdem KEINEN Splitter erzeugen)
       state.selectedShipModel = 'phantom';
-      Math.random = () => 0.05;
-      erzeugeFeind(100, 100);
-      const enemy4 = arrays.feinde[0];
-      enemy4.traegtPowerup = false;
-      zerstoereZiel(enemy4, 'p1');
 
-      const phantomDropCount = arrays.powerups.length;
+      for (let i = 0; i < 10; i++) {
+        erzeugeFeind(100, 100);
+        const f = arrays.feinde[arrays.feinde.length - 1];
+        f.traegtPowerup = false;
+        zerstoereZiel(f, 'p1');
+      }
 
-      // Restore
-      Math.random = origRandom;
+      const phantomDrops = arrays.powerups.length;
 
       return {
-        p1ViperDrop,
-        p1ViperWhiteDrop,
-        p1ViperNoDropCount,
-        phantomDropCount
+        countAfter9,
+        countAfter10,
+        dropType10,
+        countAfter19,
+        countAfter20,
+        phantomDrops
       };
     });
 
-    expect(result.p1ViperDrop).toBe('splitterRot');
-    expect(result.p1ViperWhiteDrop).toBe('splitterWeiss');
-    expect(result.p1ViperNoDropCount).toBe(0);
-    expect(result.phantomDropCount).toBe(0);
+    expect(result.countAfter9).toBe(0);
+    expect(result.countAfter10).toBe(1);
+    expect(['splitterRot', 'splitterWeiss']).toContain(result.dropType10);
+    expect(result.countAfter19).toBe(1);
+    expect(result.countAfter20).toBe(2);
+    expect(result.phantomDrops).toBe(0);
   });
 
   test('Viper Roter Splitter: Einsammeln von 10 roten Splittern gewährt +1 Leben und setzt den Zähler zurück', async ({ page }) => {
@@ -3835,7 +3815,7 @@ test.describe('2-Spieler-Modus (Co-op)', () => {
 
     const perksContainer = page.locator('#hangar-ship-perks');
     await expect(perksContainer).toBeVisible();
-    await expect(perksContainer).toContainText('10% SPLITTER-DROP');
+    await expect(perksContainer).toContainText('SPLITTER-DROP');
   });
 
   test('Boss Splitter-Drops: Besiegter Boss droppt immer garantiert 3 Splitter (Rot oder Weiß) zusätzlich zu seinen Belohnungen', async ({ page }) => {
@@ -3880,6 +3860,48 @@ test.describe('2-Spieler-Modus (Co-op)', () => {
     expect(result.regularCount).toBe(3);
     expect(result.totalPowerups).toBe(6);
     expect(result.hasSuperWaffe).toBe(true);
+  });
+
+  test('Splitter-Optik: Splitter werden als spitze, ungleichseitige Dreiecke ohne Buchstaben gerendert', async ({ page }) => {
+    await page.goto('/');
+
+    const result = await page.evaluate(async () => {
+      const { arrays } = await import('./js/state.js');
+      const { erzeugePowerup } = await import('./js/entities.js');
+
+      arrays.powerups.forEach(p => { if (p.el) p.el.remove(); });
+      arrays.powerups.length = 0;
+
+      erzeugePowerup(100, 100, 'splitterRot');
+      erzeugePowerup(150, 100, 'splitterWeiss');
+
+      const rotPu = arrays.powerups[0];
+      const weissPu = arrays.powerups[1];
+
+      const rotSvg = rotPu.el.querySelector('svg.splitter-shard-svg');
+      const weissSvg = weissPu.el.querySelector('svg.splitter-shard-svg');
+
+      const rotPolygon = rotSvg ? rotSvg.querySelector('polygon') : null;
+      const weissPolygon = weissSvg ? weissSvg.querySelector('polygon') : null;
+
+      return {
+        rotHasClass: rotPu.el.classList.contains('powerup-splitter'),
+        weissHasClass: weissPu.el.classList.contains('powerup-splitter'),
+        rotText: rotPu.el.textContent.trim(),
+        weissText: weissPu.el.textContent.trim(),
+        rotHasSvgPolygon: !!rotPolygon,
+        weissHasSvgPolygon: !!weissPolygon,
+        rotPoints: rotPolygon ? rotPolygon.getAttribute('points') : null
+      };
+    });
+
+    expect(result.rotHasClass).toBe(true);
+    expect(result.weissHasClass).toBe(true);
+    expect(result.rotText).toBe('');
+    expect(result.weissText).toBe('');
+    expect(result.rotHasSvgPolygon).toBe(true);
+    expect(result.weissHasSvgPolygon).toBe(true);
+    expect(result.rotPoints).toBeTruthy();
   });
 });
 

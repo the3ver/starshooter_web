@@ -1,6 +1,15 @@
-export const GAME_VERSION = '1.6.22';
+export const GAME_VERSION = '1.6.23';
 
 export const changelogData = {
+  '1.6.23': {
+    version: '1.6.23',
+    intro: 'Hey, es ist jetzt Version 1.6.23 rausgekommen, folgendes wurde verbessert:',
+    highlights: [
+      '💎 Kristalline Splitter-Optik: Splitter erscheinen nun als spitze, leuchtend pulsierende Dreieckskristalle ohne Buchstaben',
+      '🎯 Garantierte Droprate: Exakt jeder 10. vom Viper zerstörte Feind hinterlässt einen garantierten Splitter-Drop (Rot oder Weiß)',
+      '✨ Wunderschöne Glüh- und Schwebereffekte im Weltraum'
+    ]
+  },
   '1.6.22': {
     version: '1.6.22',
     intro: 'Hey, es ist jetzt Version 1.6.22 rausgekommen, folgendes wurde hinzugefügt und verbessert:',

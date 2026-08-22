@@ -336,10 +336,14 @@ export function zerstoereZiel(ziel, killer = 'p1') {
           if (dom.energieBalken) dom.energieBalken.style.width = state.energie / state.absMaxEnergie * 100 + '%';
         }
       }
-      if (killerShipModel === 'viper' && Math.random() < 0.10) {
-        const shardType = Math.random() < 0.5 ? 'splitterRot' : 'splitterWeiss';
-        const owner = state.gameMode === 'coop' ? killer : null;
-        Entities.erzeugePowerup(ziel.x + ziel.groesse / 2 - 12, ziel.y + ziel.groesse / 2 - 12, shardType, owner);
+      if (killerShipModel === 'viper') {
+        const killerState = (killer === 'p2' && state.p2) ? state.p2 : state;
+        killerState.viperKillCount = (killerState.viperKillCount || 0) + 1;
+        if (killerState.viperKillCount % 10 === 0) {
+          const shardType = Math.random() < 0.5 ? 'splitterRot' : 'splitterWeiss';
+          const owner = state.gameMode === 'coop' ? killer : null;
+          Entities.erzeugePowerup(ziel.x + ziel.groesse / 2 - 10, ziel.y + ziel.groesse / 2 - 10, shardType, owner);
+        }
       }
     }
     let farbe = ziel.istFeind ? '#9b59b6' : ziel.el.dataset.baseColor || ziel.el.style.backgroundColor || '#ffffff';
@@ -565,6 +569,7 @@ export function restartGame() {
   state.level = 1;
   state.splitterRot = 0;
   state.splitterWeiss = 0;
+  state.viperKillCount = 0;
   updateLebenUI();
   updateMaxEnergieMarker();
   updateAktivePowerupsUI();
@@ -584,6 +589,7 @@ export function restartGame() {
     state.p2.energie = 50;
     state.p2.splitterRot = 0;
     state.p2.splitterWeiss = 0;
+    state.p2.viperKillCount = 0;
     state.p2.laserStufe = 1;
     state.p2.raketenStufe = 1;
     state.p2.bombenStufe = 1;
