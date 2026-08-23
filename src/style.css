@@ -2044,6 +2044,18 @@
             color: #f1c40f;
             animation: blink 1.5s infinite;
             font-size: 15px;
+            cursor: pointer;
+            user-select: none;
+            padding: 8px 16px;
+            border-radius: 6px;
+            display: inline-block;
+            transition: all 0.2s ease;
+        }
+
+        #start-text:hover,
+        #start-text:active {
+            background: rgba(241, 196, 15, 0.15);
+            text-shadow: 0 0 10px rgba(241, 196, 15, 0.8);
         }
 
         /* ==========================================================================

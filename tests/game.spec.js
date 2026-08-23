@@ -3,7 +3,7 @@ const { test, expect } = require('@playwright/test');
 test.beforeEach(async ({ page }) => {
   // Standardmäßig als bereits gesehen markieren, damit die Tests direkt interagieren können
   await page.addInitScript(() => {
-    localStorage.setItem('starshooter_last_seen_version', '1.6.38');
+    localStorage.setItem('starshooter_last_seen_version', '1.6.39');
     localStorage.setItem('starshooter_skip_cutscene', 'true');
   });
   await page.goto('/');
@@ -899,7 +899,7 @@ test.describe('Was gibt es Neues Modal (Changelog)', () => {
     await expect(title).toContainText("WAS GIBT'S NEUES");
 
     const intro = page.locator('#whats-new-intro');
-    await expect(intro).toContainText('1.6.38');
+    await expect(intro).toContainText('1.6.39');
 
     const items = page.locator('#whats-new-list li');
     await expect(items).toHaveCount(1);
@@ -912,7 +912,7 @@ test.describe('Was gibt es Neues Modal (Changelog)', () => {
 
     // Prüfen, dass localStorage aktualisiert wurde
     const storedVersion = await page.evaluate(() => localStorage.getItem('starshooter_last_seen_version'));
-    expect(storedVersion).toBe('1.6.38');
+    expect(storedVersion).toBe('1.6.39');
 
     // Erneut öffnen über Start-Screen Button
     const openBtn = page.locator('#btn-open-whats-new');
@@ -4169,11 +4169,11 @@ test.describe('Bot-Partner', () => {
     const initialData = await page.evaluate(() => {
       const mod = window.__game;
       const s = mod.state;
-      const startX = s.p2.x;
-      const startY = s.p2.y;
-      // Asteroid 40px rechts und leicht oberhalb von P2 spawnen
-      mod.Entities.erzeugeAsteroid(startX + 40, startY - 30);
-      return { startX, startY };
+      s.p2.x = 300;
+      s.p2.y = 480;
+      // Asteroid 30px rechts und 50px oberhalb von P2 spawnen
+      mod.Entities.erzeugeAsteroid(330, 430);
+      return { startX: 300, startY: 480 };
     });
 
     // Kurz warten, damit der Bot ausweicht
@@ -4973,6 +4973,30 @@ test.describe('Bot-Partner', () => {
     // Start-Screen muss weiterhin sichtbar sein
     const startScreen = page.locator('#start-screen');
     await expect(startScreen).toBeVisible();
+
+    // 3. Touch auf Hangar-Container und Modell-Buttons
+    await page.dispatchEvent('#hangar-container', 'touchstart');
+    await page.dispatchEvent('.hangar-model-btn[data-model="phantom"]', 'touchstart');
+    await page.click('.hangar-model-btn[data-model="phantom"]');
+
+    const stateAfterHangar = await page.evaluate(() => ({
+      spielLaeuft: window.__game.state.spielLaeuft,
+      cutsceneAktiv: window.__game.state.cutsceneAktiv,
+      model: window.__game.state.selectedShipModel
+    }));
+    expect(stateAfterHangar.spielLaeuft).toBe(false);
+    expect(stateAfterHangar.cutsceneAktiv).toBe(false);
+    expect(stateAfterHangar.model).toBe('phantom');
+
+    // 4. Modus zurück auf Single und Touch auf #start-text startet das Spiel
+    await page.click('#gamemode-btn-single');
+    await page.dispatchEvent('#start-text', 'touchstart');
+
+    const stateAfterStartText = await page.evaluate(() => ({
+      spielLaeuft: window.__game.state.spielLaeuft,
+      cutsceneAktiv: window.__game.state.cutsceneAktiv
+    }));
+    expect(stateAfterStartText.spielLaeuft || stateAfterStartText.cutsceneAktiv).toBe(true);
   });
 
 });

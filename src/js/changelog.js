@@ -1,6 +1,13 @@
-export const GAME_VERSION = '1.6.38';
+export const GAME_VERSION = '1.6.39';
 
 export const changelogData = {
+  '1.6.39': {
+    version: '1.6.39',
+    intro: 'Hey, es ist jetzt Version 1.6.39 rausgekommen, folgendes wurde behoben:',
+    highlights: [
+      '📱 Startscreen Touch-Interaktion abgesichert: Taps auf Startscreen-Elemente (Modi, Hangar, Einstellungen) starten nicht mehr das Spiel – Start erfolgt gezielt über den blinkenden Start-Button'
+    ]
+  },
   '1.6.38': {
     version: '1.6.38',
     intro: 'Hey, es ist jetzt Version 1.6.38 rausgekommen, folgendes wurde behoben:',

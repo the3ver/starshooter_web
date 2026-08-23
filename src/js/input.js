@@ -186,21 +186,38 @@ export function setupInput() {
   let jCenterY = 0;
   const maxJoystickRadius = 50;
 
-  // 1. Tap to Pause on Spielfeld
+  // 1. Tap to Pause on Spielfeld & Tap to start on start screen
   spielfeldContainer.addEventListener('touchstart', e => {
     Audio.initAudio();
-    if (e.target.closest('button, input, select, textarea, a, .gamemode-selector, #online-lobby-container, #hangar-container, #whats-new-overlay, #btn-open-whats-new, #btn-sound-toggle, #game-over-screen, .highscore-tab, .credits')) return;
-    const whatsNew = document.getElementById('whats-new-overlay');
-    if (whatsNew && whatsNew.style.display !== 'none') return;
-
-    if (!state.spielLaeuft && !state.cutsceneAktiv && !state.gameOverAktiv) {
+    
+    // Wenn der Startscreen aktiv ist:
+    const startScreen = document.getElementById('start-screen');
+    const isStartScreenVisible = startScreen && startScreen.style.display !== 'none';
+    
+    if (isStartScreenVisible) {
+      // Wenn der Tap auf ein Element im Startscreen erfolgt (Buttons, Hangar, Infos, Selektoren),
+      // darf das Spiel AUF KEINEN FALL gestartet werden – außer bei direktem Tippen auf den Start-Text!
+      if (e.target.closest('#start-screen')) {
+        if (e.target.closest('#start-text')) {
+          if (state.gameMode === 'online') return;
+          startScreen.style.display = 'none';
+          Cutscene.startCutscene();
+        }
+        return;
+      }
+      
+      // Tap außerhalb des Start-Screens auf das Spielfeld:
       if (state.gameMode === 'online') return;
-      let startScreen = document.getElementById('start-screen');
-      if (startScreen) startScreen.style.display = 'none';
+      startScreen.style.display = 'none';
       Cutscene.startCutscene();
       return;
     }
     
+    // Ignoriere Klicks auf alle UI-Elemente / Overlays
+    if (e.target.closest('button, input, select, textarea, a, .gamemode-selector, #online-lobby-container, #hangar-container, #whats-new-overlay, #btn-open-whats-new, #btn-sound-toggle, #game-over-screen, .highscore-tab, .credits')) return;
+    const whatsNew = document.getElementById('whats-new-overlay');
+    if (whatsNew && whatsNew.style.display !== 'none') return;
+
     if (!state.spielLaeuft || state.gameOverAktiv) return;
     
     // Ignore if clicking mobile controls

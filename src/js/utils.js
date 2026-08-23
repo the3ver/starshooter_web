@@ -1055,6 +1055,17 @@ export function setGameMode(mode) {
   const tagP1 = document.querySelector('.tag-p1');
   if (tagP1) tagP1.style.display = isMultiplayer ? 'block' : 'none';
 
+  const startText = document.getElementById('start-text');
+  if (startText) {
+    if (isOnline) {
+      startText.textContent = 'RAUM ERSTELLEN ODER BEITRETEN ZUM START';
+      startText.style.color = '#1abc9c';
+    } else {
+      startText.textContent = 'TAP OR PRESS ANY KEY TO START';
+      startText.style.color = '#f1c40f';
+    }
+  }
+
   if (typeof window.resizeGame === 'function') {
     window.resizeGame();
   }

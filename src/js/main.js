@@ -234,4 +234,17 @@ document.addEventListener('DOMContentLoaded', () => {
             Changelog.showWhatsNewModal();
         });
     }
+
+    const startText = document.getElementById('start-text');
+    if (startText) {
+        startText.addEventListener('click', (e) => {
+            e.stopPropagation();
+            if (state.gameMode === 'online') return;
+            if (!state.spielLaeuft && !state.cutsceneAktiv && !state.gameOverAktiv) {
+                const startScreen = document.getElementById('start-screen');
+                if (startScreen) startScreen.style.display = 'none';
+                Cutscene.startCutscene();
+            }
+        });
+    }
 });
