@@ -75,6 +75,146 @@
             box-shadow: 0 0 10px rgba(26, 188, 156, 0.4);
         }
 
+        /* Online Lobby */
+        .online-lobby {
+            background: rgba(15, 23, 30, 0.95);
+            border: 1.5px solid #1abc9c;
+            border-radius: 8px;
+            padding: 12px;
+            margin: 0 auto 12px auto;
+            width: 85%;
+            box-shadow: 0 0 15px rgba(26, 188, 156, 0.25);
+            text-align: center;
+        }
+
+        .online-lobby-header {
+            font-size: 12px;
+            font-weight: bold;
+            letter-spacing: 1.5px;
+            color: #1abc9c;
+            margin-bottom: 10px;
+            text-shadow: 0 0 8px rgba(26, 188, 156, 0.6);
+        }
+
+        .online-lobby-actions {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            align-items: center;
+        }
+
+        .online-action-btn {
+            background: rgba(26, 188, 156, 0.2);
+            border: 1.5px solid #1abc9c;
+            color: #1abc9c;
+            padding: 7px 16px;
+            font-size: 11px;
+            font-weight: bold;
+            letter-spacing: 1px;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            font-family: inherit;
+            width: 100%;
+            max-width: 220px;
+        }
+
+        .online-action-btn:hover {
+            background: rgba(26, 188, 156, 0.4);
+            color: #ffffff;
+            box-shadow: 0 0 10px rgba(26, 188, 156, 0.5);
+        }
+
+        .online-divider {
+            display: flex;
+            align-items: center;
+            width: 100%;
+            max-width: 220px;
+            margin: 2px 0;
+            color: #7f8c8d;
+            font-size: 9px;
+            font-weight: bold;
+            letter-spacing: 1px;
+        }
+
+        .online-divider::before,
+        .online-divider::after {
+            content: '';
+            flex: 1;
+            border-bottom: 1px solid #34495e;
+        }
+
+        .online-divider span {
+            padding: 0 8px;
+        }
+
+        .online-join-row {
+            display: flex;
+            gap: 6px;
+            width: 100%;
+            max-width: 220px;
+        }
+
+        .online-input {
+            flex: 1;
+            background: rgba(11, 19, 25, 0.9);
+            border: 1px solid #34495e;
+            color: #ecf0f1;
+            padding: 6px 10px;
+            font-size: 11px;
+            font-weight: bold;
+            letter-spacing: 1.5px;
+            border-radius: 4px;
+            text-align: center;
+            font-family: inherit;
+            text-transform: uppercase;
+        }
+
+        .online-input:focus {
+            outline: none;
+            border-color: #3498db;
+            box-shadow: 0 0 8px rgba(52, 152, 219, 0.5);
+        }
+
+        .online-action-btn.join-btn {
+            background: rgba(52, 152, 219, 0.2);
+            border-color: #3498db;
+            color: #74b9ff;
+            width: auto;
+            padding: 6px 12px;
+        }
+
+        .online-action-btn.join-btn:hover {
+            background: rgba(52, 152, 219, 0.4);
+            color: #ffffff;
+            box-shadow: 0 0 10px rgba(52, 152, 219, 0.5);
+        }
+
+        .online-status {
+            margin-top: 8px;
+            font-size: 10px;
+            font-weight: bold;
+            letter-spacing: 0.5px;
+            color: #f1c40f;
+            padding: 4px 8px;
+            border-radius: 4px;
+            background: rgba(241, 196, 15, 0.1);
+            border: 1px solid rgba(241, 196, 15, 0.3);
+        }
+
+        .online-room-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            background: rgba(26, 188, 156, 0.2);
+            border: 1px dashed #1abc9c;
+            padding: 4px 10px;
+            border-radius: 4px;
+            font-size: 12px;
+            color: #1abc9c;
+            cursor: pointer;
+        }
+
         .hangar-player-tabs {
             display: flex;
             justify-content: center;

@@ -80,6 +80,21 @@
                 <div class="gamemode-selector">
                     <button type="button" id="gamemode-btn-single" class="gamemode-btn active">1 SPIELER</button>
                     <button type="button" id="gamemode-btn-coop" class="gamemode-btn">2 SPIELER (CO-OP)</button>
+                    <button type="button" id="gamemode-btn-online" class="gamemode-btn">2 SPIELER (ONLINE)</button>
+                </div>
+
+                <!-- ONLINE LOBBY (P2P WEBRTC) -->
+                <div id="online-lobby-container" class="online-lobby" style="display: none;">
+                    <div class="online-lobby-header">ONLINE MULTIPLAYER (P2P)</div>
+                    <div class="online-lobby-actions">
+                        <button type="button" id="btn-online-host" class="online-action-btn host-btn">RAUM ERSTELLEN</button>
+                        <div class="online-divider"><span>ODER</span></div>
+                        <div class="online-join-row">
+                            <input type="text" id="online-room-input" class="online-input" placeholder="RAUM-CODE" maxlength="8" autocomplete="off" />
+                            <button type="button" id="btn-online-join" class="online-action-btn join-btn">BEITRETEN</button>
+                        </div>
+                    </div>
+                    <div id="online-status" class="online-status" style="display: none;"></div>
                 </div>
 
                 <!-- HANGAR: SCHIFFS- & FARBAUSWAHL -->
@@ -124,6 +139,11 @@
                     <b>W A S D</b> &nbsp;&rarr; Bewegen &nbsp;|&nbsp; <b>L</b> &rarr; Laser<br>
                     <b>K</b> &rarr; Raketen &nbsp;|&nbsp; <b>LEER</b> &rarr; Bomben &nbsp;|&nbsp; <b>P</b> &rarr; Pause &nbsp;|&nbsp; <b>M</b> &rarr; Sound
                 </div>
+                <div id="steuerung-info-online" class="steuerung-info" style="display: none;">
+                    <div class="steuerung-titel">Steuerung (Online Co-op)</div>
+                    <b>W A S D</b> &nbsp;&rarr; Bewegen &nbsp;|&nbsp; <b>L</b> &rarr; Laser<br>
+                    <b>K</b> &rarr; Raketen &nbsp;|&nbsp; <b>LEER</b> &rarr; Bomben &nbsp;|&nbsp; <b>P</b> &rarr; Pause &nbsp;|&nbsp; <b>M</b> &rarr; Sound
+                </div>
                 <div id="steuerung-info-coop" class="steuerung-info" style="display: none;">
                     <div class="steuerung-titel">Steuerung 2-Spieler (PC)</div>
                     <div class="steuerung-coop-grid">
@@ -154,6 +174,7 @@
                     <p style="color: #1abc9c; margin-bottom: 10px;">NEUER HIGHSCORE!</p>
                     <input type="text" id="highscore-name" maxlength="3" placeholder="AAA">
                     <button class="btn" id="btn-save-score">SPEICHERN</button>
+                    <div id="highscore-waiting-msg" style="display: none; color: #f1c40f; font-size: 11px; margin-top: 8px;"></div>
                 </div>
                 
                 <div id="highscore-tabs" class="highscore-tabs">
@@ -177,7 +198,7 @@
             <button id="btn-sound-toggle" class="sound-toggle-btn" title="Sound stummschalten (M)" aria-label="Sound stummschalten (M)">🔊</button>
             <div id="score-anzeige">00000</div>
             <div id="level-anzeige">LEVEL 1</div>
-            <div id="version-anzeige">V 1.6.27</div>
+            <div id="version-anzeige">V 1.6.36</div>
             
             <div id="boss-hp-container">
                 <div id="boss-hp-balken"></div>

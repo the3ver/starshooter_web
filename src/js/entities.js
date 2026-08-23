@@ -1,5 +1,5 @@
 
-import { state, dom, config, arrays } from './state.js';
+import { state, dom, config, arrays, isCoopMode } from './state.js';
 import * as Utils from './utils.js';
 import * as Input from './input.js';
 import * as Loop from './loop.js';
@@ -18,35 +18,8 @@ export function generiereAsteroidPolygon() {
   }
   return `polygon(${punkte.join(', ')})`;
 }
-let nextCoopLootOwner = 'p1';
-
-export function erzeugePowerup(px, py, forceType = null, forceOwner = null) {
-  const puTypes = ['leben', 'energie', 'durchschlag', 'schild', 'laserWaffe', 'raketenWaffe', 'bombenWaffe'];
-  if (state.laserStufe >= 5) puTypes.push('autolaser');
-  let rawType = forceType ? forceType : puTypes[Math.floor(Math.random() * puTypes.length)];
-  
-  // Normalisiere Kurzbezeichnungen
-  let type = rawType;
-  if (rawType === 'laser') type = 'laserWaffe';
-  else if (rawType === 'rakete') type = 'raketenWaffe';
-  else if (rawType === 'bombe') type = 'bombenWaffe';
-
-  let owner = null;
-  if (state.gameMode === 'coop') {
-    if (forceOwner) {
-      owner = forceOwner;
-    } else if (state.isDead && state.p2 && !state.p2.isDead) {
-      owner = 'p2';
-    } else if (state.p2 && state.p2.isDead && !state.isDead) {
-      owner = 'p1';
-    } else {
-      owner = nextCoopLootOwner;
-      nextCoopLootOwner = nextCoopLootOwner === 'p1' ? 'p2' : 'p1';
-    }
-  }
-
-  const el = document.createElement('div');
-  el.classList.add('powerup');
+export function setupPowerupVisuals(el, type, owner) {
+  el.className = 'powerup';
   if (owner) {
     el.classList.add(`pu-owner-${owner}`);
   }
@@ -64,13 +37,13 @@ export function erzeugePowerup(px, py, forceType = null, forceOwner = null) {
   } else if (type === 'schild') {
     farbe = '#3498db';
     symbol = 'O';
-  } else if (type === 'laserWaffe') {
+  } else if (type === 'laserWaffe' || type === 'laser') {
     farbe = '#9b59b6';
     symbol = 'L';
-  } else if (type === 'raketenWaffe') {
+  } else if (type === 'raketenWaffe' || type === 'rakete') {
     farbe = '#e67e22';
     symbol = 'R';
-  } else if (type === 'bombenWaffe') {
+  } else if (type === 'bombenWaffe' || type === 'bombe') {
     farbe = '#c0392b';
     symbol = 'B';
   } else if (type === 'autolaser') {
@@ -86,6 +59,9 @@ export function erzeugePowerup(px, py, forceType = null, forceOwner = null) {
   } else if (type === 'splitterWeiss') {
     farbe = '#ffffff';
     el.classList.add('powerup-splitter', 'splitter-weiss');
+  } else {
+    farbe = '#f1c40f';
+    symbol = (type || 'P').substring(0, 1).toUpperCase();
   }
 
   const istSplitter = (type === 'splitterRot' || type === 'splitterWeiss');
@@ -93,6 +69,9 @@ export function erzeugePowerup(px, py, forceType = null, forceOwner = null) {
     el.style.border = `2px solid ${farbe}`;
     el.style.color = farbe;
     el.style.boxShadow = `0 0 10px ${farbe}, inset 0 0 5px ${farbe}`;
+  } else {
+    el.style.border = 'none';
+    el.style.boxShadow = 'none';
   }
   
   let innerHtml = '';
@@ -114,7 +93,38 @@ export function erzeugePowerup(px, py, forceType = null, forceOwner = null) {
     innerHtml += `<span class="pu-owner-tag tag-${owner}">${owner.toUpperCase()}</span>`;
   }
   el.innerHTML = innerHtml;
+  return { farbe, symbol };
+}
 
+let nextCoopLootOwner = 'p1';
+
+export function erzeugePowerup(px, py, forceType = null, forceOwner = null) {
+  const puTypes = ['leben', 'energie', 'durchschlag', 'schild', 'laserWaffe', 'raketenWaffe', 'bombenWaffe'];
+  if (state.laserStufe >= 5) puTypes.push('autolaser');
+  let rawType = forceType ? forceType : puTypes[Math.floor(Math.random() * puTypes.length)];
+  
+  // Normalisiere Kurzbezeichnungen
+  let type = rawType;
+  if (rawType === 'laser') type = 'laserWaffe';
+  else if (rawType === 'rakete') type = 'raketenWaffe';
+  else if (rawType === 'bombe') type = 'bombenWaffe';
+
+  let owner = null;
+  if (isCoopMode()) {
+    if (forceOwner) {
+      owner = forceOwner;
+    } else if (state.isDead && state.p2 && !state.p2.isDead) {
+      owner = 'p2';
+    } else if (state.p2 && state.p2.isDead && !state.isDead) {
+      owner = 'p1';
+    } else {
+      owner = nextCoopLootOwner;
+      nextCoopLootOwner = nextCoopLootOwner === 'p1' ? 'p2' : 'p1';
+    }
+  }
+
+  const el = document.createElement('div');
+  const { farbe } = setupPowerupVisuals(el, type, owner);
   el.style.left = px + 'px';
   el.style.top = py + 'px';
   dom.spielfeld.appendChild(el);
@@ -151,7 +161,9 @@ export function erzeugeAsteroid(startX, startY, startGroesse, startVx, startVy, 
     let c = config.magmaBasisFarben[Math.floor(Math.random() * config.magmaBasisFarben.length)];
     el.style.background = `radial-gradient(circle at 30% 30%, ${c.a}, ${c.b})`;
     el.dataset.baseColor = c.a;
-    el.classList.add('unzerstoerbar');
+    if (istUnzerstoerbar) {
+      el.classList.add('unzerstoerbar');
+    }
   } else {
     let c = config.asteroidenBasisFarben[Math.floor(Math.random() * config.asteroidenBasisFarben.length)];
     el.style.background = `radial-gradient(circle at 30% 30%, ${c}, #2c3e50)`;
@@ -189,6 +201,7 @@ export function erzeugeAsteroid(startX, startY, startGroesse, startVx, startVy, 
     immune: immunFrames,
     hp: startHp,
     maxHp: startHp,
+    istMagma: istMagma,
     istUnzerstoerbar: istUnzerstoerbar,
     traegtPowerup: traegtPowerup,
     rissEl: rissEl,
@@ -197,6 +210,65 @@ export function erzeugeAsteroid(startX, startY, startGroesse, startVx, startVy, 
     vRot: vRot
   });
 }
+export function getFeindColor(muster = 'normal') {
+  if (muster === 'stopAndGo') return '#e67e22';
+  if (muster === 'crossfire') return '#1abc9c';
+  if (muster === 'swoop') return '#2ecc71';
+  return '#9b59b6';
+}
+
+export function getFeindSVGHtml(muster = 'normal', hatSchild = false) {
+  let schildHtml = hatSchild ? '<div class="feind-schild"></div>' : '';
+
+  if (muster === 'normal' || muster === 'clingOn') {
+    return `
+      <svg viewBox="0 0 30 30" style="position: absolute; width: 100%; height: 100%; z-index: 2;">
+          <path d="M15 28 L2 10 L5 5 L15 8 L25 5 L28 10 Z" fill="#71368a"/>
+          <path d="M15 30 L9 10 L15 3 L21 10 Z" fill="#9b59b6"/>
+          <path d="M15 22 L12 14 L15 11 L18 14 Z" fill="#f1c40f"/>
+          <rect x="13" y="0" width="4" height="4" fill="#7f8c8d"/>
+      </svg>
+      <div class="feind-flame" style="left: 13px;"></div>
+      ${schildHtml}
+    `;
+  } else if (muster === 'stopAndGo') {
+    return `
+      <svg viewBox="0 0 30 30" style="position: absolute; width: 100%; height: 100%; z-index: 2;">
+          <rect x="5" y="8" width="20" height="15" fill="#d35400"/>
+          <polygon points="5,23 25,23 15,30" fill="#e67e22"/>
+          <polygon points="15,20 10,12 20,12" fill="#f1c40f"/>
+          <rect x="10" y="0" width="4" height="8" fill="#7f8c8d"/>
+          <rect x="16" y="0" width="4" height="8" fill="#7f8c8d"/>
+      </svg>
+      <div class="feind-flame" style="left: 10px; width: 4px;"></div>
+      <div class="feind-flame" style="left: 16px; width: 4px;"></div>
+      ${schildHtml}
+    `;
+  } else if (muster === 'crossfire') {
+    return `
+      <svg viewBox="0 0 30 30" style="position: absolute; width: 100%; height: 100%; z-index: 2;">
+          <polygon points="15,30 0,10 10,10 15,0 20,10 30,10" fill="#1abc9c"/>
+          <polygon points="15,22 8,12 22,12" fill="#16a085"/>
+          <polygon points="15,18 12,12 18,12" fill="#f1c40f"/>
+      </svg>
+      <div class="feind-flame" style="left: 13px;"></div>
+      ${schildHtml}
+    `;
+  } else if (muster === 'swoop') {
+    return `
+      <svg viewBox="0 0 30 30" style="position: absolute; width: 100%; height: 100%; z-index: 2;">
+          <path d="M15 30 L0 5 L15 15 L30 5 Z" fill="#2ecc71"/>
+          <path d="M15 25 L8 10 L22 10 Z" fill="#27ae60"/>
+          <circle cx="15" cy="14" r="3" fill="#f1c40f"/>
+          <rect x="13" y="0" width="4" height="6" fill="#7f8c8d"/>
+      </svg>
+      <div class="feind-flame" style="left: 13px;"></div>
+      ${schildHtml}
+    `;
+  }
+  return '';
+}
+
 export function erzeugeFeind(sX, sY, forceMuster = null, forceVx = 0, forceShield = null) {
   const el = document.createElement('div');
   el.classList.add('feind-schiff');
@@ -217,61 +289,8 @@ export function erzeugeFeind(sX, sY, forceMuster = null, forceVx = 0, forceShiel
     hatSchild = true;
   }
 
-  let schildHtml = hatSchild ? '<div class="feind-schild"></div>' : '';
-
-  let svgHtml = '';
-  let color = '#9b59b6';
-
-  if (muster === 'normal' || muster === 'clingOn') {
-    svgHtml = `
-      <svg viewBox="0 0 30 30" style="position: absolute; width: 100%; height: 100%; z-index: 2;">
-          <path d="M15 28 L2 10 L5 5 L15 8 L25 5 L28 10 Z" fill="#71368a"/>
-          <path d="M15 30 L9 10 L15 3 L21 10 Z" fill="#9b59b6"/>
-          <path d="M15 22 L12 14 L15 11 L18 14 Z" fill="#f1c40f"/>
-          <rect x="13" y="0" width="4" height="4" fill="#7f8c8d"/>
-      </svg>
-      <div class="feind-flame" style="left: 13px;"></div>
-      ${schildHtml}
-    `;
-    color = '#9b59b6';
-  } else if (muster === 'stopAndGo') {
-    svgHtml = `
-      <svg viewBox="0 0 30 30" style="position: absolute; width: 100%; height: 100%; z-index: 2;">
-          <rect x="5" y="8" width="20" height="15" fill="#d35400"/>
-          <polygon points="5,23 25,23 15,30" fill="#e67e22"/>
-          <polygon points="15,20 10,12 20,12" fill="#f1c40f"/>
-          <rect x="10" y="0" width="4" height="8" fill="#7f8c8d"/>
-          <rect x="16" y="0" width="4" height="8" fill="#7f8c8d"/>
-      </svg>
-      <div class="feind-flame" style="left: 10px; width: 4px;"></div>
-      <div class="feind-flame" style="left: 16px; width: 4px;"></div>
-      ${schildHtml}
-    `;
-    color = '#e67e22';
-  } else if (muster === 'crossfire') {
-    svgHtml = `
-      <svg viewBox="0 0 30 30" style="position: absolute; width: 100%; height: 100%; z-index: 2;">
-          <polygon points="15,30 0,10 10,10 15,0 20,10 30,10" fill="#1abc9c"/>
-          <polygon points="15,22 8,12 22,12" fill="#16a085"/>
-          <polygon points="15,18 12,12 18,12" fill="#f1c40f"/>
-      </svg>
-      <div class="feind-flame" style="left: 13px;"></div>
-      ${schildHtml}
-    `;
-    color = '#1abc9c';
-  } else if (muster === 'swoop') {
-    svgHtml = `
-      <svg viewBox="0 0 30 30" style="position: absolute; width: 100%; height: 100%; z-index: 2;">
-          <path d="M15 30 L0 5 L15 15 L30 5 Z" fill="#2ecc71"/>
-          <path d="M15 25 L8 10 L22 10 Z" fill="#27ae60"/>
-          <circle cx="15" cy="14" r="3" fill="#f1c40f"/>
-          <rect x="13" y="0" width="4" height="6" fill="#7f8c8d"/>
-      </svg>
-      <div class="feind-flame" style="left: 13px;"></div>
-      ${schildHtml}
-    `;
-    color = '#2ecc71';
-  }
+  const svgHtml = getFeindSVGHtml(muster, hatSchild);
+  const color = getFeindColor(muster);
 
   el.innerHTML = svgHtml;
   el.dataset.baseColor = color;
@@ -282,7 +301,7 @@ export function erzeugeFeind(sX, sY, forceMuster = null, forceVx = 0, forceShiel
   el.style.top = startY + 'px';
   dom.spielfeld.appendChild(el);
   let schussBasis = Math.max(25, 60 - (state.level - 1) * 8);
-  const feindHpMult = state.gameMode === 'coop' ? 1.25 : 1.0;
+  const feindHpMult = isCoopMode() ? 1.25 : 1.0;
   const feindHp = Math.round(20 * feindHpMult);
   const feindSchildHp = hatSchild ? Math.round(20 * feindHpMult) : 0;
   arrays.feinde.push({
@@ -360,6 +379,61 @@ export function erzeugeFeindLaser(fx, fy, zielX = null, zielY = null) {
 }
 
 // --- BOSS SKALIERUNG & OPTIK ---
+export function getBossColor(level = 1) {
+  return config.bossFarben[(level - 1) % config.bossFarben.length];
+}
+
+export function getBossSVGHtml(bTyp = 1, level = 1) {
+  let bossFarbe = getBossColor(level);
+  let defs = `<defs>
+    <radialGradient id='gMet' cx='50%' cy='30%' r='60%'><stop offset='0%' stop-color='#ffffff'/><stop offset='20%' stop-color='${bossFarbe}'/><stop offset='100%' stop-color='#222222'/></radialGradient>
+    <radialGradient id='gSha' cx='50%' cy='20%' r='80%'><stop offset='0%' stop-color='${bossFarbe}'/><stop offset='70%' stop-color='#000000'/><stop offset='100%' stop-color='#000000'/></radialGradient>
+    <filter id='glow' x='-50%' y='-50%' width='200%' height='200%'><feGaussianBlur stdDeviation='3' result='coloredBlur'/><feMerge><feMergeNode in='coloredBlur'/><feMergeNode in='SourceGraphic'/></feMerge></filter>
+  </defs>`;
+
+  if (bTyp === 1) {
+    return `<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100' style='position:absolute; width:100%; height:100%; z-index:2;'>${defs}
+      <path d='M20 20 L80 20 L90 50 L70 90 L50 100 L30 90 L10 50 Z' fill='url(#gMet)' stroke='#f1c40f' stroke-width='2' stroke-linejoin='round'/>
+      <path d='M22 22 L78 22 L87 49 L68 87 L50 96 L32 87 L13 49 Z' fill='none' stroke='rgba(255,255,255,0.6)' stroke-width='2'/>
+      <path d='M30 30 L70 30 L75 50 L50 80 L25 50 Z' fill='#2c3e50' stroke='#34495e' stroke-width='2'/>
+      <circle cx='50' cy='60' r='10' fill='#00ffff' filter='url(#glow)'/>
+      <circle cx='50' cy='60' r='5' fill='#ffffff'/>
+      <rect x='25' y='5' width='10' height='15' fill='#7f8c8d'/><rect x='65' y='5' width='10' height='15' fill='#7f8c8d'/>
+    </svg><div class='boss-flame' style='left: 25%; top: -15%; width: 10%;'></div><div class='boss-flame' style='left: 65%; top: -15%; width: 10%;'></div>`;
+  } else if (bTyp === 2) {
+    return `<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100' style='position:absolute; width:100%; height:100%; z-index:2;'>${defs}
+      <path d='M10 30 L50 90 L90 30 L70 20 L50 35 L30 20 Z' fill='url(#gSha)' stroke='#3498db' stroke-width='2' stroke-linejoin='round'/>
+      <path d='M14 32 L50 85 L86 32 L69 24 L50 39 L31 24 Z' fill='none' stroke='rgba(0,0,0,0.8)' stroke-width='3'/>
+      <path d='M40 40 L50 80 L60 40 Z' fill='#1a252f'/>
+      <circle cx='50' cy='65' r='8' fill='#e74c3c' filter='url(#glow)'/>
+      <circle cx='50' cy='65' r='3' fill='#ffffff'/>
+      <rect x='30' y='5' width='10' height='15' fill='#7f8c8d'/><rect x='60' y='5' width='10' height='15' fill='#7f8c8d'/>
+    </svg><div class='boss-flame' style='left: 31%; top: -15%; width: 8%;'></div><div class='boss-flame' style='left: 61%; top: -15%; width: 8%;'></div>`;
+  } else if (bTyp === 3) {
+    return `<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100' style='position:absolute; width:100%; height:100%; z-index:2;'>${defs}
+      <polygon points='50,10 90,30 90,70 50,95 10,70 10,30' fill='url(#gMet)' stroke='#9b59b6' stroke-width='2' stroke-linejoin='round'/>
+      <polygon points='50,14 86,32 86,68 50,91 14,68 14,32' fill='none' stroke='rgba(255,255,255,0.6)' stroke-width='2'/>
+      <rect x='40' y='30' width='20' height='50' fill='#2c3e50' stroke='#34495e'/>
+      <circle cx='30' cy='50' r='6' fill='#e74c3c' filter='url(#glow)'/>
+      <circle cx='70' cy='50' r='6' fill='#e74c3c' filter='url(#glow)'/>
+      <circle cx='50' cy='50' r='15' fill='#00ffff' opacity='0.3'/>
+      <rect x='35' y='2' width='30' height='10' fill='#7f8c8d'/>
+    </svg><div class='boss-flame' style='left: 37%; top: -15%; width: 26%;'></div>`;
+  } else if (bTyp === 4) {
+    return `<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100' style='position:absolute; width:100%; height:100%; z-index:2;'>${defs}
+      <rect x='10' y='20' width='80' height='60' rx='5' fill='url(#gSha)' stroke='#e67e22' stroke-width='3'/>
+      <rect x='13' y='23' width='74' height='54' rx='3' fill='none' stroke='rgba(0,0,0,0.8)' stroke-width='3'/>
+      <path d='M20 80 L50 95 L80 80 Z' fill='url(#gSha)' stroke='#e67e22' stroke-width='3'/>
+      <rect x='20' y='30' width='60' height='40' fill='#1a252f'/>
+      <circle cx='50' cy='50' r='15' fill='#e74c3c' filter='url(#glow)'/>
+      <circle cx='50' cy='50' r='5' fill='#ffffff'/>
+      <rect x='15' y='5' width='20' height='15' fill='#7f8c8d'/><rect x='65' y='5' width='20' height='15' fill='#7f8c8d'/>
+    </svg><div class='boss-flame' style='left: 17%; top: -15%; width: 16%;'></div><div class='boss-flame' style='left: 67%; top: -15%; width: 16%;'></div>`;
+  }
+  return '';
+}
+
+// --- BOSS SKALIERUNG & OPTIK ---
 export function erzeugeBoss() {
   state.bossAktiv = true;
   dom.bossHpContainer.style.display = 'block';
@@ -372,62 +446,8 @@ export function erzeugeBoss() {
   let bTyp = state.level % 4;
   if (bTyp === 0) bTyp = 4; // 1, 2, 3, 4, 1, 2, ...
 
-  let bossFarbe = config.bossFarben[(state.level - 1) % config.bossFarben.length];
-  let rawSvg = '';
-  let defs = `<defs>
-    <radialGradient id='gMet' cx='50%' cy='30%' r='60%'><stop offset='0%' stop-color='#ffffff'/><stop offset='20%' stop-color='${bossFarbe}'/><stop offset='100%' stop-color='#222222'/></radialGradient>
-    <radialGradient id='gSha' cx='50%' cy='20%' r='80%'><stop offset='0%' stop-color='${bossFarbe}'/><stop offset='70%' stop-color='#000000'/><stop offset='100%' stop-color='#000000'/></radialGradient>
-    <filter id='glow' x='-50%' y='-50%' width='200%' height='200%'><feGaussianBlur stdDeviation='3' result='coloredBlur'/><feMerge><feMergeNode in='coloredBlur'/><feMergeNode in='SourceGraphic'/></feMerge></filter>
-  </defs>`;
-  let flamesHtml = '';
-  if (bTyp === 1) {
-    // Kreuzer (Metallic)
-    rawSvg = `<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100' style='position:absolute; width:100%; height:100%; z-index:2;'>${defs}
-      <path d='M20 20 L80 20 L90 50 L70 90 L50 100 L30 90 L10 50 Z' fill='url(#gMet)' stroke='#f1c40f' stroke-width='2' stroke-linejoin='round'/>
-      <path d='M22 22 L78 22 L87 49 L68 87 L50 96 L32 87 L13 49 Z' fill='none' stroke='rgba(255,255,255,0.6)' stroke-width='2'/>
-      <path d='M30 30 L70 30 L75 50 L50 80 L25 50 Z' fill='#2c3e50' stroke='#34495e' stroke-width='2'/>
-      <circle cx='50' cy='60' r='10' fill='#00ffff' filter='url(#glow)'/>
-      <circle cx='50' cy='60' r='5' fill='#ffffff'/>
-      <rect x='25' y='5' width='10' height='15' fill='#7f8c8d'/><rect x='65' y='5' width='10' height='15' fill='#7f8c8d'/>
-    </svg>`;
-    flamesHtml = `<div class='boss-flame' style='left: 25%; top: -15%; width: 10%;'></div><div class='boss-flame' style='left: 65%; top: -15%; width: 10%;'></div>`;
-  } else if (bTyp === 2) {
-    // Jäger (Deep Shadow)
-    rawSvg = `<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100' style='position:absolute; width:100%; height:100%; z-index:2;'>${defs}
-      <path d='M10 30 L50 90 L90 30 L70 20 L50 35 L30 20 Z' fill='url(#gSha)' stroke='#3498db' stroke-width='2' stroke-linejoin='round'/>
-      <path d='M14 32 L50 85 L86 32 L69 24 L50 39 L31 24 Z' fill='none' stroke='rgba(0,0,0,0.8)' stroke-width='3'/>
-      <path d='M40 40 L50 80 L60 40 Z' fill='#1a252f'/>
-      <circle cx='50' cy='65' r='8' fill='#e74c3c' filter='url(#glow)'/>
-      <circle cx='50' cy='65' r='3' fill='#ffffff'/>
-      <rect x='30' y='5' width='10' height='15' fill='#7f8c8d'/><rect x='60' y='5' width='10' height='15' fill='#7f8c8d'/>
-    </svg>`;
-    flamesHtml = `<div class='boss-flame' style='left: 31%; top: -15%; width: 8%;'></div><div class='boss-flame' style='left: 61%; top: -15%; width: 8%;'></div>`;
-  } else if (bTyp === 3) {
-    // Träger (Metallic)
-    rawSvg = `<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100' style='position:absolute; width:100%; height:100%; z-index:2;'>${defs}
-      <polygon points='50,10 90,30 90,70 50,95 10,70 10,30' fill='url(#gMet)' stroke='#9b59b6' stroke-width='2' stroke-linejoin='round'/>
-      <polygon points='50,14 86,32 86,68 50,91 14,68 14,32' fill='none' stroke='rgba(255,255,255,0.6)' stroke-width='2'/>
-      <rect x='40' y='30' width='20' height='50' fill='#2c3e50' stroke='#34495e'/>
-      <circle cx='30' cy='50' r='6' fill='#e74c3c' filter='url(#glow)'/>
-      <circle cx='70' cy='50' r='6' fill='#e74c3c' filter='url(#glow)'/>
-      <circle cx='50' cy='50' r='15' fill='#00ffff' opacity='0.3'/>
-      <rect x='35' y='2' width='30' height='10' fill='#7f8c8d'/>
-    </svg>`;
-    flamesHtml = `<div class='boss-flame' style='left: 37%; top: -15%; width: 26%;'></div>`;
-  } else if (bTyp === 4) {
-    // Festung (Deep Shadow)
-    rawSvg = `<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100' style='position:absolute; width:100%; height:100%; z-index:2;'>${defs}
-      <rect x='10' y='20' width='80' height='60' rx='5' fill='url(#gSha)' stroke='#e67e22' stroke-width='3'/>
-      <rect x='13' y='23' width='74' height='54' rx='3' fill='none' stroke='rgba(0,0,0,0.8)' stroke-width='3'/>
-      <path d='M20 80 L50 95 L80 80 Z' fill='url(#gSha)' stroke='#e67e22' stroke-width='3'/>
-      <rect x='20' y='30' width='60' height='40' fill='#1a252f'/>
-      <circle cx='50' cy='50' r='15' fill='#e74c3c' filter='url(#glow)'/>
-      <circle cx='50' cy='50' r='5' fill='#ffffff'/>
-      <rect x='15' y='5' width='20' height='15' fill='#7f8c8d'/><rect x='65' y='5' width='20' height='15' fill='#7f8c8d'/>
-    </svg>`;
-    flamesHtml = `<div class='boss-flame' style='left: 17%; top: -15%; width: 16%;'></div><div class='boss-flame' style='left: 67%; top: -15%; width: 16%;'></div>`;
-  }
-  el.innerHTML = rawSvg + flamesHtml;
+  let bossFarbe = getBossColor(state.level);
+  el.innerHTML = getBossSVGHtml(bTyp, state.level);
   el.style.filter = `drop-shadow(0 10px 20px rgba(0,0,0,0.9)) drop-shadow(0 0 15px ${bossFarbe})`;
   let bossGroesse = 100 + (state.level - 1) * 10;
   bossGroesse = Math.min(bossGroesse, 160); // Maximale Größe deckeln
@@ -439,7 +459,7 @@ export function erzeugeBoss() {
   dom.spielfeld.appendChild(el);
 
   // SKALIERUNG: HP wachsen im Co-op Modus moderat (+40%), im Solomodus Standard
-  const bossHpMult = state.gameMode === 'coop' ? 1.4 : 1.0;
+  const bossHpMult = isCoopMode() ? 1.4 : 1.0;
   let bossHp = Math.round((400 + (state.level - 1) * 350) * bossHpMult);
   let bossVx = 2 + (state.level - 1) * 0.2;
   let schussRhythmus = Math.max(45, 90 - (state.level - 1) * 10);

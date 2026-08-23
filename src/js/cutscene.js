@@ -1,6 +1,7 @@
 import { state, dom, config, arrays, shipModels } from './state.js';
 import * as Utils from './utils.js';
 import * as Audio from './audio.js';
+import * as Network from './network.js';
 
 let cutsceneContainer = null;
 let cutsceneAnimationId = null;
@@ -216,7 +217,7 @@ export function startCutscene(callback) {
     }
 
     // Convoy formation inside visible viewport:
-    const isCoop = state.gameMode === 'coop';
+    const isCoop = state.gameMode === 'coop' || state.gameMode === 'online';
     const targetOffset = isCoop ? 80 : 0;
 
     // 1. Destroyer (Center-Rear / Heavy)
@@ -612,9 +613,12 @@ function fireInvisibleCannonAt(ship) {
     }, 100);
 }
 
-export function skipCutscene() {
+export function skipCutscene(isRemote = false) {
     if (!cutsceneActive) return;
     endCutsceneAndStartGame(true);
+    if (!isRemote && state.network && state.network.isOnline && state.network.connected) {
+        Network.sendNetworkEvent({ type: 'skip_cutscene' });
+    }
 }
 
 function endCutsceneAndStartGame(instant = false) {
@@ -640,7 +644,7 @@ function endCutsceneAndStartGame(instant = false) {
     if (startScreen) startScreen.style.display = 'none';
     Utils.updateMobileControlsVisibility();
 
-    const isCoop = state.gameMode === 'coop';
+    const isCoop = state.gameMode === 'coop' || state.gameMode === 'online';
 
     // Apply ship model perks
     const currentShip = shipModels && shipModels[state.selectedShipModel || 'viper'];

@@ -5,11 +5,13 @@ import * as Audio from './audio.js';
 import * as Utils from './utils.js';
 import * as Entities from './entities.js';
 import * as Changelog from './changelog.js';
+import * as Network from './network.js';
+import * as Cutscene from './cutscene.js';
 
-export { state, dom, config, arrays, Utils, Entities, Audio };
+export { state, dom, config, arrays, Utils, Entities, Audio, Network, Cutscene };
 
 // Expose for test access
-window.__game = { state, dom, config, arrays, Utils, Entities, Audio };
+window.__game = { state, dom, config, arrays, Utils, Entities, Audio, Network, Cutscene };
 
 document.addEventListener('DOMContentLoaded', () => {
     Audio.initSoundState();
@@ -23,6 +25,18 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     setupInput();
+
+    Network.onNetworkState((snapshot) => {
+        if (state.network.isClient) {
+            Network.applyGameStateSnapshot(snapshot);
+        }
+    });
+
+    Network.onNetworkInput((input) => {
+        if (state.network.isHost) {
+            Network.applyPlayerInput(input);
+        }
+    });
     
     // Initialisiere Sterne
     for (let i = 0; i < 60; i++) {
@@ -117,6 +131,32 @@ document.addEventListener('DOMContentLoaded', () => {
         btnCoop.addEventListener('click', (e) => {
             e.stopPropagation();
             Utils.setGameMode('coop');
+        });
+    }
+
+    const btnOnline = document.getElementById('gamemode-btn-online');
+    if (btnOnline) {
+        btnOnline.addEventListener('click', (e) => {
+            e.stopPropagation();
+            Utils.setGameMode('online');
+        });
+    }
+
+    const btnOnlineHost = document.getElementById('btn-online-host');
+    if (btnOnlineHost) {
+        btnOnlineHost.addEventListener('click', (e) => {
+            e.stopPropagation();
+            Network.hostRoom();
+        });
+    }
+
+    const btnOnlineJoin = document.getElementById('btn-online-join');
+    if (btnOnlineJoin) {
+        btnOnlineJoin.addEventListener('click', (e) => {
+            e.stopPropagation();
+            const input = document.getElementById('online-room-input');
+            const code = input ? input.value : '';
+            Network.joinOnlineRoom(code);
         });
     }
 

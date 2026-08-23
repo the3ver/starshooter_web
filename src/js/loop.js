@@ -1,11 +1,12 @@
 
-import { state, dom, config, arrays, shipModels } from './state.js';
+import { state, dom, config, arrays, shipModels, isCoopMode } from './state.js';
 import * as Utils from './utils.js';
 import * as Entities from './entities.js';
 import * as Input from './input.js';
 import * as Audio from './audio.js';
 import * as Cutscene from './cutscene.js';
 import * as Bot from './bot.js';
+import * as Network from './network.js';
 
 
 export function verwalteFeindSpawns() {
@@ -130,6 +131,77 @@ export function gameLoop() {
     return;
   }
 
+  // --- ONLINE CLIENT LOKALE STEUERUNG & RENDERING ---
+  if (state.network && state.network.isClient && state.network.connected) {
+    arrays.sterne.forEach(stern => {
+      stern.y += stern.speed;
+      if (stern.y > config.spielfeldHoehe) {
+        stern.y = -5;
+        stern.x = Math.random() * config.spielfeldBreite;
+      }
+      stern.el.style.top = stern.y + 'px';
+      stern.el.style.left = stern.x + 'px';
+    });
+
+    if (state.p2 && dom.spieler2 && !state.p2.isDead) {
+      let baseFlameScaleP2 = 1.0;
+      let targetRotateP2 = 0;
+      const p2Speed = (shipModels && shipModels[state.p2.selectedShipModel]?.speed) || config.geschwindigkeit;
+      const keys = state.tastenGedrueckt;
+
+      if (state.joystick && state.joystick.active) {
+        let mag = Math.sqrt(state.joystick.x * state.joystick.x + state.joystick.y * state.joystick.y);
+        if (mag > 0.1) {
+          let dirX = state.joystick.x / mag;
+          let dirY = state.joystick.y / mag;
+          state.p2.x += dirX * p2Speed;
+          state.p2.y += dirY * p2Speed;
+        }
+        if (state.joystick.y < -0.2) baseFlameScaleP2 = 1.8;
+        else if (state.joystick.y > 0.2) baseFlameScaleP2 = 0.4;
+        if (state.joystick.x < -0.2) targetRotateP2 = -15;
+        else if (state.joystick.x > 0.2) targetRotateP2 = 15;
+      } else {
+        if (keys.w || keys.arrowup) {
+          state.p2.y -= p2Speed;
+          baseFlameScaleP2 = 1.8;
+        }
+        if (keys.s || keys.arrowdown) {
+          state.p2.y += p2Speed;
+          baseFlameScaleP2 = 0.4;
+        }
+        if (keys.a || keys.arrowleft) {
+          state.p2.x -= p2Speed;
+          targetRotateP2 = -15;
+        }
+        if (keys.d || keys.arrowright) {
+          state.p2.x += p2Speed;
+          targetRotateP2 = 15;
+        }
+      }
+
+      if (state.p2.x < 0) state.p2.x = 0;
+      if (state.p2.y < 0) state.p2.y = 0;
+      if (state.p2.x > config.spielfeldBreite - config.spielerGroesse) state.p2.x = config.spielfeldBreite - config.spielerGroesse;
+      if (state.p2.y > config.spielfeldHoehe - config.spielerGroesse) state.p2.y = config.spielfeldHoehe - config.spielerGroesse;
+
+      state.p2.rotate = targetRotateP2;
+      dom.spieler2.style.left = state.p2.x + 'px';
+      dom.spieler2.style.top = state.p2.y + 'px';
+      dom.spieler2.style.transform = `rotate(${targetRotateP2}deg)`;
+
+      const fLeftP2 = document.getElementById('flame-left-p2');
+      const fRightP2 = document.getElementById('flame-right-p2');
+      if (fLeftP2) fLeftP2.style.transform = `scaleY(${baseFlameScaleP2})`;
+      if (fRightP2) fRightP2.style.transform = `scaleY(${baseFlameScaleP2})`;
+    }
+
+    Network.sendNetworkInput(Network.serializePlayerInput());
+
+    requestAnimationFrame(gameLoop);
+    return;
+  }
+
   // --- I-Frames (Unverwundbarkeit Timer) ---
   if (state.invulnerableTimer > 0) {
     state.invulnerableTimer--;
@@ -141,7 +213,7 @@ export function gameLoop() {
   // --- 9.1 SPIELER 1 BEWEGUNG ---
   let baseFlameScale = 1.0;
   let targetRotate = 0;
-  const towedCountP1 = (state.gameMode === 'coop') ? arrays.powerups.filter(p => p.towedBy === 'p1').length : 0;
+  const towedCountP1 = isCoopMode() ? arrays.powerups.filter(p => p.towedBy === 'p1').length : 0;
   const speedMultP1 = Math.max(0.1, 1.0 - 0.10 * towedCountP1);
   const currentSpeed = ((shipModels && shipModels[state.selectedShipModel]?.speed) || config.geschwindigkeit) * speedMultP1;
   
@@ -160,19 +232,24 @@ export function gameLoop() {
     if (state.joystick.x < -0.2) targetRotate = -15;
     else if (state.joystick.x > 0.2) targetRotate = 15;
   } else if (!state.isDead) {
-    if (state.tastenGedrueckt.w) {
+    const up = state.tastenGedrueckt.w || (state.gameMode !== 'coop' && state.tastenGedrueckt.arrowup);
+    const down = state.tastenGedrueckt.s || (state.gameMode !== 'coop' && state.tastenGedrueckt.arrowdown);
+    const left = state.tastenGedrueckt.a || (state.gameMode !== 'coop' && state.tastenGedrueckt.arrowleft);
+    const right = state.tastenGedrueckt.d || (state.gameMode !== 'coop' && state.tastenGedrueckt.arrowright);
+
+    if (up) {
       state.y -= currentSpeed;
       baseFlameScale = 1.8;
     }
-    if (state.tastenGedrueckt.s) {
+    if (down) {
       state.y += currentSpeed;
       baseFlameScale = 0.4;
     }
-    if (state.tastenGedrueckt.a) {
+    if (left) {
       state.x -= currentSpeed;
       targetRotate = -15;
     }
-    if (state.tastenGedrueckt.d) {
+    if (right) {
       state.x += currentSpeed;
       targetRotate = 15;
     }
@@ -219,7 +296,7 @@ export function gameLoop() {
   }
 
   // --- 9.1b SPIELER 2 BEWEGUNG (Co-op) ---
-  if (state.gameMode === 'coop' && state.p2 && dom.spieler2) {
+  if (isCoopMode() && state.p2 && dom.spieler2) {
     if (state.p2.invulnerableTimer > 0) {
       state.p2.invulnerableTimer--;
       if (state.p2.invulnerableTimer === 0) {
@@ -246,8 +323,8 @@ export function gameLoop() {
         else if (botDy > 0.5) baseFlameScaleP2 = 0.4;
         if (botDx < -0.5) targetRotateP2 = -15;
         else if (botDx > 0.5) targetRotateP2 = 15;
-      } else {
-        // Menschliche Steuerung via Arrow-Keys
+      } else if (state.gameMode === 'coop') {
+        // Menschliche Steuerung via Arrow-Keys im lokalen Coop
         if (state.tastenGedrueckt.arrowup) {
           state.p2.y -= p2Speed;
           baseFlameScaleP2 = 1.8;
@@ -318,7 +395,7 @@ export function gameLoop() {
     }
   }
 
-  // --- 9.2 STERNE ---
+  // --- 9.2 STERNE BEWEGUNG & SPARTIKEL ---
   arrays.sterne.forEach(stern => {
     stern.y += stern.speed;
     if (stern.y > config.spielfeldHoehe) {
@@ -354,6 +431,12 @@ export function gameLoop() {
       dom.warningOverlay.style.display = 'flex';
     }
   }
+
+  // --- 9.3 LEVEL TEXT TIMER & SCORE ---
+  if (state.levelTextTimer > 0) {
+    state.levelTextTimer--;
+    if (state.levelTextTimer === 0) dom.levelAnzeigeMitte.style.display = 'none';
+  }
   if (state.frameZaehler % 60 === 0) Utils.addScore(5);
 
   // --- 9.4 ENERGIE SPIELER 1 ---
@@ -387,14 +470,16 @@ export function gameLoop() {
 
   // --- 9.4 ENERGIE SPIELER 2 (Co-op) ---
   let laserAktivP2 = false;
-  if (state.gameMode === 'coop' && state.p2 && !state.p2.isDead) {
-    const p2LaserKey = state.p2IsBot ? (state.p2.botFireLaser || false) : (state.tastenGedrueckt.ä || state.tastenGedrueckt.numpad1 || state.tastenGedrueckt['.']);
+  if (isCoopMode() && state.p2 && !state.p2.isDead) {
+    const p2LaserKey = (state.network && state.network.isOnline && state.network.isHost)
+      ? Boolean(state.p2.laserSchiesst)
+      : (state.p2IsBot ? (state.p2.botFireLaser || false) : (state.tastenGedrueckt.ä || state.tastenGedrueckt.numpad1 || state.tastenGedrueckt['.']));
     if (p2LaserKey) {
       if (!state.p2.laserSchiesst && state.p2.energie >= state.p2.minZuendEnergie) state.p2.laserSchiesst = true;
       if (state.p2.energie <= 0) state.p2.laserSchiesst = false;
     } else {
       state.p2.laserSchiesst = false;
-    }
+    };
     laserAktivP2 = state.p2.laserSchiesst && state.p2.energie > 0;
     if (laserAktivP2) {
       state.p2.energie -= 0.8 + Math.min(state.p2.laserStufe, 5) * 0.1;
@@ -460,7 +545,7 @@ export function gameLoop() {
     Audio.playPowerup(p.type);
     if (p.type === 'leben') {
       pState.leben++;
-      if (state.gameMode === 'coop') {
+      if (isCoopMode()) {
         const otherState = isP1 ? state.p2 : state;
         const otherDom = isP1 ? dom.spieler2 : dom.spieler;
         if (otherState && otherState.isDead) {
@@ -535,7 +620,7 @@ export function gameLoop() {
       if (pState.splitterRot >= 10) {
         pState.splitterRot -= 10;
         pState.leben++;
-        if (state.gameMode === 'coop') {
+        if (isCoopMode()) {
           const otherState = isP1 ? state.p2 : state;
           const otherDom = isP1 ? dom.spieler2 : dom.spieler;
           if (otherState && otherState.isDead) {
@@ -572,11 +657,16 @@ export function gameLoop() {
       else Utils.updateSplitterP2UI();
     }
     Utils.addScore(50);
-    if (dom.spielfeld) {
-      dom.spielfeld.style.backgroundColor = p.farbe;
-      setTimeout(() => {
-        if (dom.spielfeld) dom.spielfeld.style.backgroundColor = '#0b1319';
-      }, 100);
+    const isOnline = state.gameMode === 'online' || (state.network && state.network.isOnline);
+    if (!isOnline || isP1) {
+      if (dom.spielfeld) {
+        dom.spielfeld.style.backgroundColor = p.farbe;
+        setTimeout(() => {
+          if (dom.spielfeld) dom.spielfeld.style.backgroundColor = '#0b1319';
+        }, 100);
+      }
+    } else if (isOnline && !isP1) {
+      Network.sendNetworkEvent({ type: 'powerup_collected', target: 'p2', farbe: p.farbe });
     }
   }
 
@@ -651,7 +741,7 @@ export function gameLoop() {
         updateTractorBeam(p, state.x + config.spielerGroesse / 2, state.y + config.spielerGroesse);
 
         // Übergabe an Spieler 2 prüfen
-        if (state.gameMode === 'coop' && state.p2 && !state.p2.isDead &&
+        if (isCoopMode() && state.p2 && !state.p2.isDead &&
             state.p2.x < p.x + p.groesse && state.p2.x + config.spielerGroesse > p.x &&
             state.p2.y < p.y + p.groesse && state.p2.y + config.spielerGroesse > p.y) {
           if (p.beamEl) { p.beamEl.remove(); p.beamEl = null; }
@@ -716,7 +806,7 @@ export function gameLoop() {
       state.y < p.y + p.groesse && state.y + config.spielerGroesse > p.y;
 
     // Prüfe Einsammeln durch Spieler 2 (Co-op)
-    const p2Col = state.gameMode === 'coop' && state.p2 && !state.p2.isDead &&
+    const p2Col = isCoopMode() && state.p2 && !state.p2.isDead &&
       state.p2.x < p.x + p.groesse && state.p2.x + config.spielerGroesse > p.x &&
       state.p2.y < p.y + p.groesse && state.p2.y + config.spielerGroesse > p.y;
 
@@ -726,7 +816,7 @@ export function gameLoop() {
         p.el.remove();
         arrays.powerups.splice(i, 1);
         continue;
-      } else if (state.gameMode === 'coop' && p.owner === 'p2') {
+      } else if (isCoopMode() && p.owner === 'p2') {
         const p1TowedCount = arrays.powerups.filter(pu => pu.towedBy === 'p1').length;
         if (p1TowedCount < 3) {
           p.towedBy = 'p1';
@@ -741,7 +831,7 @@ export function gameLoop() {
         p.el.remove();
         arrays.powerups.splice(i, 1);
         continue;
-      } else if (state.gameMode === 'coop' && p.owner === 'p1') {
+      } else if (isCoopMode() && p.owner === 'p1') {
         const p2TowedCount = arrays.powerups.filter(pu => pu.towedBy === 'p2').length;
         if (p2TowedCount < 3) {
           p.towedBy = 'p2';
@@ -777,7 +867,7 @@ export function gameLoop() {
       arrays.asteroiden.splice(i, 1);
       continue;
     }
-    if (state.gameMode === 'coop' && state.p2 && !state.p2.isDead && state.p2.x < ast.x + ast.groesse && state.p2.x + config.spielerGroesse > ast.x && state.p2.y < ast.y + ast.groesse && state.p2.y + config.spielerGroesse > ast.y) {
+    if (isCoopMode() && state.p2 && !state.p2.isDead && state.p2.x < ast.x + ast.groesse && state.p2.x + config.spielerGroesse > ast.x && state.p2.y < ast.y + ast.groesse && state.p2.y + config.spielerGroesse > ast.y) {
       Utils.spielerGetroffen(ast, true, 'p2');
       ast.el.remove();
       arrays.asteroiden.splice(i, 1);
@@ -802,7 +892,7 @@ export function gameLoop() {
           // Gezielter Schuss auf den näheren Spieler
           let targetX = state.x;
           let targetY = state.y;
-          if (state.gameMode === 'coop' && state.p2 && !state.p2.isDead) {
+          if (isCoopMode() && state.p2 && !state.p2.isDead) {
             let distP1 = Math.hypot(state.x - f.x, state.y - f.y);
             let distP2 = Math.hypot(state.p2.x - f.x, state.p2.y - f.y);
             if (state.isDead || distP2 < distP1) {
@@ -838,7 +928,7 @@ export function gameLoop() {
           
           let targetX = state.x;
           let targetY = state.y;
-          if (state.gameMode === 'coop' && state.p2 && !state.p2.isDead) {
+          if (isCoopMode() && state.p2 && !state.p2.isDead) {
             let distP1 = Math.hypot(state.x - f.x, state.y - f.y);
             let distP2 = Math.hypot(state.p2.x - f.x, state.p2.y - f.y);
             if (state.isDead || distP2 < distP1) {
@@ -855,7 +945,7 @@ export function gameLoop() {
       if (f.phase === 'attack') {
         let targetX = state.x;
         let targetY = state.y;
-        if (state.gameMode === 'coop' && state.p2 && !state.p2.isDead) {
+        if (isCoopMode() && state.p2 && !state.p2.isDead) {
           let distP1 = Math.hypot(state.x - f.x, state.y - f.y);
           let distP2 = Math.hypot(state.p2.x - f.x, state.p2.y - f.y);
           if (state.isDead || distP2 < distP1) {
@@ -915,7 +1005,7 @@ export function gameLoop() {
       arrays.feinde.splice(i, 1);
       continue;
     }
-    if (state.gameMode === 'coop' && state.p2 && !state.p2.isDead && state.p2.x < f.x + f.groesse && state.p2.x + config.spielerGroesse > f.x && state.p2.y < f.y + f.groesse && state.p2.y + config.spielerGroesse > f.y) {
+    if (isCoopMode() && state.p2 && !state.p2.isDead && state.p2.x < f.x + f.groesse && state.p2.x + config.spielerGroesse > f.x && state.p2.y < f.y + f.groesse && state.p2.y + config.spielerGroesse > f.y) {
       Utils.spielerGetroffen(f, true, 'p2');
       f.el.remove();
       arrays.feinde.splice(i, 1);
@@ -942,7 +1032,7 @@ export function gameLoop() {
       arrays.feindLaserArray.splice(i, 1);
       continue;
     }
-    if (state.gameMode === 'coop' && state.p2 && !state.p2.isDead && state.p2.x < fl.x + fl.width && state.p2.x + config.spielerGroesse > fl.x && state.p2.y < fl.y + fl.height && state.p2.y + config.spielerGroesse > fl.y) {
+    if (isCoopMode() && state.p2 && !state.p2.isDead && state.p2.x < fl.x + fl.width && state.p2.x + config.spielerGroesse > fl.x && state.p2.y < fl.y + fl.height && state.p2.y + config.spielerGroesse > fl.y) {
       Utils.spielerGetroffen(fl, false, 'p2');
       fl.el.remove();
       arrays.feindLaserArray.splice(i, 1);
@@ -1000,7 +1090,7 @@ export function gameLoop() {
         // Jäger - verfolgt den näheren lebenden Spieler
         let targetX = state.x;
         let targetY = state.y;
-        if (state.gameMode === 'coop' && state.p2 && !state.p2.isDead) {
+        if (isCoopMode() && state.p2 && !state.p2.isDead) {
           let distP1 = Math.hypot(state.x - b.x, state.y - b.y);
           let distP2 = Math.hypot(state.p2.x - b.x, state.p2.y - b.y);
           if (state.isDead || distP2 < distP1) {
@@ -1051,7 +1141,7 @@ export function gameLoop() {
           // Gezielter Schuss auf den näheren lebenden Spieler
           let targetX = state.x + config.spielerGroesse / 2;
           let targetY = state.y + config.spielerGroesse / 2;
-          if (state.gameMode === 'coop' && state.p2 && !state.p2.isDead) {
+          if (isCoopMode() && state.p2 && !state.p2.isDead) {
             let distP1 = Math.hypot(state.x - b.x, state.y - b.y);
             let distP2 = Math.hypot(state.p2.x - b.x, state.p2.y - b.y);
             if (state.isDead || distP2 < distP1) {
@@ -1108,7 +1198,7 @@ export function gameLoop() {
     if (!state.isDead && state.x < b.x + b.groesse - bossPadding && state.x + config.spielerGroesse > b.x + bossPadding && state.y < b.y + b.groesse - bossPadding && state.y + config.spielerGroesse > b.y + bossPadding) {
       Utils.spielerGetroffen(b, false, 'p1');
     }
-    if (state.gameMode === 'coop' && state.p2 && !state.p2.isDead && state.p2.x < b.x + b.groesse - bossPadding && state.p2.x + config.spielerGroesse > b.x + bossPadding && state.p2.y < b.y + b.groesse - bossPadding && state.p2.y + config.spielerGroesse > b.y + bossPadding) {
+    if (isCoopMode() && state.p2 && !state.p2.isDead && state.p2.x < b.x + b.groesse - bossPadding && state.p2.x + config.spielerGroesse > b.x + bossPadding && state.p2.y < b.y + b.groesse - bossPadding && state.p2.y + config.spielerGroesse > b.y + bossPadding) {
       Utils.spielerGetroffen(b, false, 'p2');
     }
   }
@@ -1130,7 +1220,7 @@ export function gameLoop() {
       arrays.bossLaserArray.splice(i, 1);
       continue;
     }
-    if (state.gameMode === 'coop' && state.p2 && !state.p2.isDead && state.p2.x < bl.x + bl.width && state.p2.x + config.spielerGroesse > bl.x && state.p2.y < bl.y + bl.height && state.p2.y + config.spielerGroesse > bl.y) {
+    if (isCoopMode() && state.p2 && !state.p2.isDead && state.p2.x < bl.x + bl.width && state.p2.x + config.spielerGroesse > bl.x && state.p2.y < bl.y + bl.height && state.p2.y + config.spielerGroesse > bl.y) {
       Utils.spielerGetroffen(bl, false, 'p2');
       bl.el.remove();
       arrays.bossLaserArray.splice(i, 1);
@@ -1201,7 +1291,7 @@ export function gameLoop() {
       if (!state.isDead && distP1 <= bb.radius) {
         Utils.spielerGetroffen(bb, false, 'p1');
       }
-      if (state.gameMode === 'coop' && state.p2 && !state.p2.isDead) {
+      if (isCoopMode() && state.p2 && !state.p2.isDead) {
         let distP2 = Math.hypot((state.p2.x + config.spielerGroesse / 2) - cx, (state.p2.y + config.spielerGroesse / 2) - cy);
         if (distP2 <= bb.radius) {
           Utils.spielerGetroffen(bb, false, 'p2');
@@ -1217,7 +1307,7 @@ export function gameLoop() {
       Utils.spielerGetroffen(bb, false, 'p1');
       bb.hp = 0;
     }
-    if (state.gameMode === 'coop' && state.p2 && !state.p2.isDead && state.p2.x < bb.x + bb.groesse && state.p2.x + config.spielerGroesse > bb.x && state.p2.y < bb.y + bb.groesse && state.p2.y + config.spielerGroesse > bb.y) {
+    if (isCoopMode() && state.p2 && !state.p2.isDead && state.p2.x < bb.x + bb.groesse && state.p2.x + config.spielerGroesse > bb.x && state.p2.y < bb.y + bb.groesse && state.p2.y + config.spielerGroesse > bb.y) {
       Utils.spielerGetroffen(bb, false, 'p2');
       bb.hp = 0;
     }
@@ -1236,7 +1326,7 @@ export function gameLoop() {
     // Homing Richtung näherer lebender Spieler
     let zielX = state.x + config.spielerGroesse / 2;
     let zielY = state.y + config.spielerGroesse / 2;
-    if (state.gameMode === 'coop' && state.p2 && !state.p2.isDead) {
+    if (isCoopMode() && state.p2 && !state.p2.isDead) {
       let distP1 = Math.hypot(state.x - br.x, state.y - br.y);
       let distP2 = Math.hypot(state.p2.x - br.x, state.p2.y - br.y);
       if (state.isDead || distP2 < distP1) {
@@ -1314,7 +1404,7 @@ export function gameLoop() {
       arrays.bossRaketenArray.splice(i, 1);
       continue;
     }
-    if (state.gameMode === 'coop' && state.p2 && !state.p2.isDead && state.p2.x < br.x + br.width && state.p2.x + config.spielerGroesse > br.x && state.p2.y < br.y + br.height && state.p2.y + config.spielerGroesse > br.y) {
+    if (isCoopMode() && state.p2 && !state.p2.isDead && state.p2.x < br.x + br.width && state.p2.x + config.spielerGroesse > br.x && state.p2.y < br.y + br.height && state.p2.y + config.spielerGroesse > br.y) {
       Utils.spielerGetroffen(br, false, 'p2');
       Audio.playMissileExplosion();
       Utils.erzeugeExplosion(br.x + br.width / 2, br.y + br.height / 2, '#e74c3c', 25);
@@ -1554,7 +1644,7 @@ export function gameLoop() {
   }
 
   feuerLaserFuerSpieler('p1', state, laserAktiv);
-  if (state.gameMode === 'coop' && state.p2) {
+  if (isCoopMode() && state.p2) {
     feuerLaserFuerSpieler('p2', state.p2, laserAktivP2);
   }
 
@@ -1682,9 +1772,12 @@ export function gameLoop() {
 
     const isTriggered = pKey === 'p1'
       ? (state.gameMode === 'coop' ? state.tastenGedrueckt.v : (state.tastenGedrueckt.k || state.tastenGedrueckt.v))
-      : (state.p2IsBot ? (state.p2.botFireRakete || false) : (state.tastenGedrueckt.ö || state.tastenGedrueckt.numpad2 || state.tastenGedrueckt[',']));
+      : ((state.network && state.network.isOnline && state.network.isHost)
+          ? Boolean(state.p2 && state.p2.networkFireRakete)
+          : (state.p2IsBot ? (state.p2.botFireRakete || false) : (state.tastenGedrueckt.ö || state.tastenGedrueckt.numpad2 || state.tastenGedrueckt[','])));
 
     if (isTriggered && pState.raketenCooldown <= 0) {
+      if (pKey === 'p2' && state.p2) state.p2.networkFireRakete = false;
       pState.raketenCooldown = maxRaketenCd;
       Audio.playMissile();
       let rSchaden = 25;
@@ -1772,7 +1865,7 @@ export function gameLoop() {
   }
 
   feuerRaketenFuerSpieler('p1', state);
-  if (state.gameMode === 'coop' && state.p2) {
+  if (isCoopMode() && state.p2) {
     feuerRaketenFuerSpieler('p2', state.p2);
   }
 
@@ -1798,8 +1891,8 @@ export function gameLoop() {
     // Phase 3 (Frames 19+): Starke, lineare Beschleunigung (Triebwerks-Vollschub)
     else {
       // Im Co-op (600px Feld) beschleunigen Raketen stärker, um das breitere Feld zu kompensieren
-      const rMaxVy = state.gameMode === 'coop' ? 15 : 13;
-      const rAccel = state.gameMode === 'coop' ? 0.5 : 0.45;
+      const rMaxVy = isCoopMode() ? 15 : 13;
+      const rAccel = isCoopMode() ? 0.5 : 0.45;
       r.vy = Math.min(rMaxVy, r.vy + rAccel);
       r.vx *= 0.92;
 
@@ -1815,7 +1908,7 @@ export function gameLoop() {
             let d = Math.hypot(zcx - (r.x + 3), zcy - (r.y + 8));
             // Feinde vor oder auf Höhe der Rakete erfassen
             // Im Co-op (600px) größeren Suchbereich nutzen, damit Feinde am breiten Rand gefunden werden
-            const homingYRange = state.gameMode === 'coop' ? 200 : 140;
+            const homingYRange = isCoopMode() ? 200 : 140;
             if (d < bestDist && zcy < r.y + homingYRange) {
               bestDist = d;
               target = f;
@@ -1833,7 +1926,7 @@ export function gameLoop() {
           while (diff > Math.PI) diff -= Math.PI * 2;
 
           // Im Co-op stärkere Lenkrate, damit Raketen den größeren horizontalen Abstand ausgleichen können
-          let maxTurn = state.gameMode === 'coop' ? 0.26 : 0.22;
+          let maxTurn = isCoopMode() ? 0.26 : 0.22;
           let newAngle = currentAngle + Math.sign(diff) * Math.min(Math.abs(diff), maxTurn);
           let currentSpeed = Math.hypot(r.vx, r.vy) || r.vy;
           r.vx = Math.cos(newAngle) * currentSpeed;
@@ -1999,9 +2092,12 @@ export function gameLoop() {
 
     const isTriggered = pKey === 'p1'
       ? (state.gameMode === 'coop' ? state.tastenGedrueckt.c : (state.tastenGedrueckt[' '] || state.tastenGedrueckt.c))
-      : (state.p2IsBot ? (state.p2.botFireBombe || false) : (state.tastenGedrueckt.l || state.tastenGedrueckt.enter || state.tastenGedrueckt.numpad3 || state.tastenGedrueckt.numpad0));
+      : ((state.network && state.network.isOnline && state.network.isHost)
+          ? Boolean(state.p2 && state.p2.networkFireBombe)
+          : (state.p2IsBot ? (state.p2.botFireBombe || false) : (state.tastenGedrueckt.l || state.tastenGedrueckt.enter || state.tastenGedrueckt.numpad3 || state.tastenGedrueckt.numpad0)));
 
     if (isTriggered && pState.bombenCooldown <= 0) {
+      if (pKey === 'p2' && state.p2) state.p2.networkFireBombe = false;
       pState.bombenCooldown = maxBombenCd;
       Audio.playBomb();
       const el = document.createElement('div');
@@ -2048,7 +2144,7 @@ export function gameLoop() {
   }
 
   wirfBombeFuerSpieler('p1', state);
-  if (state.gameMode === 'coop' && state.p2) {
+  if (isCoopMode() && state.p2) {
     wirfBombeFuerSpieler('p2', state.p2);
   }
   for (let i = arrays.bombenArray.length - 1; i >= 0; i--) {
@@ -2299,5 +2395,15 @@ export function gameLoop() {
       }
     }
   }
+
+  // Network Syncing in Online Mode
+  if (state.network && state.network.isOnline && state.network.connected) {
+    if (state.network.isHost && state.frameZaehler % 2 === 0) {
+      Network.sendNetworkState(Network.serializeGameState());
+    } else if (state.network.isClient) {
+      Network.sendNetworkInput(Network.serializePlayerInput());
+    }
+  }
+
   requestAnimationFrame(gameLoop);
 }

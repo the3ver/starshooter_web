@@ -1,6 +1,75 @@
-export const GAME_VERSION = '1.6.27';
+export const GAME_VERSION = '1.6.36';
 
 export const changelogData = {
+  '1.6.36': {
+    version: '1.6.36',
+    intro: 'Hey, es ist jetzt Version 1.6.36 rausgekommen, folgendes wurde behoben:',
+    highlights: [
+      '🛡️ Cheatcodes im Online-Coop deaktiviert: Cheatcodes wie idkfa oder idgod sind im Online-Multiplayer-Modus für fairen Wettkampf komplett deaktiviert'
+    ]
+  },
+  '1.6.35': {
+    version: '1.6.35',
+    intro: 'Hey, es ist jetzt Version 1.6.35 rausgekommen, folgendes wurde behoben:',
+    highlights: [
+      '🏆 Gemeinsame Online-Highscores: Nach einem Remote-Coop geben beide Spieler ihr Kürzel ein – sobald beide bestätigt haben, wird das Team (z. B. AAA+BBB) automatisch in die Coop-Bestenliste auf beiden Rechnern eingetragen'
+    ]
+  },
+  '1.6.34': {
+    version: '1.6.34',
+    intro: 'Hey, es ist jetzt Version 1.6.34 rausgekommen, folgendes wurde behoben:',
+    highlights: [
+      '⚡ Zielgerichteter Schadens-Flash im Online-Modus: Der rote Treffer-Flash (und blaue Schild-Flash) wird jetzt nur noch auf dem Bildschirm des Spielers angezeigt, der tatsächlich getroffen wurde',
+      '🎬 Synchrones Überspringen der Cutszene: Wenn einer der beiden Spieler im Online-Raum ESC oder Überspringen drückt, wird die Intro-Cutszene für beide Spieler nahtlos beendet und das Spiel startet synchron'
+    ]
+  },
+  '1.6.33': {
+    version: '1.6.33',
+    intro: 'Hey, es ist jetzt Version 1.6.33 rausgekommen, folgendes wurde behoben:',
+    highlights: [
+      '🎮 Einheitliche Solo-Steuerung im Online-Modus: Jeder Spieler (Host & Client) nutzt an seinem eigenen PC die vertraute Solo-Steuerung (WASD/Pfeile, L/B für Laser, K/V für Raketen, Leertaste/C für Bomben)',
+      '🌐 Getrennte Tastatur-Zuweisung: Die geteilte Tastaturbelegung (Ä/Ö) bleibt exklusiv für den lokalen Couch-Koop erhalten'
+    ]
+  },
+  '1.6.32': {
+    version: '1.6.32',
+    intro: 'Hey, es ist jetzt Version 1.6.32 rausgekommen, folgendes wurde behoben:',
+    highlights: [
+      '🔥 Boss-Projektile synchronisiert: Boss-Laser, zielsuchende Boss-Raketen und pulsierende Boss-Bomben werden nun vollständig und in Echtzeit auf dem Client gerendert',
+      '💎 Powerup-Optik & Owner-Tags: Powerups von Spieler 1 & 2 besitzen auf allen Clients die volle Farbbrillanz, Glow-Effekte und Fraktions-Badges',
+      '🌋 Magma-Asteroiden Synchronisation: Zerstörbare und unzerstörbare Magma-Asteroiden werden mit ihren exakten Texturen, Rissen und Schutzklassen auf Clients übertragen'
+    ]
+  },
+  '1.6.31': {
+    version: '1.6.31',
+    intro: 'Hey, es ist jetzt Version 1.6.31 rausgekommen, folgendes wurde behoben:',
+    highlights: [
+      '🚀 Vollständiges Online-Visual-Sync: Asteroiden (mit Polygon-Clips), Gegner (mit Schiff-SVGs), Bosse, Laserstrahlen und Projektile werden nun vollständig und in Echtzeit auf allen Clients gerendert',
+      '🎮 Lokale Client-Prädiktion: Spieler 2 steuert sein Schiff auf dem Client sofort latenzfrei via Tastatur oder Joystick'
+    ]
+  },
+  '1.6.30': {
+    version: '1.6.30',
+    intro: 'Hey, es ist jetzt Version 1.6.30 rausgekommen, folgendes wurde behoben:',
+    highlights: [
+      '🛠️ Trystero API-Kompatibilität: Action- und Event-Handling für moderne und abwärtskompatible WebRTC-Objektstrukturen optimiert'
+    ]
+  },
+  '1.6.29': {
+    version: '1.6.29',
+    intro: 'Hey, es ist jetzt Version 1.6.29 rausgekommen, folgendes wurde behoben:',
+    highlights: [
+      '🔌 Modernes WebRTC CDN: Trystero-Import auf das moderne @trystero-p2p/torrent & nostr Scope aktualisiert, um CDN-Deprecation-Warnungen zu beheben'
+    ]
+  },
+  '1.6.28': {
+    version: '1.6.28',
+    intro: 'Hey, es ist jetzt Version 1.6.28 rausgekommen, folgendes wurde hinzugefügt:',
+    highlights: [
+      '🌐 Serverless Online-Multiplayer: Spiele remote zu zweit per WebRTC (P2P) — erstelle einfach einen Raumcode oder trete einem bestehenden Raum bei!',
+      '📡 Echtes P2P-Netcode: Direkte Browser-zu-Browser Kommunikation mit minimaler Latenz und stabiler Synchronisation von Gegnern, Bossen und Drops'
+    ]
+  },
   '1.6.27': {
     version: '1.6.27',
     intro: 'Hey, es ist jetzt Version 1.6.27 rausgekommen, folgendes wurde verbessert:',

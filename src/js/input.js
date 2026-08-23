@@ -35,106 +35,109 @@ export function setupInput() {
         dom.pauseOverlay.style.display = state.pausiert ? 'block' : 'none';
       }
       
-      state.typedCheatKeys += k;
-      if (state.typedCheatKeys.length > 10) state.typedCheatKeys = state.typedCheatKeys.slice(-10);
-      function resetAllCooldowns() {
-        state.bombenCooldown = 0;
-        state.raketenCooldown = 0;
-        state.spielerSchussCooldown = 0;
-        state.energie = state.maxEnergie;
-      }
+      const isOnline = state.gameMode === 'online' || (state.network && state.network.isOnline);
+      if (!isOnline) {
+        state.typedCheatKeys += k;
+        if (state.typedCheatKeys.length > 10) state.typedCheatKeys = state.typedCheatKeys.slice(-10);
+        function resetAllCooldowns() {
+          state.bombenCooldown = 0;
+          state.raketenCooldown = 0;
+          state.spielerSchussCooldown = 0;
+          state.energie = state.maxEnergie;
+        }
 
-      const idkflMatch = state.typedCheatKeys.match(/idkfl([1-9])$/);
-      if (idkflMatch) {
-        const lvl = parseInt(idkflMatch[1], 10);
-        state.cheatUsed = true;
-        state.level = lvl;
-        Utils.updateLevelUI();
-        if (dom.bossHpContainer) dom.bossHpContainer.style.display = 'none';
-        state.frameZaehler = 0;
-        if (arrays.bosses) {
-          arrays.bosses.forEach(b => b.el.remove());
-          arrays.bosses.length = 0;
+        const idkflMatch = state.typedCheatKeys.match(/idkfl([1-9])$/);
+        if (idkflMatch) {
+          const lvl = parseInt(idkflMatch[1], 10);
+          state.cheatUsed = true;
+          state.level = lvl;
+          Utils.updateLevelUI();
+          if (dom.bossHpContainer) dom.bossHpContainer.style.display = 'none';
+          state.frameZaehler = 0;
+          if (arrays.bosses) {
+            arrays.bosses.forEach(b => b.el.remove());
+            arrays.bosses.length = 0;
+          }
+          if (arrays.bossLaserArray) {
+            arrays.bossLaserArray.forEach(bl => bl.el.remove());
+            arrays.bossLaserArray.length = 0;
+          }
+          if (arrays.bossBombenArray) {
+            arrays.bossBombenArray.forEach(bb => bb.el.remove());
+            arrays.bossBombenArray.length = 0;
+          }
+          if (arrays.bossRaketenArray) {
+            arrays.bossRaketenArray.forEach(br => br.el.remove());
+            arrays.bossRaketenArray.length = 0;
+          }
+          resetAllCooldowns();
+          let overlay = document.getElementById('warning-overlay');
+          overlay.innerHTML = `IDKFL${lvl}<br>Warping to Level ${lvl}!`;
+          overlay.style.display = 'block';
+          overlay.style.color = '#f1c40f';
+          setTimeout(() => {
+            overlay.style.display = 'none';
+            overlay.style.color = '#e74c3c';
+            overlay.innerHTML = 'WARNING<br>BOSS APPROACHING';
+          }, 2000);
         }
-        if (arrays.bossLaserArray) {
-          arrays.bossLaserArray.forEach(bl => bl.el.remove());
-          arrays.bossLaserArray.length = 0;
-        }
-        if (arrays.bossBombenArray) {
-          arrays.bossBombenArray.forEach(bb => bb.el.remove());
-          arrays.bossBombenArray.length = 0;
-        }
-        if (arrays.bossRaketenArray) {
-          arrays.bossRaketenArray.forEach(br => br.el.remove());
-          arrays.bossRaketenArray.length = 0;
-        }
-        resetAllCooldowns();
-        let overlay = document.getElementById('warning-overlay');
-        overlay.innerHTML = `IDKFL${lvl}<br>Warping to Level ${lvl}!`;
-        overlay.style.display = 'block';
-        overlay.style.color = '#f1c40f';
-        setTimeout(() => {
-          overlay.style.display = 'none';
-          overlay.style.color = '#e74c3c';
-          overlay.innerHTML = 'WARNING<br>BOSS APPROACHING';
-        }, 2000);
-      }
 
-      const idkfMatch = state.typedCheatKeys.match(/idkf([1-5])$/);
-      if (idkfMatch) {
-        const lvl = parseInt(idkfMatch[1], 10);
-        state.cheatUsed = true;
-        state.laserStufe = lvl;
-        state.raketenStufe = lvl;
-        state.bombenStufe = lvl;
-        resetAllCooldowns();
-        Utils.updateAktivePowerupsUI();
-        let overlay = document.getElementById('warning-overlay');
-        overlay.innerHTML = `IDKF${lvl}<br>Weapons Level ${lvl}!`;
-        overlay.style.display = 'block';
-        overlay.style.color = '#f1c40f';
-        setTimeout(() => {
-          overlay.style.display = 'none';
-          overlay.style.color = '#e74c3c';
-          overlay.innerHTML = 'WARNING<br>BOSS APPROACHING';
-        }, 2000);
-      }
-      if (state.typedCheatKeys.endsWith('idkfa')) {
-        state.cheatUsed = true;
-        state.laserStufe = 5;
-        state.raketenStufe = 5;
-        state.bombenStufe = 5;
-        state.laserDurchschlag = true;
-        state.durchschlagTimer = 999999;
-        state.schildStufe = 3;
-        dom.spieler.classList.remove('schild-aktiv-1', 'schild-aktiv-2');
-        dom.spieler.classList.add('schild-aktiv-3');
-        state.unbegrenzteEnergie = true;
-        resetAllCooldowns();
-        Utils.updateAktivePowerupsUI();
-        let overlay = document.getElementById('warning-overlay');
-        overlay.innerHTML = 'IDKFA<br>Full Weapons & Ammo!';
-        overlay.style.display = 'block';
-        overlay.style.color = '#f1c40f';
-        setTimeout(() => {
-          overlay.style.display = 'none';
-          overlay.style.color = '#e74c3c';
-          overlay.innerHTML = 'WARNING<br>BOSS APPROACHING';
-        }, 2000);
-      }
-      if (state.typedCheatKeys.endsWith('idgod')) {
-        state.cheatUsed = true;
-        state.godMode = !state.godMode;
-        resetAllCooldowns();
-        let overlay = document.getElementById('warning-overlay');
-        overlay.innerHTML = state.godMode ? 'IDGOD<br>Degreelessness Mode On' : 'IDGOD<br>Degreelessness Mode Off';
-        overlay.style.display = 'block';
-        overlay.style.color = '#f1c40f';
-        setTimeout(() => {
-          overlay.style.display = 'none';
-          overlay.style.color = '#e74c3c';
-          overlay.innerHTML = 'WARNING<br>BOSS APPROACHING';
-        }, 2000);
+        const idkfMatch = state.typedCheatKeys.match(/idkf([1-5])$/);
+        if (idkfMatch) {
+          const lvl = parseInt(idkfMatch[1], 10);
+          state.cheatUsed = true;
+          state.laserStufe = lvl;
+          state.raketenStufe = lvl;
+          state.bombenStufe = lvl;
+          resetAllCooldowns();
+          Utils.updateAktivePowerupsUI();
+          let overlay = document.getElementById('warning-overlay');
+          overlay.innerHTML = `IDKF${lvl}<br>Weapons Level ${lvl}!`;
+          overlay.style.display = 'block';
+          overlay.style.color = '#f1c40f';
+          setTimeout(() => {
+            overlay.style.display = 'none';
+            overlay.style.color = '#e74c3c';
+            overlay.innerHTML = 'WARNING<br>BOSS APPROACHING';
+          }, 2000);
+        }
+        if (state.typedCheatKeys.endsWith('idkfa')) {
+          state.cheatUsed = true;
+          state.laserStufe = 5;
+          state.raketenStufe = 5;
+          state.bombenStufe = 5;
+          state.laserDurchschlag = true;
+          state.durchschlagTimer = 999999;
+          state.schildStufe = 3;
+          dom.spieler.classList.remove('schild-aktiv-1', 'schild-aktiv-2');
+          dom.spieler.classList.add('schild-aktiv-3');
+          state.unbegrenzteEnergie = true;
+          resetAllCooldowns();
+          Utils.updateAktivePowerupsUI();
+          let overlay = document.getElementById('warning-overlay');
+          overlay.innerHTML = 'IDKFA<br>Full Weapons & Ammo!';
+          overlay.style.display = 'block';
+          overlay.style.color = '#f1c40f';
+          setTimeout(() => {
+            overlay.style.display = 'none';
+            overlay.style.color = '#e74c3c';
+            overlay.innerHTML = 'WARNING<br>BOSS APPROACHING';
+          }, 2000);
+        }
+        if (state.typedCheatKeys.endsWith('idgod')) {
+          state.cheatUsed = true;
+          state.godMode = !state.godMode;
+          resetAllCooldowns();
+          let overlay = document.getElementById('warning-overlay');
+          overlay.innerHTML = state.godMode ? 'IDGOD<br>Degreelessness Mode On' : 'IDGOD<br>Degreelessness Mode Off';
+          overlay.style.display = 'block';
+          overlay.style.color = '#f1c40f';
+          setTimeout(() => {
+            overlay.style.display = 'none';
+            overlay.style.color = '#e74c3c';
+            overlay.innerHTML = 'WARNING<br>BOSS APPROACHING';
+          }, 2000);
+        }
       }
     }
   });
@@ -155,11 +158,7 @@ export function setupInput() {
     });
   }
   document.getElementById('btn-save-score').addEventListener('click', () => {
-    let nameInput = document.getElementById('highscore-name').value;
-    if (!nameInput || nameInput.trim() === '') nameInput = (state.gameMode === 'coop' ? 'TEAM' : 'AAA');
-    Utils.saveHighscore(nameInput, state.finalerScore, state.selectedShipModel, state.gameMode, state.p2 ? state.p2.selectedShipModel : null);
-    document.getElementById('highscore-form').style.display = 'none';
-    Utils.renderHighscores(state.gameMode);
+    Utils.submitHighscore();
   });
 
   const hsTabSingle = document.getElementById('hs-tab-single');

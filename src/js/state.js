@@ -117,12 +117,16 @@ export const state = {
     godMode: false, pausiert: false, unbegrenzteEnergie: false, invulnerableTimer: 0,
     phantomSchildRegenTimer: 0, phantomSchildRegenMax: 900,
     joystick: { x: 0, y: 0, active: false },
-    gameMode: 'single', // 'single' | 'coop'
+    gameMode: 'single', // 'single' | 'coop' | 'online'
     p2IsBot: false,
     p2BotDifficulty: 'normal', // 'easy' | 'normal' | 'hard'
     activeHangarPlayer: 'p1', // 'p1' | 'p2'
     selectedShipModel: 'viper',
     selectedShipColor: 'red',
+    onlineHighscoreNames: {
+        p1: null,
+        p2: null
+    },
     p2: {
         x: 370, y: 285, prevX: 370, prevY: 285, spielerVx: 0, spielerVy: 0,
         leben: 3, absMaxEnergie: 100, maxEnergie: 50, energie: 50, minZuendEnergie: 15,
@@ -134,6 +138,14 @@ export const state = {
         splitterRot: 0, splitterWeiss: 0, viperKillCount: 0,
         selectedShipModel: 'phantom', selectedShipColor: 'blue',
         isDead: false, rotate: 0
+    },
+    network: {
+        isOnline: false,
+        isHost: false,
+        isClient: false,
+        roomCode: null,
+        connected: false,
+        peerId: null
     }
 };
 
@@ -141,3 +153,7 @@ export const arrays = {
     laserArray: [], raketenArray: [], bombenArray: [], feinde: [], asteroiden: [],
     bosses: [], bossBombenArray: [], bossRaketenArray: [], partikelArray: [], explosionenArray: [], powerups: [], feindLaserArray: [], bossLaserArray: [], sterne: []
 };
+
+export function isCoopMode() {
+    return state.gameMode === 'coop' || state.gameMode === 'online';
+}

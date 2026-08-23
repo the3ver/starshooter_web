@@ -3,7 +3,7 @@ const { test, expect } = require('@playwright/test');
 test.beforeEach(async ({ page }) => {
   // Standardmäßig als bereits gesehen markieren, damit die Tests direkt interagieren können
   await page.addInitScript(() => {
-    localStorage.setItem('starshooter_last_seen_version', '1.6.27');
+    localStorage.setItem('starshooter_last_seen_version', '1.6.36');
     localStorage.setItem('starshooter_skip_cutscene', 'true');
   });
   await page.goto('/');
@@ -899,10 +899,10 @@ test.describe('Was gibt es Neues Modal (Changelog)', () => {
     await expect(title).toContainText("WAS GIBT'S NEUES");
 
     const intro = page.locator('#whats-new-intro');
-    await expect(intro).toContainText('1.6.27');
+    await expect(intro).toContainText('1.6.36');
 
     const items = page.locator('#whats-new-list li');
-    await expect(items).toHaveCount(2);
+    await expect(items).toHaveCount(1);
 
     // Schließen
     const closeBtn = page.locator('#btn-close-whats-new');
@@ -912,7 +912,7 @@ test.describe('Was gibt es Neues Modal (Changelog)', () => {
 
     // Prüfen, dass localStorage aktualisiert wurde
     const storedVersion = await page.evaluate(() => localStorage.getItem('starshooter_last_seen_version'));
-    expect(storedVersion).toBe('1.6.27');
+    expect(storedVersion).toBe('1.6.36');
 
     // Erneut öffnen über Start-Screen Button
     const openBtn = page.locator('#btn-open-whats-new');
@@ -4463,7 +4463,486 @@ test.describe('Bot-Partner', () => {
     expect(botY).toBeGreaterThanOrEqual(450);
   });
 
+  test('Online-Multiplayer › Modus-Auswahl schaltet auf Online-Modus um und zeigt Online-Lobby an', async ({ page }) => {
+    const btnOnline = page.locator('#gamemode-btn-online');
+    await expect(btnOnline).toBeVisible();
+
+    // Klick auf Online-Modus
+    await btnOnline.click();
+
+    // Button muss aktiv sein und Spielfeld auf 600px vergrößert werden
+    await expect(btnOnline).toHaveClass(/active/);
+    const spielfeld = page.locator('#spielfeld');
+    await expect(spielfeld).toHaveClass(/mode-coop/);
+
+    // Online-Lobby-Bereich muss sichtbar sein
+    const lobby = page.locator('#online-lobby-container');
+    await expect(lobby).toBeVisible();
+    await expect(page.locator('#btn-online-host')).toBeVisible();
+    await expect(page.locator('#online-room-input')).toBeVisible();
+    await expect(page.locator('#btn-online-join')).toBeVisible();
+
+    // Zurück auf 1-Spieler schalten blendet Lobby wieder aus
+    await page.click('#gamemode-btn-single');
+    await expect(lobby).toBeHidden();
+  });
+
+  test('Online-Multiplayer › Raum erstellen (Host) generiert Raum-Code und zeigt Status an', async ({ page }) => {
+    // In den Online-Modus wechseln
+    await page.click('#gamemode-btn-online');
+
+    // Klick auf "RAUM ERSTELLEN"
+    await page.click('#btn-online-host');
+
+    // Status-Element muss sichtbar werden und Raum-Code sowie Wartestatus enthalten
+    const status = page.locator('#online-status');
+    await expect(status).toBeVisible();
+    await expect(status).toContainText('WARTE AUF MITSPIELER');
+
+    // State-Objekt prüfen
+    const networkState = await page.evaluate(() => window.__game.state.network);
+    expect(networkState).toBeDefined();
+    expect(networkState.isOnline).toBe(true);
+    expect(networkState.isHost).toBe(true);
+    expect(networkState.isClient).toBe(false);
+    expect(typeof networkState.roomCode).toBe('string');
+    expect(networkState.roomCode.length).toBeGreaterThanOrEqual(4);
+  });
+
+  test('Online-Multiplayer › Raum beitreten (Client) validiert Raum-Code und setzt Client-State', async ({ page }) => {
+    // In den Online-Modus wechseln
+    await page.click('#gamemode-btn-online');
+
+    // 1. Leereingabe testen
+    await page.click('#btn-online-join');
+    const status = page.locator('#online-status');
+    await expect(status).toBeVisible();
+    await expect(status).toContainText('BITTE GÜLTIGEN RAUM-CODE EINGEBEN');
+
+    // 2. Gültigen Raum-Code eingeben
+    await page.fill('#online-room-input', 'ROOM9');
+    await page.click('#btn-online-join');
+
+    await expect(status).toContainText('VERBINDE MIT RAUM ROOM9');
+
+    // State-Objekt prüfen
+    const networkState = await page.evaluate(() => window.__game.state.network);
+    expect(networkState).toBeDefined();
+    expect(networkState.isOnline).toBe(true);
+    expect(networkState.isHost).toBe(false);
+    expect(networkState.isClient).toBe(true);
+    expect(networkState.roomCode).toBe('ROOM9');
+  });
+
+  test('Online-Multiplayer › Spielstart bei Peer-Verbindung im 600px Online-Coop Modus', async ({ page }) => {
+    // In den Online-Modus wechseln und Raum hosten
+    await page.click('#gamemode-btn-online');
+    await page.click('#btn-online-host');
+
+    // Peer-Verbindung simulieren
+    await page.evaluate(() => {
+      const mod = window.__game;
+      mod.Network.onPeerJoined('mock_peer_123');
+    });
+
+    // Warten bis das Spiel läuft
+    await page.waitForFunction(() => {
+      const mod = window.__game;
+      return mod && mod.state && mod.state.spielLaeuft;
+    }, null, { timeout: 5000 });
+
+    // Beide Schiffe und das P2-HUD müssen sichtbar sein
+    const spieler1 = page.locator('#spieler');
+    const spieler2 = page.locator('#spieler-2');
+    const uiP2 = page.locator('#ui-container-p2');
+
+    await expect(spieler1).toBeVisible();
+    await expect(spieler2).toBeVisible();
+    await expect(uiP2).toBeVisible();
+
+    // Spielfeld muss 600px breit sein
+    const spielfeld = page.locator('#spielfeld');
+    await expect(spielfeld).toHaveClass(/mode-coop/);
+  });
+
+  test('Online-Multiplayer › Host Game-State Serialisierung & Client Snapshot Rendering', async ({ page }) => {
+    // Online-Modus aktivieren
+    await page.click('#gamemode-btn-online');
+    await page.click('#btn-online-host');
+
+    // Peer-Verbindung simulieren
+    await page.evaluate(() => {
+      const mod = window.__game;
+      mod.Network.onPeerJoined('mock_peer_123');
+    });
+
+    await page.waitForFunction(() => {
+      const mod = window.__game;
+      return mod && mod.state && mod.state.spielLaeuft;
+    }, null, { timeout: 5000 });
+
+    // 1. Host-Serialisierung prüfen
+    const snapshot = await page.evaluate(() => {
+      const mod = window.__game;
+      mod.Entities.erzeugeFeind();
+      mod.Entities.erzeugeAsteroid();
+      return mod.Network.serializeGameState();
+    });
+
+    expect(snapshot).toBeDefined();
+    expect(snapshot.p1).toBeDefined();
+    expect(Array.isArray(snapshot.feinde)).toBe(true);
+    expect(snapshot.feinde.length).toBeGreaterThan(0);
+    expect(Array.isArray(snapshot.asteroiden)).toBe(true);
+    expect(snapshot.asteroiden.length).toBeGreaterThan(0);
+
+    // 2. Client-Snapshot-Anwendung testen
+    await page.evaluate(() => {
+      const mod = window.__game;
+      // Client-Modus simulieren
+      mod.state.network.isHost = false;
+      mod.state.network.isClient = true;
+
+      const mockSnapshot = {
+        p1: { x: 120, y: 350, leben: 2, energie: 40, isDead: false },
+        score: 4500,
+        level: 3,
+        feinde: [{ id: 'f_test_1', x: 250, y: 180, hp: 10, maxHp: 10, groesse: 24, typ: 1, muster: 'normal' }],
+        asteroiden: [
+          { id: 'a_test_1', x: 100, y: 220, groesse: 30, istMagma: false, istUnzerstoerbar: false, rot: 45 },
+          { id: 'a_test_magma_destructible', x: 150, y: 200, groesse: 35, istMagma: true, istUnzerstoerbar: false, traegtPowerup: true, rot: 10 },
+          { id: 'a_test_magma_solid', x: 180, y: 240, groesse: 40, istMagma: true, istUnzerstoerbar: true, rot: 20 }
+        ],
+        bosses: [{ id: 'b_test_1', x: 200, y: 50, hp: 300, maxHp: 400, groesse: 100, typ: 1 }],
+        laser: [{ id: 'l_test_1', x: 125, y: 300, vx: 0, vy: 15, width: 4, height: 20, owner: 'p1', color: '#00ffff' }],
+        raketen: [{ id: 'r_test_1', x: 130, y: 290, rot: 90, owner: 'p1', stufe: 2 }],
+        bomben: [{ id: 'b_test_1', x: 140, y: 280, rot: 0, owner: 'p1', stufe: 1 }],
+        bossLaser: [{ id: 'bl_test_1', x: 210, y: 120, vx: 0, vy: 6, width: 8, height: 25 }],
+        bossRaketen: [{ id: 'br_test_1', x: 220, y: 130, vx: 2, vy: 3, rot: 120 }],
+        bossBomben: [{ id: 'bb_test_1', x: 230, y: 140, groesse: 26 }],
+        powerups: [
+          { id: 'pu_test_1', x: 110, y: 310, type: 'schild', owner: 'p1' },
+          { id: 'pu_test_2', x: 160, y: 310, type: 'splitterRot', owner: 'p2' }
+        ]
+      };
+
+      mod.Network.applyGameStateSnapshot(mockSnapshot);
+    });
+
+    // Prüfen, ob P1-Position und HUD aktualisiert wurden
+    const p1Pos = await page.evaluate(() => ({ x: window.__game.state.x, y: window.__game.state.y }));
+    expect(p1Pos.x).toBe(120);
+    expect(p1Pos.y).toBe(350);
+
+    const scoreText = await page.locator('#score-anzeige').textContent();
+    expect(scoreText).toContain('4500');
+
+    // Prüfen, ob Feind im DOM mit SVG gerendert wurde
+    const enemyInfo = await page.evaluate(() => {
+      const el = document.querySelector('.feind-schiff');
+      return {
+        exists: !!el,
+        hasSvg: el ? !!el.querySelector('svg') : false
+      };
+    });
+    expect(enemyInfo.exists).toBe(true);
+    expect(enemyInfo.hasSvg).toBe(true);
+
+    // Prüfen, ob Asteroiden (normal vs magma-zerstörbar vs magma-unzerstörbar) korrekt gerendert wurden
+    const asteroidCheck = await page.evaluate(() => {
+      const all = Array.from(document.querySelectorAll('.asteroid'));
+      const solidMagma = all.find(a => a.classList.contains('unzerstoerbar'));
+      const destructibleMagma = all.find(a => !a.classList.contains('unzerstoerbar') && a.style.background.includes('rgb'));
+      return {
+        total: all.length,
+        hasSolidMagma: !!solidMagma,
+        hasDestructibleMagma: all.some(a => a.querySelector('.riss-layer'))
+      };
+    });
+    expect(asteroidCheck.total).toBe(3);
+    expect(asteroidCheck.hasSolidMagma).toBe(true);
+    expect(asteroidCheck.hasDestructibleMagma).toBe(true);
+
+    // Prüfen, ob Laser, Raketen, Bomben im DOM gerendert wurden
+    const playerProjectiles = await page.evaluate(() => ({
+      hasLaser: !!document.querySelector('.laser-projektil'),
+      hasRakete: !!document.querySelector('.raketen-projektil'),
+      hasBombe: !!document.querySelector('.bomben-projektil')
+    }));
+    expect(playerProjectiles.hasLaser).toBe(true);
+    expect(playerProjectiles.hasRakete).toBe(true);
+    expect(playerProjectiles.hasBombe).toBe(true);
+
+    // Prüfen, ob Boss-Projektile (Laser, Rakete, Bombe) im DOM gerendert wurden
+    const bossProjectiles = await page.evaluate(() => ({
+      hasBossLaser: !!document.querySelector('.boss-laser'),
+      hasBossRakete: !!document.querySelector('.boss-rakete'),
+      hasBossBombe: !!document.querySelector('.boss-bombe')
+    }));
+    expect(bossProjectiles.hasBossLaser).toBe(true);
+    expect(bossProjectiles.hasBossRakete).toBe(true);
+    expect(bossProjectiles.hasBossBombe).toBe(true);
+
+    // Prüfen, ob Powerups mit Styling, Owner-Tag und Splitter-SVG gerendert wurden
+    const powerupCheck = await page.evaluate(() => {
+      const pus = Array.from(document.querySelectorAll('.powerup'));
+      const p1Pu = pus.find(p => p.classList.contains('pu-owner-p1'));
+      const p2Splitter = pus.find(p => p.classList.contains('powerup-splitter'));
+      return {
+        count: pus.length,
+        hasP1Border: p1Pu ? (p1Pu.style.border !== '' && p1Pu.style.border !== 'none') : false,
+        hasP1Tag: p1Pu ? !!p1Pu.querySelector('.pu-owner-tag') : false,
+        hasSplitterSvg: p2Splitter ? !!p2Splitter.querySelector('svg') : false
+      };
+    });
+    expect(powerupCheck.count).toBe(2);
+    expect(powerupCheck.hasP1Border).toBe(true);
+    expect(powerupCheck.hasP1Tag).toBe(true);
+    expect(powerupCheck.hasSplitterSvg).toBe(true);
+  });
+
+  test('Online-Multiplayer › Client Input-Serialisierung & Host Input-Anwendung auf Spieler 2', async ({ page }) => {
+    // Online-Modus aktivieren
+    await page.click('#gamemode-btn-online');
+    await page.click('#btn-online-host');
+
+    // Peer-Verbindung simulieren
+    await page.evaluate(() => {
+      const mod = window.__game;
+      mod.Network.onPeerJoined('mock_peer_123');
+    });
+
+    await page.waitForFunction(() => {
+      const mod = window.__game;
+      return mod && mod.state && mod.state.spielLaeuft;
+    }, null, { timeout: 5000 });
+
+    // 1. Client-Input-Serialisierung testen (Solo-Steuerung: WASD, L, K, Space)
+    const clientInput = await page.evaluate(() => {
+      const mod = window.__game;
+      mod.state.p2.x = 420;
+      mod.state.p2.y = 510;
+      mod.state.tastenGedrueckt.l = true; // Laser mit L
+      mod.state.tastenGedrueckt.k = true; // Rakete mit K
+      mod.state.tastenGedrueckt[' '] = true; // Bombe mit Leertaste
+      return mod.Network.serializePlayerInput();
+    });
+
+    expect(clientInput).toBeDefined();
+    expect(clientInput.x).toBe(420);
+    expect(clientInput.y).toBe(510);
+    expect(clientInput.laser).toBe(true);
+    expect(clientInput.rakete).toBe(true);
+    expect(clientInput.bombe).toBe(true);
+
+    // 2. Host-Anwendung auf state.p2 testen
+    await page.evaluate(() => {
+      const mod = window.__game;
+      const remoteInput = {
+        x: 350,
+        y: 480,
+        rotate: -15,
+        laser: true,
+        rakete: true,
+        bombe: true
+      };
+      mod.Network.applyPlayerInput(remoteInput);
+    });
+
+    const p2State = await page.evaluate(() => ({
+      x: window.__game.state.p2.x,
+      y: window.__game.state.p2.y,
+      rotate: window.__game.state.p2.rotate,
+      laserSchiesst: window.__game.state.p2.laserSchiesst,
+      networkFireRakete: window.__game.state.p2.networkFireRakete,
+      networkFireBombe: window.__game.state.p2.networkFireBombe
+    }));
+
+    expect(p2State.x).toBe(350);
+    expect(p2State.y).toBe(480);
+    expect(p2State.rotate).toBe(-15);
+    expect(p2State.laserSchiesst).toBe(true);
+    expect(p2State.networkFireRakete).toBe(true);
+    expect(p2State.networkFireBombe).toBe(true);
+  });
+
+  test('Online-Multiplayer › Cutszene synchron mit ESC überspringen & Schadens-Flash nur auf dem Rechner des getroffenen Spielers', async ({ page }) => {
+    // 1. Cutszene-Synchronisation testen
+    await page.click('#gamemode-btn-online');
+    await page.click('#btn-online-host');
+
+    // Host startet Cutszene
+    const cutsceneSkippedResult = await page.evaluate(() => {
+      const mod = window.__game;
+      mod.state.network.connected = true;
+      mod.state.network.isOnline = true;
+      mod.state.network.isHost = true;
+      
+      let sentEvents = [];
+      mod.Network.onNetworkEvent((e) => sentEvents.push(e));
+
+      // Cutszene starten und überspringen
+      mod.Cutscene.startCutscene();
+      mod.Cutscene.skipCutscene();
+
+      return {
+        cutsceneActive: mod.Cutscene.isCutsceneActive(),
+        gameRunning: mod.state.spielLaeuft
+      };
+    });
+
+    expect(cutsceneSkippedResult.cutsceneActive).toBe(false);
+    expect(cutsceneSkippedResult.gameRunning).toBe(true);
+
+    // 2. Schadens-Flash im Online-Modus testen (P2 getroffen -> Host-Bildschirm darf NICHT rot werden)
+    const flashCheck = await page.evaluate(() => {
+      const mod = window.__game;
+      mod.state.network.isOnline = true;
+      mod.state.network.isHost = true;
+      mod.state.network.connected = true;
+      mod.state.gameMode = 'online';
+      mod.state.p2.leben = 3;
+      mod.state.p2.schildStufe = 0;
+      mod.state.p2.invulnerableTimer = 0;
+      mod.state.p2.isDead = false;
+
+      const spielfeld = document.getElementById('spielfeld');
+      spielfeld.style.backgroundColor = '#0b1319';
+
+      // P2 wird auf Host getroffen
+      mod.Utils.spielerGetroffen(null, false, 'p2');
+      const hostBgAfterP2Hit = spielfeld.style.backgroundColor;
+
+      return {
+        hostBgAfterP2Hit: hostBgAfterP2Hit,
+        lastSentEvent: mod.state.network.lastSentEvent
+      };
+    });
+
+    // Host-Bildschirm bleibt dunkel und wird nicht rot geflasht
+    expect(flashCheck.hostBgAfterP2Hit).toBe('rgb(11, 19, 25)');
+    expect(flashCheck.lastSentEvent).toBeDefined();
+    expect(flashCheck.lastSentEvent.type).toBe('player_hit');
+    expect(flashCheck.lastSentEvent.target).toBe('p2');
+  });
+
+  test('Online-Multiplayer › Highscore-Koordination: Beide Spieler geben Kürzel ein und werden als AAA+BBB in der Coop-Bestenliste gespeichert', async ({ page }) => {
+    await page.click('#gamemode-btn-online');
+    await page.click('#btn-online-host');
+
+    // 1. Game Over im Online-Modus auslösen
+    await page.evaluate(() => {
+      const mod = window.__game;
+      mod.state.network.connected = true;
+      mod.state.network.isOnline = true;
+      mod.state.network.isHost = true;
+      mod.state.gameMode = 'online';
+      mod.state.score = 7500;
+      mod.state.cheatUsed = false;
+      mod.state.selectedShipModel = 'viper';
+      mod.state.p2.selectedShipModel = 'phantom';
+
+      mod.Utils.triggerGameOver();
+    });
+
+    const hsForm = page.locator('#highscore-form');
+    await expect(hsForm).toBeVisible();
+
+    // 2. Spieler 1 (Host) gibt 'AAA' ein und speichert
+    await page.fill('#highscore-name', 'AAA');
+    await page.click('#btn-save-score');
+
+    // Prüfen, dass Host-Event gesendet wurde und Warte-Nachricht erscheint
+    const hostStatus = await page.evaluate(() => {
+      const mod = window.__game;
+      const waitingMsg = document.getElementById('highscore-waiting-msg');
+      return {
+        lastSentEvent: mod.state.network.lastSentEvent,
+        waitingMsgText: waitingMsg ? waitingMsg.textContent : '',
+        waitingMsgVisible: waitingMsg && waitingMsg.style.display !== 'none'
+      };
+    });
+
+    expect(hostStatus.lastSentEvent).toBeDefined();
+    expect(hostStatus.lastSentEvent.type).toBe('highscore_name');
+    expect(hostStatus.lastSentEvent.role).toBe('p1');
+    expect(hostStatus.lastSentEvent.name).toBe('AAA');
+    expect(hostStatus.waitingMsgVisible).toBe(true);
+    expect(hostStatus.waitingMsgText).toContain('Spieler 2');
+
+    // 3. Spieler 2 meldet Kürzel 'BBB'
+    await page.evaluate(() => {
+      const mod = window.__game;
+      mod.Utils.receiveOnlineHighscoreName('p2', 'BBB');
+    });
+
+    // Prüfen, dass Formular jetzt ausgeblendet ist und Highscore-Tabelle 'AAA+BBB' enthält
+    await expect(hsForm).toBeHidden();
+
+    const storedCoopScores = await page.evaluate(() => {
+      return JSON.parse(localStorage.getItem('spaceShooterHighscores_coop') || '[]');
+    });
+
+    expect(storedCoopScores.length).toBeGreaterThan(0);
+    expect(storedCoopScores[0].name).toBe('AAA+BBB');
+    expect(storedCoopScores[0].score).toBe(7500);
+    expect(storedCoopScores[0].shipP1).toBe('viper');
+    expect(storedCoopScores[0].shipP2).toBe('phantom');
+
+    // Bestenlisten-Tabelle im DOM überprüfen
+    const firstRowText = await page.locator('#highscore-body tr').first().innerText();
+    expect(firstRowText).toContain('AAA+BBB');
+    expect(firstRowText).toContain('7500');
+  });
+
+  test('Online-Multiplayer › Cheatcodes sind im Online-Modus deaktiviert (weder Host noch Client)', async ({ page }) => {
+    // 1. Online Modus aktivieren
+    await page.click('#gamemode-btn-online');
+    await page.click('#btn-online-host');
+
+    await page.evaluate(() => {
+      const mod = window.__game;
+      mod.state.network.isOnline = true;
+      mod.state.network.connected = true;
+      mod.state.gameMode = 'online';
+      mod.state.spielLaeuft = true;
+      mod.state.laserStufe = 1;
+      mod.state.raketenStufe = 1;
+      mod.state.bombenStufe = 1;
+      mod.state.schildStufe = 0;
+      mod.state.godMode = false;
+      mod.state.cheatUsed = false;
+    });
+
+    // Versuch Cheat 'idkfa' einzugeben
+    await page.keyboard.type('idkfa');
+
+    const stateAfterCheat = await page.evaluate(() => ({
+      laserStufe: window.__game.state.laserStufe,
+      schildStufe: window.__game.state.schildStufe,
+      cheatUsed: window.__game.state.cheatUsed,
+      godMode: window.__game.state.godMode
+    }));
+
+    // Im Online-Modus darf der Cheat nicht gegriffen haben
+    expect(stateAfterCheat.laserStufe).toBe(1);
+    expect(stateAfterCheat.schildStufe).toBe(0);
+    expect(stateAfterCheat.cheatUsed).toBe(false);
+
+    // Versuch Cheat 'idgod' einzugeben
+    await page.keyboard.type('idgod');
+
+    const stateAfterGod = await page.evaluate(() => ({
+      godMode: window.__game.state.godMode,
+      cheatUsed: window.__game.state.cheatUsed
+    }));
+
+    expect(stateAfterGod.godMode).toBe(false);
+    expect(stateAfterGod.cheatUsed).toBe(false);
+  });
+
 });
+
 
 
 

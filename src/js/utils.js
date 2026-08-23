@@ -1,10 +1,11 @@
 
-import { state, dom, config, arrays, shipColors, shipModels } from './state.js';
+import { state, dom, config, arrays, shipColors, shipModels, isCoopMode } from './state.js';
 import * as Entities from './entities.js';
 import * as Input from './input.js';
 import * as Loop from './loop.js';
 import * as Audio from './audio.js';
 import * as Bot from './bot.js';
+import * as Network from './network.js';
 
 
 export function addScore(punkte) {
@@ -244,7 +245,7 @@ export function updateSplitterP2UI() {
   const rotEl = dom.splitterRotCountP2 || document.getElementById('splitter-rot-count-p2');
   const weissEl = dom.splitterWeissCountP2 || document.getElementById('splitter-weiss-count-p2');
   if (!hud || !state.p2) return;
-  if (state.gameMode === 'coop' && state.p2.selectedShipModel === 'viper') {
+  if (isCoopMode() && state.p2.selectedShipModel === 'viper') {
     hud.style.display = 'flex';
     if (rotEl) rotEl.textContent = state.p2.splitterRot || 0;
     if (weissEl) weissEl.textContent = state.p2.splitterWeiss || 0;
@@ -272,7 +273,7 @@ export function zerstoereZiel(ziel, killer = 'p1') {
     erzeugeExplosion(ziel.x + ziel.groesse / 2, ziel.y + ziel.groesse / 2, '#f1c40f', 50);
 
     // Co-op Revive bei Boss-Sieg
-    if (state.gameMode === 'coop') {
+    if (isCoopMode()) {
       if (state.isDead) {
         state.isDead = false;
         state.leben = 1;
@@ -312,7 +313,7 @@ export function zerstoereZiel(ziel, killer = 'p1') {
     // 3 garantierte Splitter fallen lassen (Rot oder Weiß)
     for (let s = 0; s < 3; s++) {
       const shardType = Math.random() < 0.5 ? 'splitterRot' : 'splitterWeiss';
-      const shardOwner = state.gameMode === 'coop' ? killer : null;
+      const shardOwner = isCoopMode() ? killer : null;
       Entities.erzeugePowerup(ziel.x + s * 25 + 12, ziel.y + 30, shardType, shardOwner);
     }
 
@@ -342,7 +343,7 @@ export function zerstoereZiel(ziel, killer = 'p1') {
         killerState.viperKillCount = (killerState.viperKillCount || 0) + 1;
         if (killerState.viperKillCount % 10 === 0) {
           const shardType = Math.random() < 0.5 ? 'splitterRot' : 'splitterWeiss';
-          const owner = state.gameMode === 'coop' ? killer : null;
+          const owner = isCoopMode() ? killer : null;
           Entities.erzeugePowerup(ziel.x + ziel.groesse / 2 - 10, ziel.y + ziel.groesse / 2 - 10, shardType, owner);
         }
       }
@@ -364,22 +365,55 @@ export function zerstoereZiel(ziel, killer = 'p1') {
   if (bIndex > -1) arrays.bosses.splice(bIndex, 1);
 }
 
-export function triggerGameOver() {
+export function triggerGameOver(finalScoreFromHost = null) {
   Audio.playGameOver();
   state.gameOverAktiv = true;
-  state.finalerScore = state.cheatUsed ? 0 : state.score;
+  state.finalerScore = finalScoreFromHost !== null ? finalScoreFromHost : (state.cheatUsed ? 0 : state.score);
+  
+  state.onlineHighscoreNames = { p1: null, p2: null };
+
+  const startScreen = document.getElementById('start-screen');
+  if (startScreen) startScreen.style.display = 'none';
+
   const finalScoreEl = document.getElementById('final-score');
   if (finalScoreEl) finalScoreEl.innerText = state.finalerScore;
   const gameOverScreen = document.getElementById('game-over-screen');
   if (gameOverScreen) gameOverScreen.style.display = 'flex';
   
-  const currentMode = state.gameMode || 'single';
+  const isOnline = state.gameMode === 'online' || (state.network && state.network.isOnline);
+  const currentMode = isOnline ? 'coop' : (state.gameMode || 'single');
+
+  if (isOnline && state.network && state.network.isHost && finalScoreFromHost === null) {
+    Network.sendNetworkEvent({
+      type: 'game_over',
+      finalScore: state.finalerScore
+    });
+  }
+
   let hs = getHighscores(currentMode);
   const hsInput = document.getElementById('highscore-name');
-  if (hsInput) {
-    hsInput.placeholder = currentMode === 'coop' ? 'TEAM' : 'AAA';
-    hsInput.maxLength = currentMode === 'coop' ? 6 : 3;
+  const hsBtn = document.getElementById('btn-save-score');
+  const waitingMsg = document.getElementById('highscore-waiting-msg');
+  if (waitingMsg) {
+    waitingMsg.style.display = 'none';
+    waitingMsg.textContent = '';
   }
+  if (hsBtn) {
+    hsBtn.disabled = false;
+    hsBtn.textContent = 'SPEICHERN';
+  }
+
+  if (hsInput) {
+    hsInput.disabled = false;
+    if (isOnline) {
+      hsInput.placeholder = (state.network && state.network.isHost) ? 'P1' : 'P2';
+      hsInput.maxLength = 3;
+    } else {
+      hsInput.placeholder = state.gameMode === 'coop' ? 'TEAM' : 'AAA';
+      hsInput.maxLength = state.gameMode === 'coop' ? 6 : 3;
+    }
+  }
+
   if (hs.length < 10 || state.finalerScore > hs[hs.length - 1].score) {
     const hsForm = document.getElementById('highscore-form');
     if (hsForm) hsForm.style.display = 'block';
@@ -457,17 +491,19 @@ export function spielerGetroffen(kollisionsObjekt, explodiert = true, targetPlay
       if (dom.spieler) dom.spieler.style.display = 'none';
       erzeugeExplosion(state.x + 15, state.y + 15, '#e74c3c', 40);
 
-      const isOtherAlive = state.gameMode === 'coop' && state.p2 && !state.p2.isDead && state.p2.leben > 0;
+      const isOtherAlive = isCoopMode() && state.p2 && !state.p2.isDead && state.p2.leben > 0;
       if (!isOtherAlive) {
         triggerGameOver();
       }
     }
-  } else if (targetPlayer === 'p2' && state.gameMode === 'coop' && state.p2) {
+  } else if (targetPlayer === 'p2' && isCoopMode() && state.p2) {
     if (state.godMode || state.p2.invulnerableTimer > 0 || state.p2.isDead) return;
     
     Audio.playHit('player');
     state.p2.invulnerableTimer = 45;
     if (dom.spieler2) dom.spieler2.classList.add('spieler-blink');
+
+    const isOnline = state.gameMode === 'online' || (state.network && state.network.isOnline);
 
     if (state.p2.schildStufe > 0) {
       if (dom.spieler2) dom.spieler2.classList.remove(`schild-aktiv-${state.p2.schildStufe}`);
@@ -482,10 +518,14 @@ export function spielerGetroffen(kollisionsObjekt, explodiert = true, targetPlay
         erzeugeExplosion(kollisionsObjekt.x + (kollisionsObjekt.groesse || 4) / 2, kollisionsObjekt.y + (kollisionsObjekt.groesse || 15) / 2, c, 10);
       }
       addScore(10);
-      dom.spielfeld.style.backgroundColor = 'rgba(52, 152, 219, 0.3)';
-      setTimeout(() => {
-        dom.spielfeld.style.backgroundColor = '#0b1319';
-      }, 150);
+      if (!isOnline) {
+        dom.spielfeld.style.backgroundColor = 'rgba(52, 152, 219, 0.3)';
+        setTimeout(() => {
+          dom.spielfeld.style.backgroundColor = '#0b1319';
+        }, 150);
+      } else {
+        Network.sendNetworkEvent({ type: 'player_hit', target: 'p2', shield: true });
+      }
       return;
     }
     state.p2.leben--;
@@ -508,10 +548,14 @@ export function spielerGetroffen(kollisionsObjekt, explodiert = true, targetPlay
     }
     updateLebenP2UI();
     updateAktivePowerupsP2UI();
-    dom.spielfeld.style.backgroundColor = '#900';
-    setTimeout(() => {
-      dom.spielfeld.style.backgroundColor = '#0b1319';
-    }, 150);
+    if (!isOnline) {
+      dom.spielfeld.style.backgroundColor = '#900';
+      setTimeout(() => {
+        dom.spielfeld.style.backgroundColor = '#0b1319';
+      }, 150);
+    } else {
+      Network.sendNetworkEvent({ type: 'player_hit', target: 'p2', shield: false });
+    }
     if (explodiert && kollisionsObjekt && !kollisionsObjekt.istBoss) {
       let c = kollisionsObjekt.istFeind ? '#9b59b6' : (kollisionsObjekt.el?.dataset?.baseColor || kollisionsObjekt.el?.style?.backgroundColor || '#7f8c8d');
       erzeugeExplosion(kollisionsObjekt.x + (kollisionsObjekt.groesse || 4) / 2, kollisionsObjekt.y + (kollisionsObjekt.groesse || 15) / 2, c, 10);
@@ -687,15 +731,17 @@ export function restartGame() {
 }
 // --- HIGHSCORE LOGIK ---
 export function getHighscores(mode = (state.gameMode || 'single')) {
-  const key = mode === 'coop' ? 'spaceShooterHighscores_coop' : 'spaceShooterHighscores';
+  const isCoop = mode === 'coop' || mode === 'online';
+  const key = isCoop ? 'spaceShooterHighscores_coop' : 'spaceShooterHighscores';
   let hs = localStorage.getItem(key);
   return hs ? JSON.parse(hs) : [];
 }
 export function saveHighscore(name, scoreValue, shipModel = null, mode = (state.gameMode || 'single'), shipP2Model = null) {
-  let hs = getHighscores(mode);
+  const isCoop = mode === 'coop' || mode === 'online';
+  let hs = getHighscores(isCoop ? 'coop' : 'single');
   let modelP1 = shipModel || state.selectedShipModel || 'viper';
   let modelP2 = shipP2Model || (state.p2 && state.p2.selectedShipModel) || 'phantom';
-  if (mode === 'coop') {
+  if (isCoop) {
     hs.push({
       name: name.toUpperCase(),
       score: scoreValue,
@@ -713,11 +759,13 @@ export function saveHighscore(name, scoreValue, shipModel = null, mode = (state.
     });
   }
   hs.sort((a, b) => b.score - a.score);
-  const key = mode === 'coop' ? 'spaceShooterHighscores_coop' : 'spaceShooterHighscores';
+  const key = isCoop ? 'spaceShooterHighscores_coop' : 'spaceShooterHighscores';
   localStorage.setItem(key, JSON.stringify(hs.slice(0, 10)));
 }
 export function renderHighscores(targetMode = null) {
-  const currentMode = targetMode || state.gameMode || 'single';
+  const rawMode = targetMode || state.gameMode || 'single';
+  const isCoop = rawMode === 'coop' || rawMode === 'online';
+  const currentMode = isCoop ? 'coop' : 'single';
   let hs = getHighscores(currentMode);
   
   // Highscore-Tabs aktualisieren (falls vorhanden)
@@ -759,6 +807,95 @@ export function renderHighscores(targetMode = null) {
         tbody.innerHTML += `<tr><td>${entry.name}</td><td>${entry.score}</td><td><span class="hs-ship-badge ${badgeClass}">${shipLabel}</span></td></tr>`;
       }
     });
+  }
+}
+
+export function submitHighscore() {
+  const isOnline = state.gameMode === 'online' || (state.network && state.network.isOnline);
+  const hsInput = document.getElementById('highscore-name');
+  const hsBtn = document.getElementById('btn-save-score');
+  let rawName = (hsInput ? hsInput.value : '').trim().toUpperCase();
+
+  if (!isOnline) {
+    let nameInput = rawName;
+    if (!nameInput || nameInput === '') nameInput = (state.gameMode === 'coop' ? 'TEAM' : 'AAA');
+    saveHighscore(nameInput, state.finalerScore, state.selectedShipModel, state.gameMode, state.p2 ? state.p2.selectedShipModel : null);
+    const hsForm = document.getElementById('highscore-form');
+    if (hsForm) hsForm.style.display = 'none';
+    renderHighscores(state.gameMode);
+    return;
+  }
+
+  const isHost = state.network && state.network.isHost;
+  const myRole = isHost ? 'p1' : 'p2';
+  const defaultName = isHost ? 'AAA' : 'BBB';
+  const myName = (rawName.length > 0 ? rawName : defaultName).slice(0, 3);
+
+  if (!state.onlineHighscoreNames) state.onlineHighscoreNames = { p1: null, p2: null };
+  state.onlineHighscoreNames[myRole] = myName;
+
+  Network.sendNetworkEvent({
+    type: 'highscore_name',
+    role: myRole,
+    name: myName
+  });
+
+  if (hsInput) hsInput.disabled = true;
+  if (hsBtn) {
+    hsBtn.disabled = true;
+    hsBtn.textContent = 'GESENDET';
+  }
+
+  checkAndCommitOnlineHighscore();
+}
+
+export function receiveOnlineHighscoreName(role, name) {
+  if (!state.onlineHighscoreNames) state.onlineHighscoreNames = { p1: null, p2: null };
+  state.onlineHighscoreNames[role] = (name || '').slice(0, 3).toUpperCase();
+  checkAndCommitOnlineHighscore();
+}
+
+export function checkAndCommitOnlineHighscore() {
+  const isOnline = state.gameMode === 'online' || (state.network && state.network.isOnline);
+  if (!isOnline) return;
+
+  if (!state.onlineHighscoreNames) state.onlineHighscoreNames = { p1: null, p2: null };
+  const p1 = state.onlineHighscoreNames.p1;
+  const p2 = state.onlineHighscoreNames.p2;
+
+  const isHost = state.network && state.network.isHost;
+  const myRole = isHost ? 'p1' : 'p2';
+  const otherRole = isHost ? 'p2' : 'p1';
+
+  const hsInput = document.getElementById('highscore-name');
+  const hsBtn = document.getElementById('btn-save-score');
+  const waitingMsg = document.getElementById('highscore-waiting-msg');
+
+  if (state.onlineHighscoreNames[myRole] && !state.onlineHighscoreNames[otherRole]) {
+    if (waitingMsg) {
+      waitingMsg.style.display = 'block';
+      waitingMsg.textContent = `Warte auf Eingabe von Spieler ${isHost ? '2' : '1'}...`;
+    }
+    return;
+  }
+
+  if (p1 && p2) {
+    const combinedName = `${p1}+${p2}`;
+    const modelP1 = state.selectedShipModel || 'viper';
+    const modelP2 = (state.p2 && state.p2.selectedShipModel) || 'phantom';
+
+    saveHighscore(combinedName, state.finalerScore, modelP1, 'coop', modelP2);
+
+    const hsForm = document.getElementById('highscore-form');
+    if (hsForm) hsForm.style.display = 'none';
+    if (hsInput) hsInput.disabled = false;
+    if (hsBtn) {
+      hsBtn.disabled = false;
+      hsBtn.textContent = 'SPEICHERN';
+    }
+    if (waitingMsg) waitingMsg.style.display = 'none';
+
+    renderHighscores('coop');
   }
 }
 export function erzeugeExplosion(x, y, farbe, anzahl = 15) {
@@ -882,32 +1019,41 @@ export function getShipSVGContent(model, colorId) {
 export function setGameMode(mode) {
   state.gameMode = mode;
   const isCoop = mode === 'coop';
-  config.spielfeldBreite = isCoop ? 600 : 400;
+  const isOnline = mode === 'online';
+  const isMultiplayer = isCoop || isOnline;
+  config.spielfeldBreite = isMultiplayer ? 600 : 400;
 
   const btnSingle = document.getElementById('gamemode-btn-single');
   const btnCoop = document.getElementById('gamemode-btn-coop');
-  if (btnSingle) btnSingle.classList.toggle('active', !isCoop);
+  const btnOnline = document.getElementById('gamemode-btn-online');
+  if (btnSingle) btnSingle.classList.toggle('active', mode === 'single');
   if (btnCoop) btnCoop.classList.toggle('active', isCoop);
+  if (btnOnline) btnOnline.classList.toggle('active', isOnline);
 
   const spielfeld = dom.spielfeld || document.getElementById('spielfeld');
   if (spielfeld) {
-    spielfeld.classList.toggle('mode-coop', isCoop);
+    spielfeld.classList.toggle('mode-coop', isMultiplayer);
     spielfeld.style.width = config.spielfeldBreite + 'px';
   }
+
+  const onlineLobby = document.getElementById('online-lobby-container');
+  if (onlineLobby) onlineLobby.style.display = isOnline ? 'block' : 'none';
 
   const hangarTabs = document.getElementById('hangar-player-tabs');
   if (hangarTabs) hangarTabs.style.display = isCoop ? 'flex' : 'none';
 
   const infoSingle = document.getElementById('steuerung-info-single');
   const infoCoop = document.getElementById('steuerung-info-coop');
-  if (infoSingle) infoSingle.style.display = isCoop ? 'none' : 'block';
+  const infoOnline = document.getElementById('steuerung-info-online');
+  if (infoSingle) infoSingle.style.display = (mode === 'single') ? 'block' : 'none';
   if (infoCoop) infoCoop.style.display = isCoop ? 'block' : 'none';
+  if (infoOnline) infoOnline.style.display = isOnline ? 'block' : 'none';
 
   const uiP2 = dom.uiContainerP2 || document.getElementById('ui-container-p2');
-  if (uiP2) uiP2.style.display = (isCoop && state.spielLaeuft) ? 'flex' : 'none';
+  if (uiP2) uiP2.style.display = (isMultiplayer && state.spielLaeuft) ? 'flex' : 'none';
 
   const tagP1 = document.querySelector('.tag-p1');
-  if (tagP1) tagP1.style.display = isCoop ? 'block' : 'none';
+  if (tagP1) tagP1.style.display = isMultiplayer ? 'block' : 'none';
 
   if (typeof window.resizeGame === 'function') {
     window.resizeGame();
@@ -915,7 +1061,7 @@ export function setGameMode(mode) {
 
   updatePlayerShipVisuals();
 
-  // Bot-State zurücksetzen wenn Single-Player
+  // Bot-State zurücksetzen wenn nicht lokaler Co-op
   if (!isCoop) {
     state.p2IsBot = false;
     const botControls = document.getElementById('p2-bot-controls');
