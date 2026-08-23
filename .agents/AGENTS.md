@@ -33,7 +33,8 @@ Das Projekt ist in modular gegliederte ES-Module strukturiert:
 - **Host-Autorität:** Host berechnet Gegner, Bosse, Kollisionen, Powerups und sendet Snapshots.
 - **Client-Prediction:** Client berechnet seine eigene Schiffsbewegung lokal ohne Input-Lag.
 - **Zielgerichtete Events:** Schadens-Flashes, Treffer-Sounds und Powerup-Flashes werden nur für den betroffenen Spieler getriggert.
-- **Synchrone Aktionen:** Cutszenen-Skip (ESC) und Highscore-Eingabe (Kombination `AAA+BBB`) werden über DataChannels abgeglichen.
+- **Synchrone Aktionen:** Cutszenen-Skip (ESC), synchrone Bomben- & Raketen-Detonationen (`bomb_detonated`, `missile_detonated`, `target_destroyed`) und Highscore-Eingabe (Kombination `AAA+BBB`) werden über DataChannels abgeglichen.
+- **Rematch-Workflow:** Nach Spielende und Neustart bleibt die Verbindung bestehen; Host startet nächste Runde via `#btn-online-start` oder verlässt den Raum via `#btn-online-leave`.
 - **Cheat-Sperre:** Im Online-Modus sind Cheatcodes für alle Peers deaktiviert.
 
 ## Waffensysteme (Getrenntes Leveln bis Stufe 5)

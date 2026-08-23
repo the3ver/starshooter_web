@@ -2,8 +2,8 @@
 
 Ein klassisches "Space Shooter"-Browserspiel, das komplett **ohne HTML5-Canvas** auskommt und stattdessen die performante Positionierung und Transformation von DOM-Elementen (via `CSS position: absolute`, `transform` und inline SVG-Grafiken) nutzt.
 
-![Version](https://img.shields.io/badge/version-1.6.38-blue.svg)
-![Playwright Tests](https://img.shields.io/badge/tests-111%20passing-brightgreen.svg)
+![Version](https://img.shields.io/badge/version-1.6.41-blue.svg)
+![Playwright Tests](https://img.shields.io/badge/tests-113%20passing-brightgreen.svg)
 ![WebRTC Multiplayer](https://img.shields.io/badge/multiplayer-WebRTC%20P2P-orange.svg)
 
 ---
@@ -24,10 +24,12 @@ Kämpfe dich alleine durch endlose Wellen feindlicher Jäger, Asteroiden und gew
 - **Raum-Code System:** Ein Spieler erstellt einen Raum und erhält einen 5-stelligen Raum-Code. Der Mitspieler gibt diesen Code ein und beide sind sofort verbunden.
 - **Host/Client-Architektur:** Der Host simuliert Physik, Kollisionen und Gegner-Spawns, während der Client mit lokaler Client-Prediction verzögerungsfrei gesteuert wird.
 - **Volle Solo-Steuerung:** Jeder Spieler nutzt an seinem eigenen PC oder Mobilgerät die vertraute Solo-Steuerung.
-- **Synchronisation:**
+- **Synchronisation & Rematch:**
   - Synchroner Cutszenen-Abbruch mit `ESC`.
+  - Synchrone Bomben-, Raketen- und Boss-Detonationen mit vollen Schockwellen, Partikeln und Sounds auf beiden Rechnern.
   - Zielgerichtetes visuelles und akustisches Feedback (Schadens-Flash & Sound nur auf dem Rechner des getroffenen Spielers).
   - Gemeinsame Highscore-Eingabe (`AAA+BBB`) in die lokale 2-Spieler-Bestenliste beider Rechner.
+  - Nahtloses Rematch nach Spielende: Host startet direkt mit `[ 🚀 SPIEL STARTEN ]` die nächste Runde oder beendet den Raum mit `[ RAUM VERLASSEN ]`.
 
 ---
 
@@ -99,7 +101,7 @@ npx http-server src -p 8080 -c-1
 
 ### Automatisierte Tests (Playwright)
 ```bash
-# Alle 111 E2E-Tests ausführen
+# Alle 113 E2E-Tests ausführen
 npx playwright test
 ```
 
