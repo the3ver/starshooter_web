@@ -110,6 +110,72 @@
             box-shadow: 0 0 8px rgba(52, 152, 219, 0.35);
         }
 
+        /* Bot Controls */
+        #p2-bot-controls {
+            text-align: center;
+            margin-bottom: 8px;
+        }
+
+        .bot-toggle-btn {
+            background: rgba(26, 37, 47, 0.85);
+            border: 1.5px solid #34495e;
+            color: #95a5a6;
+            padding: 5px 16px;
+            font-size: 11px;
+            font-weight: bold;
+            letter-spacing: 1px;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            font-family: inherit;
+        }
+
+        .bot-toggle-btn:hover {
+            border-color: #9b59b6;
+            color: #ecf0f1;
+        }
+
+        .bot-toggle-btn.active {
+            background: linear-gradient(135deg, rgba(155, 89, 182, 0.3), rgba(52, 152, 219, 0.25));
+            border-color: #9b59b6;
+            color: #a29bfe;
+            box-shadow: 0 0 12px rgba(155, 89, 182, 0.5);
+            text-shadow: 0 0 6px rgba(155, 89, 182, 0.5);
+        }
+
+        #bot-difficulty-panel {
+            display: flex;
+            justify-content: center;
+            gap: 4px;
+            margin-top: 5px;
+        }
+
+        .bot-diff-btn {
+            background: rgba(26, 37, 47, 0.8);
+            border: 1px solid #34495e;
+            color: #7f8c8d;
+            padding: 3px 10px;
+            font-size: 9px;
+            font-weight: bold;
+            letter-spacing: 0.5px;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            font-family: inherit;
+        }
+
+        .bot-diff-btn:hover {
+            border-color: #a29bfe;
+            color: #ecf0f1;
+        }
+
+        .bot-diff-btn.active {
+            border-color: #9b59b6;
+            color: #a29bfe;
+            background: rgba(155, 89, 182, 0.2);
+            box-shadow: 0 0 6px rgba(155, 89, 182, 0.3);
+        }
+
         .steuerung-coop-grid {
             display: grid;
             grid-template-columns: 1fr 1fr;

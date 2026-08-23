@@ -1,6 +1,15 @@
-export const GAME_VERSION = '1.6.24';
+export const GAME_VERSION = '1.6.25';
 
 export const changelogData = {
+  '1.6.25': {
+    version: '1.6.25',
+    intro: 'Hey, es ist jetzt Version 1.6.25 rausgekommen, folgendes wurde hinzugefügt und verbessert:',
+    highlights: [
+      '🤖 KI Bot-Partner im 2-Spieler Co-op: Spieler 2 kann nun komplett vom Computer gesteuert werden — inklusive eigenständigem Ausweichen, Powerup-Sammeln und Angreifen!',
+      '⚙️ 3 Bot-Schwierigkeitsgrade: Wähle im Hangar zwischen EASY, NORMAL und HARD für feinjustierte Reaktionszeiten und Zielpräzision',
+      '💥 Taktischer Waffen-Einsatz: Der Bot feuert Laser und Raketen zielsicher ab und zündet Bomben bei großen Feindansammlungen'
+    ]
+  },
   '1.6.24': {
     version: '1.6.24',
     intro: 'Hey, es ist jetzt Version 1.6.24 rausgekommen, folgendes wurde verbessert:',

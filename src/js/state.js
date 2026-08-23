@@ -117,6 +117,8 @@ export const state = {
     phantomSchildRegenTimer: 0, phantomSchildRegenMax: 900,
     joystick: { x: 0, y: 0, active: false },
     gameMode: 'single', // 'single' | 'coop'
+    p2IsBot: false,
+    p2BotDifficulty: 'normal', // 'easy' | 'normal' | 'hard'
     activeHangarPlayer: 'p1', // 'p1' | 'p2'
     selectedShipModel: 'viper',
     selectedShipColor: 'red',

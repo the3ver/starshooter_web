@@ -3,7 +3,7 @@ const { test, expect } = require('@playwright/test');
 test.beforeEach(async ({ page }) => {
   // Standardmäßig als bereits gesehen markieren, damit die Tests direkt interagieren können
   await page.addInitScript(() => {
-    localStorage.setItem('starshooter_last_seen_version', '1.6.23');
+    localStorage.setItem('starshooter_last_seen_version', '1.6.25');
     localStorage.setItem('starshooter_skip_cutscene', 'true');
   });
   await page.goto('/');
@@ -899,7 +899,7 @@ test.describe('Was gibt es Neues Modal (Changelog)', () => {
     await expect(title).toContainText("WAS GIBT'S NEUES");
 
     const intro = page.locator('#whats-new-intro');
-    await expect(intro).toContainText('1.6.23');
+    await expect(intro).toContainText('1.6.25');
 
     const items = page.locator('#whats-new-list li');
     await expect(items).toHaveCount(3);
@@ -912,7 +912,7 @@ test.describe('Was gibt es Neues Modal (Changelog)', () => {
 
     // Prüfen, dass localStorage aktualisiert wurde
     const storedVersion = await page.evaluate(() => localStorage.getItem('starshooter_last_seen_version'));
-    expect(storedVersion).toBe('1.6.23');
+    expect(storedVersion).toBe('1.6.25');
 
     // Erneut öffnen über Start-Screen Button
     const openBtn = page.locator('#btn-open-whats-new');
@@ -3992,8 +3992,386 @@ test.describe('2-Spieler-Modus (Co-op)', () => {
 });
 
 
+test.describe('Bot-Partner', () => {
 
+  test('Bot-Toggle erscheint im Coop-Modus bei P2-Tab und setzt p2IsBot', async ({ page }) => {
+    // What's New Overlay schließen falls es erscheint
+    const whatsNewOverlay = page.locator('#whats-new-overlay');
+    if (await whatsNewOverlay.isVisible()) {
+      await page.click('#btn-close-whats-new');
+      await expect(whatsNewOverlay).toBeHidden();
+    }
 
+    // Bot-Controls sind initial nicht sichtbar
+    const botControls = page.locator('#p2-bot-controls');
+    await expect(botControls).toBeHidden();
+
+    // Coop-Modus aktivieren
+    await page.click('#gamemode-btn-coop');
+
+    // P2-Tab anklicken
+    await page.click('.hangar-player-tab[data-player="p2"]');
+
+    // Bot-Controls sind jetzt sichtbar
+    await expect(botControls).toBeVisible();
+
+    // Bot-Toggle Button existiert und hat korrekten Initialtext
+    const botToggle = page.locator('#btn-p2-bot-toggle');
+    await expect(botToggle).toBeVisible();
+    await expect(botToggle).toContainText('BOT');
+
+    // p2IsBot ist initial false
+    let p2IsBot = await page.evaluate(() => {
+      const mod = window.__gameState || null;
+      if (mod) return mod.p2IsBot;
+      // Fallback: direkt im ES-Modul nachschauen
+      return document.querySelector('#btn-p2-bot-toggle').classList.contains('active');
+    });
+    expect(p2IsBot).toBe(false);
+
+    // Klick auf Bot-Toggle
+    await botToggle.click();
+
+    // Button hat jetzt 'active' Klasse
+    await expect(botToggle).toHaveClass(/active/);
+    await expect(botToggle).toContainText('BOT AKTIV');
+
+    // Difficulty-Panel ist jetzt sichtbar
+    const diffPanel = page.locator('#bot-difficulty-panel');
+    await expect(diffPanel).toBeVisible();
+
+    // Normal ist default-aktiv
+    const normalBtn = page.locator('.bot-diff-btn[data-diff="normal"]');
+    await expect(normalBtn).toHaveClass(/active/);
+
+    // Klick auf Hard
+    const hardBtn = page.locator('.bot-diff-btn[data-diff="hard"]');
+    await hardBtn.click();
+    await expect(hardBtn).toHaveClass(/active/);
+    await expect(normalBtn).not.toHaveClass(/active/);
+
+    // Zurück auf Single-Player: Bot-Controls verschwinden + State wird zurückgesetzt
+    await page.click('#gamemode-btn-single');
+    await expect(botControls).toBeHidden();
+    await expect(botToggle).not.toHaveClass(/active/);
+  });
+
+  test('Bot bewegt sich auf einen Feind zu', async ({ page }) => {
+    // What's New Overlay schließen
+    const btnClose = page.locator('#btn-close-whats-new');
+    await btnClose.click({ timeout: 3000 }).catch(() => {});
+    await page.waitForTimeout(200);
+
+    // Coop-Modus aktivieren + Bot aktivieren
+    await page.click('#gamemode-btn-coop');
+    await page.click('.hangar-player-tab[data-player="p2"]');
+    await page.click('#btn-p2-bot-toggle');
+
+    // Spiel starten
+    await page.keyboard.down('w');
+    await page.waitForTimeout(50);
+    await page.keyboard.up('w');
+
+    // Warten bis Cutscene vorbei und Spiel läuft
+    await page.waitForFunction(() => {
+      const mod = window.__game;
+      if (mod && mod.state) return mod.state.spielLaeuft;
+      // Fallback: Prüfe ob Spieler sichtbar
+      const spieler = document.getElementById('spieler');
+      return spieler && spieler.style.display !== 'none';
+    }, null, { timeout: 5000 });
+
+    // P2 Startposition erfassen und Feind direkt über P2 spawnen
+    const startPos = await page.evaluate(() => {
+      const mod = window.__game;
+      const s = mod ? mod.state : null;
+      if (!s || !s.p2) return null;
+
+      // Feind links von P2 spawnen, damit Bot sich dorthin bewegen muss
+      const feindX = s.p2.x - 100;
+      if (mod && mod.Entities) {
+        mod.Entities.erzeugeFeind(feindX, 50, 'stop_and_go', 0);
+      }
+      return { x: s.p2.x, y: s.p2.y, feindX: feindX };
+    });
+
+    // Einige Frames warten, damit der Bot reagiert
+    await page.waitForTimeout(500);
+
+    // Prüfen, dass P2 sich in Richtung des Feindes bewegt hat
+    const endPos = await page.evaluate(() => {
+      const mod = window.__game;
+      if (!mod || !mod.state || !mod.state.p2) return null;
+      return { x: mod.state.p2.x, y: mod.state.p2.y };
+    });
+
+    expect(startPos).toBeTruthy();
+    expect(endPos).toBeTruthy();
+    // Bot soll sich nach links bewegt haben (Richtung Feind)
+    expect(endPos.x).toBeLessThan(startPos.x);
+  });
+
+  test('Bot feuert Laser wenn Feind im Korridor', async ({ page }) => {
+    // Coop-Modus aktivieren + Bot aktivieren
+    await page.click('#gamemode-btn-coop');
+    await page.click('.hangar-player-tab[data-player="p2"]');
+    await page.click('#btn-p2-bot-toggle');
+
+    // Spiel starten
+    await page.keyboard.down('w');
+    await page.waitForTimeout(50);
+    await page.keyboard.up('w');
+
+    // Warten bis Spiel läuft
+    await page.waitForFunction(() => {
+      const mod = window.__game;
+      return mod && mod.state && mod.state.spielLaeuft;
+    }, null, { timeout: 5000 });
+
+    // Feind direkt über P2 spawnen
+    await page.evaluate(() => {
+      const mod = window.__game;
+      const s = mod.state;
+      // Feind genau in P2-Korridor platzieren
+      mod.Entities.erzeugeFeind(s.p2.x, 50, 'stop_and_go', 0);
+    });
+
+    // Kurz warten, damit der Bot reagiert und schießt
+    await page.waitForTimeout(300);
+
+    const laserFired = await page.evaluate(() => {
+      const mod = window.__game;
+      const s = mod.state;
+      return s.p2.laserSchiesst || s.p2.botFireLaser || (s.p2.energie < s.p2.maxEnergie);
+    });
+
+    expect(laserFired).toBe(true);
+  });
+
+  test('Bot weicht Asteroid aus', async ({ page }) => {
+    // Coop-Modus aktivieren + Bot aktivieren
+    await page.click('#gamemode-btn-coop');
+    await page.click('.hangar-player-tab[data-player="p2"]');
+    await page.click('#btn-p2-bot-toggle');
+
+    // Spiel starten
+    await page.keyboard.down('w');
+    await page.waitForTimeout(50);
+    await page.keyboard.up('w');
+
+    // Warten bis Spiel läuft
+    await page.waitForFunction(() => {
+      const mod = window.__game;
+      return mod && mod.state && mod.state.spielLaeuft;
+    }, null, { timeout: 5000 });
+
+    // Asteroid nahe P2 rechts spawnen
+    const initialData = await page.evaluate(() => {
+      const mod = window.__game;
+      const s = mod.state;
+      const startX = s.p2.x;
+      const startY = s.p2.y;
+      // Asteroid 40px rechts und leicht oberhalb von P2 spawnen
+      mod.Entities.erzeugeAsteroid(startX + 40, startY - 30);
+      return { startX, startY };
+    });
+
+    // Kurz warten, damit der Bot ausweicht
+    await page.waitForTimeout(300);
+
+    const endX = await page.evaluate(() => {
+      const mod = window.__game;
+      return mod.state.p2.x;
+    });
+
+    // Der Bot sollte nach links ausgewichen sein (weg vom Asteroiden)
+    expect(endX).toBeLessThan(initialData.startX);
+  });
+
+  test('Bot steuert auf nahe Powerups zu', async ({ page }) => {
+    // Coop-Modus aktivieren + Bot aktivieren
+    await page.click('#gamemode-btn-coop');
+    await page.click('.hangar-player-tab[data-player="p2"]');
+    await page.click('#btn-p2-bot-toggle');
+
+    // Spiel starten
+    await page.keyboard.down('w');
+    await page.waitForTimeout(50);
+    await page.keyboard.up('w');
+
+    // Warten bis Spiel läuft
+    await page.waitForFunction(() => {
+      const mod = window.__game;
+      return mod && mod.state && mod.state.spielLaeuft;
+    }, null, { timeout: 5000 });
+
+    // Vorherige Entitäten aufräumen und Powerup rechts von P2 spawnen
+    const initialData = await page.evaluate(() => {
+      const mod = window.__game;
+      mod.arrays.feinde.forEach(f => f.el.remove());
+      mod.arrays.feinde.length = 0;
+      mod.arrays.asteroiden.forEach(a => a.el.remove());
+      mod.arrays.asteroiden.length = 0;
+
+      const s = mod.state;
+      const startX = s.p2.x;
+      const startY = s.p2.y;
+      // Powerup 80px rechts von P2 platzieren
+      mod.Entities.erzeugePowerup(startX + 80, startY - 20, 'schild');
+      return { startX, startY };
+    });
+
+    // Kurz warten, damit der Bot sich zum Powerup bewegt
+    await page.waitForTimeout(400);
+
+    const endX = await page.evaluate(() => {
+      const mod = window.__game;
+      return mod.state.p2.x;
+    });
+
+    // P2 sollte sich nach rechts bewegt haben (Richtung Powerup)
+    expect(endX).toBeGreaterThan(initialData.startX);
+  });
+
+  test('Bot feuert Raketen bei nahen Feinden und Bomben bei Feindansammlungen', async ({ page }) => {
+    // Coop-Modus aktivieren + Bot aktivieren
+    await page.click('#gamemode-btn-coop');
+    await page.click('.hangar-player-tab[data-player="p2"]');
+    await page.click('#btn-p2-bot-toggle');
+
+    // Spiel starten
+    await page.keyboard.down('w');
+    await page.waitForTimeout(50);
+    await page.keyboard.up('w');
+
+    // Warten bis Spiel läuft
+    await page.waitForFunction(() => {
+      const mod = window.__game;
+      return mod && mod.state && mod.state.spielLaeuft;
+    }, null, { timeout: 5000 });
+
+    // 1. Raketen-Test: Feind in Raketen-Reichweite spawnen (<120px)
+    await page.evaluate(() => {
+      const mod = window.__game;
+      mod.state.p2.raketenCooldown = 0;
+      mod.Entities.erzeugeFeind(mod.state.p2.x, mod.state.p2.y - 80, 'stop_and_go', 0);
+    });
+
+    await page.waitForTimeout(300);
+
+    const raketeFired = await page.evaluate(() => {
+      const mod = window.__game;
+      return mod.state.p2.raketenCooldown > 0 || mod.arrays.raketenArray.some(r => r.pKey === 'p2');
+    });
+    expect(raketeFired).toBe(true);
+
+    // 2. Bomben-Test: 3 Feinde spawnen + Bomben-Cooldown zurücksetzen
+    await page.evaluate(() => {
+      const mod = window.__game;
+      mod.state.p2.bombenCooldown = 0;
+      mod.Entities.erzeugeFeind(100, 100, 'stop_and_go', 0);
+      mod.Entities.erzeugeFeind(200, 100, 'stop_and_go', 0);
+      mod.Entities.erzeugeFeind(300, 100, 'stop_and_go', 0);
+    });
+
+    await page.waitForTimeout(300);
+
+    const bombeFired = await page.evaluate(() => {
+      const mod = window.__game;
+      return mod.state.p2.bombenCooldown > 0 || mod.arrays.bombenArray.some(b => b.pKey === 'p2');
+    });
+    expect(bombeFired).toBe(true);
+  });
+
+  test('Bot-Schwierigkeitsgrade (Easy vs Hard) beeinflussen Ausweichradius', async ({ page }) => {
+    // Coop-Modus aktivieren + Bot aktivieren + Hard auswählen
+    await page.click('#gamemode-btn-coop');
+    await page.click('.hangar-player-tab[data-player="p2"]');
+    await page.click('#btn-p2-bot-toggle');
+    await page.click('.bot-diff-btn[data-diff="hard"]');
+
+    // Spiel starten
+    await page.keyboard.down('w');
+    await page.waitForTimeout(50);
+    await page.keyboard.up('w');
+
+    // Warten bis Spiel läuft
+    await page.waitForFunction(() => {
+      const mod = window.__game;
+      return mod && mod.state && mod.state.spielLaeuft;
+    }, null, { timeout: 5000 });
+
+    // Hard-Bot sollte Asteroid auf 90px Distanz erkennen (dodgeRadius=100)
+    const initialData = await page.evaluate(() => {
+      const mod = window.__game;
+      const s = mod.state;
+      const startX = s.p2.x;
+      const startY = s.p2.y;
+      // Asteroid 90px rechts spawnen
+      mod.Entities.erzeugeAsteroid(startX + 90, startY);
+      return { startX, startY };
+    });
+
+    await page.waitForTimeout(300);
+
+    const endX = await page.evaluate(() => {
+      const mod = window.__game;
+      return mod.state.p2.x;
+    });
+
+    // Hard-Bot weicht nach links aus
+    expect(endX).toBeLessThan(initialData.startX);
+  });
+
+  test('Bot hält im Idle-Zustand Formation mit Spieler 1', async ({ page }) => {
+    // Coop-Modus aktivieren + Bot aktivieren
+    await page.click('#gamemode-btn-coop');
+    await page.click('.hangar-player-tab[data-player="p2"]');
+    await page.click('#btn-p2-bot-toggle');
+
+    // Spiel starten
+    await page.keyboard.down('w');
+    await page.waitForTimeout(50);
+    await page.keyboard.up('w');
+
+    // Warten bis Spiel läuft
+    await page.waitForFunction(() => {
+      const mod = window.__game;
+      return mod && mod.state && mod.state.spielLaeuft;
+    }, null, { timeout: 5000 });
+
+    // Alle Entitäten wegräumen und P1 / P2 gezielt positionieren
+    const initialData = await page.evaluate(() => {
+      const mod = window.__game;
+      mod.arrays.feinde.forEach(f => f.el.remove());
+      mod.arrays.feinde.length = 0;
+      mod.arrays.asteroiden.forEach(a => a.el.remove());
+      mod.arrays.asteroiden.length = 0;
+      mod.arrays.powerups.forEach(p => { if (p.el) p.el.remove(); });
+      mod.arrays.powerups.length = 0;
+
+      // P1 auf x=100 setzen, P2 auf x=400 (weit rechts)
+      mod.state.x = 100;
+      mod.state.y = 300;
+      mod.state.p2.x = 400;
+      mod.state.p2.y = 300;
+
+      return { p2StartX: mod.state.p2.x };
+    });
+
+    // Kurz warten, damit der Bot sich in Richtung P1-Formation bewegt
+    await page.waitForTimeout(400);
+
+    const endX = await page.evaluate(() => {
+      const mod = window.__game;
+      return mod.state.p2.x;
+    });
+
+    // P2 sollte sich nach links (Richtung P1-Formation bei x=150) bewegt haben
+    expect(endX).toBeLessThan(initialData.p2StartX);
+  });
+
+});
 
 
 

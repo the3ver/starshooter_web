@@ -911,6 +911,20 @@ export function setGameMode(mode) {
   }
 
   updatePlayerShipVisuals();
+
+  // Bot-State zurücksetzen wenn Single-Player
+  if (!isCoop) {
+    state.p2IsBot = false;
+    const botControls = document.getElementById('p2-bot-controls');
+    if (botControls) botControls.style.display = 'none';
+    const btnBotToggle = document.getElementById('btn-p2-bot-toggle');
+    if (btnBotToggle) {
+      btnBotToggle.classList.remove('active');
+      btnBotToggle.textContent = '🤖 BOT';
+    }
+    const diffPanel = document.getElementById('bot-difficulty-panel');
+    if (diffPanel) diffPanel.style.display = 'none';
+  }
 }
 
 export function updatePlayerShipVisuals() {
@@ -969,6 +983,12 @@ export function updatePlayerShipVisuals() {
   document.querySelectorAll('.hangar-color-btn').forEach(btn => {
     btn.classList.toggle('active', btn.getAttribute('data-color') === activeHangarColor);
   });
+
+  // Bot-Controls Sichtbarkeit
+  const botControls = document.getElementById('p2-bot-controls');
+  if (botControls) {
+    botControls.style.display = (state.gameMode === 'coop' && isP2Hangar) ? 'block' : 'none';
+  }
 
   updateRaketenWerferVisuals();
 }

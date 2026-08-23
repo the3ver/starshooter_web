@@ -8,6 +8,9 @@ import * as Changelog from './changelog.js';
 
 export { state, dom, config, arrays, Utils, Entities, Audio };
 
+// Expose for test access
+window.__game = { state, dom, config, arrays, Utils, Entities, Audio };
+
 document.addEventListener('DOMContentLoaded', () => {
     Audio.initSoundState();
     const btnSoundToggle = document.getElementById('btn-sound-toggle');
@@ -150,6 +153,27 @@ document.addEventListener('DOMContentLoaded', () => {
                 state.selectedShipColor = colorId;
             }
             Utils.updatePlayerShipVisuals();
+        });
+    });
+
+    // Bot-Partner Controls
+    const btnBotToggle = document.getElementById('btn-p2-bot-toggle');
+    if (btnBotToggle) {
+        btnBotToggle.addEventListener('click', (e) => {
+            e.stopPropagation();
+            state.p2IsBot = !state.p2IsBot;
+            const diffPanel = document.getElementById('bot-difficulty-panel');
+            if (diffPanel) diffPanel.style.display = state.p2IsBot ? 'flex' : 'none';
+            btnBotToggle.classList.toggle('active', state.p2IsBot);
+            btnBotToggle.textContent = state.p2IsBot ? '🤖 BOT AKTIV' : '🤖 BOT';
+        });
+    }
+    document.querySelectorAll('.bot-diff-btn').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            state.p2BotDifficulty = btn.getAttribute('data-diff');
+            document.querySelectorAll('.bot-diff-btn').forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
         });
     });
 

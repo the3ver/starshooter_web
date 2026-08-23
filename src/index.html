@@ -89,6 +89,14 @@
                         <button type="button" class="hangar-player-tab active" data-player="p1">SPIELER 1</button>
                         <button type="button" class="hangar-player-tab" data-player="p2">SPIELER 2</button>
                     </div>
+                    <div id="p2-bot-controls" style="display: none;">
+                        <button type="button" id="btn-p2-bot-toggle" class="bot-toggle-btn">🤖 BOT</button>
+                        <div id="bot-difficulty-panel" style="display: none;">
+                            <button type="button" class="bot-diff-btn" data-diff="easy">EASY</button>
+                            <button type="button" class="bot-diff-btn active" data-diff="normal">NORMAL</button>
+                            <button type="button" class="bot-diff-btn" data-diff="hard">HARD</button>
+                        </div>
+                    </div>
                     <div class="hangar-preview-box">
                         <div class="hangar-ship-display">
                             <svg id="hangar-preview-svg" viewBox="0 0 30 30"></svg>
@@ -169,7 +177,7 @@
             <button id="btn-sound-toggle" class="sound-toggle-btn" title="Sound stummschalten (M)" aria-label="Sound stummschalten (M)">🔊</button>
             <div id="score-anzeige">00000</div>
             <div id="level-anzeige">LEVEL 1</div>
-            <div id="version-anzeige">V 1.6.23</div>
+            <div id="version-anzeige">V 1.6.25</div>
             
             <div id="boss-hp-container">
                 <div id="boss-hp-balken"></div>

@@ -5,6 +5,7 @@ import * as Entities from './entities.js';
 import * as Input from './input.js';
 import * as Audio from './audio.js';
 import * as Cutscene from './cutscene.js';
+import * as Bot from './bot.js';
 
 
 export function verwalteFeindSpawns() {
@@ -232,21 +233,37 @@ export function gameLoop() {
       const towedCountP2 = arrays.powerups.filter(p => p.towedBy === 'p2').length;
       const speedMultP2 = Math.max(0.1, 1.0 - 0.10 * towedCountP2);
       const p2Speed = ((shipModels && shipModels[state.p2.selectedShipModel]?.speed) || config.geschwindigkeit) * speedMultP2;
-      if (state.tastenGedrueckt.arrowup) {
-        state.p2.y -= p2Speed;
-        baseFlameScaleP2 = 1.8;
-      }
-      if (state.tastenGedrueckt.arrowdown) {
-        state.p2.y += p2Speed;
-        baseFlameScaleP2 = 0.4;
-      }
-      if (state.tastenGedrueckt.arrowleft) {
-        state.p2.x -= p2Speed;
-        targetRotateP2 = -15;
-      }
-      if (state.tastenGedrueckt.arrowright) {
-        state.p2.x += p2Speed;
-        targetRotateP2 = 15;
+
+      if (state.p2IsBot) {
+        // Bot-KI steuert P2
+        const prevBotX = state.p2.x;
+        const prevBotY = state.p2.y;
+        Bot.updateBot();
+        // Flammen/Rotation aus Bot-Bewegung ableiten
+        const botDy = state.p2.y - prevBotY;
+        const botDx = state.p2.x - prevBotX;
+        if (botDy < -0.5) baseFlameScaleP2 = 1.8;
+        else if (botDy > 0.5) baseFlameScaleP2 = 0.4;
+        if (botDx < -0.5) targetRotateP2 = -15;
+        else if (botDx > 0.5) targetRotateP2 = 15;
+      } else {
+        // Menschliche Steuerung via Arrow-Keys
+        if (state.tastenGedrueckt.arrowup) {
+          state.p2.y -= p2Speed;
+          baseFlameScaleP2 = 1.8;
+        }
+        if (state.tastenGedrueckt.arrowdown) {
+          state.p2.y += p2Speed;
+          baseFlameScaleP2 = 0.4;
+        }
+        if (state.tastenGedrueckt.arrowleft) {
+          state.p2.x -= p2Speed;
+          targetRotateP2 = -15;
+        }
+        if (state.tastenGedrueckt.arrowright) {
+          state.p2.x += p2Speed;
+          targetRotateP2 = 15;
+        }
       }
 
       if (state.p2.x < 0) state.p2.x = 0;
@@ -371,7 +388,7 @@ export function gameLoop() {
   // --- 9.4 ENERGIE SPIELER 2 (Co-op) ---
   let laserAktivP2 = false;
   if (state.gameMode === 'coop' && state.p2 && !state.p2.isDead) {
-    const p2LaserKey = state.tastenGedrueckt.ä || state.tastenGedrueckt.numpad1 || state.tastenGedrueckt['.'];
+    const p2LaserKey = state.p2IsBot ? (state.p2.botFireLaser || false) : (state.tastenGedrueckt.ä || state.tastenGedrueckt.numpad1 || state.tastenGedrueckt['.']);
     if (p2LaserKey) {
       if (!state.p2.laserSchiesst && state.p2.energie >= state.p2.minZuendEnergie) state.p2.laserSchiesst = true;
       if (state.p2.energie <= 0) state.p2.laserSchiesst = false;
@@ -1665,7 +1682,7 @@ export function gameLoop() {
 
     const isTriggered = pKey === 'p1'
       ? (state.gameMode === 'coop' ? state.tastenGedrueckt.v : (state.tastenGedrueckt.k || state.tastenGedrueckt.v))
-      : (state.tastenGedrueckt.ö || state.tastenGedrueckt.numpad2 || state.tastenGedrueckt[',']);
+      : (state.p2IsBot ? (state.p2.botFireRakete || false) : (state.tastenGedrueckt.ö || state.tastenGedrueckt.numpad2 || state.tastenGedrueckt[',']));
 
     if (isTriggered && pState.raketenCooldown <= 0) {
       pState.raketenCooldown = maxRaketenCd;
@@ -1982,7 +1999,7 @@ export function gameLoop() {
 
     const isTriggered = pKey === 'p1'
       ? (state.gameMode === 'coop' ? state.tastenGedrueckt.c : (state.tastenGedrueckt[' '] || state.tastenGedrueckt.c))
-      : (state.tastenGedrueckt.l || state.tastenGedrueckt.enter || state.tastenGedrueckt.numpad3 || state.tastenGedrueckt.numpad0);
+      : (state.p2IsBot ? (state.p2.botFireBombe || false) : (state.tastenGedrueckt.l || state.tastenGedrueckt.enter || state.tastenGedrueckt.numpad3 || state.tastenGedrueckt.numpad0));
 
     if (isTriggered && pState.bombenCooldown <= 0) {
       pState.bombenCooldown = maxBombenCd;
