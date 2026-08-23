@@ -1,6 +1,13 @@
-export const GAME_VERSION = '1.6.36';
+export const GAME_VERSION = '1.6.37';
 
 export const changelogData = {
+  '1.6.37': {
+    version: '1.6.37',
+    intro: 'Hey, es ist jetzt Version 1.6.37 rausgekommen, folgendes wurde behoben:',
+    highlights: [
+      '🎨 Online-Lobby Layout optimiert: Das Raumcode-Eingabefeld wurde kompakt auf 5 Zeichen angepasst und der Beitreten-Button schließt sauber bündig ohne Überstand ab'
+    ]
+  },
   '1.6.36': {
     version: '1.6.36',
     intro: 'Hey, es ist jetzt Version 1.6.36 rausgekommen, folgendes wurde behoben:',
