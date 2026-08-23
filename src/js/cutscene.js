@@ -650,6 +650,7 @@ function endCutsceneAndStartGame(instant = false) {
         Utils.updateAktivePowerupsUI();
     }
 
+    state.isDead = false;
     state.x = isCoop ? 200 : 185;
     dom.spieler.style.left = state.x + 'px';
     dom.spieler.style.display = 'block';

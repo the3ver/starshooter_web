@@ -1,6 +1,13 @@
-export const GAME_VERSION = '1.6.25';
+export const GAME_VERSION = '1.6.26';
 
 export const changelogData = {
+  '1.6.26': {
+    version: '1.6.26',
+    intro: 'Hey, es ist jetzt Version 1.6.26 rausgekommen, folgendes wurde behoben:',
+    highlights: [
+      '🕹️ Fix für Spieler 1 Steuerung: Nach einem Game Over im 2-Spieler Modus lässt sich Spieler 1 nach dem Neustart nun wieder wie gewohnt mit voller Kontrolle steuern'
+    ]
+  },
   '1.6.25': {
     version: '1.6.25',
     intro: 'Hey, es ist jetzt Version 1.6.25 rausgekommen, folgendes wurde hinzugefügt und verbessert:',

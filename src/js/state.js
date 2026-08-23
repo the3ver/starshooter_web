@@ -102,6 +102,7 @@ export const state = {
     bombenStufe: 1, bombenCooldown: 0, frameZaehler: 0, spielLaeuft: false, cutsceneAktiv: false,
     feindSpawnZeit: 1200, bossKampfAktiv: false,
     splitterRot: 0, splitterWeiss: 0, viperKillCount: 0,
+    isDead: false,
     tastenGedrueckt: {
         w: false, a: false, s: false, d: false,
         l: false, k: false, ' ': false,

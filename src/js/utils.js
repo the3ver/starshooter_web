@@ -4,6 +4,7 @@ import * as Entities from './entities.js';
 import * as Input from './input.js';
 import * as Loop from './loop.js';
 import * as Audio from './audio.js';
+import * as Bot from './bot.js';
 
 
 export function addScore(punkte) {
@@ -570,6 +571,8 @@ export function restartGame() {
   state.splitterRot = 0;
   state.splitterWeiss = 0;
   state.viperKillCount = 0;
+  state.isDead = false;
+  Bot.resetBot();
   updateLebenUI();
   updateMaxEnergieMarker();
   updateAktivePowerupsUI();

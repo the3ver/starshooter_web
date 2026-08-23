@@ -3,7 +3,7 @@ const { test, expect } = require('@playwright/test');
 test.beforeEach(async ({ page }) => {
   // Standardmäßig als bereits gesehen markieren, damit die Tests direkt interagieren können
   await page.addInitScript(() => {
-    localStorage.setItem('starshooter_last_seen_version', '1.6.25');
+    localStorage.setItem('starshooter_last_seen_version', '1.6.26');
     localStorage.setItem('starshooter_skip_cutscene', 'true');
   });
   await page.goto('/');
@@ -899,10 +899,10 @@ test.describe('Was gibt es Neues Modal (Changelog)', () => {
     await expect(title).toContainText("WAS GIBT'S NEUES");
 
     const intro = page.locator('#whats-new-intro');
-    await expect(intro).toContainText('1.6.25');
+    await expect(intro).toContainText('1.6.26');
 
     const items = page.locator('#whats-new-list li');
-    await expect(items).toHaveCount(3);
+    await expect(items).toHaveCount(1);
 
     // Schließen
     const closeBtn = page.locator('#btn-close-whats-new');
@@ -912,7 +912,7 @@ test.describe('Was gibt es Neues Modal (Changelog)', () => {
 
     // Prüfen, dass localStorage aktualisiert wurde
     const storedVersion = await page.evaluate(() => localStorage.getItem('starshooter_last_seen_version'));
-    expect(storedVersion).toBe('1.6.25');
+    expect(storedVersion).toBe('1.6.26');
 
     // Erneut öffnen über Start-Screen Button
     const openBtn = page.locator('#btn-open-whats-new');
@@ -4369,6 +4369,65 @@ test.describe('Bot-Partner', () => {
 
     // P2 sollte sich nach links (Richtung P1-Formation bei x=150) bewegt haben
     expect(endX).toBeLessThan(initialData.p2StartX);
+  });
+
+  test('Nach Tod von Spieler 1 im 2-Spieler Modus und Neustart lässt sich Spieler 1 wieder steuern', async ({ page }) => {
+    // Coop-Modus aktivieren + Bot aktivieren
+    await page.click('#gamemode-btn-coop');
+    await page.click('.hangar-player-tab[data-player="p2"]');
+    await page.click('#btn-p2-bot-toggle');
+
+    // Runde 1 starten
+    await page.keyboard.down('w');
+    await page.waitForTimeout(50);
+    await page.keyboard.up('w');
+
+    // Warten bis Spiel läuft
+    await page.waitForFunction(() => {
+      const mod = window.__game;
+      return mod && mod.state && mod.state.spielLaeuft;
+    }, null, { timeout: 5000 });
+
+    // Spieler 1 stirbt zuerst (isDead = true), dann auch P2 -> Game Over
+    await page.evaluate(() => {
+      const mod = window.__game;
+      mod.state.leben = 0;
+      mod.state.isDead = true;
+      mod.state.p2.leben = 0;
+      mod.state.p2.isDead = true;
+      mod.Utils.triggerGameOver();
+    });
+
+    // Game-Over Screen sichtbar
+    const btnRestart = page.locator('#btn-restart');
+    await expect(btnRestart).toBeVisible();
+
+    // Neustart anklicken
+    await btnRestart.click();
+
+    // Runde 2 starten
+    await page.keyboard.down('w');
+    await page.waitForTimeout(50);
+    await page.keyboard.up('w');
+
+    // Warten bis Spiel 2 läuft
+    await page.waitForFunction(() => {
+      const mod = window.__game;
+      return mod && mod.state && mod.state.spielLaeuft;
+    }, null, { timeout: 5000 });
+
+    // Startposition von P1 erfassen
+    const startX = await page.evaluate(() => window.__game.state.x);
+
+    // Taste D drücken, um sich nach rechts zu bewegen
+    await page.keyboard.down('d');
+    await page.waitForTimeout(300);
+    await page.keyboard.up('d');
+
+    const endX = await page.evaluate(() => window.__game.state.x);
+
+    // Spieler 1 muss sich nach rechts bewegt haben (endX > startX)
+    expect(endX).toBeGreaterThan(startX);
   });
 
 });
