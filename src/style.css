@@ -2033,6 +2033,110 @@
         .hangar-color-btn.color-yellow { background: radial-gradient(circle, #f1c40f, #d35400); }
         .hangar-color-btn.color-purple { background: radial-gradient(circle, #9b59b6, #8e44ad); }
 
+        /* Online Lobby */
+        .online-lobby {
+            background: rgba(11, 19, 25, 0.85);
+            border: 1px solid #1abc9c;
+            border-radius: 8px;
+            padding: 10px 14px;
+            margin: 10px 0;
+            box-shadow: 0 0 15px rgba(26, 188, 156, 0.2);
+        }
+
+        .online-lobby-header {
+            font-size: 11px;
+            letter-spacing: 1px;
+            color: #1abc9c;
+            font-weight: bold;
+            margin-bottom: 8px;
+            text-align: center;
+        }
+
+        .online-lobby-actions {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
+        }
+
+        .online-action-btn {
+            font-family: inherit;
+            font-weight: bold;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            text-transform: uppercase;
+        }
+
+        .online-action-btn.host-btn {
+            background: rgba(26, 188, 156, 0.2);
+            border: 1px solid #1abc9c;
+            color: #1abc9c;
+            padding: 6px 10px;
+            font-size: 11px;
+        }
+
+        .online-action-btn.host-btn:hover {
+            background: rgba(26, 188, 156, 0.4);
+            box-shadow: 0 0 10px rgba(26, 188, 156, 0.5);
+        }
+
+        .online-action-btn.start-online-match-btn {
+            animation: pulseGlow 1.5s infinite;
+        }
+
+        .online-action-btn.leave-btn:hover {
+            background: rgba(231, 76, 60, 0.4) !important;
+            box-shadow: 0 0 10px rgba(231, 76, 60, 0.5);
+        }
+
+        .online-divider {
+            color: #7f8c8d;
+            font-size: 9px;
+            padding: 0 2px;
+        }
+
+        .online-join-row {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        }
+
+        .online-input {
+            background: rgba(0, 0, 0, 0.6);
+            border: 1px solid #3498db;
+            color: #ecf0f1;
+            font-family: inherit;
+            font-size: 11px;
+            font-weight: bold;
+            padding: 5px 8px;
+            border-radius: 4px;
+            max-width: 90px;
+            text-align: center;
+            text-transform: uppercase;
+        }
+
+        .online-action-btn.join-btn {
+            background: rgba(52, 152, 219, 0.2);
+            border: 1px solid #3498db;
+            color: #3498db;
+            padding: 6px 10px;
+            font-size: 11px;
+        }
+
+        .online-action-btn.join-btn:hover {
+            background: rgba(52, 152, 219, 0.4);
+            box-shadow: 0 0 10px rgba(52, 152, 219, 0.5);
+        }
+
+        .online-status {
+            margin-top: 8px;
+            font-size: 11px;
+            color: #f1c40f;
+            text-align: center;
+            font-weight: bold;
+        }
+
         #start-screen .steuerung-titel {
             margin-top: 10px;
             margin-bottom: 4px;

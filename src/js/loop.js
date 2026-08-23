@@ -75,12 +75,20 @@ export function gameLoop() {
     const startKeyPressed = keys.w || keys.a || keys.s || keys.d || keys.l || keys.k || keys[' '] ||
                             keys.b || keys.v || keys.c || keys.ä || keys.ö ||
                             keys.arrowup || keys.arrowdown || keys.arrowleft || keys.arrowright;
-    if (!isWhatsNewOpen && startKeyPressed && state.gameMode !== 'online') {
-      let startScreen = document.getElementById('start-screen');
-      if (startScreen) startScreen.style.display = 'none';
-      Cutscene.startCutscene();
-      requestAnimationFrame(gameLoop);
-      return;
+    if (!isWhatsNewOpen && startKeyPressed) {
+      if (state.gameMode === 'online') {
+        if (state.network && state.network.isHost && state.network.connected) {
+          Network.hostStartGame();
+          requestAnimationFrame(gameLoop);
+          return;
+        }
+      } else {
+        let startScreen = document.getElementById('start-screen');
+        if (startScreen) startScreen.style.display = 'none';
+        Cutscene.startCutscene();
+        requestAnimationFrame(gameLoop);
+        return;
+      }
     } else {
       // Nur Sterne und Spieler rendern
       arrays.sterne.forEach(stern => {

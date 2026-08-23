@@ -61,6 +61,73 @@ export function updateOnlineStatus(text, isError = false) {
     statusEl.style.borderColor = isError ? 'rgba(231, 76, 60, 0.4)' : 'rgba(241, 196, 15, 0.3)';
 }
 
+export function updateOnlineLobbyUI() {
+    const isOnline = state.gameMode === 'online' || (state.network && state.network.isOnline);
+    const lobby = document.getElementById('online-lobby-container');
+    if (lobby) lobby.style.display = isOnline ? 'block' : 'none';
+    if (!isOnline) return;
+
+    const initialActions = document.getElementById('online-lobby-actions');
+    const connectedControls = document.getElementById('online-connected-controls');
+    const btnStart = document.getElementById('btn-online-start');
+    const startText = document.getElementById('start-text');
+
+    const isConnected = state.network && state.network.connected;
+    const isHost = state.network && state.network.isHost;
+    const roomCode = state.network && state.network.roomCode;
+
+    if (isConnected) {
+        if (initialActions) initialActions.style.display = 'none';
+        if (connectedControls) connectedControls.style.display = 'flex';
+
+        if (isHost) {
+            if (btnStart) btnStart.style.display = 'block';
+            updateOnlineStatus(`MITSPIELER VERBUNDEN! (CODE: ${roomCode || '---'})`);
+            if (startText) {
+                startText.textContent = 'KLICKE "SPIEL STARTEN" ZUM BEGINN';
+                startText.style.color = '#2ecc71';
+            }
+        } else {
+            if (btnStart) btnStart.style.display = 'none';
+            updateOnlineStatus(`VERBUNDEN MIT HOST! (CODE: ${roomCode || '---'})`);
+            if (startText) {
+                startText.textContent = 'WARTE AUF SPIELSTART DURCH DEN HOST...';
+                startText.style.color = '#3498db';
+            }
+        }
+    } else {
+        if (initialActions) initialActions.style.display = 'flex';
+        if (connectedControls) connectedControls.style.display = 'none';
+        if (btnStart) btnStart.style.display = 'none';
+        if (startText) {
+            startText.textContent = 'RAUM ERSTELLEN ODER BEITRETEN ZUM START';
+            startText.style.color = '#1abc9c';
+        }
+    }
+}
+
+export function hostStartGame() {
+    if (!state.network.isHost || !state.network.connected) return;
+    sendNetworkEvent({
+        type: 'game_start',
+        hostShipModel: state.selectedShipModel,
+        hostShipColor: state.selectedShipColor
+    });
+    startOnlineGame();
+}
+
+export function leaveOnlineRoom() {
+    if (state.network.connected) {
+        sendNetworkEvent({ type: 'peer_left' });
+    }
+    disconnectNetwork();
+    updateOnlineStatus('RAUM VERLASSEN');
+    updateOnlineLobbyUI();
+    if (Utils && Utils.setGameMode) {
+        Utils.setGameMode('online');
+    }
+}
+
 function setupAction(room, name, onMessageCallback) {
     const rawAction = room.makeAction(name);
     let sendFn;
@@ -148,6 +215,11 @@ export async function hostRoom(customCode = null) {
         if (data && data.type === 'highscore_name') {
             Utils.receiveOnlineHighscoreName(data.role, data.name);
         }
+        if (data && data.type === 'peer_left') {
+            state.network.connected = false;
+            updateOnlineStatus('MITSPIELER HAT DEN RAUM VERLASSEN!', true);
+            updateOnlineLobbyUI();
+        }
         onEventCallbacks.forEach(cb => cb(data, peerId));
     });
 
@@ -159,6 +231,7 @@ export async function hostRoom(customCode = null) {
         (peerId) => {
             state.network.connected = false;
             updateOnlineStatus(`MITSPIELER HAT DAS SPIEL VERLASSEN!`, true);
+            updateOnlineLobbyUI();
         }
     );
 
@@ -186,7 +259,7 @@ export function onPeerJoined(peerId) {
     state.network.connected = true;
     state.network.peerId = peerId;
     const code = state.network.roomCode;
-    updateOnlineStatus(state.network.isHost ? `MITSPIELER VERBUNDEN! (CODE: ${code})` : `VERBUNDEN MIT HOST!`);
+    updateOnlineLobbyUI();
 
     if (state.network.isHost) {
         sendNetworkEvent({
@@ -234,7 +307,7 @@ export async function joinOnlineRoom(code) {
         if (data.type === 'peer_joined') {
             state.network.connected = true;
             state.network.peerId = peerId;
-            updateOnlineStatus(`ERFOLGREICH MIT HOST VERBUNDEN!`);
+            updateOnlineLobbyUI();
             
             // Client meldet sein Schiff an den Host zurück
             sendNetworkEvent({
@@ -242,6 +315,11 @@ export async function joinOnlineRoom(code) {
                 clientShipModel: (state.p2 && state.p2.selectedShipModel) || 'phantom',
                 clientShipColor: (state.p2 && state.p2.selectedShipColor) || 'blue'
             });
+        }
+        if (data.type === 'peer_left') {
+            state.network.connected = false;
+            updateOnlineStatus('HOST HAT DEN RAUM VERLASSEN!', true);
+            updateOnlineLobbyUI();
         }
         if (data.type === 'game_start') {
             startOnlineGame();
@@ -293,11 +371,12 @@ export async function joinOnlineRoom(code) {
         (peerId) => {
             state.network.connected = true;
             state.network.peerId = peerId;
-            updateOnlineStatus(`VERBUNDEN MIT HOST!`);
+            updateOnlineLobbyUI();
         },
         (peerId) => {
             state.network.connected = false;
             updateOnlineStatus(`VERBINDUNG ZUM HOST VERLOREN!`, true);
+            updateOnlineLobbyUI();
         }
     );
 

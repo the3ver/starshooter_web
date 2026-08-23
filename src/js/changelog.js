@@ -1,6 +1,13 @@
-export const GAME_VERSION = '1.6.40';
+export const GAME_VERSION = '1.6.41';
 
 export const changelogData = {
+  '1.6.41': {
+    version: '1.6.41',
+    intro: 'Hey, es ist jetzt Version 1.6.41 rausgekommen, folgendes wurde behoben:',
+    highlights: [
+      '🔄 Rematch & Neustart im Online-Coop: Nach einem verlorenen Spiel und Klick auf "Neustart" bleibt die Peer-Verbindung aktiv. Der Host erhält einen "🚀 SPIEL STARTEN"-Button, um direkt die nächste Runde zu starten, sowie einen "RAUM VERLASSEN"-Button'
+    ]
+  },
   '1.6.40': {
     version: '1.6.40',
     intro: 'Hey, es ist jetzt Version 1.6.40 rausgekommen, folgendes wurde behoben:',

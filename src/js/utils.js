@@ -748,6 +748,9 @@ export function restartGame() {
   if (startScreen) startScreen.style.display = 'block';
   updatePlayerShipVisuals();
   updateMobileControlsVisibility();
+  if (state.gameMode === 'online') {
+    Network.updateOnlineLobbyUI();
+  }
 }
 // --- HIGHSCORE LOGIK ---
 export function getHighscores(mode = (state.gameMode || 'single')) {
@@ -1182,6 +1185,7 @@ export function setGameMode(mode) {
   }
 
   updatePlayerShipVisuals();
+  Network.updateOnlineLobbyUI();
 
   // Bot-State zurücksetzen wenn nicht lokaler Co-op
   if (!isCoop) {

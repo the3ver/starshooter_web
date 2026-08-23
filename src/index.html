@@ -86,13 +86,18 @@
                 <!-- ONLINE LOBBY (P2P WEBRTC) -->
                 <div id="online-lobby-container" class="online-lobby" style="display: none;">
                     <div class="online-lobby-header">ONLINE MULTIPLAYER (P2P)</div>
-                    <div class="online-lobby-actions">
+                    <div id="online-lobby-actions" class="online-lobby-actions">
                         <button type="button" id="btn-online-host" class="online-action-btn host-btn">RAUM ERSTELLEN</button>
                         <div class="online-divider"><span>ODER</span></div>
                         <div class="online-join-row">
                             <input type="text" id="online-room-input" class="online-input" placeholder="CODE" maxlength="5" autocomplete="off" />
                             <button type="button" id="btn-online-join" class="online-action-btn join-btn">BEITRETEN</button>
                         </div>
+                    </div>
+                    <!-- Controls when already connected / Rematch -->
+                    <div id="online-connected-controls" class="online-lobby-actions" style="display: none; flex-direction: column; gap: 8px;">
+                        <button type="button" id="btn-online-start" class="online-action-btn host-btn start-online-match-btn" style="display: none; background: rgba(46, 204, 113, 0.25); border-color: #2ecc71; color: #2ecc71; font-size: 13px; padding: 10px 18px; width: 100%;">🚀 SPIEL STARTEN</button>
+                        <button type="button" id="btn-online-leave" class="online-action-btn leave-btn" style="background: rgba(231, 76, 60, 0.2); border-color: #e74c3c; color: #e74c3c; font-size: 11px; padding: 6px 14px; width: 100%;">RAUM VERLASSEN</button>
                     </div>
                     <div id="online-status" class="online-status" style="display: none;"></div>
                 </div>
@@ -198,7 +203,7 @@
             <button id="btn-sound-toggle" class="sound-toggle-btn" title="Sound stummschalten (M)" aria-label="Sound stummschalten (M)">🔊</button>
             <div id="score-anzeige">00000</div>
             <div id="level-anzeige">LEVEL 1</div>
-            <div id="version-anzeige">V 1.6.40</div>
+            <div id="version-anzeige">V 1.6.41</div>
             
             <div id="boss-hp-container">
                 <div id="boss-hp-balken"></div>

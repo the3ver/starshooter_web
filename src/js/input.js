@@ -199,7 +199,12 @@ export function setupInput() {
       // darf das Spiel AUF KEINEN FALL gestartet werden – außer bei direktem Tippen auf den Start-Text!
       if (e.target.closest('#start-screen')) {
         if (e.target.closest('#start-text')) {
-          if (state.gameMode === 'online') return;
+          if (state.gameMode === 'online') {
+            if (state.network && state.network.isHost && state.network.connected) {
+              Network.hostStartGame();
+            }
+            return;
+          }
           startScreen.style.display = 'none';
           Cutscene.startCutscene();
         }

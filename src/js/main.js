@@ -160,6 +160,22 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
+    const btnOnlineStart = document.getElementById('btn-online-start');
+    if (btnOnlineStart) {
+        btnOnlineStart.addEventListener('click', (e) => {
+            e.stopPropagation();
+            Network.hostStartGame();
+        });
+    }
+
+    const btnOnlineLeave = document.getElementById('btn-online-leave');
+    if (btnOnlineLeave) {
+        btnOnlineLeave.addEventListener('click', (e) => {
+            e.stopPropagation();
+            Network.leaveOnlineRoom();
+        });
+    }
+
     // Hangar Player Tab Listeners (P1 vs P2)
     document.querySelectorAll('.hangar-player-tab').forEach(tab => {
         tab.addEventListener('click', (e) => {
@@ -239,7 +255,12 @@ document.addEventListener('DOMContentLoaded', () => {
     if (startText) {
         startText.addEventListener('click', (e) => {
             e.stopPropagation();
-            if (state.gameMode === 'online') return;
+            if (state.gameMode === 'online') {
+                if (state.network && state.network.isHost && state.network.connected) {
+                    Network.hostStartGame();
+                }
+                return;
+            }
             if (!state.spielLaeuft && !state.cutsceneAktiv && !state.gameOverAktiv) {
                 const startScreen = document.getElementById('start-screen');
                 if (startScreen) startScreen.style.display = 'none';

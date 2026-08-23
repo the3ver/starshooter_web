@@ -3,7 +3,7 @@ const { test, expect } = require('@playwright/test');
 test.beforeEach(async ({ page }) => {
   // Standardmäßig als bereits gesehen markieren, damit die Tests direkt interagieren können
   await page.addInitScript(() => {
-    localStorage.setItem('starshooter_last_seen_version', '1.6.40');
+    localStorage.setItem('starshooter_last_seen_version', '1.6.41');
     localStorage.setItem('starshooter_skip_cutscene', 'true');
   });
   await page.goto('/');
@@ -899,7 +899,7 @@ test.describe('Was gibt es Neues Modal (Changelog)', () => {
     await expect(title).toContainText("WAS GIBT'S NEUES");
 
     const intro = page.locator('#whats-new-intro');
-    await expect(intro).toContainText('1.6.40');
+    await expect(intro).toContainText('1.6.41');
 
     const items = page.locator('#whats-new-list li');
     await expect(items).toHaveCount(1);
@@ -912,7 +912,7 @@ test.describe('Was gibt es Neues Modal (Changelog)', () => {
 
     // Prüfen, dass localStorage aktualisiert wurde
     const storedVersion = await page.evaluate(() => localStorage.getItem('starshooter_last_seen_version'));
-    expect(storedVersion).toBe('1.6.40');
+    expect(storedVersion).toBe('1.6.41');
 
     // Erneut öffnen über Start-Screen Button
     const openBtn = page.locator('#btn-open-whats-new');
@@ -5030,6 +5030,51 @@ test.describe('Bot-Partner', () => {
     // 4. Schockwelle im DOM prüfen
     const shockwaveCount = await page.locator('.schockwelle').count();
     expect(shockwaveCount).toBeGreaterThanOrEqual(1);
+  });
+
+  test('Online-Multiplayer › Rematch & Neustart: Host sieht Spiel-Starten-Button bei verbundener Session und kann Rematch starten', async ({ page }) => {
+    // 1. Online-Host im verbundenen Zustand einstellen
+    await page.click('#gamemode-btn-online');
+    await page.evaluate(() => {
+      const s = window.__game.state;
+      s.gameMode = 'online';
+      s.network.isOnline = true;
+      s.network.isHost = true;
+      s.network.isClient = false;
+      s.network.connected = true;
+      s.network.roomCode = 'TEST1';
+      window.__game.Network.updateOnlineLobbyUI();
+    });
+
+    // 2. Buttons prüfen
+    const btnStart = page.locator('#btn-online-start');
+    const btnLeave = page.locator('#btn-online-leave');
+    await expect(btnStart).toBeVisible();
+    await expect(btnLeave).toBeVisible();
+
+    // 3. Nach Game-Over und Neustart muss der Start-Button weiterhin für den Host bereitstehen
+    await page.evaluate(() => {
+      window.__game.Utils.restartGame();
+    });
+    await expect(btnStart).toBeVisible();
+
+    // 4. Host klickt auf Spiel starten -> Online Match startet
+    await btnStart.click();
+    const stateAfterStart = await page.evaluate(() => ({
+      spielLaeuft: window.__game.state.spielLaeuft,
+      cutsceneAktiv: window.__game.state.cutsceneAktiv,
+      lastEvent: window.__game.state.network.lastSentEvent
+    }));
+    expect(stateAfterStart.spielLaeuft || stateAfterStart.cutsceneAktiv).toBe(true);
+    expect(stateAfterStart.lastEvent.type).toBe('game_start');
+
+    // 5. Raum verlassen testen
+    await page.evaluate(() => {
+      window.__game.Utils.restartGame();
+    });
+    await btnLeave.click();
+    const actionsVisible = await page.locator('#online-lobby-actions').isVisible();
+    expect(actionsVisible).toBe(true);
   });
 
 });
