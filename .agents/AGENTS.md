@@ -1,45 +1,46 @@
-# Projekt: DOM-basierter Space Shooter
+# Projekt: DOM-basierter Space Shooter (Starshooter)
 
-Dieses Projekt ist ein "Space Shooter"-Browserspiel, das komplett **ohne HTML5-Canvas** auskommt und stattdessen die Positionierung von DOM-Elementen (via `CSS position: absolute` und `transform`) nutzt.
+Dieses Projekt ist ein "Space Shooter"-Browserspiel, das komplett **ohne HTML5-Canvas** auskommt und stattdessen die Positionierung und Transformation von DOM-Elementen (via `CSS position: absolute`, `transform` und Inline-SVGs) nutzt.
 
 ## Architektur & Projektstruktur
-Das Projekt wurde von einer monolithischen Struktur auf eine saubere Ordnerstruktur und ES-Module umgestellt:
+Das Projekt ist in modular gegliederte ES-Module strukturiert:
 - **Toplevel / Infrastruktur:** Konfigurationsdateien (`package.json`, `playwright.config.js`), CI/CD-Pipelines (`.github/workflows/deploy.yml`) und E2E-Tests (`tests/game.spec.js`).
-- **`src/` (Web-Root):** Hier liegt der gesamte ausführbare Web-Code (`index.html`, `style.css`).
-- **`src/js/` (Logik):** Aufgeteilt in ES-Module:
-  - `main.js`: Einstiegspunkt und Initialisierung.
-  - `state.js`: Zentraler State (Spieler-Stats, Arrays, Config, `godMode`, etc.).
-  - `loop.js`: Der Game-Loop (`requestAnimationFrame`).
-  - `entities.js`: Logik für Gegner, Bosse, Asteroiden und Powerups.
-  - `input.js`: Tastatursteuerung.
-  - `utils.js`: Hilfsfunktionen (z. B. UI-Updates, Kollisionen).
+- **`src/` (Web-Root):** Ausführbarer Web-Code (`index.html`, `style.css`).
+- **`src/js/` (Logik & ES-Module):**
+  - `main.js`: Einstiegspunkt, Event-Listener & Initialisierung.
+  - `state.js`: Zentraler State (Spieler-Stats, P2-State, Arrays, Config, `godMode`, Network-State etc.).
+  - `loop.js`: Der zentrale Game-Loop (`requestAnimationFrame`), Spawns, Bewegung & Kollisionsabfragen.
+  - `entities.js`: Spawnen und Verhalten von Feinden, Bossen (Typ 1–4), Asteroiden, Magma-Brocken und Powerups.
+  - `input.js`: Tastatur- & Touch-Steuerung (Joystick, Buttons), Cheatcode-Erkennung.
+  - `utils.js`: Hilfsfunktionen (UI-Updates, Kollisionen, Partikel, Highscores, Spielmodi).
+  - `cutscene.js`: Intro-Cutszene mit Konvoi, Angriff, Explosionen und synchronem Skip.
+  - `audio.js`: Sound-Synthesizer via Web Audio API (Laser, Raketen, Bomben, Treffer, Boss-Warnung, BGM).
+  - `bot.js`: KI-Partner für 2-Spieler Co-op (Ausweichen, Zielen, Powerup-Sammeln, Schwierigkeitsgrade).
+  - `network.js`: Serverloser P2P-Multiplayer via WebRTC/Trystero (State-Serialisierung, Input-Handling, Event-Broadcasts).
+  - `changelog.js`: In-Game Versionsanzeige und Dialog für neue Features ("Was gibt's Neues?").
 
-## Game-Loop & Kollisionen
-- **Game-Loop:** Das Spiel wird über eine zentrale Funktion `gameLoop()` gesteuert, die durch `requestAnimationFrame` aufgerufen wird. 
-- **Entitäten-Arrays:** Spielobjekte werden im `arrays`-Objekt (in `state.js`) verwaltet (z.B. `asteroiden`, `feinde`, `bosses`, `powerups`). Jedes Element enthält Referenzen auf sein DOM-Element (`el`), sowie Position (`x`, `y`) und weitere spielmechanische Werte.
-- **Kollisionserkennung:** Basiert durchgehend auf simplen Bounding-Box Checks (`x < targetX + width ...`) innerhalb des `gameLoop`.
+## Game-Loop, Kollisionen & Spielmodi
+- **Game-Loop:** Gesteuert über `gameLoop()` via `requestAnimationFrame`.
+- **Entitäten-Arrays:** Verwaltet im `arrays`-Objekt in `state.js` (`asteroiden`, `feinde`, `bosses`, `powerups`, `laserArray`, `raketenArray`, `bombenArray`, `partikel`, `sterne`).
+- **Kollisionserkennung:** Bounding-Box Checks (`x < targetX + width ...`) im `gameLoop`.
+- **Spielmodi:**
+  - `single`: 400px Spielfeldbreite, 1 Spielerschiff.
+  - `coop` (Lokal / Bot): 600px Spielfeldbreite, 2 Spielerschiffe, geteilte Tastatur oder KI-Bot-Partner (`state.p2IsBot`).
+  - `online` (WebRTC P2P): 600px Spielfeldbreite, Host simuliert Welt, Client empfängt Snapshot & sendet Inputs.
 
-## Waffensysteme (Getrenntes Leveln)
-Das Spielerschiff kann drei Waffentypen sammeln und auf Stufe 5 hochleveln. Powerup-Drops der Bosse und Asteroiden (L, R, B) erhöhen die jeweilige Stufe.
-1. **Laser (L):** Primärwaffe. Kostet "Energie".
-   - Stufe 1-4: Mehrere Projektile parallel/seitlich geschossen.
-   - Stufe 5: Zusätzlicher, automatischer "Hitscan"-Laser, der direkt das nächste Ziel über dem Schiff sofort trifft.
-2. **Raketen (R - Taste 'K'):** 
-   - Proximity-Zünder. Flächenschaden. 
-   - Stufe 5 feuert 3 Raketen gefächert. Cooldown (kurz, sinkt pro Level).
-3. **Bombe (B - Taste 'Leertaste'):** 
-   - Extreme AoE-Waffe mit langem Cooldown (max. 40s auf Stufe 1, 20s auf Stufe 5). 
-   - Die Bombe trudelt in die absolute Bildschirmmitte und zündet dort eine massive, raumgreifende Schockwelle. 
-   - Einzige Waffe, die Magma-Asteroiden aufbrechen kann.
+## Multiplayer & WebRTC Architektur (`network.js`)
+- **P2P Broker:** Verwendet `@trystero-p2p/torrent` (mit dynamischem Fallback).
+- **Host-Autorität:** Host berechnet Gegner, Bosse, Kollisionen, Powerups und sendet Snapshots.
+- **Client-Prediction:** Client berechnet seine eigene Schiffsbewegung lokal ohne Input-Lag.
+- **Zielgerichtete Events:** Schadens-Flashes, Treffer-Sounds und Powerup-Flashes werden nur für den betroffenen Spieler getriggert.
+- **Synchrone Aktionen:** Cutszenen-Skip (ESC) und Highscore-Eingabe (Kombination `AAA+BBB`) werden über DataChannels abgeglichen.
+- **Cheat-Sperre:** Im Online-Modus sind Cheatcodes für alle Peers deaktiviert.
 
-## Besondere Features & Mechanics
-- **Energie-System:** Laser verbrauchen Energie (Balken regeneriert sich automatisch).
-- **Magma-Asteroiden:** Normalerweise unzerstörbar, prallen Laser-Schüsse ab. Nur durch Bomben zu knacken (werden dann zu Powerup-Drops).
-- **Bosskämpfe:** Ab einem bestimmten Score/Level erscheinen Bosse (Typ 1-4) mit eigenen Angriffsmustern und einer "Enrage"-Phase ab 30% HP.
-- **Cheats:** Eingabe von `idkfa` für volle Bewaffnung oder `idgod` für Unverwundbarkeit (God Mode).
-- **Highscore:** Speichert die Top 10 im `localStorage` (`spaceShooterHighscores`).
-- **Grafik:** Inline-SVGs und dynamische CSS-Transformationen (Neigung bei Bewegung, dynamischer Flammen-Ausstoß).
-- **Mobile Support:** Touch-Steuerung mit virtuellem Joystick (Richtungseingabe) auf der linken Hälfte, dynamisches UI-Ausblenden in Menüs und anpassbare Layout-Skalierung (`100dvh`).
+## Waffensysteme (Getrenntes Leveln bis Stufe 5)
+1. **Laser (L / B):** Primärwaffe, verbraucht Energie (Balken regeneriert automatisch). Stufe 5: Hitscan-Laser.
+2. **Raketen (K / V):** Proximity-Zünder, Flächenschaden, 3-Phasen Homing-Physik.
+3. **Bombe (Leertaste / C):** AoE-Waffe, zündet im Zentrum. Einzige Waffe gegen unzerstörbare Magma-Asteroiden.
+4. **Super-Waffe (S / 10 weiße Splitter):** Max-Waffen, Schild 3, Infinite Energy, Laser-Durchschlag.
 
 ## Agent Verhalten
 - Keine Entschuldigungen für Fehler. Halte Antworten kurz, fokussiert und lösungsorientiert.
@@ -47,3 +48,4 @@ Das Spielerschiff kann drei Waffentypen sammeln und auf Stufe 5 hochleveln. Powe
 - Vor einem Git Push müssen immer alle Tests erfolgreich durchlaufen (grün sein).
 - Wenn der Sandboxed-Modus aktiv ist und `run_command` aufgrund von Berechtigungen fehlschlägt, MUSS die Kommunikation über die Agent Bridge (`.agents/cmd_request.json` und `.agents/cmd_response.json`) erfolgen. Schreibe den Befehl als JSON (`{"id": <increment>, "command": "..."}`) in die Request-Datei, warte kurz (z.B. per `schedule`) und lese das Ergebnis aus der Response-Datei.
 - Bei jedem Commit, der nicht nur die Infrastruktur des Projekts betrifft (z. B. Spiel-Logik, UI, CSS), muss das Patch-Level der Version erhöht werden (z. B. `0.12.0` -> `0.12.1`). Denke daran, sowohl die `package.json` als auch die Versionsanzeige im `index.html` anzupassen.
+
