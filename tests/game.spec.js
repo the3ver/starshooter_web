@@ -3,7 +3,7 @@ const { test, expect } = require('@playwright/test');
 test.beforeEach(async ({ page }) => {
   // Standardmäßig als bereits gesehen markieren, damit die Tests direkt interagieren können
   await page.addInitScript(() => {
-    localStorage.setItem('starshooter_last_seen_version', '1.6.39');
+    localStorage.setItem('starshooter_last_seen_version', '1.6.40');
     localStorage.setItem('starshooter_skip_cutscene', 'true');
   });
   await page.goto('/');
@@ -899,7 +899,7 @@ test.describe('Was gibt es Neues Modal (Changelog)', () => {
     await expect(title).toContainText("WAS GIBT'S NEUES");
 
     const intro = page.locator('#whats-new-intro');
-    await expect(intro).toContainText('1.6.39');
+    await expect(intro).toContainText('1.6.40');
 
     const items = page.locator('#whats-new-list li');
     await expect(items).toHaveCount(1);
@@ -912,7 +912,7 @@ test.describe('Was gibt es Neues Modal (Changelog)', () => {
 
     // Prüfen, dass localStorage aktualisiert wurde
     const storedVersion = await page.evaluate(() => localStorage.getItem('starshooter_last_seen_version'));
-    expect(storedVersion).toBe('1.6.39');
+    expect(storedVersion).toBe('1.6.40');
 
     // Erneut öffnen über Start-Screen Button
     const openBtn = page.locator('#btn-open-whats-new');
@@ -4997,6 +4997,39 @@ test.describe('Bot-Partner', () => {
       cutsceneAktiv: window.__game.state.cutsceneAktiv
     }));
     expect(stateAfterStartText.spielLaeuft || stateAfterStartText.cutsceneAktiv).toBe(true);
+  });
+
+  test('Online-Multiplayer › Bomben- & Raketen-Detonationen erzeugen Schockwellen und Partikel auf dem Client', async ({ page }) => {
+    // 1. Online-Client Modus vorbereiten
+    await page.click('#gamemode-btn-online');
+    await page.fill('#online-room-input', 'ABCDE');
+    await page.click('#btn-online-join');
+
+    // 2. Bomb Detonation simulieren
+    await page.evaluate(() => {
+      const mod = window.__game;
+      mod.Utils.erzeugeBombenDetonation(300, 250, '#f39c12', 150, 1, false);
+    });
+
+    const particlesAfterBomb = await page.evaluate(() => {
+      return window.__game.arrays.partikelArray.length;
+    });
+    expect(particlesAfterBomb).toBeGreaterThanOrEqual(60);
+
+    // 3. Raketen Detonation simulieren
+    await page.evaluate(() => {
+      const mod = window.__game;
+      mod.Utils.erzeugeRaketenDetonation(200, 150, 70);
+    });
+
+    const particlesAfterRocket = await page.evaluate(() => {
+      return window.__game.arrays.partikelArray.length;
+    });
+    expect(particlesAfterRocket).toBeGreaterThanOrEqual(100);
+
+    // 4. Schockwelle im DOM prüfen
+    const shockwaveCount = await page.locator('.schockwelle').count();
+    expect(shockwaveCount).toBeGreaterThanOrEqual(1);
   });
 
 });

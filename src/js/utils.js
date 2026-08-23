@@ -271,6 +271,16 @@ export function zerstoereZiel(ziel, killer = 'p1') {
     Audio.playExplosion('boss');
     addScore(1000 * state.level);
     erzeugeExplosion(ziel.x + ziel.groesse / 2, ziel.y + ziel.groesse / 2, '#f1c40f', 50);
+    if (state.gameMode === 'online') {
+      Network.sendNetworkEvent({
+        type: 'target_destroyed',
+        x: ziel.x + ziel.groesse / 2,
+        y: ziel.y + ziel.groesse / 2,
+        farbe: '#f1c40f',
+        anzahl: 50,
+        soundType: 'boss'
+      });
+    }
 
     // Co-op Revive bei Boss-Sieg
     if (isCoopMode()) {
@@ -350,6 +360,16 @@ export function zerstoereZiel(ziel, killer = 'p1') {
     }
     let farbe = ziel.istFeind ? '#9b59b6' : ziel.el.dataset.baseColor || ziel.el.style.backgroundColor || '#ffffff';
     erzeugeExplosion(ziel.x + ziel.groesse / 2, ziel.y + ziel.groesse / 2, farbe, 25);
+    if (state.gameMode === 'online') {
+      Network.sendNetworkEvent({
+        type: 'target_destroyed',
+        x: ziel.x + ziel.groesse / 2,
+        y: ziel.y + ziel.groesse / 2,
+        farbe: farbe,
+        anzahl: 25,
+        soundType: ziel.groesse >= 35 ? 'medium' : 'small'
+      });
+    }
     if (ziel.traegtPowerup) {
       Entities.erzeugePowerup(ziel.x + ziel.groesse / 2 - 12, ziel.y + ziel.groesse / 2 - 12);
     } else if (!ziel.istFeind && ziel.groesse >= 35) {
@@ -920,6 +940,97 @@ export function erzeugeExplosion(x, y, farbe, anzahl = 15) {
   }
 }
 export const erzeugePartikel = erzeugeExplosion;
+
+export function erzeugeBombenDetonation(bcx, bcy, farbe = '#f39c12', radius = 150, stufe = 1, isMini = false) {
+  const spielfeld = dom.spielfeld || document.getElementById('spielfeld');
+  if (!spielfeld) return;
+
+  // 1. Partikel
+  erzeugeExplosion(bcx, bcy, farbe || '#f39c12', isMini ? 35 : 60);
+
+  // 2. Sound
+  if (Audio && Audio.playExplosion) {
+    Audio.playExplosion(isMini ? 'medium' : 'large');
+  }
+
+  // 3. Schockwelle
+  const shockwave = document.createElement('div');
+  shockwave.style.position = 'absolute';
+  shockwave.style.width = (radius * 2) + 'px';
+  shockwave.style.height = (radius * 2) + 'px';
+  shockwave.style.left = (bcx - radius) + 'px';
+  shockwave.style.top = (bcy - radius) + 'px';
+  shockwave.style.borderRadius = '50%';
+  shockwave.style.backgroundColor = farbe === '#00ffff' ? 'rgba(0, 255, 255, 0.4)' : (farbe === '#9b59b6' ? 'rgba(155, 89, 182, 0.4)' : (farbe === '#f1c40f' ? 'rgba(241, 196, 15, 0.45)' : 'rgba(231, 76, 60, 0.4)'));
+  shockwave.style.boxShadow = `0 0 45px ${farbe || '#f39c12'}`;
+  shockwave.style.zIndex = '9';
+  shockwave.style.pointerEvents = 'none';
+  shockwave.style.transition = 'all 0.5s ease-out';
+  spielfeld.appendChild(shockwave);
+
+  setTimeout(() => {
+    shockwave.style.opacity = '0';
+    shockwave.style.transform = 'scale(1.2)';
+  }, 10);
+  setTimeout(() => {
+    shockwave.remove();
+  }, 500);
+
+  // 4. Stufe 3 Vortex: Zweite Schockwelle leicht verzögert
+  if (stufe === 3 && !isMini) {
+    setTimeout(() => {
+      const sw2 = document.createElement('div');
+      sw2.style.position = 'absolute';
+      sw2.style.width = (radius * 1.5) + 'px';
+      sw2.style.height = (radius * 1.5) + 'px';
+      sw2.style.left = (bcx - (radius * 0.75)) + 'px';
+      sw2.style.top = (bcy - (radius * 0.75)) + 'px';
+      sw2.style.borderRadius = '50%';
+      sw2.style.backgroundColor = 'rgba(155, 89, 182, 0.3)';
+      sw2.style.boxShadow = '0 0 30px #9b59b6';
+      sw2.style.zIndex = '9';
+      sw2.style.pointerEvents = 'none';
+      sw2.style.transition = 'all 0.4s ease-out';
+      spielfeld.appendChild(sw2);
+      setTimeout(() => {
+        sw2.style.opacity = '0';
+        sw2.style.transform = 'scale(1.3)';
+      }, 10);
+      setTimeout(() => sw2.remove(), 400);
+    }, 150);
+  }
+}
+
+export function erzeugeRaketenDetonation(rcx, rcy, radius = 70) {
+  const spielfeld = dom.spielfeld || document.getElementById('spielfeld');
+  if (!spielfeld) return;
+
+  if (Audio && Audio.playMissileExplosion) {
+    Audio.playMissileExplosion();
+  }
+  erzeugeExplosion(rcx, rcy, '#e67e22', 25);
+  erzeugeExplosion(rcx, rcy, '#f1c40f', 15);
+
+  const shockwave = document.createElement('div');
+  shockwave.classList.add('schockwelle');
+  shockwave.style.width = (radius * 2) + 'px';
+  shockwave.style.height = (radius * 2) + 'px';
+  shockwave.style.left = (rcx - radius) + 'px';
+  shockwave.style.top = (rcy - radius) + 'px';
+  shockwave.style.borderRadius = '50%';
+  shockwave.style.backgroundColor = 'rgba(231, 76, 60, 0.4)';
+  shockwave.style.boxShadow = '0 0 20px #e74c3c';
+  shockwave.style.zIndex = '9';
+  shockwave.style.pointerEvents = 'none';
+  shockwave.style.transition = 'all 0.3s ease-out';
+  spielfeld.appendChild(shockwave);
+
+  setTimeout(() => {
+    shockwave.style.opacity = '0';
+    shockwave.style.transform = 'scale(1.2)';
+  }, 10);
+  setTimeout(() => shockwave.remove(), 300);
+}
 export function erzeugeRauchFunken(x, y, groesse) {
   // Rauch
   if (Math.random() < 0.5) {

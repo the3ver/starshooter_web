@@ -1998,30 +1998,15 @@ export function gameLoop() {
     }
 
     if (detoniert) {
-      Audio.playMissileExplosion();
-      Utils.erzeugeExplosion(rcx, rcy, '#e67e22', 25);
-      Utils.erzeugeExplosion(rcx, rcy, '#f1c40f', 15);
-
-      // Schockwelle erzeugen
-      const shockwave = document.createElement('div');
-      shockwave.classList.add('schockwelle');
-      shockwave.style.width = r.radius * 2 + 'px';
-      shockwave.style.height = r.radius * 2 + 'px';
-      shockwave.style.left = rcx - r.radius + 'px';
-      shockwave.style.top = rcy - r.radius + 'px';
-      shockwave.style.borderRadius = '50%';
-      shockwave.style.backgroundColor = 'rgba(231, 76, 60, 0.4)';
-      shockwave.style.boxShadow = '0 0 20px #e74c3c';
-      shockwave.style.zIndex = '9';
-      shockwave.style.pointerEvents = 'none';
-      shockwave.style.transition = 'all 0.3s ease-out';
-      dom.spielfeld.appendChild(shockwave);
-
-      setTimeout(() => {
-        shockwave.style.opacity = '0';
-        shockwave.style.transform = 'scale(1.2)';
-      }, 10);
-      setTimeout(() => shockwave.remove(), 300);
+      Utils.erzeugeRaketenDetonation(rcx, rcy, r.radius);
+      if (state.gameMode === 'online') {
+        Network.sendNetworkEvent({
+          type: 'missile_detonated',
+          x: rcx,
+          y: rcy,
+          radius: r.radius
+        });
+      }
 
       // Flächenschaden
       for (let j = 0; j < alleZiele.length; j++) {
@@ -2281,50 +2266,17 @@ export function gameLoop() {
       // Detonation
       let bcx = b.x + (b.isMini ? 5 : 7);
       let bcy = b.y + (b.isMini ? 10 : 15);
-      Utils.erzeugeExplosion(bcx, bcy, b.color || '#f39c12', b.isMini ? 35 : 60);
-      const shockwave = document.createElement('div');
-      shockwave.style.position = 'absolute';
-      shockwave.style.width = b.radius * 2 + 'px';
-      shockwave.style.height = b.radius * 2 + 'px';
-      shockwave.style.left = bcx - b.radius + 'px';
-      shockwave.style.top = bcy - b.radius + 'px';
-      shockwave.style.borderRadius = '50%';
-      shockwave.style.backgroundColor = b.color === '#00ffff' ? 'rgba(0, 255, 255, 0.4)' : (b.color === '#9b59b6' ? 'rgba(155, 89, 182, 0.4)' : (b.color === '#f1c40f' ? 'rgba(241, 196, 15, 0.45)' : 'rgba(231, 76, 60, 0.4)'));
-      shockwave.style.boxShadow = `0 0 45px ${b.color || '#f39c12'}`;
-      shockwave.style.zIndex = '9';
-      shockwave.style.pointerEvents = 'none';
-      shockwave.style.transition = 'all 0.5s ease-out';
-      dom.spielfeld.appendChild(shockwave);
-      setTimeout(() => {
-        shockwave.style.opacity = '0';
-        shockwave.style.transform = 'scale(1.2)';
-      }, 10);
-      setTimeout(() => {
-        shockwave.remove();
-      }, 500);
-
-      // Stufe 3 Vortex: Zweite Schockwelle leicht verzögert
-      if (b.stufe === 3 && !b.isMini) {
-        setTimeout(() => {
-          const sw2 = document.createElement('div');
-          sw2.style.position = 'absolute';
-          sw2.style.width = (b.radius * 1.5) + 'px';
-          sw2.style.height = (b.radius * 1.5) + 'px';
-          sw2.style.left = bcx - (b.radius * 0.75) + 'px';
-          sw2.style.top = bcy - (b.radius * 0.75) + 'px';
-          sw2.style.borderRadius = '50%';
-          sw2.style.backgroundColor = 'rgba(155, 89, 182, 0.3)';
-          sw2.style.boxShadow = '0 0 30px #9b59b6';
-          sw2.style.zIndex = '9';
-          sw2.style.pointerEvents = 'none';
-          sw2.style.transition = 'all 0.4s ease-out';
-          dom.spielfeld.appendChild(sw2);
-          setTimeout(() => {
-            sw2.style.opacity = '0';
-            sw2.style.transform = 'scale(1.3)';
-          }, 10);
-          setTimeout(() => sw2.remove(), 400);
-        }, 150);
+      Utils.erzeugeBombenDetonation(bcx, bcy, b.color || '#f39c12', b.radius, b.stufe, b.isMini);
+      if (state.gameMode === 'online') {
+        Network.sendNetworkEvent({
+          type: 'bomb_detonated',
+          x: bcx,
+          y: bcy,
+          color: b.color || '#f39c12',
+          radius: b.radius,
+          stufe: b.stufe,
+          isMini: b.isMini
+        });
       }
 
       for (let j = 0; j < alleZiele.length; j++) {

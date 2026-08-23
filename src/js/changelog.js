@@ -1,6 +1,13 @@
-export const GAME_VERSION = '1.6.39';
+export const GAME_VERSION = '1.6.40';
 
 export const changelogData = {
+  '1.6.40': {
+    version: '1.6.40',
+    intro: 'Hey, es ist jetzt Version 1.6.40 rausgekommen, folgendes wurde behoben:',
+    highlights: [
+      '💥 Bomben- & Explosions-Synchronisation im Online-Coop: Detonationen von Bomben, Raketen und besiegten Gegnern erzeugen nun auch auf dem Client-Rechner die volle visuelle Explosion und Schockwellen'
+    ]
+  },
   '1.6.39': {
     version: '1.6.39',
     intro: 'Hey, es ist jetzt Version 1.6.39 rausgekommen, folgendes wurde behoben:',

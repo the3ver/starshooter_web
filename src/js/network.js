@@ -275,6 +275,16 @@ export async function joinOnlineRoom(code) {
         if (data.type === 'highscore_name') {
             Utils.receiveOnlineHighscoreName(data.role, data.name);
         }
+        if (data.type === 'bomb_detonated') {
+            Utils.erzeugeBombenDetonation(data.x, data.y, data.color, data.radius, data.stufe, data.isMini);
+        }
+        if (data.type === 'missile_detonated') {
+            Utils.erzeugeRaketenDetonation(data.x, data.y, data.radius);
+        }
+        if (data.type === 'target_destroyed') {
+            Utils.erzeugeExplosion(data.x, data.y, data.farbe, data.anzahl);
+            if (data.soundType) Audio.playExplosion(data.soundType);
+        }
         onEventCallbacks.forEach(cb => cb(data, peerId));
     });
 
