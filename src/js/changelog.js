@@ -1,6 +1,13 @@
-export const GAME_VERSION = '1.6.37';
+export const GAME_VERSION = '1.6.38';
 
 export const changelogData = {
+  '1.6.38': {
+    version: '1.6.38',
+    intro: 'Hey, es ist jetzt Version 1.6.38 rausgekommen, folgendes wurde behoben:',
+    highlights: [
+      '📱 Touch-Steuerung im Menü gefixt: Beim Antippen von Modus-Buttons (Co-op / Online), Hangar-Schiffswahl oder Farb-Buttons auf Tablets und Smartphones startet das Spiel nicht mehr versehentlich'
+    ]
+  },
   '1.6.37': {
     version: '1.6.37',
     intro: 'Hey, es ist jetzt Version 1.6.37 rausgekommen, folgendes wurde behoben:',

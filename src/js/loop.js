@@ -75,7 +75,7 @@ export function gameLoop() {
     const startKeyPressed = keys.w || keys.a || keys.s || keys.d || keys.l || keys.k || keys[' '] ||
                             keys.b || keys.v || keys.c || keys.ä || keys.ö ||
                             keys.arrowup || keys.arrowdown || keys.arrowleft || keys.arrowright;
-    if (!isWhatsNewOpen && startKeyPressed) {
+    if (!isWhatsNewOpen && startKeyPressed && state.gameMode !== 'online') {
       let startScreen = document.getElementById('start-screen');
       if (startScreen) startScreen.style.display = 'none';
       Cutscene.startCutscene();

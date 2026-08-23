@@ -3,7 +3,7 @@ const { test, expect } = require('@playwright/test');
 test.beforeEach(async ({ page }) => {
   // Standardmäßig als bereits gesehen markieren, damit die Tests direkt interagieren können
   await page.addInitScript(() => {
-    localStorage.setItem('starshooter_last_seen_version', '1.6.37');
+    localStorage.setItem('starshooter_last_seen_version', '1.6.38');
     localStorage.setItem('starshooter_skip_cutscene', 'true');
   });
   await page.goto('/');
@@ -899,7 +899,7 @@ test.describe('Was gibt es Neues Modal (Changelog)', () => {
     await expect(title).toContainText("WAS GIBT'S NEUES");
 
     const intro = page.locator('#whats-new-intro');
-    await expect(intro).toContainText('1.6.37');
+    await expect(intro).toContainText('1.6.38');
 
     const items = page.locator('#whats-new-list li');
     await expect(items).toHaveCount(1);
@@ -912,7 +912,7 @@ test.describe('Was gibt es Neues Modal (Changelog)', () => {
 
     // Prüfen, dass localStorage aktualisiert wurde
     const storedVersion = await page.evaluate(() => localStorage.getItem('starshooter_last_seen_version'));
-    expect(storedVersion).toBe('1.6.37');
+    expect(storedVersion).toBe('1.6.38');
 
     // Erneut öffnen über Start-Screen Button
     const openBtn = page.locator('#btn-open-whats-new');
@@ -4939,6 +4939,40 @@ test.describe('Bot-Partner', () => {
 
     expect(stateAfterGod.godMode).toBe(false);
     expect(stateAfterGod.cheatUsed).toBe(false);
+  });
+
+  test('Mobile/Touch › Antippen der Modus-Buttons (Coop / Online) und Hangar-Optionen startet das Spiel nicht', async ({ page }) => {
+    // 1. Touchstart auf Modus-Buttons auslösen
+    await page.dispatchEvent('#gamemode-btn-coop', 'touchstart');
+    await page.click('#gamemode-btn-coop');
+
+    const stateAfterCoopTouch = await page.evaluate(() => ({
+      gameMode: window.__game.state.gameMode,
+      spielLaeuft: window.__game.state.spielLaeuft,
+      cutsceneAktiv: window.__game.state.cutsceneAktiv
+    }));
+
+    expect(stateAfterCoopTouch.gameMode).toBe('coop');
+    expect(stateAfterCoopTouch.spielLaeuft).toBe(false);
+    expect(stateAfterCoopTouch.cutsceneAktiv).toBe(false);
+
+    // 2. Touchstart auf Online-Button auslösen
+    await page.dispatchEvent('#gamemode-btn-online', 'touchstart');
+    await page.click('#gamemode-btn-online');
+
+    const stateAfterOnlineTouch = await page.evaluate(() => ({
+      gameMode: window.__game.state.gameMode,
+      spielLaeuft: window.__game.state.spielLaeuft,
+      cutsceneAktiv: window.__game.state.cutsceneAktiv
+    }));
+
+    expect(stateAfterOnlineTouch.gameMode).toBe('online');
+    expect(stateAfterOnlineTouch.spielLaeuft).toBe(false);
+    expect(stateAfterOnlineTouch.cutsceneAktiv).toBe(false);
+
+    // Start-Screen muss weiterhin sichtbar sein
+    const startScreen = page.locator('#start-screen');
+    await expect(startScreen).toBeVisible();
   });
 
 });
