@@ -1,6 +1,14 @@
-export const GAME_VERSION = '1.6.26';
+export const GAME_VERSION = '1.6.27';
 
 export const changelogData = {
+  '1.6.27': {
+    version: '1.6.27',
+    intro: 'Hey, es ist jetzt Version 1.6.27 rausgekommen, folgendes wurde verbessert:',
+    highlights: [
+      '🎯 Menschlichere Bot-Taktik: Der Bot hält nun diszipliniert die Grundlinie im unteren Viertel des Spielfelds und beschießt Feinde sowie Bosse gezielt und sicher aus der Distanz',
+      '🚀 Weitreichendes Raketenfeuer: Der Bot zündet zielsuchende Raketen auf Bosse und Feinde auch über größere Entfernungen'
+    ]
+  },
   '1.6.26': {
     version: '1.6.26',
     intro: 'Hey, es ist jetzt Version 1.6.26 rausgekommen, folgendes wurde behoben:',

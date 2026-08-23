@@ -156,6 +156,9 @@ function computeMovement(p2, target, danger, powerup, diff) {
   let moveX = 0;
   let moveY = 0;
 
+  // Menschliche Taktik: Basis-Position im unteren Viertel (y: 480-520 auf 600px Feld)
+  const baselineY = config.spielfeldHoehe - 90;
+
   // Priorität 1: Gefahren ausweichen
   if (danger) {
     const dx = cx - danger.x;
@@ -177,26 +180,26 @@ function computeMovement(p2, target, danger, powerup, diff) {
     return { moveX, moveY };
   }
 
-  // Priorität 3: Auf Ziel zubewegen (horizontal), leicht über dem Ziel positionieren
+  // Priorität 3: Auf Ziel ausrichten (horizontal) und aus der Distanz (unteres Viertel) beschießen
   if (target) {
     const dx = target.x - cx;
     if (Math.abs(dx) > diff.aimCorridor / 2) {
       moveX = dx > 0 ? 0.8 : -0.8;
     }
-    // Vertikal: optimale Angriffsposition (unter dem Ziel, aber nicht zu nah)
-    const idealY = target.y + 120;
+    // Vertikal: Bleibe im unteren Viertel (Grundlinie), um Feinde/Bosse aus sicherer Distanz zu beschießen
+    const idealY = target.isBoss ? baselineY : Math.max(baselineY, target.y + 250);
     const dy = idealY - cy;
-    if (Math.abs(dy) > 20) {
+    if (Math.abs(dy) > 15) {
       moveY = dy > 0 ? 0.5 : -0.5;
     }
     return { moveX, moveY };
   }
 
-  // Priorität 4: Formation mit P1 halten
+  // Priorität 4: Formation mit P1 halten (bevorzuge unteres Spielfeldviertel)
   const p1x = state.x + halfSize;
   const p1y = state.y + halfSize;
   const formationTargetX = p1x + 50; // Rechts versetzt
-  const formationTargetY = p1y;
+  const formationTargetY = Math.max(baselineY - 40, Math.min(config.spielfeldHoehe - 60, p1y));
   const fdx = formationTargetX - cx;
   const fdy = formationTargetY - cy;
   if (Math.abs(fdx) > 15) moveX = fdx > 0 ? 0.4 : -0.4;
@@ -215,10 +218,15 @@ function updateBotWeapons(p2, diff, target) {
     p2.botFireLaser = true;
   }
 
-  // Raketen: Feuern wenn Ziel < 120px entfernt und kein Cooldown
+  // Raketen: Feuern wenn Ziel im Schussfeld (bei Bossen immer wenn grob ausgerichtet, bei Feinden bis 350px)
   p2.botFireRakete = false;
-  if (target && target.dSq < 120 * 120 && p2.raketenCooldown <= 0) {
-    p2.botFireRakete = true;
+  if (target && p2.raketenCooldown <= 0) {
+    const isAligned = Math.abs(target.x - cx) <= (diff.aimCorridor * 1.5);
+    if (target.isBoss && isAligned) {
+      p2.botFireRakete = true;
+    } else if (isAligned && target.dSq < 350 * 350) {
+      p2.botFireRakete = true;
+    }
   }
 
   // Bomben: Sehr selektiv — nur wenn ≥3 Feinde sichtbar + Cooldown voll abgelaufen

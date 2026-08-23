@@ -3,7 +3,7 @@ const { test, expect } = require('@playwright/test');
 test.beforeEach(async ({ page }) => {
   // Standardmäßig als bereits gesehen markieren, damit die Tests direkt interagieren können
   await page.addInitScript(() => {
-    localStorage.setItem('starshooter_last_seen_version', '1.6.26');
+    localStorage.setItem('starshooter_last_seen_version', '1.6.27');
     localStorage.setItem('starshooter_skip_cutscene', 'true');
   });
   await page.goto('/');
@@ -899,10 +899,10 @@ test.describe('Was gibt es Neues Modal (Changelog)', () => {
     await expect(title).toContainText("WAS GIBT'S NEUES");
 
     const intro = page.locator('#whats-new-intro');
-    await expect(intro).toContainText('1.6.26');
+    await expect(intro).toContainText('1.6.27');
 
     const items = page.locator('#whats-new-list li');
-    await expect(items).toHaveCount(1);
+    await expect(items).toHaveCount(2);
 
     // Schließen
     const closeBtn = page.locator('#btn-close-whats-new');
@@ -912,7 +912,7 @@ test.describe('Was gibt es Neues Modal (Changelog)', () => {
 
     // Prüfen, dass localStorage aktualisiert wurde
     const storedVersion = await page.evaluate(() => localStorage.getItem('starshooter_last_seen_version'));
-    expect(storedVersion).toBe('1.6.26');
+    expect(storedVersion).toBe('1.6.27');
 
     // Erneut öffnen über Start-Screen Button
     const openBtn = page.locator('#btn-open-whats-new');
@@ -4428,6 +4428,39 @@ test.describe('Bot-Partner', () => {
 
     // Spieler 1 muss sich nach rechts bewegt haben (endX > startX)
     expect(endX).toBeGreaterThan(startX);
+  });
+
+  test('Bot agiert aus dem unteren Viertel des Spielfeldes und beschießt Bosse aus der Distanz', async ({ page }) => {
+    // Coop-Modus aktivieren + Bot aktivieren
+    await page.click('#gamemode-btn-coop');
+    await page.click('.hangar-player-tab[data-player="p2"]');
+    await page.click('#btn-p2-bot-toggle');
+
+    // Spiel starten
+    await page.keyboard.down('w');
+    await page.waitForTimeout(50);
+    await page.keyboard.up('w');
+
+    // Warten bis Spiel läuft
+    await page.waitForFunction(() => {
+      const mod = window.__game;
+      return mod && mod.state && mod.state.spielLaeuft;
+    }, null, { timeout: 5000 });
+
+    // Boss 1 oben spawnen (y=60)
+    await page.evaluate(() => {
+      const mod = window.__game;
+      mod.state.p2.y = 480; // P2 startet im unteren Bereich
+      mod.Entities.erzeugeBoss();
+    });
+
+    // 1000ms laufen lassen (ohne Baseline-Taktik würde der Bot nach oben zu y=180 fliegen)
+    await page.waitForTimeout(1000);
+
+    const botY = await page.evaluate(() => window.__game.state.p2.y);
+
+    // Der Bot soll im unteren Viertel des Spielfeldes bleiben (y >= 450 auf 600px Spielfeld)
+    expect(botY).toBeGreaterThanOrEqual(450);
   });
 
 });
