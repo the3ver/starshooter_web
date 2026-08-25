@@ -1,6 +1,25 @@
 const { test, expect } = require('@playwright/test');
 
 test.beforeEach(async ({ page }) => {
+  // Standardmäßig API-Requests mocken, damit Tests die Live-DB nicht verändern
+  await page.route('**/api/highscores*', async route => {
+    const url = new URL(route.request().url());
+    const mode = url.searchParams.get('mode') || 'single';
+    if (route.request().method() === 'POST') {
+      await route.fulfill({
+        status: 201,
+        contentType: 'application/json',
+        body: JSON.stringify({ success: true, rank: 1, entry: {} })
+      });
+    } else {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({ success: true, mode, highscores: [] })
+      });
+    }
+  });
+
   // Standardmäßig als bereits gesehen markieren, damit die Tests direkt interagieren können
   await page.addInitScript(() => {
     localStorage.setItem('starshooter_last_seen_version', '1.6.42');

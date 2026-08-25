@@ -945,9 +945,13 @@ export async function fetchGlobalHighscores(mode) {
       if (statusText) statusText.innerText = '🌐 GLOBALE BESTENLISTE';
       if (spinner) spinner.style.display = 'none';
 
+      // Wenn global noch keine Einträge existieren, aber lokal welche vorhanden sind, zeige diese an
+      const localHs = getHighscores(normMode);
+      const scoresToRender = (data.highscores.length === 0 && localHs.length > 0) ? localHs : data.highscores;
+
       // Nur rendern, wenn der Tab noch der aktuelle ist
       if (state.currentHighscoreTab === normMode) {
-        renderHighscoresTable(normMode, data.highscores);
+        renderHighscoresTable(normMode, scoresToRender);
       }
       return data.highscores;
     } else {
@@ -986,7 +990,7 @@ export function renderHighscores(targetMode = null) {
   }
 
   // Zuerst gecachte globale Scores oder lokale Scores sofort anzeigen
-  if (state.globalHighscoresCache && state.globalHighscoresCache[normMode]) {
+  if (state.globalHighscoresCache && state.globalHighscoresCache[normMode] && state.globalHighscoresCache[normMode].length > 0) {
     const statusText = document.getElementById('highscore-status-text');
     const spinner = document.getElementById('highscore-spinner');
     if (statusText) statusText.innerText = '🌐 GLOBALE BESTENLISTE';
