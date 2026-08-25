@@ -141,6 +141,20 @@ export function gameLoop() {
 
   // --- ONLINE CLIENT LOKALE STEUERUNG & RENDERING ---
   if (state.network && state.network.isClient && state.network.connected) {
+    // I-Frames / Blink-Timer auf Client dekrementieren
+    if (state.invulnerableTimer > 0) {
+      state.invulnerableTimer--;
+      if (state.invulnerableTimer === 0 && dom.spieler) {
+        dom.spieler.classList.remove('spieler-blink');
+      }
+    }
+    if (state.p2 && state.p2.invulnerableTimer > 0) {
+      state.p2.invulnerableTimer--;
+      if (state.p2.invulnerableTimer === 0 && dom.spieler2) {
+        dom.spieler2.classList.remove('spieler-blink');
+      }
+    }
+
     arrays.sterne.forEach(stern => {
       stern.y += stern.speed;
       if (stern.y > config.spielfeldHoehe) {
@@ -203,6 +217,9 @@ export function gameLoop() {
       if (fLeftP2) fLeftP2.style.transform = `scaleY(${baseFlameScaleP2})`;
       if (fRightP2) fRightP2.style.transform = `scaleY(${baseFlameScaleP2})`;
     }
+
+    // Partikel auf dem Client animieren und löschen
+    animierenPartikel();
 
     Network.sendNetworkInput(Network.serializePlayerInput());
 
@@ -2333,28 +2350,8 @@ export function gameLoop() {
   }
 
   // --- 9.11 PARTIKEL ANIMIEREN ---
-  for (let i = arrays.partikelArray.length - 1; i >= 0; i--) {
-    let p = arrays.partikelArray[i];
-    p.x += p.vx;
-    p.y += p.vy;
-    p.vx *= 0.92;
-    p.vy *= 0.92;
-    p.leben -= p.zerfall;
-    if (p.leben <= 0) {
-      p.el.remove();
-      arrays.partikelArray.splice(i, 1);
-    } else {
-      p.el.style.left = p.x + 'px';
-      p.el.style.top = p.y + 'px';
-      p.el.style.opacity = p.leben;
-      if (p.vRot) {
-        p.rot = (p.rot || 0) + p.vRot;
-        p.el.style.transform = `scale(${p.leben}) rotate(${p.rot}deg)`;
-      } else {
-        p.el.style.transform = `scale(${p.leben})`;
-      }
-    }
-  }
+  animierenPartikel();
+
 
   // Network Syncing in Online Mode
   if (state.network && state.network.isOnline && state.network.connected) {
@@ -2366,4 +2363,31 @@ export function gameLoop() {
   }
 
   requestAnimationFrame(gameLoop);
+}
+
+export function animierenPartikel() {
+  for (let i = arrays.partikelArray.length - 1; i >= 0; i--) {
+    let p = arrays.partikelArray[i];
+    p.x += p.vx;
+    p.y += p.vy;
+    p.vx *= 0.92;
+    p.vy *= 0.92;
+    p.leben -= p.zerfall;
+    if (p.leben <= 0) {
+      if (p.el) p.el.remove();
+      arrays.partikelArray.splice(i, 1);
+    } else {
+      if (p.el) {
+        p.el.style.left = p.x + 'px';
+        p.el.style.top = p.y + 'px';
+        p.el.style.opacity = p.leben;
+        if (p.vRot) {
+          p.rot = (p.rot || 0) + p.vRot;
+          p.el.style.transform = `scale(${p.leben}) rotate(${p.rot}deg)`;
+        } else {
+          p.el.style.transform = `scale(${p.leben})`;
+        }
+      }
+    }
+  }
 }

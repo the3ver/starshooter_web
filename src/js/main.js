@@ -11,7 +11,7 @@ import * as Cutscene from './cutscene.js';
 export { state, dom, config, arrays, Utils, Entities, Audio, Network, Cutscene };
 
 // Expose for test access
-window.__game = { state, dom, config, arrays, Utils, Entities, Audio, Network, Cutscene };
+window.__game = { state, dom, config, arrays, Utils, Entities, Audio, Network, Cutscene, Loop: { gameLoop } };
 
 document.addEventListener('DOMContentLoaded', () => {
     Audio.initSoundState();

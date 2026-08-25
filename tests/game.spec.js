@@ -22,7 +22,7 @@ test.beforeEach(async ({ page }) => {
 
   // Standardmäßig als bereits gesehen markieren, damit die Tests direkt interagieren können
   await page.addInitScript(() => {
-    localStorage.setItem('starshooter_last_seen_version', '1.6.42');
+    localStorage.setItem('starshooter_last_seen_version', '1.6.43');
     localStorage.setItem('starshooter_skip_cutscene', 'true');
   });
   await page.goto('/');
@@ -918,10 +918,10 @@ test.describe('Was gibt es Neues Modal (Changelog)', () => {
     await expect(title).toContainText("WAS GIBT'S NEUES");
 
     const intro = page.locator('#whats-new-intro');
-    await expect(intro).toContainText('1.6.42');
+    await expect(intro).toContainText('1.6.43');
 
     const items = page.locator('#whats-new-list li');
-    await expect(items).toHaveCount(1);
+    await expect(items).toHaveCount(4);
 
     // Schließen
     const closeBtn = page.locator('#btn-close-whats-new');
@@ -931,7 +931,7 @@ test.describe('Was gibt es Neues Modal (Changelog)', () => {
 
     // Prüfen, dass localStorage aktualisiert wurde
     const storedVersion = await page.evaluate(() => localStorage.getItem('starshooter_last_seen_version'));
-    expect(storedVersion).toBe('1.6.42');
+    expect(storedVersion).toBe('1.6.43');
 
     // Erneut öffnen über Start-Screen Button
     const openBtn = page.locator('#btn-open-whats-new');
@@ -4754,8 +4754,8 @@ test.describe('Bot-Partner', () => {
     expect(clientInput.rakete).toBe(true);
     expect(clientInput.bombe).toBe(true);
 
-    // 2. Host-Anwendung auf state.p2 testen
-    await page.evaluate(() => {
+    // 2. Host-Anwendung auf state.p2 testen (atomar im selben Frame)
+    const p2State = await page.evaluate(() => {
       const mod = window.__game;
       const remoteInput = {
         x: 350,
@@ -4766,16 +4766,15 @@ test.describe('Bot-Partner', () => {
         bombe: true
       };
       mod.Network.applyPlayerInput(remoteInput);
+      return {
+        x: mod.state.p2.x,
+        y: mod.state.p2.y,
+        rotate: mod.state.p2.rotate,
+        laserSchiesst: mod.state.p2.laserSchiesst,
+        networkFireRakete: mod.state.p2.networkFireRakete,
+        networkFireBombe: mod.state.p2.networkFireBombe
+      };
     });
-
-    const p2State = await page.evaluate(() => ({
-      x: window.__game.state.p2.x,
-      y: window.__game.state.p2.y,
-      rotate: window.__game.state.p2.rotate,
-      laserSchiesst: window.__game.state.p2.laserSchiesst,
-      networkFireRakete: window.__game.state.p2.networkFireRakete,
-      networkFireBombe: window.__game.state.p2.networkFireBombe
-    }));
 
     expect(p2State.x).toBe(350);
     expect(p2State.y).toBe(480);
@@ -5311,6 +5310,198 @@ test.describe('Bot-Partner', () => {
 
     // Es darf kein POST an die globale API gesendet worden sein
     expect(postRequestSent).toBe(false);
+  });
+
+  test('Online-Multiplayer Bug 1: Schiffsauswahl von Host und Client wird korrekt synchronisiert und nicht vertauscht', async ({ page }) => {
+    // 1. Client-Szenario: Client wählt im Hangar 'viper' aus und tritt Online-Lobby bei
+    await page.evaluate(() => {
+      const mod = window.__game;
+      mod.state.selectedShipModel = 'viper';
+      mod.state.selectedShipColor = 'red';
+      mod.state.gameMode = 'online';
+      mod.state.network.isClient = true;
+      mod.state.network.isHost = false;
+      mod.state.network.connected = true;
+
+      // Client empfängt game_start vom Host, der 'phantom' (blau) gewählt hat
+      mod.Network.handleNetworkEvent({
+        type: 'game_start',
+        hostShipModel: 'phantom',
+        hostShipColor: 'blue'
+      });
+    });
+
+    const clientState = await page.evaluate(() => {
+      const mod = window.__game;
+      return {
+        p1Model: mod.state.selectedShipModel,
+        p2Model: mod.state.p2.selectedShipModel
+      };
+    });
+
+    // P1 (Host) muss Phantom sein, P2 (Client) muss Viper sein
+    expect(clientState.p1Model).toBe('phantom');
+    expect(clientState.p2Model).toBe('viper');
+
+    // 2. Host-Szenario: Host wählt 'phantom' und empfängt client_ready vom Client mit 'viper'
+    await page.evaluate(() => {
+      const mod = window.__game;
+      mod.state.selectedShipModel = 'phantom';
+      mod.state.gameMode = 'online';
+      mod.state.network.isHost = true;
+      mod.state.network.isClient = false;
+      mod.state.network.connected = true;
+
+      mod.Network.handleNetworkEvent({
+        type: 'client_ready',
+        clientShipModel: 'viper',
+        clientShipColor: 'red'
+      });
+    });
+
+    const hostState = await page.evaluate(() => {
+      const mod = window.__game;
+      return {
+        p1Model: mod.state.selectedShipModel,
+        p2Model: mod.state.p2.selectedShipModel
+      };
+    });
+
+    // Host: P1=Phantom, P2=Viper
+    expect(hostState.p1Model).toBe('phantom');
+    expect(hostState.p2Model).toBe('viper');
+  });
+
+  test('Online-Multiplayer Bug 2: Client dekrementiert Unverwundbarkeits-Timer und entfernt spieler-blink sauber', async ({ page }) => {
+    await page.evaluate(() => {
+      const mod = window.__game;
+      mod.state.gameMode = 'online';
+      mod.state.spielLaeuft = true;
+      mod.state.network.isClient = true;
+      mod.state.network.isHost = false;
+      mod.state.network.connected = true;
+
+      // P2 erhält Treffer / Invulnerability
+      mod.state.p2.invulnerableTimer = 3;
+      mod.dom.spieler2.classList.add('spieler-blink');
+
+      // 3 Frames im GameLoop simulieren
+      mod.Loop.gameLoop();
+      mod.Loop.gameLoop();
+      mod.Loop.gameLoop();
+    });
+
+    const result = await page.evaluate(() => {
+      const mod = window.__game;
+      return {
+        timer: mod.state.p2.invulnerableTimer,
+        hasBlinkClass: mod.dom.spieler2.classList.contains('spieler-blink')
+      };
+    });
+
+    expect(result.timer).toBe(0);
+    expect(result.hasBlinkClass).toBe(false);
+  });
+
+  test('Online-Multiplayer Bug 3: Partikel auf dem Client animieren, zerfallen und werden aus DOM und Array entfernt', async ({ page }) => {
+    await page.evaluate(() => {
+      const mod = window.__game;
+      mod.state.gameMode = 'online';
+      mod.state.spielLaeuft = true;
+      mod.state.network.isClient = true;
+      mod.state.network.isHost = false;
+      mod.state.network.connected = true;
+
+      // Partikel-Array leeren
+      mod.arrays.partikelArray.length = 0;
+
+      // Explosion auf Client auslösen
+      mod.Utils.erzeugeExplosion(200, 200, '#f1c40f', 5);
+
+      // Partikel manuell mit schnellem Zerfall versehen für Test
+      mod.arrays.partikelArray.forEach(p => {
+        p.leben = 0.2;
+        p.zerfall = 0.1;
+      });
+
+      // 3 Frames im GameLoop simulieren (0.2 -> 0.1 -> 0.0 -> gelöscht)
+      mod.Loop.gameLoop();
+      mod.Loop.gameLoop();
+      mod.Loop.gameLoop();
+    });
+
+    const result = await page.evaluate(() => {
+      const mod = window.__game;
+      const domParticles = document.querySelectorAll('.partikel');
+      return {
+        arrayCount: mod.arrays.partikelArray.length,
+        domCount: domParticles.length
+      };
+    });
+
+    expect(result.arrayCount).toBe(0);
+    expect(result.domCount).toBe(0);
+  });
+
+  test('Online-Multiplayer Bug 4: Im Online-Modus sendet nur der Host genau EINEN globalen Highscore-Submit mit korrekten Schiffen', async ({ page }) => {
+    let postRequests = [];
+
+    await page.route('**/api/highscores*', async route => {
+      if (route.request().method() === 'POST') {
+        const payload = JSON.parse(route.request().postData() || '{}');
+        postRequests.push(payload);
+        await route.fulfill({ status: 201, contentType: 'application/json', body: JSON.stringify({ success: true, rank: 1, entry: payload }) });
+      } else {
+        await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ success: true, mode: 'online', highscores: [] }) });
+      }
+    });
+
+    // 1. Client simuliert Commit: Client darf KEINEN globalen POST senden
+    await page.evaluate(() => {
+      const mod = window.__game;
+      mod.state.gameMode = 'online';
+      mod.state.network.isOnline = true;
+      mod.state.network.isClient = true;
+      mod.state.network.isHost = false;
+      mod.state.selectedShipModel = 'phantom';
+      mod.state.p2.selectedShipModel = 'viper';
+      mod.state.finalerScore = 8500;
+      mod.state.level = 4;
+      mod.state.onlineHighscoreNames = { p1: 'AAA', p2: 'BBB' };
+
+      mod.Utils.checkAndCommitOnlineHighscore();
+    });
+
+    await page.waitForTimeout(300);
+
+    // Client hat keinen Request gesendet
+    expect(postRequests.length).toBe(0);
+
+    // 2. Host simuliert Commit: Host MUSS genau 1 globalen POST senden mit richtigen Schiffen
+    await page.evaluate(() => {
+      const mod = window.__game;
+      mod.state.gameMode = 'online';
+      mod.state.network.isOnline = true;
+      mod.state.network.isHost = true;
+      mod.state.network.isClient = false;
+      mod.state.selectedShipModel = 'phantom';
+      mod.state.p2.selectedShipModel = 'viper';
+      mod.state.finalerScore = 8500;
+      mod.state.level = 4;
+      mod.state.onlineHighscoreNames = { p1: 'AAA', p2: 'BBB' };
+
+      mod.Utils.checkAndCommitOnlineHighscore();
+    });
+
+    await page.waitForTimeout(300);
+
+    // Genau 1 Submit vom Host
+    expect(postRequests.length).toBe(1);
+    expect(postRequests[0].name).toBe('AAA+BBB');
+    expect(postRequests[0].mode).toBe('online');
+    expect(postRequests[0].score).toBe(8500);
+    expect(postRequests[0].shipP1).toBe('phantom');
+    expect(postRequests[0].shipP2).toBe('viper');
   });
 
 });

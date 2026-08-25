@@ -209,18 +209,7 @@ export async function hostRoom(customCode = null) {
     });
 
     sendEventAction = setupAction(room, 'event', (data, peerId) => {
-        if (data && data.type === 'skip_cutscene') {
-            Cutscene.skipCutscene(true);
-        }
-        if (data && data.type === 'highscore_name') {
-            Utils.receiveOnlineHighscoreName(data.role, data.name);
-        }
-        if (data && data.type === 'peer_left') {
-            state.network.connected = false;
-            updateOnlineStatus('MITSPIELER HAT DEN RAUM VERLASSEN!', true);
-            updateOnlineLobbyUI();
-        }
-        onEventCallbacks.forEach(cb => cb(data, peerId));
+        handleNetworkEvent(data, peerId);
     });
 
     bindPeerEvents(
@@ -252,20 +241,26 @@ export function startOnlineGame() {
     const uiP2 = dom.uiContainerP2 || document.getElementById('ui-container-p2');
     if (uiP2) uiP2.style.display = 'flex';
 
+    state.invulnerableTimer = 0;
+    if (state.p2) state.p2.invulnerableTimer = 0;
+    if (dom.spieler) dom.spieler.classList.remove('spieler-blink');
+    if (dom.spieler2) dom.spieler2.classList.remove('spieler-blink');
+
     Cutscene.startCutscene();
 }
 
 export function onPeerJoined(peerId) {
     state.network.connected = true;
     state.network.peerId = peerId;
-    const code = state.network.roomCode;
     updateOnlineLobbyUI();
 
     if (state.network.isHost) {
         sendNetworkEvent({
             type: 'game_start',
-            hostShipModel: state.selectedShipModel,
-            hostShipColor: state.selectedShipColor
+            hostShipModel: state.selectedShipModel || 'viper',
+            hostShipColor: state.selectedShipColor || 'red',
+            clientShipModel: (state.p2 && state.p2.selectedShipModel) || 'phantom',
+            clientShipColor: (state.p2 && state.p2.selectedShipColor) || 'blue'
         });
         startOnlineGame();
     }
@@ -304,16 +299,79 @@ export async function joinOnlineRoom(code) {
     });
 
     sendEventAction = setupAction(room, 'event', (data, peerId) => {
+        handleNetworkEvent(data, peerId);
+    });
+
+    bindPeerEvents(
+        room,
+        (peerId) => {
+            state.network.connected = true;
+            state.network.peerId = peerId;
+            updateOnlineLobbyUI();
+            
+            // Client meldet sein im Hangar gewähltes Schiff an den Host
+            const myModel = state.selectedShipModel || (state.p2 && state.p2.selectedShipModel) || 'phantom';
+            const myColor = state.selectedShipColor || (state.p2 && state.p2.selectedShipColor) || 'blue';
+            if (state.p2) {
+                state.p2.selectedShipModel = myModel;
+                state.p2.selectedShipColor = myColor;
+            }
+            sendNetworkEvent({
+                type: 'client_ready',
+                clientShipModel: myModel,
+                clientShipColor: myColor
+            });
+        },
+        (peerId) => {
+            state.network.connected = false;
+            updateOnlineStatus(`VERBINDUNG ZUM HOST VERLOREN!`, true);
+            updateOnlineLobbyUI();
+        }
+    );
+
+    return true;
+}
+
+export function handleNetworkEvent(data, peerId = null) {
+    if (!data) return;
+
+    if (state.network.isHost) {
+        if (data.type === 'client_ready') {
+            if (state.p2) {
+                state.p2.selectedShipModel = data.clientShipModel || 'phantom';
+                state.p2.selectedShipColor = data.clientShipColor || 'blue';
+            }
+            if (Utils && Utils.updatePlayerShipVisuals) Utils.updatePlayerShipVisuals();
+        }
+        if (data.type === 'skip_cutscene') {
+            Cutscene.skipCutscene(true);
+        }
+        if (data.type === 'highscore_name') {
+            Utils.receiveOnlineHighscoreName(data.role, data.name);
+        }
+        if (data.type === 'peer_left') {
+            state.network.connected = false;
+            updateOnlineStatus('MITSPIELER HAT DEN RAUM VERLASSEN!', true);
+            updateOnlineLobbyUI();
+        }
+    } else {
+        // Client Handling
         if (data.type === 'peer_joined') {
             state.network.connected = true;
             state.network.peerId = peerId;
             updateOnlineLobbyUI();
             
             // Client meldet sein Schiff an den Host zurück
+            const myModel = state.selectedShipModel || (state.p2 && state.p2.selectedShipModel) || 'phantom';
+            const myColor = state.selectedShipColor || (state.p2 && state.p2.selectedShipColor) || 'blue';
+            if (state.p2) {
+                state.p2.selectedShipModel = myModel;
+                state.p2.selectedShipColor = myColor;
+            }
             sendNetworkEvent({
                 type: 'client_ready',
-                clientShipModel: (state.p2 && state.p2.selectedShipModel) || 'phantom',
-                clientShipColor: (state.p2 && state.p2.selectedShipColor) || 'blue'
+                clientShipModel: myModel,
+                clientShipColor: myColor
             });
         }
         if (data.type === 'peer_left') {
@@ -322,6 +380,20 @@ export async function joinOnlineRoom(code) {
             updateOnlineLobbyUI();
         }
         if (data.type === 'game_start') {
+            // Vor dem Überschreiben der Host-Daten merken wir uns die eigene Schiffswahl des Clients
+            const clientChosenModel = data.clientShipModel || state.selectedShipModel || (state.p2 && state.p2.selectedShipModel) || 'viper';
+            const clientChosenColor = data.clientShipColor || state.selectedShipColor || (state.p2 && state.p2.selectedShipColor) || 'red';
+
+            // Host ist P1
+            if (data.hostShipModel) state.selectedShipModel = data.hostShipModel;
+            if (data.hostShipColor) state.selectedShipColor = data.hostShipColor;
+            
+            // Client selbst ist P2
+            if (state.p2) {
+                state.p2.selectedShipModel = clientChosenModel;
+                state.p2.selectedShipColor = clientChosenColor;
+            }
+            if (Utils && Utils.updatePlayerShipVisuals) Utils.updatePlayerShipVisuals();
             startOnlineGame();
         }
         if (data.type === 'game_over') {
@@ -363,24 +435,9 @@ export async function joinOnlineRoom(code) {
             Utils.erzeugeExplosion(data.x, data.y, data.farbe, data.anzahl);
             if (data.soundType) Audio.playExplosion(data.soundType);
         }
-        onEventCallbacks.forEach(cb => cb(data, peerId));
-    });
+    }
 
-    bindPeerEvents(
-        room,
-        (peerId) => {
-            state.network.connected = true;
-            state.network.peerId = peerId;
-            updateOnlineLobbyUI();
-        },
-        (peerId) => {
-            state.network.connected = false;
-            updateOnlineStatus(`VERBINDUNG ZUM HOST VERLOREN!`, true);
-            updateOnlineLobbyUI();
-        }
-    );
-
-    return true;
+    onEventCallbacks.forEach(cb => cb(data, peerId));
 }
 
 export function sendNetworkState(stateSnapshot) {

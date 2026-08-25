@@ -839,7 +839,11 @@ export function saveHighscore(name, scoreValue, shipModel = null, mode = (state.
   }
 
   // Parallele asynchrone Übermittlung an die globale Cloudflare-API (sofern kein Cheat aktiv war)
-  if (!state.cheatUsed && scoreValue > 0) {
+  // Im Online-Modus übermittelt ausschließlich der Host den Score an die globale Bestenliste
+  const isOnline = normMode === 'online' || (state.network && state.network.isOnline);
+  const canSubmitGlobal = !isOnline || (state.network && state.network.isHost);
+
+  if (!state.cheatUsed && scoreValue > 0 && canSubmitGlobal) {
     submitGlobalScore(normMode, name.toUpperCase(), scoreValue, currentLevel, modelP1, isMulti ? modelP2 : null);
   }
 }
@@ -1079,6 +1083,9 @@ export function checkAndCommitOnlineHighscore() {
     const combinedName = `${p1}+${p2}`;
     const modelP1 = state.selectedShipModel || 'viper';
     const modelP2 = (state.p2 && state.p2.selectedShipModel) || 'phantom';
+
+    // State sofort zurücksetzen, um doppelte Ausführung zu verhindern
+    state.onlineHighscoreNames = { p1: null, p2: null };
 
     saveHighscore(combinedName, state.finalerScore, modelP1, 'online', modelP2, state.level || 1);
 

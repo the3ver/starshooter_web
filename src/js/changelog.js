@@ -1,6 +1,16 @@
-export const GAME_VERSION = '1.6.42';
+export const GAME_VERSION = '1.6.43';
 
 export const changelogData = {
+  '1.6.43': {
+    version: '1.6.43',
+    intro: 'Hey, es ist jetzt Version 1.6.43 rausgekommen, folgendes wurde behoben:',
+    highlights: [
+      '🚀 Schiffswahl-Synchronisation im Online-Modus: Host und Client behalten exakt ihre im Hangar gewählten Schiffe (Viper-X / Phantom-NX)',
+      '✨ Blinken bei Spielstart behoben: Der Unverwundbarkeits-Timer läuft auf dem Client-Rechner nun zuverlässig ab',
+      '💥 Partikel-Animation auf Client: Explosionen und Treffer-Partikel animieren und verblassen flüssig ohne Einfrieren',
+      '🏆 Online-Bestenliste stabilisiert: Es wird exakt ein Eintrag vom Host mit den korrekten Schiffs-Zuordnungen übermittelt'
+    ]
+  },
   '1.6.42': {
     version: '1.6.42',
     intro: 'Hey, es ist jetzt Version 1.6.42 rausgekommen, folgendes ist neu:',
