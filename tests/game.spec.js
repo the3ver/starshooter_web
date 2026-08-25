@@ -22,7 +22,7 @@ test.beforeEach(async ({ page }) => {
 
   // Standardmäßig als bereits gesehen markieren, damit die Tests direkt interagieren können
   await page.addInitScript(() => {
-    localStorage.setItem('starshooter_last_seen_version', '1.6.44');
+    localStorage.setItem('starshooter_last_seen_version', '1.6.45');
     localStorage.setItem('starshooter_skip_cutscene', 'true');
   });
   await page.goto('/');
@@ -918,10 +918,10 @@ test.describe('Was gibt es Neues Modal (Changelog)', () => {
     await expect(title).toContainText("WAS GIBT'S NEUES");
 
     const intro = page.locator('#whats-new-intro');
-    await expect(intro).toContainText('1.6.44');
+    await expect(intro).toContainText('1.6.45');
 
     const items = page.locator('#whats-new-list li');
-    await expect(items).toHaveCount(5);
+    await expect(items).toHaveCount(2);
 
     // Schließen
     const closeBtn = page.locator('#btn-close-whats-new');
@@ -931,7 +931,7 @@ test.describe('Was gibt es Neues Modal (Changelog)', () => {
 
     // Prüfen, dass localStorage aktualisiert wurde
     const storedVersion = await page.evaluate(() => localStorage.getItem('starshooter_last_seen_version'));
-    expect(storedVersion).toBe('1.6.44');
+    expect(storedVersion).toBe('1.6.45');
 
     // Erneut öffnen über Start-Screen Button
     const openBtn = page.locator('#btn-open-whats-new');
@@ -5710,6 +5710,46 @@ test.describe('Bot-Partner', () => {
     expect(inputResults.standardKeysInput.laser).toBe(true);
     expect(inputResults.standardKeysInput.rakete).toBe(true);
     expect(inputResults.standardKeysInput.bombe).toBe(true);
+  });
+
+  test('Im lokalen Co-op Modus mit Bot-Partner kann Spieler 1 die Standard-Steuerung L (Laser), K (Rakete) und Leertaste (Bombe) nutzen', async ({ page }) => {
+    await page.evaluate(() => {
+      const mod = window.__game;
+      mod.state.gameMode = 'coop';
+      mod.state.p2IsBot = true; // Bot aktiv
+      mod.state.spielLaeuft = true;
+      mod.state.energie = 100;
+      mod.state.raketenCooldown = 0;
+      mod.state.bombenCooldown = 0;
+
+      // Tastendrücke zurücksetzen
+      Object.keys(mod.state.tastenGedrueckt).forEach(k => { mod.state.tastenGedrueckt[k] = false; });
+
+      // L (Laser), K (Rakete), Space (Bombe) drücken
+      mod.state.tastenGedrueckt.l = true;
+      mod.state.tastenGedrueckt.k = true;
+      mod.state.tastenGedrueckt[' '] = true;
+
+      // 1 Frame des GameLoops ausführen
+      mod.Loop.gameLoop();
+    });
+
+    const p1Actions = await page.evaluate(() => {
+      const mod = window.__game;
+      return {
+        laserSchiesst: mod.state.laserSchiesst,
+        raketenCooldown: mod.state.raketenCooldown,
+        bombenCooldown: mod.state.bombenCooldown,
+        raketenCount: mod.arrays.raketenArray.filter(r => r.owner === 'p1').length,
+        bombenCount: mod.arrays.bombenArray.filter(b => b.owner === 'p1').length
+      };
+    });
+
+    expect(p1Actions.laserSchiesst).toBe(true);
+    expect(p1Actions.raketenCooldown).toBeGreaterThan(0);
+    expect(p1Actions.bombenCooldown).toBeGreaterThan(0);
+    expect(p1Actions.raketenCount).toBeGreaterThanOrEqual(1);
+    expect(p1Actions.bombenCount).toBeGreaterThanOrEqual(1);
   });
 
 });

@@ -242,6 +242,7 @@ document.addEventListener('DOMContentLoaded', () => {
             if (diffPanel) diffPanel.style.display = state.p2IsBot ? 'flex' : 'none';
             btnBotToggle.classList.toggle('active', state.p2IsBot);
             btnBotToggle.textContent = state.p2IsBot ? '🤖 BOT AKTIV' : '🤖 BOT';
+            Utils.updateSteuerungInfo();
         });
     }
     document.querySelectorAll('.bot-diff-btn').forEach(btn => {

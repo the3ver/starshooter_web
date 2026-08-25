@@ -1,6 +1,14 @@
-export const GAME_VERSION = '1.6.44';
+export const GAME_VERSION = '1.6.45';
 
 export const changelogData = {
+  '1.6.45': {
+    version: '1.6.45',
+    intro: 'Hey, es ist jetzt Version 1.6.45 rausgekommen, folgendes wurde verbessert:',
+    highlights: [
+      '🤖 Lokaler Co-op mit Bot-Partner: Spieler 1 kann nun die komfortable Standard-Steuerung (WASD/Pfeile, L/B für Laser, K/V für Raketen, Leertaste/C für Bomben) nutzen',
+      '📋 Dynamische Steuerungsanzeige: Startscreen zeigt bei aktivem Bot-Partner sofort das angepasste Tastaturlayout an'
+    ]
+  },
   '1.6.44': {
     version: '1.6.44',
     intro: 'Hey, es ist jetzt Version 1.6.44 rausgekommen, folgendes wurde behoben:',

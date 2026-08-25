@@ -1348,6 +1348,8 @@ export function setGameMode(mode) {
   if (infoCoop) infoCoop.style.display = isCoop ? 'block' : 'none';
   if (infoOnline) infoOnline.style.display = isOnline ? 'block' : 'none';
 
+  updateSteuerungInfo();
+
   const uiP2 = dom.uiContainerP2 || document.getElementById('ui-container-p2');
   if (uiP2) uiP2.style.display = (isMultiplayer && state.spielLaeuft) ? 'flex' : 'none';
 
@@ -1384,6 +1386,37 @@ export function setGameMode(mode) {
     }
     const diffPanel = document.getElementById('bot-difficulty-panel');
     if (diffPanel) diffPanel.style.display = 'none';
+  }
+}
+
+export function updateSteuerungInfo() {
+  const infoCoop = document.getElementById('steuerung-info-coop');
+  if (infoCoop) {
+    if (state.p2IsBot) {
+      infoCoop.innerHTML = `
+        <div class="steuerung-titel">Steuerung (Co-op mit Bot)</div>
+        <b>W A S D</b> &nbsp;&rarr; Bewegen &nbsp;|&nbsp; <b>L / B</b> &rarr; Laser<br>
+        <b>K / V</b> &rarr; Raketen &nbsp;|&nbsp; <b>LEER / C</b> &rarr; Bomben &nbsp;|&nbsp; <b>P</b> &rarr; Pause
+      `;
+    } else {
+      infoCoop.innerHTML = `
+        <div class="steuerung-titel">Steuerung 2-Spieler (PC)</div>
+        <div class="steuerung-coop-grid">
+            <div class="steuerung-col">
+                <strong style="color: #e74c3c;">SPIELER 1:</strong><br>
+                <b>W A S D</b> &rarr; Bewegen<br>
+                <b>B</b> &rarr; Laser &nbsp;|&nbsp; <b>V</b> &rarr; Raketen<br>
+                <b>C</b> &rarr; Bombe
+            </div>
+            <div class="steuerung-col">
+                <strong style="color: #3498db;">SPIELER 2:</strong><br>
+                <b>&uarr; &larr; &darr; &rarr;</b> &rarr; Bewegen<br>
+                <b>Ä</b> &rarr; Laser &nbsp;|&nbsp; <b>Ö</b> &rarr; Raketen<br>
+                <b>L</b> &rarr; Bombe
+            </div>
+        </div>
+      `;
+    }
   }
 }
 

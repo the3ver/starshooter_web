@@ -257,10 +257,11 @@ export function gameLoop() {
     if (state.joystick.x < -0.2) targetRotate = -15;
     else if (state.joystick.x > 0.2) targetRotate = 15;
   } else if (!state.isDead) {
-    const up = state.tastenGedrueckt.w || (state.gameMode !== 'coop' && state.tastenGedrueckt.arrowup);
-    const down = state.tastenGedrueckt.s || (state.gameMode !== 'coop' && state.tastenGedrueckt.arrowdown);
-    const left = state.tastenGedrueckt.a || (state.gameMode !== 'coop' && state.tastenGedrueckt.arrowleft);
-    const right = state.tastenGedrueckt.d || (state.gameMode !== 'coop' && state.tastenGedrueckt.arrowright);
+    const isDualHumanCoop = state.gameMode === 'coop' && !state.p2IsBot;
+    const up = state.tastenGedrueckt.w || (!isDualHumanCoop && state.tastenGedrueckt.arrowup);
+    const down = state.tastenGedrueckt.s || (!isDualHumanCoop && state.tastenGedrueckt.arrowdown);
+    const left = state.tastenGedrueckt.a || (!isDualHumanCoop && state.tastenGedrueckt.arrowleft);
+    const right = state.tastenGedrueckt.d || (!isDualHumanCoop && state.tastenGedrueckt.arrowright);
 
     if (up) {
       state.y -= currentSpeed;
@@ -465,7 +466,8 @@ export function gameLoop() {
   if (state.frameZaehler % 60 === 0) Utils.addScore(5);
 
   // --- 9.4 ENERGIE SPIELER 1 ---
-  const p1LaserKey = state.gameMode === 'coop' ? state.tastenGedrueckt.b : (state.tastenGedrueckt.l || state.tastenGedrueckt.b);
+  const isDualHumanCoop = state.gameMode === 'coop' && !state.p2IsBot;
+  const p1LaserKey = isDualHumanCoop ? state.tastenGedrueckt.b : (state.tastenGedrueckt.l || state.tastenGedrueckt.b);
   if (p1LaserKey && !state.isDead) {
     if (!state.laserSchiesst && state.energie >= state.minZuendEnergie) state.laserSchiesst = true;
     if (state.energie <= 0) state.laserSchiesst = false;
@@ -1795,8 +1797,9 @@ export function gameLoop() {
       }
     }
 
+    const isDualHumanCoop = state.gameMode === 'coop' && !state.p2IsBot;
     const isTriggered = pKey === 'p1'
-      ? (state.gameMode === 'coop' ? state.tastenGedrueckt.v : (state.tastenGedrueckt.k || state.tastenGedrueckt.v))
+      ? (isDualHumanCoop ? state.tastenGedrueckt.v : (state.tastenGedrueckt.k || state.tastenGedrueckt.v))
       : ((state.network && state.network.isOnline && state.network.isHost)
           ? Boolean(state.p2 && state.p2.networkFireRakete)
           : (state.p2IsBot ? (state.p2.botFireRakete || false) : (state.tastenGedrueckt.ö || state.tastenGedrueckt.numpad2 || state.tastenGedrueckt[','])));
@@ -2100,8 +2103,9 @@ export function gameLoop() {
       }
     }
 
+    const isDualHumanCoop = state.gameMode === 'coop' && !state.p2IsBot;
     const isTriggered = pKey === 'p1'
-      ? (state.gameMode === 'coop' ? state.tastenGedrueckt.c : (state.tastenGedrueckt[' '] || state.tastenGedrueckt.c))
+      ? (isDualHumanCoop ? state.tastenGedrueckt.c : (state.tastenGedrueckt[' '] || state.tastenGedrueckt.c))
       : ((state.network && state.network.isOnline && state.network.isHost)
           ? Boolean(state.p2 && state.p2.networkFireBombe)
           : (state.p2IsBot ? (state.p2.botFireBombe || false) : (state.tastenGedrueckt.l || state.tastenGedrueckt.enter || state.tastenGedrueckt.numpad3 || state.tastenGedrueckt.numpad0)));
