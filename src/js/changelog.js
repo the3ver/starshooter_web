@@ -1,6 +1,14 @@
-export const GAME_VERSION = '1.6.46';
+export const GAME_VERSION = '1.6.47';
 
 export const changelogData = {
+  '1.6.47': {
+    version: '1.6.47',
+    intro: 'Hey, es ist jetzt Version 1.6.47 rausgekommen, folgendes wurde optimiert:',
+    highlights: [
+      '💎 Splitter-Drop Balancing: Im Solo-Modus droppen für das Phantom-NX keine Splitter mehr (weder von Feinden noch von Bossen)',
+      '🤝 Co-op Splitter-Zuweisung: Splitter droppen im 2-Spieler-Modus nur für Spieler, die eine Viper fliegen. Fliegen beide Phantom, droppen gar keine Splitter'
+    ]
+  },
   '1.6.46': {
     version: '1.6.46',
     intro: 'Hey, es ist jetzt Version 1.6.46 rausgekommen, folgendes wurde behoben:',

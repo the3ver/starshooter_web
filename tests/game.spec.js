@@ -22,7 +22,7 @@ test.beforeEach(async ({ page }) => {
 
   // Standardmäßig als bereits gesehen markieren, damit die Tests direkt interagieren können
   await page.addInitScript(() => {
-    localStorage.setItem('starshooter_last_seen_version', '1.6.46');
+    localStorage.setItem('starshooter_last_seen_version', '1.6.47');
     localStorage.setItem('starshooter_skip_cutscene', 'true');
   });
   await page.goto('/');
@@ -918,7 +918,7 @@ test.describe('Was gibt es Neues Modal (Changelog)', () => {
     await expect(title).toContainText("WAS GIBT'S NEUES");
 
     const intro = page.locator('#whats-new-intro');
-    await expect(intro).toContainText('1.6.46');
+    await expect(intro).toContainText('1.6.47');
 
     const items = page.locator('#whats-new-list li');
     await expect(items).toHaveCount(2);
@@ -931,7 +931,7 @@ test.describe('Was gibt es Neues Modal (Changelog)', () => {
 
     // Prüfen, dass localStorage aktualisiert wurde
     const storedVersion = await page.evaluate(() => localStorage.getItem('starshooter_last_seen_version'));
-    expect(storedVersion).toBe('1.6.46');
+    expect(storedVersion).toBe('1.6.47');
 
     // Erneut öffnen über Start-Screen Button
     const openBtn = page.locator('#btn-open-whats-new');
@@ -5752,7 +5752,7 @@ test.describe('Bot-Partner', () => {
     expect(p1Actions.bombenCount).toBeGreaterThanOrEqual(1);
   });
 
-  test('Online-Multiplayer Ponytail Fix: Client behält seine im Hangar gewählte Viper bei game_start und überschreibt diese nicht mit altem Host-Default', async ({ page }) => {
+  test('Online-Multiplayer Schiffswahl: Client behält seine im Hangar gewählte Viper bei game_start und überschreibt diese nicht mit altem Host-Default', async ({ page }) => {
     await page.evaluate(() => {
       const mod = window.__game;
       mod.state.gameMode = 'online';
@@ -5796,6 +5796,133 @@ test.describe('Bot-Partner', () => {
     expect(clientP2State.colorP2).toBe('green');
     expect(clientP2State.speedP2).toBe(6.0);
     expect(clientP2State.hasViperSvg).toBe(true);
+  });
+
+  test('Splitter-Drops: Im Solo-Modus mit Phantom-NX droppen bei Feinden und Bossen keine Splitter', async ({ page }) => {
+    const dropResults = await page.evaluate(() => {
+      const mod = window.__game;
+      mod.state.gameMode = 'single';
+      mod.state.selectedShipModel = 'phantom';
+      mod.state.viperKillCount = 0;
+
+      // Vorhandene Powerups leeren
+      mod.arrays.powerups.forEach(p => { if (p.el) p.el.remove(); });
+      mod.arrays.powerups.length = 0;
+      mod.arrays.bosses.forEach(b => { if (b.el) b.el.remove(); });
+      mod.arrays.bosses.length = 0;
+
+      // 10 Feinde durch Phantom zerstören
+      for (let i = 0; i < 10; i++) {
+        const feind = { istFeind: true, groesse: 30, x: 100, y: 100, el: document.createElement('div') };
+        mod.arrays.feinde.push(feind);
+        mod.Utils.zerstoereZiel(feind, 'p1');
+      }
+
+      const enemyDropShards = mod.arrays.powerups.filter(p => p.type === 'splitterRot' || p.type === 'splitterWeiss').length;
+
+      // Boss durch Phantom zerstören
+      mod.Entities.erzeugeBoss();
+      const boss = mod.arrays.bosses[0];
+      mod.Utils.zerstoereZiel(boss, 'p1');
+
+      const allShards = mod.arrays.powerups.filter(p => p.type === 'splitterRot' || p.type === 'splitterWeiss').length;
+      const regularPowerups = mod.arrays.powerups.filter(p => p.type !== 'splitterRot' && p.type !== 'splitterWeiss').length;
+
+      return {
+        enemyDropShards,
+        allShards,
+        regularPowerups
+      };
+    });
+
+    // Phantom darf weder von Feinden noch vom Boss Splitter erhalten
+    expect(dropResults.enemyDropShards).toBe(0);
+    expect(dropResults.allShards).toBe(0);
+    expect(dropResults.regularPowerups).toBe(3); // Nur die 3 regulären Boss-Powerups
+  });
+
+  test('Splitter-Drops: Im Co-op Modus droppen Splitter nur fuer Viper-Spieler und keine wenn beide Phantom fliegen', async ({ page }) => {
+    const coopResults = await page.evaluate(() => {
+      const mod = window.__game;
+      mod.state.gameMode = 'coop';
+
+      function resetDrops() {
+        mod.arrays.powerups.forEach(p => { if (p.el) p.el.remove(); });
+        mod.arrays.powerups.length = 0;
+        mod.arrays.bosses.forEach(b => { if (b.el) b.el.remove(); });
+        mod.arrays.bosses.length = 0;
+        mod.state.viperKillCount = 0;
+        if (mod.state.p2) mod.state.p2.viperKillCount = 0;
+      }
+
+      // --- SZENARIO 1: BEIDE PHANTOM ---
+      resetDrops();
+      mod.state.selectedShipModel = 'phantom';
+      mod.state.p2.selectedShipModel = 'phantom';
+
+      // 10 Kills P1, 10 Kills P2
+      for (let i = 0; i < 10; i++) {
+        const f1 = { istFeind: true, groesse: 30, x: 100, y: 100, el: document.createElement('div') };
+        mod.arrays.feinde.push(f1);
+        mod.Utils.zerstoereZiel(f1, 'p1');
+        const f2 = { istFeind: true, groesse: 30, x: 100, y: 100, el: document.createElement('div') };
+        mod.arrays.feinde.push(f2);
+        mod.Utils.zerstoereZiel(f2, 'p2');
+      }
+
+      // Boss Kill
+      mod.Entities.erzeugeBoss();
+      mod.Utils.zerstoereZiel(mod.arrays.bosses[0], 'p1');
+      const bothPhantomShards = mod.arrays.powerups.filter(p => p.type === 'splitterRot' || p.type === 'splitterWeiss');
+
+      // --- SZENARIO 2: P1 PHANTOM, P2 VIPER ---
+      resetDrops();
+      mod.state.selectedShipModel = 'phantom';
+      mod.state.p2.selectedShipModel = 'viper';
+
+      // 10 Kills P1 (Phantom) -> 0 Drops
+      for (let i = 0; i < 10; i++) {
+        const f = { istFeind: true, groesse: 30, x: 100, y: 100, el: document.createElement('div') };
+        mod.arrays.feinde.push(f);
+        mod.Utils.zerstoereZiel(f, 'p1');
+      }
+      const p1PhantomKillsShards = mod.arrays.powerups.filter(p => p.type === 'splitterRot' || p.type === 'splitterWeiss').length;
+
+      // 10 Kills P2 (Viper) -> 1 Drop für P2
+      for (let i = 0; i < 10; i++) {
+        const f = { istFeind: true, groesse: 30, x: 100, y: 100, el: document.createElement('div') };
+        mod.arrays.feinde.push(f);
+        mod.Utils.zerstoereZiel(f, 'p2');
+      }
+      const p2ViperKillsShards = mod.arrays.powerups.filter(p => (p.type === 'splitterRot' || p.type === 'splitterWeiss') && p.owner === 'p2').length;
+
+      // Boss Kill durch P1 (Phantom) -> Splitter gehen an P2 (Viper)
+      mod.Entities.erzeugeBoss();
+      mod.Utils.zerstoereZiel(mod.arrays.bosses[0], 'p1');
+      const bossShardsToP2 = mod.arrays.powerups.filter(p => (p.type === 'splitterRot' || p.type === 'splitterWeiss') && p.owner === 'p2').length;
+      const shardsToP1 = mod.arrays.powerups.filter(p => (p.type === 'splitterRot' || p.type === 'splitterWeiss') && p.owner === 'p1').length;
+
+      return {
+        bothPhantomShardCount: bothPhantomShards.length,
+        p1PhantomKillsShards,
+        p2ViperKillsShards,
+        bossShardsToP2,
+        shardsToP1
+      };
+    });
+
+    // Beide Phantom -> 0 Splitter
+    expect(coopResults.bothPhantomShardCount).toBe(0);
+
+    // P1 Phantom Kill -> 0 Splitter
+    expect(coopResults.p1PhantomKillsShards).toBe(0);
+
+    // P2 Viper Kill -> 1 Splitter für P2
+    expect(coopResults.p2ViperKillsShards).toBe(1);
+
+    // Boss Splitter gehen nur an P2 (Viper), keine an P1 (Phantom)
+    expect(coopResults.bossShardsToP2).toBe(4); // 1 aus Minion-Kills + 3 vom Boss
+    expect(coopResults.shardsToP1).toBe(0);
   });
 
 });

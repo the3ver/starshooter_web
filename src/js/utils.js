@@ -320,11 +320,19 @@ export function zerstoereZiel(ziel, killer = 'p1') {
       Entities.erzeugePowerup(ziel.x + i * 25, ziel.y, d);
     });
 
-    // 3 garantierte Splitter fallen lassen (Rot oder Weiß)
-    for (let s = 0; s < 3; s++) {
-      const shardType = Math.random() < 0.5 ? 'splitterRot' : 'splitterWeiss';
-      const shardOwner = isCoopMode() ? killer : null;
-      Entities.erzeugePowerup(ziel.x + s * 25 + 12, ziel.y + 30, shardType, shardOwner);
+    // 3 garantierte Splitter nur fallen lassen wenn ein Viper-Schiff beteiligt ist
+    const killerShipModel = killer === 'p2' ? (state.p2 && state.p2.selectedShipModel) : state.selectedShipModel;
+    const partnerShipModel = killer === 'p2' ? state.selectedShipModel : (state.p2 && state.p2.selectedShipModel);
+    const shardTarget = isCoopMode()
+      ? (killerShipModel === 'viper' ? killer : (partnerShipModel === 'viper' ? (killer === 'p2' ? 'p1' : 'p2') : null))
+      : (state.selectedShipModel === 'viper' ? 'solo' : null);
+
+    if (shardTarget) {
+      const shardOwner = shardTarget === 'solo' ? null : shardTarget;
+      for (let s = 0; s < 3; s++) {
+        const shardType = Math.random() < 0.5 ? 'splitterRot' : 'splitterWeiss';
+        Entities.erzeugePowerup(ziel.x + s * 25 + 12, ziel.y + 30, shardType, shardOwner);
+      }
     }
 
     state.bossAktiv = false;
