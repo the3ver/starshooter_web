@@ -22,7 +22,7 @@ test.beforeEach(async ({ page }) => {
 
   // Standardmäßig als bereits gesehen markieren, damit die Tests direkt interagieren können
   await page.addInitScript(() => {
-    localStorage.setItem('starshooter_last_seen_version', '1.6.43');
+    localStorage.setItem('starshooter_last_seen_version', '1.6.44');
     localStorage.setItem('starshooter_skip_cutscene', 'true');
   });
   await page.goto('/');
@@ -918,10 +918,10 @@ test.describe('Was gibt es Neues Modal (Changelog)', () => {
     await expect(title).toContainText("WAS GIBT'S NEUES");
 
     const intro = page.locator('#whats-new-intro');
-    await expect(intro).toContainText('1.6.43');
+    await expect(intro).toContainText('1.6.44');
 
     const items = page.locator('#whats-new-list li');
-    await expect(items).toHaveCount(4);
+    await expect(items).toHaveCount(5);
 
     // Schließen
     const closeBtn = page.locator('#btn-close-whats-new');
@@ -931,7 +931,7 @@ test.describe('Was gibt es Neues Modal (Changelog)', () => {
 
     // Prüfen, dass localStorage aktualisiert wurde
     const storedVersion = await page.evaluate(() => localStorage.getItem('starshooter_last_seen_version'));
-    expect(storedVersion).toBe('1.6.43');
+    expect(storedVersion).toBe('1.6.44');
 
     // Erneut öffnen über Start-Screen Button
     const openBtn = page.locator('#btn-open-whats-new');
@@ -4770,7 +4770,7 @@ test.describe('Bot-Partner', () => {
         x: mod.state.p2.x,
         y: mod.state.p2.y,
         rotate: mod.state.p2.rotate,
-        laserSchiesst: mod.state.p2.laserSchiesst,
+        laserInputRequested: mod.state.p2.laserInputRequested,
         networkFireRakete: mod.state.p2.networkFireRakete,
         networkFireBombe: mod.state.p2.networkFireBombe
       };
@@ -4779,7 +4779,7 @@ test.describe('Bot-Partner', () => {
     expect(p2State.x).toBe(350);
     expect(p2State.y).toBe(480);
     expect(p2State.rotate).toBe(-15);
-    expect(p2State.laserSchiesst).toBe(true);
+    expect(p2State.laserInputRequested).toBe(true);
     expect(p2State.networkFireRakete).toBe(true);
     expect(p2State.networkFireBombe).toBe(true);
   });
@@ -5502,6 +5502,214 @@ test.describe('Bot-Partner', () => {
     expect(postRequests[0].score).toBe(8500);
     expect(postRequests[0].shipP1).toBe('phantom');
     expect(postRequests[0].shipP2).toBe('viper');
+  });
+
+  test('Online-Multiplayer Issue 1: Energie- & Cooldown-HUD wird auf Client synchronisiert und Host blockiert Laser bei unzureichender Mindestenergie', async ({ page }) => {
+    // 1. Client-HUD-Sync testen
+    await page.evaluate(() => {
+      const mod = window.__game;
+      mod.state.gameMode = 'online';
+      mod.state.spielLaeuft = true;
+      mod.state.network.isClient = true;
+      mod.state.network.isHost = false;
+      mod.state.network.connected = true;
+
+      const mockSnapshot = {
+        p1: { x: 200, y: 300, energie: 40, maxEnergie: 100, raketenCooldown: 0, bombenCooldown: 0 },
+        p2: {
+          x: 350,
+          y: 400,
+          energie: 10, // unter minZuendEnergie (15)
+          maxEnergie: 100,
+          raketenCooldown: 90,
+          bombenCooldown: 600,
+          laserSchiesst: false
+        },
+        feinde: [],
+        asteroiden: [],
+        bosses: [],
+        laser: [],
+        raketen: [],
+        bomben: [],
+        powerups: []
+      };
+
+      mod.Network.applyGameStateSnapshot(mockSnapshot);
+    });
+
+    const hudState = await page.evaluate(() => {
+      const eBalkenP2 = document.getElementById('energie-balken-p2');
+      const rBalkenP2 = document.getElementById('raketen-cd-balken-p2');
+      const bBalkenP2 = document.getElementById('bomben-cd-balken-p2');
+      return {
+        eWidth: eBalkenP2 ? eBalkenP2.style.width : '',
+        eColor: eBalkenP2 ? eBalkenP2.style.backgroundColor : '',
+        rWidth: rBalkenP2 ? rBalkenP2.style.width : '',
+        bWidth: bBalkenP2 ? bBalkenP2.style.width : ''
+      };
+    });
+
+    // Energiebalken von P2 muss auf 10% sein und die Warnfarbe (#e67e22) für unter Min-Energie tragen
+    expect(hudState.eWidth).toBe('10%');
+    expect(hudState.eColor).toBe('rgb(230, 126, 34)'); // #e67e22
+    expect(hudState.rWidth).not.toBe('');
+    expect(hudState.bWidth).not.toBe('');
+
+    // 2. Host Mindestzündenergie-Check testen
+    await page.evaluate(() => {
+      const mod = window.__game;
+      mod.state.gameMode = 'online';
+      mod.state.spielLaeuft = true;
+      mod.state.network.isHost = true;
+      mod.state.network.isClient = false;
+      mod.state.network.connected = true;
+
+      mod.state.p2.energie = 10; // unter minZuendEnergie (15)
+      mod.state.p2.minZuendEnergie = 15;
+      mod.state.p2.laserSchiesst = false;
+
+      // Client fordert Laser an
+      mod.Network.applyPlayerInput({ laser: true });
+
+      // Host simuliert einen Frame im GameLoop
+      mod.Loop.gameLoop();
+    });
+
+    const hostP2Laser = await page.evaluate(() => window.__game.state.p2.laserSchiesst);
+    // Da 10 < 15 darf der Laser nicht aktiviert werden
+    expect(hostP2Laser).toBe(false);
+  });
+
+  test('Online-Multiplayer Issue 2: Host übernimmt Client-Schiffswahl aus client_ready und aktualisiert SVG und game_start Event', async ({ page }) => {
+    await page.evaluate(() => {
+      const mod = window.__game;
+      mod.state.gameMode = 'online';
+      mod.state.network.isOnline = true;
+      mod.state.network.isHost = true;
+      mod.state.network.isClient = false;
+      mod.state.network.connected = true;
+      mod.state.selectedShipModel = 'phantom';
+      mod.state.p2.selectedShipModel = 'phantom'; // initial default
+
+      // Host empfängt client_ready vom Client, der Viper gewählt hat
+      mod.Network.handleNetworkEvent({
+        type: 'client_ready',
+        clientShipModel: 'viper',
+        clientShipColor: 'green'
+      });
+    });
+
+    const hostP2State = await page.evaluate(() => {
+      const mod = window.__game;
+      const s2Svg = mod.dom.spieler2 ? mod.dom.spieler2.querySelector('svg') : null;
+      return {
+        model: mod.state.p2.selectedShipModel,
+        color: mod.state.p2.selectedShipColor,
+        hasViperSvg: s2Svg ? s2Svg.innerHTML.includes('#2ecc71') || s2Svg.innerHTML.includes('#27ae60') || s2Svg.innerHTML.includes('viper') : false
+      };
+    });
+
+    expect(hostP2State.model).toBe('viper');
+    expect(hostP2State.color).toBe('green');
+  });
+
+  test('Online-Multiplayer Issue 3: Client aktualisiert Bestenliste nach highscore_committed Event vom Host', async ({ page }) => {
+    // Route mocken: Vorher alte Liste, nach Refresh neue Liste
+    let callCount = 0;
+    await page.route('**/api/highscores*', async route => {
+      callCount++;
+      if (callCount <= 1) {
+        await route.fulfill({
+          status: 200,
+          contentType: 'application/json',
+          body: JSON.stringify({
+            success: true,
+            mode: 'online',
+            highscores: [{ name: 'OLD+OLD', score: 1000, shipP1: 'viper', shipP2: 'phantom', level: 1 }]
+          })
+        });
+      } else {
+        await route.fulfill({
+          status: 200,
+          contentType: 'application/json',
+          body: JSON.stringify({
+            success: true,
+            mode: 'online',
+            highscores: [{ name: 'NEW+WIN', score: 9999, shipP1: 'viper', shipP2: 'viper', level: 5 }]
+          })
+        });
+      }
+    });
+
+    // 1. Client initialisiert Bestenliste mit alter Liste
+    await page.evaluate(async () => {
+      const mod = window.__game;
+      mod.state.gameMode = 'online';
+      mod.state.network.isOnline = true;
+      mod.state.network.isClient = true;
+      mod.state.network.isHost = false;
+      mod.state.network.connected = true;
+      mod.state.currentHighscoreTab = 'online';
+
+      mod.Utils.renderHighscores('online');
+    });
+
+    const initialText = await page.locator('#highscore-body').innerText();
+    expect(initialText).toContain('OLD+OLD');
+
+    // 2. Client empfängt highscore_committed Event vom Host
+    await page.evaluate(() => {
+      const mod = window.__game;
+      mod.Network.handleNetworkEvent({
+        type: 'highscore_committed'
+      });
+    });
+
+    await page.waitForTimeout(300);
+
+    // 3. Client Bestenliste muss jetzt NEW+WIN anzeigen
+    const updatedText = await page.locator('#highscore-body').innerText();
+    expect(updatedText).toContain('NEW+WIN');
+    expect(updatedText).toContain('9999');
+  });
+
+  test('Online-Multiplayer Issue 4: Nur L, K, Space (und WASD) steuern Aktionen; ö und ä sind im Online-Modus deaktiviert', async ({ page }) => {
+    const inputResults = await page.evaluate(() => {
+      const mod = window.__game;
+      mod.state.gameMode = 'online';
+      mod.state.network.isOnline = true;
+      mod.state.network.isClient = true;
+
+      // Alle Tasten zurücksetzen
+      Object.keys(mod.state.tastenGedrueckt).forEach(k => { mod.state.tastenGedrueckt[k] = false; });
+
+      // 1. Lokale Coop-Tasten ö und ä drücken
+      mod.state.tastenGedrueckt['ö'] = true;
+      mod.state.tastenGedrueckt['ä'] = true;
+      const coopKeysInput = mod.Network.serializePlayerInput();
+
+      // 2. Reguläre Tasten drücken: L, K, Space
+      mod.state.tastenGedrueckt['ö'] = false;
+      mod.state.tastenGedrueckt['ä'] = false;
+      mod.state.tastenGedrueckt.l = true;
+      mod.state.tastenGedrueckt.k = true;
+      mod.state.tastenGedrueckt[' '] = true;
+      const standardKeysInput = mod.Network.serializePlayerInput();
+
+      return {
+        coopKeysInput,
+        standardKeysInput
+      };
+    });
+
+    // ö und ä dürfen im Online-Modus weder Rakete noch Bombe auslösen
+    expect(inputResults.coopKeysInput.rakete).toBe(false);
+    expect(inputResults.coopKeysInput.bombe).toBe(false);
+
+    // L, K und Space müssen feuern
+    expect(inputResults.standardKeysInput.laser).toBe(true);
+    expect(inputResults.standardKeysInput.rakete).toBe(true);
+    expect(inputResults.standardKeysInput.bombe).toBe(true);
   });
 
 });

@@ -497,7 +497,7 @@ export function gameLoop() {
   let laserAktivP2 = false;
   if (isCoopMode() && state.p2 && !state.p2.isDead) {
     const p2LaserKey = (state.network && state.network.isOnline && state.network.isHost)
-      ? Boolean(state.p2.laserSchiesst)
+      ? Boolean(state.p2 && state.p2.laserInputRequested)
       : (state.p2IsBot ? (state.p2.botFireLaser || false) : (state.tastenGedrueckt.ä || state.tastenGedrueckt.numpad1 || state.tastenGedrueckt['.']));
     if (p2LaserKey) {
       if (!state.p2.laserSchiesst && state.p2.energie >= state.p2.minZuendEnergie) state.p2.laserSchiesst = true;

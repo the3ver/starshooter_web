@@ -110,9 +110,12 @@ export function hostStartGame() {
     if (!state.network.isHost || !state.network.connected) return;
     sendNetworkEvent({
         type: 'game_start',
-        hostShipModel: state.selectedShipModel,
-        hostShipColor: state.selectedShipColor
+        hostShipModel: state.selectedShipModel || 'viper',
+        hostShipColor: state.selectedShipColor || 'red',
+        clientShipModel: (state.p2 && state.p2.selectedShipModel) || 'phantom',
+        clientShipColor: (state.p2 && state.p2.selectedShipColor) || 'blue'
     });
+    if (Utils && Utils.updatePlayerShipVisuals) Utils.updatePlayerShipVisuals();
     startOnlineGame();
 }
 
@@ -255,14 +258,7 @@ export function onPeerJoined(peerId) {
     updateOnlineLobbyUI();
 
     if (state.network.isHost) {
-        sendNetworkEvent({
-            type: 'game_start',
-            hostShipModel: state.selectedShipModel || 'viper',
-            hostShipColor: state.selectedShipColor || 'red',
-            clientShipModel: (state.p2 && state.p2.selectedShipModel) || 'phantom',
-            clientShipColor: (state.p2 && state.p2.selectedShipColor) || 'blue'
-        });
-        startOnlineGame();
+        hostStartGame();
     }
 }
 
@@ -425,6 +421,14 @@ export function handleNetworkEvent(data, peerId = null) {
         if (data.type === 'highscore_name') {
             Utils.receiveOnlineHighscoreName(data.role, data.name);
         }
+        if (data.type === 'highscore_committed') {
+            if (state.globalHighscoresCache) {
+                state.globalHighscoresCache['online'] = null;
+            }
+            if (Utils && Utils.fetchGlobalHighscores) {
+                Utils.fetchGlobalHighscores('online');
+            }
+        }
         if (data.type === 'bomb_detonated') {
             Utils.erzeugeBombenDetonation(data.x, data.y, data.color, data.radius, data.stufe, data.isMini);
         }
@@ -499,6 +503,8 @@ export function serializeGameState() {
             laserStufe: state.laserStufe,
             raketenStufe: state.raketenStufe,
             bombenStufe: state.bombenStufe,
+            raketenCooldown: state.raketenCooldown,
+            bombenCooldown: state.bombenCooldown,
             laserSchiesst: state.laserSchiesst,
             isDead: state.isDead
         },
@@ -513,6 +519,8 @@ export function serializeGameState() {
             laserStufe: state.p2.laserStufe,
             raketenStufe: state.p2.raketenStufe,
             bombenStufe: state.p2.bombenStufe,
+            raketenCooldown: state.p2.raketenCooldown,
+            bombenCooldown: state.p2.bombenCooldown,
             laserSchiesst: state.p2.laserSchiesst,
             isDead: state.p2.isDead
         } : null,
@@ -654,6 +662,37 @@ export function applyGameStateSnapshot(snapshot) {
                 dom.spieler.classList.add(`schild-aktiv-${state.schildStufe}`);
             }
         }
+
+        if (dom.energieBalken) {
+            dom.energieBalken.style.width = (state.energie / (state.absMaxEnergie || 100)) * 100 + '%';
+            if (state.unbegrenzteEnergie) {
+                dom.energieBalken.style.backgroundColor = '#f1c40f';
+            } else {
+                dom.energieBalken.style.backgroundColor = state.energie < (state.minZuendEnergie || 15) && !state.laserSchiesst ? '#e67e22' : '#1abc9c';
+            }
+        }
+        if (snapshot.p1.raketenCooldown !== undefined) {
+            state.raketenCooldown = snapshot.p1.raketenCooldown;
+            const raketenCdBalken = document.getElementById('raketen-cd-balken');
+            if (raketenCdBalken) {
+                let maxRaketenCd = 180;
+                if (state.raketenStufe >= 2 && state.raketenStufe <= 3) maxRaketenCd = 150;
+                if (state.raketenStufe >= 4) maxRaketenCd = 120;
+                let pctR = Math.max(0, 100 - state.raketenCooldown / maxRaketenCd * 100);
+                raketenCdBalken.style.width = pctR + '%';
+                raketenCdBalken.style.backgroundColor = state.raketenCooldown <= 0 ? '#2ecc71' : '#e74c3c';
+            }
+        }
+        if (snapshot.p1.bombenCooldown !== undefined) {
+            state.bombenCooldown = snapshot.p1.bombenCooldown;
+            const bombenCdBalken = document.getElementById('bomben-cd-balken');
+            if (bombenCdBalken) {
+                let maxBombenCd = 2400 - (state.bombenStufe || 1) * 240;
+                let pctB = Math.max(0, 100 - state.bombenCooldown / maxBombenCd * 100);
+                bombenCdBalken.style.width = pctB + '%';
+                bombenCdBalken.style.backgroundColor = state.bombenCooldown <= 0 ? '#2ecc71' : '#f39c12';
+            }
+        }
     }
 
     // 2. Sync P2 stats
@@ -670,6 +709,33 @@ export function applyGameStateSnapshot(snapshot) {
                 dom.spieler2.classList.add(`schild-aktiv-${state.p2.schildStufe}`);
             }
             dom.spieler2.style.display = state.p2.isDead ? 'none' : 'block';
+        }
+
+        if (dom.energieBalkenP2) {
+            dom.energieBalkenP2.style.width = (state.p2.energie / (state.p2.absMaxEnergie || 100)) * 100 + '%';
+            dom.energieBalkenP2.style.backgroundColor = state.p2.energie < (state.p2.minZuendEnergie || 15) && !state.p2.laserSchiesst ? '#e67e22' : '#3498db';
+        }
+        if (snapshot.p2.raketenCooldown !== undefined) {
+            state.p2.raketenCooldown = snapshot.p2.raketenCooldown;
+            const raketenCdBalkenP2 = document.getElementById('raketen-cd-balken-p2');
+            if (raketenCdBalkenP2) {
+                let maxRaketenCd = 180;
+                if (state.p2.raketenStufe >= 2 && state.p2.raketenStufe <= 3) maxRaketenCd = 150;
+                if (state.p2.raketenStufe >= 4) maxRaketenCd = 120;
+                let pctR = Math.max(0, 100 - state.p2.raketenCooldown / maxRaketenCd * 100);
+                raketenCdBalkenP2.style.width = pctR + '%';
+                raketenCdBalkenP2.style.backgroundColor = state.p2.raketenCooldown <= 0 ? '#2ecc71' : '#e74c3c';
+            }
+        }
+        if (snapshot.p2.bombenCooldown !== undefined) {
+            state.p2.bombenCooldown = snapshot.p2.bombenCooldown;
+            const bombenCdBalkenP2 = document.getElementById('bomben-cd-balken-p2');
+            if (bombenCdBalkenP2) {
+                let maxBombenCd = 2400 - (state.p2.bombenStufe || 1) * 240;
+                let pctB = Math.max(0, 100 - state.p2.bombenCooldown / maxBombenCd * 100);
+                bombenCdBalkenP2.style.width = pctB + '%';
+                bombenCdBalkenP2.style.backgroundColor = state.p2.bombenCooldown <= 0 ? '#2ecc71' : '#f39c12';
+            }
         }
         Utils.updateLebenP2UI();
         Utils.updateMaxEnergieMarkerP2();
@@ -1110,9 +1176,9 @@ export function applyGameStateSnapshot(snapshot) {
 
 export function serializePlayerInput() {
     const keys = state.tastenGedrueckt;
-    const isLaser = Boolean(keys.l || keys.b || (state.joystick && state.joystick.active));
-    const isRakete = Boolean(keys.k || keys.v || keys.ö);
-    const isBombe = Boolean(keys[' '] || keys.c || keys.enter || keys.ä);
+    const isLaser = Boolean(keys.l || keys.b);
+    const isRakete = Boolean(keys.k || keys.v);
+    const isBombe = Boolean(keys[' '] || keys.c || keys.enter);
 
     return {
         x: state.p2 ? state.p2.x : state.x,
@@ -1132,7 +1198,7 @@ export function applyPlayerInput(input) {
     state.p2.rotate = input.rotate || 0;
 
     if (input.laser !== undefined) {
-        state.p2.laserSchiesst = Boolean(input.laser);
+        state.p2.laserInputRequested = Boolean(input.laser);
     }
 
     if (input.rakete) {

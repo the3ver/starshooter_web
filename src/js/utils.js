@@ -876,6 +876,11 @@ async function submitGlobalScore(mode, name, score, level, shipP1, shipP2) {
       if (state.globalHighscoresCache) {
         state.globalHighscoresCache[mode] = null;
       }
+      if (state.network && state.network.isOnline && state.network.isHost && state.network.connected) {
+        Network.sendNetworkEvent({
+          type: 'highscore_committed'
+        });
+      }
       fetchGlobalHighscores(mode);
     }
   } catch (err) {

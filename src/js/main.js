@@ -194,8 +194,18 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (state.p2) state.p2.selectedShipModel = model;
             } else {
                 state.selectedShipModel = model;
+                if (state.p2 && state.gameMode === 'online' && state.network.isClient) {
+                    state.p2.selectedShipModel = model;
+                }
             }
             Utils.updatePlayerShipVisuals();
+            if (state.network && state.network.isOnline && state.network.isClient && state.network.connected) {
+                Network.sendNetworkEvent({
+                    type: 'client_ready',
+                    clientShipModel: model,
+                    clientShipColor: state.selectedShipColor || (state.p2 && state.p2.selectedShipColor) || 'blue'
+                });
+            }
         });
     });
 
@@ -207,8 +217,18 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (state.p2) state.p2.selectedShipColor = colorId;
             } else {
                 state.selectedShipColor = colorId;
+                if (state.p2 && state.gameMode === 'online' && state.network.isClient) {
+                    state.p2.selectedShipColor = colorId;
+                }
             }
             Utils.updatePlayerShipVisuals();
+            if (state.network && state.network.isOnline && state.network.isClient && state.network.connected) {
+                Network.sendNetworkEvent({
+                    type: 'client_ready',
+                    clientShipModel: state.selectedShipModel || (state.p2 && state.p2.selectedShipModel) || 'viper',
+                    clientShipColor: colorId
+                });
+            }
         });
     });
 

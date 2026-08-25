@@ -1,6 +1,17 @@
-export const GAME_VERSION = '1.6.43';
+export const GAME_VERSION = '1.6.44';
 
 export const changelogData = {
+  '1.6.44': {
+    version: '1.6.44',
+    intro: 'Hey, es ist jetzt Version 1.6.44 rausgekommen, folgendes wurde behoben:',
+    highlights: [
+      '⚡ Energie- & Cooldown-HUD synchronisiert: Energiebalken sowie Raketen- und Bomben-Cooldowns werden auf dem Client-Rechner in Echtzeit visualisiert',
+      '🎯 Laser-Zündenergie im Online-Modus: Mindestenergie für den Laser wird für Spieler 2 serverseitig sauber durchgesetzt',
+      '🚀 Zuverlässige Schiffswahl-Übertragung: Der Host übernimmt die Schiffs- und Farbauswahl des Clients garantiert vor Spielbeginn',
+      '🏆 Bestenlisten-Live-Refresh: Nach erfolgreichem Highscore-Submit aktualisiert der Client seine Bestenliste automatisch mit den neuen Platzierungen',
+      '🎮 Tastenbelegung im Online-Modus: Beide Spieler steuern einheitlich mit WASD, L (Laser), K (Rakete) und Leertaste (Bombe)'
+    ]
+  },
   '1.6.43': {
     version: '1.6.43',
     intro: 'Hey, es ist jetzt Version 1.6.43 rausgekommen, folgendes wurde behoben:',
