@@ -1,6 +1,13 @@
-export const GAME_VERSION = '1.6.41';
+export const GAME_VERSION = '1.6.42';
 
 export const changelogData = {
+  '1.6.42': {
+    version: '1.6.42',
+    intro: 'Hey, es ist jetzt Version 1.6.42 rausgekommen, folgendes ist neu:',
+    highlights: [
+      '🌐 Globale Bestenliste: Weltweite Ranglisten für Solo, Bot Co-op und Online Co-op mit Edge-Geolokalisierung (Flagge & Stadt) und Cheat-Schutz'
+    ]
+  },
   '1.6.41': {
     version: '1.6.41',
     intro: 'Hey, es ist jetzt Version 1.6.41 rausgekommen, folgendes wurde behoben:',

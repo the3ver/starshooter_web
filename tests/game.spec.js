@@ -3,7 +3,7 @@ const { test, expect } = require('@playwright/test');
 test.beforeEach(async ({ page }) => {
   // Standardmäßig als bereits gesehen markieren, damit die Tests direkt interagieren können
   await page.addInitScript(() => {
-    localStorage.setItem('starshooter_last_seen_version', '1.6.41');
+    localStorage.setItem('starshooter_last_seen_version', '1.6.42');
     localStorage.setItem('starshooter_skip_cutscene', 'true');
   });
   await page.goto('/');
@@ -899,7 +899,7 @@ test.describe('Was gibt es Neues Modal (Changelog)', () => {
     await expect(title).toContainText("WAS GIBT'S NEUES");
 
     const intro = page.locator('#whats-new-intro');
-    await expect(intro).toContainText('1.6.41');
+    await expect(intro).toContainText('1.6.42');
 
     const items = page.locator('#whats-new-list li');
     await expect(items).toHaveCount(1);
@@ -912,7 +912,7 @@ test.describe('Was gibt es Neues Modal (Changelog)', () => {
 
     // Prüfen, dass localStorage aktualisiert wurde
     const storedVersion = await page.evaluate(() => localStorage.getItem('starshooter_last_seen_version'));
-    expect(storedVersion).toBe('1.6.41');
+    expect(storedVersion).toBe('1.6.42');
 
     // Erneut öffnen über Start-Screen Button
     const openBtn = page.locator('#btn-open-whats-new');
@@ -2989,10 +2989,10 @@ test.describe('2-Spieler-Modus (Co-op)', () => {
     });
 
     const tabSingle = page.locator('#hs-tab-single');
-    const tabCoop = page.locator('#hs-tab-coop');
+    const tabBot = page.locator('#hs-tab-bot');
 
     await expect(tabSingle).toBeVisible();
-    await expect(tabCoop).toBeVisible();
+    await expect(tabBot).toBeVisible();
 
     // Solo Tab anklicken
     await tabSingle.click();
@@ -3001,9 +3001,9 @@ test.describe('2-Spieler-Modus (Co-op)', () => {
     await expect(page.locator('#highscore-body')).toContainText('1111');
     await expect(page.locator('#highscore-body')).not.toContainText('DUO');
 
-    // Co-op Tab anklicken
-    await tabCoop.click();
-    await expect(tabCoop).toHaveClass(/active/);
+    // Bot Co-op Tab anklicken
+    await tabBot.click();
+    await expect(tabBot).toHaveClass(/active/);
     await expect(page.locator('#highscore-body')).toContainText('DUO');
     await expect(page.locator('#highscore-body')).toContainText('9999');
     await expect(page.locator('#highscore-body')).not.toContainText('SOL');
@@ -5075,6 +5075,223 @@ test.describe('Bot-Partner', () => {
     await btnLeave.click();
     const actionsVisible = await page.locator('#online-lobby-actions').isVisible();
     expect(actionsVisible).toBe(true);
+  });
+
+  test('Globale Bestenliste: Highscore-Tabs (SOLO, BOT CO-OP, ONLINE CO-OP) im Game-Over-Screen vorhanden und umschaltbar', async ({ page }) => {
+    // 1. GameOver auslösen
+    await page.evaluate(() => {
+      window.__game.state.score = 5000;
+      window.__game.Utils.triggerGameOver();
+    });
+
+    const tabSingle = page.locator('#hs-tab-single');
+    const tabBot = page.locator('#hs-tab-bot');
+    const tabOnline = page.locator('#hs-tab-online');
+
+    // 2. Alle 3 Tabs müssen sichtbar sein mit korrektem Label
+    await expect(tabSingle).toBeVisible();
+    await expect(tabSingle).toHaveText('SOLO');
+    await expect(tabBot).toBeVisible();
+    await expect(tabBot).toHaveText('BOT CO-OP');
+    await expect(tabOnline).toBeVisible();
+    await expect(tabOnline).toHaveText('ONLINE CO-OP');
+
+    // 3. Tab-Wechsel zu BOT CO-OP
+    await tabBot.click();
+    await expect(tabBot).toHaveClass(/active/);
+    await expect(tabSingle).not.toHaveClass(/active/);
+    await expect(tabOnline).not.toHaveClass(/active/);
+
+    // 4. Tab-Wechsel zu ONLINE CO-OP
+    await tabOnline.click();
+    await expect(tabOnline).toHaveClass(/active/);
+    await expect(tabBot).not.toHaveClass(/active/);
+    await expect(tabSingle).not.toHaveClass(/active/);
+
+    // 5. Tab-Wechsel zurück zu SOLO
+    await tabSingle.click();
+    await expect(tabSingle).toHaveClass(/active/);
+    await expect(tabBot).not.toHaveClass(/active/);
+    await expect(tabOnline).not.toHaveClass(/active/);
+  });
+
+  test('Globale Bestenliste: Globale Highscores laden und rendern mit Geo-Location (Flagge und Stadt), Rang und Schiffen', async ({ page }) => {
+    // Mock API Route für globale Highscores
+    await page.route('**/api/highscores?mode=single*', async route => {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          success: true,
+          mode: 'single',
+          highscores: [
+            { id: 1, name: 'FRK', score: 95000, level: 10, shipP1: 'viper', country: 'DE', city: 'Frankfurt' },
+            { id: 2, name: 'PET', score: 82000, level: 8, shipP1: 'phantom', country: 'US', city: 'New York' },
+            { id: 3, name: 'BEN', score: 71000, level: 7, shipP1: 'viper', country: 'JP', city: 'Tokyo' }
+          ]
+        })
+      });
+    });
+
+    // GameOver auslösen
+    await page.evaluate(() => {
+      window.__game.state.score = 5000;
+      window.__game.Utils.triggerGameOver();
+    });
+
+    // Warten bis Daten geladen und Tabelle gerendert ist
+    const rows = page.locator('#highscore-body tr');
+    await expect(rows).toHaveCount(3);
+
+    // Statusanzeige prüfen
+    const statusText = page.locator('#highscore-status-text');
+    await expect(statusText).toContainText('GLOBALE BESTENLISTE');
+
+    // Zeile 1: #1, FRK, 🇩🇪 (DE), 95000, Viper-X
+    const row1 = rows.nth(0);
+    await expect(row1).toContainText('#1');
+    await expect(row1).toContainText('FRK');
+    await expect(row1).toContainText('🇩🇪');
+    await expect(row1).toContainText('95000');
+    await expect(row1.locator('.hs-ship-viper')).toBeVisible();
+
+    // Zeile 2: #2, PET, 🇺🇸 (US), 82000, Phantom-NX
+    const row2 = rows.nth(1);
+    await expect(row2).toContainText('#2');
+    await expect(row2).toContainText('PET');
+    await expect(row2).toContainText('🇺🇸');
+    await expect(row2).toContainText('82000');
+    await expect(row2.locator('.hs-ship-phantom')).toBeVisible();
+
+    // Zeile 3: #3, BEN, 🇯🇵 (JP), 71000
+    const row3 = rows.nth(2);
+    await expect(row3).toContainText('#3');
+    await expect(row3).toContainText('BEN');
+    await expect(row3).toContainText('🇯🇵');
+    await expect(row3).toContainText('71000');
+  });
+
+  test('Globale Bestenliste: Highscore-Submit übermittelt Modus, Name, Score, Schiffe und validen SHA-256 Hash', async ({ page }) => {
+    let capturedRequest = null;
+
+    // Route für POST abfangen
+    await page.route('**/api/highscores', async route => {
+      if (route.request().method() === 'POST') {
+        capturedRequest = JSON.parse(route.request().postData());
+        await route.fulfill({
+          status: 201,
+          contentType: 'application/json',
+          body: JSON.stringify({
+            success: true,
+            rank: 1,
+            entry: {
+              mode: capturedRequest.mode,
+              name: capturedRequest.name,
+              score: capturedRequest.score,
+              level: capturedRequest.level,
+              shipP1: capturedRequest.shipP1,
+              country: 'DE',
+              city: 'Berlin'
+            }
+          })
+        });
+      } else {
+        await route.fulfill({
+          status: 200,
+          contentType: 'application/json',
+          body: JSON.stringify({ success: true, mode: 'single', highscores: [] })
+        });
+      }
+    });
+
+    // Spielzustand vorbereiten und GameOver triggern
+    await page.evaluate(() => {
+      window.__game.state.score = 12500;
+      window.__game.state.level = 4;
+      window.__game.state.selectedShipModel = 'viper';
+      window.__game.state.gameMode = 'single';
+      window.__game.Utils.triggerGameOver();
+    });
+
+    // Formular ausfüllen und absenden
+    const nameInput = page.locator('#highscore-name');
+    await expect(nameInput).toBeVisible();
+    await nameInput.fill('MAX');
+
+    const saveBtn = page.locator('#btn-save-score');
+    await saveBtn.click();
+
+    // Warten bis der POST-Request gesendet und erfasst wurde
+    await page.waitForTimeout(500);
+
+    expect(capturedRequest).not.toBeNull();
+    expect(capturedRequest.mode).toBe('single');
+    expect(capturedRequest.name).toBe('MAX');
+    expect(capturedRequest.score).toBe(12500);
+    expect(capturedRequest.level).toBe(4);
+    expect(capturedRequest.shipP1).toBe('viper');
+    expect(typeof capturedRequest.timestamp).toBe('number');
+    expect(capturedRequest.hash).toMatch(/^[a-f0-9]{64}$/); // Valider 64-stelliger SHA-256 Hex Hash
+  });
+
+  test('Globale Bestenliste: Offline-Fallback schaltet bei Server-Fehler auf lokale Highscores um', async ({ page }) => {
+    // 1. Lokale Highscores im LocalStorage vorbereiten
+    await page.evaluate(() => {
+      localStorage.setItem('spaceShooterHighscores', JSON.stringify([
+        { name: 'LOC', score: 3333, ship: 'viper', mode: 'single' }
+      ]));
+    });
+
+    // 2. Route so konfigurieren, dass sie mit 500 Internal Server Error fehlschlägt
+    await page.route('**/api/highscores*', async route => {
+      await route.fulfill({
+        status: 500,
+        contentType: 'application/json',
+        body: JSON.stringify({ success: false, error: 'Server unavailable' })
+      });
+    });
+
+    // 3. GameOver triggern
+    await page.evaluate(() => {
+      window.__game.state.score = 1000;
+      window.__game.Utils.triggerGameOver();
+    });
+
+    // 4. Statusanzeige muss auf Offline (Lokal) umschalten
+    const statusText = page.locator('#highscore-status-text');
+    await expect(statusText).toContainText('LOKALE BESTENLISTE (Offline)');
+
+    // 5. Lokaler Eintrag muss gerendert sein
+    const rows = page.locator('#highscore-body tr');
+    await expect(rows).toHaveCount(1);
+    await expect(rows.nth(0)).toContainText('LOC');
+    await expect(rows.nth(0)).toContainText('3333');
+  });
+
+  test('Globale Bestenliste: Cheat-Sperre verhindert Submit an die globale Bestenliste', async ({ page }) => {
+    let postRequestSent = false;
+
+    // Route für POST abfangen
+    await page.route('**/api/highscores', async route => {
+      if (route.request().method() === 'POST') {
+        postRequestSent = true;
+        await route.fulfill({ status: 201, contentType: 'application/json', body: '{}' });
+      } else {
+        await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ success: true, mode: 'single', highscores: [] }) });
+      }
+    });
+
+    // Cheat aktivieren und Highscore speichern
+    await page.evaluate(() => {
+      window.__game.state.cheatUsed = true;
+      window.__game.state.score = 50000;
+      window.__game.Utils.saveHighscore('CHT', 50000);
+    });
+
+    await page.waitForTimeout(500);
+
+    // Es darf kein POST an die globale API gesendet worden sein
+    expect(postRequestSent).toBe(false);
   });
 
 });

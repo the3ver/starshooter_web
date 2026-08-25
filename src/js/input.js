@@ -162,15 +162,21 @@ export function setupInput() {
   });
 
   const hsTabSingle = document.getElementById('hs-tab-single');
-  const hsTabCoop = document.getElementById('hs-tab-coop');
+  const hsTabBot = document.getElementById('hs-tab-bot');
+  const hsTabOnline = document.getElementById('hs-tab-online');
   if (hsTabSingle) {
     hsTabSingle.addEventListener('click', () => {
       Utils.renderHighscores('single');
     });
   }
-  if (hsTabCoop) {
-    hsTabCoop.addEventListener('click', () => {
-      Utils.renderHighscores('coop');
+  if (hsTabBot) {
+    hsTabBot.addEventListener('click', () => {
+      Utils.renderHighscores('coop_bot');
+    });
+  }
+  if (hsTabOnline) {
+    hsTabOnline.addEventListener('click', () => {
+      Utils.renderHighscores('online');
     });
   }
 

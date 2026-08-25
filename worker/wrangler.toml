@@ -1,0 +1,8 @@
+name = "starshooter-api"
+main = "index.js"
+compatibility_date = "2024-01-01"
+
+[[d1_databases]]
+binding = "starshooter_db"
+database_name = "starshooter-db"
+database_id = "4448da02-226e-4491-94fa-a0e0cc6627e1"

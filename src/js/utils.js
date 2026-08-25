@@ -401,7 +401,8 @@ export function triggerGameOver(finalScoreFromHost = null) {
   if (gameOverScreen) gameOverScreen.style.display = 'flex';
   
   const isOnline = state.gameMode === 'online' || (state.network && state.network.isOnline);
-  const currentMode = isOnline ? 'coop' : (state.gameMode || 'single');
+  const isCoop = state.gameMode === 'coop';
+  const currentMode = isOnline ? 'online' : (isCoop ? 'coop_bot' : 'single');
 
   if (isOnline && state.network && state.network.isHost && finalScoreFromHost === null) {
     Network.sendNetworkEvent({
@@ -428,9 +429,12 @@ export function triggerGameOver(finalScoreFromHost = null) {
     if (isOnline) {
       hsInput.placeholder = (state.network && state.network.isHost) ? 'P1' : 'P2';
       hsInput.maxLength = 3;
+    } else if (isCoop) {
+      hsInput.placeholder = 'TEAM';
+      hsInput.maxLength = 6;
     } else {
-      hsInput.placeholder = state.gameMode === 'coop' ? 'TEAM' : 'AAA';
-      hsInput.maxLength = state.gameMode === 'coop' ? 6 : 3;
+      hsInput.placeholder = 'AAA';
+      hsInput.maxLength = 3;
     }
   }
 
@@ -753,83 +757,246 @@ export function restartGame() {
   }
 }
 // --- HIGHSCORE LOGIK ---
+const SECRET_SALT = 'st4r-sh00t3r-s3cr3t-k3y-2026';
+
+export function getCountryFlagEmoji(countryCode) {
+  if (!countryCode || typeof countryCode !== 'string' || countryCode.length !== 2) return '';
+  const codePoints = countryCode
+    .toUpperCase()
+    .split('')
+    .map(char => 127397 + char.charCodeAt(0));
+  return String.fromCodePoint(...codePoints);
+}
+
+export async function generateScoreHash(name, score, level, mode, timestamp) {
+  const payload = `${name}:${score}:${level}:${mode}:${timestamp}:${SECRET_SALT}`;
+  if (typeof window !== 'undefined' && window.crypto && window.crypto.subtle) {
+    const encoder = new TextEncoder();
+    const data = encoder.encode(payload);
+    const hashBuffer = await window.crypto.subtle.digest('SHA-256', data);
+    const hashArray = Array.from(new Uint8Array(hashBuffer));
+    return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+  }
+  return '';
+}
+
+export function normalizeHighscoreMode(mode = (state.gameMode || 'single')) {
+  if (mode === 'single') return 'single';
+  if (mode === 'online') return 'online';
+  if (mode === 'coop_bot') return 'coop_bot';
+  if (mode === 'coop') return 'coop_bot';
+  return 'single';
+}
+
 export function getHighscores(mode = (state.gameMode || 'single')) {
-  const isCoop = mode === 'coop' || mode === 'online';
-  const key = isCoop ? 'spaceShooterHighscores_coop' : 'spaceShooterHighscores';
+  const normMode = normalizeHighscoreMode(mode);
+  let key = 'spaceShooterHighscores';
+  if (normMode === 'coop_bot') key = 'spaceShooterHighscores_bot';
+  else if (normMode === 'online') key = 'spaceShooterHighscores_online';
+
   let hs = localStorage.getItem(key);
+  if (!hs && normMode === 'coop_bot') {
+    hs = localStorage.getItem('spaceShooterHighscores_coop');
+  }
   return hs ? JSON.parse(hs) : [];
 }
-export function saveHighscore(name, scoreValue, shipModel = null, mode = (state.gameMode || 'single'), shipP2Model = null) {
-  const isCoop = mode === 'coop' || mode === 'online';
-  let hs = getHighscores(isCoop ? 'coop' : 'single');
+
+export function saveHighscore(name, scoreValue, shipModel = null, mode = (state.gameMode || 'single'), shipP2Model = null, level = null) {
+  const normMode = normalizeHighscoreMode(mode);
+  let hs = getHighscores(normMode);
   let modelP1 = shipModel || state.selectedShipModel || 'viper';
   let modelP2 = shipP2Model || (state.p2 && state.p2.selectedShipModel) || 'phantom';
-  if (isCoop) {
-    hs.push({
-      name: name.toUpperCase(),
-      score: scoreValue,
-      shipP1: modelP1,
-      shipP2: modelP2,
-      ship: `${modelP1}+${modelP2}`,
-      mode: 'coop'
-    });
+  let currentLevel = level || state.level || 1;
+
+  const isMulti = normMode === 'coop_bot' || normMode === 'online';
+
+  const entry = {
+    name: name.toUpperCase(),
+    score: scoreValue,
+    level: currentLevel,
+    mode: normMode
+  };
+
+  if (isMulti) {
+    entry.shipP1 = modelP1;
+    entry.shipP2 = modelP2;
+    entry.ship = `${modelP1}+${modelP2}`;
   } else {
-    hs.push({
-      name: name.toUpperCase(),
-      score: scoreValue,
-      ship: modelP1,
-      mode: 'single'
-    });
+    entry.ship = modelP1;
+    entry.shipP1 = modelP1;
   }
+
+  hs.push(entry);
   hs.sort((a, b) => b.score - a.score);
-  const key = isCoop ? 'spaceShooterHighscores_coop' : 'spaceShooterHighscores';
+
+  let key = 'spaceShooterHighscores';
+  if (normMode === 'coop_bot') key = 'spaceShooterHighscores_bot';
+  else if (normMode === 'online') key = 'spaceShooterHighscores_online';
+
   localStorage.setItem(key, JSON.stringify(hs.slice(0, 10)));
-}
-export function renderHighscores(targetMode = null) {
-  const rawMode = targetMode || state.gameMode || 'single';
-  const isCoop = rawMode === 'coop' || rawMode === 'online';
-  const currentMode = isCoop ? 'coop' : 'single';
-  let hs = getHighscores(currentMode);
-  
-  // Highscore-Tabs aktualisieren (falls vorhanden)
-  const tabSingle = document.getElementById('hs-tab-single');
-  const tabCoop = document.getElementById('hs-tab-coop');
-  if (tabSingle && tabCoop) {
-    if (currentMode === 'coop') {
-      tabCoop.classList.add('active');
-      tabSingle.classList.remove('active');
-    } else {
-      tabSingle.classList.add('active');
-      tabCoop.classList.remove('active');
-    }
+  if (isMulti) {
+    localStorage.setItem('spaceShooterHighscores_coop', JSON.stringify(hs.slice(0, 10)));
   }
+
+  // Parallele asynchrone Übermittlung an die globale Cloudflare-API (sofern kein Cheat aktiv war)
+  if (!state.cheatUsed && scoreValue > 0) {
+    submitGlobalScore(normMode, name.toUpperCase(), scoreValue, currentLevel, modelP1, isMulti ? modelP2 : null);
+  }
+}
+
+async function submitGlobalScore(mode, name, score, level, shipP1, shipP2) {
+  try {
+    const timestamp = Date.now();
+    const hash = await generateScoreHash(name, score, level, mode, timestamp);
+    const apiUrl = state.highscoreApiUrl || '/api/highscores';
+
+    const response = await fetch(apiUrl, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        mode,
+        name,
+        score,
+        level,
+        shipP1,
+        shipP2,
+        timestamp,
+        hash
+      })
+    });
+
+    if (response.ok) {
+      // Nach erfolgreichem Submit Cache für diesen Modus invalidieren und neu laden
+      if (state.globalHighscoresCache) {
+        state.globalHighscoresCache[mode] = null;
+      }
+      fetchGlobalHighscores(mode);
+    }
+  } catch (err) {
+    console.warn('Global Highscore Submit fehlgeschlagen, offline Fallback aktiv:', err);
+  }
+}
+
+export function renderHighscoresTable(currentMode, hsList) {
+  const tbody = document.getElementById('highscore-body');
+  if (!tbody) return;
+  tbody.innerHTML = '';
+
+  if (!hsList || hsList.length === 0) {
+    tbody.innerHTML = '<tr><td colspan="4">- Keine Einträge -</td></tr>';
+    return;
+  }
+
+  hsList.forEach((entry, idx) => {
+    const rank = idx + 1;
+    let rankClass = '';
+    if (rank === 1) rankClass = 'hs-rank-1';
+    else if (rank === 2) rankClass = 'hs-rank-2';
+    else if (rank === 3) rankClass = 'hs-rank-3';
+
+    const rankBadge = `<span class="hs-rank ${rankClass}">#${rank}</span>`;
+
+    // Flaggen-Emoji und Stadt
+    let locDisplay = '';
+    if (entry.country) {
+      const flag = getCountryFlagEmoji(entry.country);
+      const title = entry.city ? `${entry.city}, ${entry.country}` : entry.country;
+      locDisplay = `<span class="hs-location" title="${title}">${flag}</span>`;
+    }
+
+    const isMulti = currentMode === 'coop_bot' || currentMode === 'online';
+
+    if (isMulti) {
+      const p1Phantom = entry.shipP1 === 'phantom';
+      const p2Phantom = entry.shipP2 === 'phantom';
+      const p1Badge = `<span class="hs-ship-badge hs-badge-mini ${p1Phantom ? 'hs-ship-phantom' : 'hs-ship-viper'}" title="P1: ${p1Phantom ? 'Phantom-NX' : 'Viper-X'}">P1:${p1Phantom ? 'P' : 'V'}</span>`;
+      const p2Badge = `<span class="hs-ship-badge hs-badge-mini ${p2Phantom ? 'hs-ship-phantom' : 'hs-ship-viper'}" title="P2: ${p2Phantom ? 'Phantom-NX' : 'Viper-X'}">P2:${p2Phantom ? 'P' : 'V'}</span>`;
+      tbody.innerHTML += `<tr><td>${rankBadge}</td><td>${entry.name}${locDisplay}</td><td>${entry.score}</td><td><div class="hs-coop-badges">${p1Badge} ${p2Badge}</div></td></tr>`;
+    } else {
+      const isPhantom = entry.ship === 'phantom' || entry.shipP1 === 'phantom';
+      const shipLabel = isPhantom ? 'Phantom-NX' : 'Viper-X';
+      const badgeClass = isPhantom ? 'hs-ship-phantom' : 'hs-ship-viper';
+      tbody.innerHTML += `<tr><td>${rankBadge}</td><td>${entry.name}${locDisplay}</td><td>${entry.score}</td><td><span class="hs-ship-badge ${badgeClass}">${shipLabel}</span></td></tr>`;
+    }
+  });
+}
+
+export async function fetchGlobalHighscores(mode) {
+  const normMode = normalizeHighscoreMode(mode);
+  const statusText = document.getElementById('highscore-status-text');
+  const spinner = document.getElementById('highscore-spinner');
+
+  if (spinner) spinner.style.display = 'inline-block';
+  if (statusText) statusText.innerText = '🌐 BESTENLISTE WIRD GELADEN...';
+
+  try {
+    const apiUrl = state.highscoreApiUrl || '/api/highscores';
+    const res = await fetch(`${apiUrl}?mode=${normMode}&limit=10`);
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const data = await res.json();
+
+    if (data && data.success && Array.isArray(data.highscores)) {
+      if (!state.globalHighscoresCache) state.globalHighscoresCache = {};
+      state.globalHighscoresCache[normMode] = data.highscores;
+      state.highscoreError = false;
+
+      if (statusText) statusText.innerText = '🌐 GLOBALE BESTENLISTE';
+      if (spinner) spinner.style.display = 'none';
+
+      // Nur rendern, wenn der Tab noch der aktuelle ist
+      if (state.currentHighscoreTab === normMode) {
+        renderHighscoresTable(normMode, data.highscores);
+      }
+      return data.highscores;
+    } else {
+      throw new Error(data ? data.error : 'Fehler beim Laden');
+    }
+  } catch (err) {
+    state.highscoreError = true;
+    if (statusText) statusText.innerText = '💾 LOKALE BESTENLISTE (Offline)';
+    if (spinner) spinner.style.display = 'none';
+
+    const localHs = getHighscores(normMode);
+    if (state.currentHighscoreTab === normMode) {
+      renderHighscoresTable(normMode, localHs);
+    }
+    return localHs;
+  }
+}
+
+export function renderHighscores(targetMode = null) {
+  const normMode = normalizeHighscoreMode(targetMode || state.currentHighscoreTab || state.gameMode || 'single');
+  state.currentHighscoreTab = normMode;
+
+  // Highscore-Tabs aktualisieren
+  const tabSingle = document.getElementById('hs-tab-single');
+  const tabBot = document.getElementById('hs-tab-bot');
+  const tabOnline = document.getElementById('hs-tab-online');
+
+  if (tabSingle) tabSingle.classList.toggle('active', normMode === 'single');
+  if (tabBot) tabBot.classList.toggle('active', normMode === 'coop_bot');
+  if (tabOnline) tabOnline.classList.toggle('active', normMode === 'online');
 
   // Header-Spalte anpassen (SCHIFF vs SCHIFFE)
   const colHeaderShip = document.getElementById('hs-col-ship');
   if (colHeaderShip) {
-    colHeaderShip.innerText = currentMode === 'coop' ? 'SCHIFFE' : 'SCHIFF';
+    colHeaderShip.innerText = (normMode === 'single') ? 'SCHIFF' : 'SCHIFFE';
   }
 
-  const tbody = document.getElementById('highscore-body');
-  if (!tbody) return;
-  tbody.innerHTML = '';
-  if (hs.length === 0) {
-    tbody.innerHTML = '<tr><td colspan="3">- Keine Einträge -</td></tr>';
+  // Zuerst gecachte globale Scores oder lokale Scores sofort anzeigen
+  if (state.globalHighscoresCache && state.globalHighscoresCache[normMode]) {
+    const statusText = document.getElementById('highscore-status-text');
+    const spinner = document.getElementById('highscore-spinner');
+    if (statusText) statusText.innerText = '🌐 GLOBALE BESTENLISTE';
+    if (spinner) spinner.style.display = 'none';
+    renderHighscoresTable(normMode, state.globalHighscoresCache[normMode]);
   } else {
-    hs.forEach(entry => {
-      if (currentMode === 'coop') {
-        let p1Phantom = entry.shipP1 === 'phantom';
-        let p2Phantom = entry.shipP2 === 'phantom';
-        let p1Badge = `<span class="hs-ship-badge hs-badge-mini ${p1Phantom ? 'hs-ship-phantom' : 'hs-ship-viper'}" title="P1: ${p1Phantom ? 'Phantom-NX' : 'Viper-X'}">P1:${p1Phantom ? 'P' : 'V'}</span>`;
-        let p2Badge = `<span class="hs-ship-badge hs-badge-mini ${p2Phantom ? 'hs-ship-phantom' : 'hs-ship-viper'}" title="P2: ${p2Phantom ? 'Phantom-NX' : 'Viper-X'}">P2:${p2Phantom ? 'P' : 'V'}</span>`;
-        tbody.innerHTML += `<tr><td>${entry.name}</td><td>${entry.score}</td><td><div class="hs-coop-badges">${p1Badge} ${p2Badge}</div></td></tr>`;
-      } else {
-        let isPhantom = entry.ship === 'phantom';
-        let shipLabel = isPhantom ? 'Phantom-NX' : 'Viper-X';
-        let badgeClass = isPhantom ? 'hs-ship-phantom' : 'hs-ship-viper';
-        tbody.innerHTML += `<tr><td>${entry.name}</td><td>${entry.score}</td><td><span class="hs-ship-badge ${badgeClass}">${shipLabel}</span></td></tr>`;
-      }
-    });
+    // Lokale Scores sofort anzeigen und asynchron laden
+    const localHs = getHighscores(normMode);
+    renderHighscoresTable(normMode, localHs);
+    fetchGlobalHighscores(normMode);
   }
 }
 
@@ -841,11 +1008,13 @@ export function submitHighscore() {
 
   if (!isOnline) {
     let nameInput = rawName;
-    if (!nameInput || nameInput === '') nameInput = (state.gameMode === 'coop' ? 'TEAM' : 'AAA');
-    saveHighscore(nameInput, state.finalerScore, state.selectedShipModel, state.gameMode, state.p2 ? state.p2.selectedShipModel : null);
+    const isCoop = state.gameMode === 'coop';
+    if (!nameInput || nameInput === '') nameInput = (isCoop ? 'TEAM' : 'AAA');
+    const mode = isCoop ? 'coop_bot' : 'single';
+    saveHighscore(nameInput, state.finalerScore, state.selectedShipModel, mode, state.p2 ? state.p2.selectedShipModel : null, state.level || 1);
     const hsForm = document.getElementById('highscore-form');
     if (hsForm) hsForm.style.display = 'none';
-    renderHighscores(state.gameMode);
+    renderHighscores(mode);
     return;
   }
 
@@ -907,7 +1076,7 @@ export function checkAndCommitOnlineHighscore() {
     const modelP1 = state.selectedShipModel || 'viper';
     const modelP2 = (state.p2 && state.p2.selectedShipModel) || 'phantom';
 
-    saveHighscore(combinedName, state.finalerScore, modelP1, 'coop', modelP2);
+    saveHighscore(combinedName, state.finalerScore, modelP1, 'online', modelP2, state.level || 1);
 
     const hsForm = document.getElementById('highscore-form');
     if (hsForm) hsForm.style.display = 'none';
@@ -918,7 +1087,7 @@ export function checkAndCommitOnlineHighscore() {
     }
     if (waitingMsg) waitingMsg.style.display = 'none';
 
-    renderHighscores('coop');
+    renderHighscores('online');
   }
 }
 export function erzeugeExplosion(x, y, farbe, anzahl = 15) {

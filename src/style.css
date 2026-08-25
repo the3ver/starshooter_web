@@ -1065,6 +1065,45 @@
             box-shadow: 0 0 5px rgba(52, 152, 219, 0.3);
         }
 
+        .hs-rank {
+            font-weight: bold;
+            font-size: 11px;
+            display: inline-block;
+            width: 18px;
+            text-align: center;
+        }
+
+        .hs-rank-1 {
+            color: #f1c40f;
+            text-shadow: 0 0 6px rgba(241, 196, 15, 0.8);
+        }
+
+        .hs-rank-2 {
+            color: #bdc3c7;
+            text-shadow: 0 0 6px rgba(189, 195, 199, 0.8);
+        }
+
+        .hs-rank-3 {
+            color: #e67e22;
+            text-shadow: 0 0 6px rgba(230, 126, 34, 0.8);
+        }
+
+        .hs-location {
+            font-size: 11px;
+            color: #95a5a6;
+            margin-left: 3px;
+        }
+
+        .highscore-spinner {
+            animation: hsSpin 1s linear infinite;
+            display: inline-block;
+        }
+
+        @keyframes hsSpin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
         #warning-overlay {
             position: absolute;
             top: 0; left: 0; right: 0; bottom: 0;

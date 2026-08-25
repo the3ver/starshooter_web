@@ -123,6 +123,15 @@ export const state = {
     activeHangarPlayer: 'p1', // 'p1' | 'p2'
     selectedShipModel: 'viper',
     selectedShipColor: 'red',
+    highscoreApiUrl: 'https://starshooter-api.starshooter.workers.dev/api/highscores',
+    currentHighscoreTab: 'single', // 'single' | 'coop_bot' | 'online'
+    highscoreLoading: false,
+    highscoreError: false,
+    globalHighscoresCache: {
+        single: null,
+        coop_bot: null,
+        online: null
+    },
     onlineHighscoreNames: {
         p1: null,
         p2: null
