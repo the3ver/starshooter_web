@@ -376,9 +376,9 @@ export function handleNetworkEvent(data, peerId = null) {
             updateOnlineLobbyUI();
         }
         if (data.type === 'game_start') {
-            // Vor dem Überschreiben der Host-Daten merken wir uns die eigene Schiffswahl des Clients
-            const clientChosenModel = data.clientShipModel || state.selectedShipModel || (state.p2 && state.p2.selectedShipModel) || 'viper';
-            const clientChosenColor = data.clientShipColor || state.selectedShipColor || (state.p2 && state.p2.selectedShipColor) || 'red';
+            // Eigene Schiffs- und Farbwahl des Clients aus dem Hangar vor dem Überschreiben sichern
+            const clientChosenModel = state.selectedShipModel || (state.p2 && state.p2.selectedShipModel) || data.clientShipModel || 'viper';
+            const clientChosenColor = state.selectedShipColor || (state.p2 && state.p2.selectedShipColor) || data.clientShipColor || 'red';
 
             // Host ist P1
             if (data.hostShipModel) state.selectedShipModel = data.hostShipModel;

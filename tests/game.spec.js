@@ -22,7 +22,7 @@ test.beforeEach(async ({ page }) => {
 
   // Standardmäßig als bereits gesehen markieren, damit die Tests direkt interagieren können
   await page.addInitScript(() => {
-    localStorage.setItem('starshooter_last_seen_version', '1.6.45');
+    localStorage.setItem('starshooter_last_seen_version', '1.6.46');
     localStorage.setItem('starshooter_skip_cutscene', 'true');
   });
   await page.goto('/');
@@ -918,7 +918,7 @@ test.describe('Was gibt es Neues Modal (Changelog)', () => {
     await expect(title).toContainText("WAS GIBT'S NEUES");
 
     const intro = page.locator('#whats-new-intro');
-    await expect(intro).toContainText('1.6.45');
+    await expect(intro).toContainText('1.6.46');
 
     const items = page.locator('#whats-new-list li');
     await expect(items).toHaveCount(2);
@@ -931,7 +931,7 @@ test.describe('Was gibt es Neues Modal (Changelog)', () => {
 
     // Prüfen, dass localStorage aktualisiert wurde
     const storedVersion = await page.evaluate(() => localStorage.getItem('starshooter_last_seen_version'));
-    expect(storedVersion).toBe('1.6.45');
+    expect(storedVersion).toBe('1.6.46');
 
     // Erneut öffnen über Start-Screen Button
     const openBtn = page.locator('#btn-open-whats-new');
@@ -5750,6 +5750,52 @@ test.describe('Bot-Partner', () => {
     expect(p1Actions.bombenCooldown).toBeGreaterThan(0);
     expect(p1Actions.raketenCount).toBeGreaterThanOrEqual(1);
     expect(p1Actions.bombenCount).toBeGreaterThanOrEqual(1);
+  });
+
+  test('Online-Multiplayer Ponytail Fix: Client behält seine im Hangar gewählte Viper bei game_start und überschreibt diese nicht mit altem Host-Default', async ({ page }) => {
+    await page.evaluate(() => {
+      const mod = window.__game;
+      mod.state.gameMode = 'online';
+      mod.state.network.isOnline = true;
+      mod.state.network.isClient = true;
+      mod.state.network.isHost = false;
+      mod.state.network.connected = true;
+
+      // Client hat im Hangar Viper gewählt
+      mod.state.selectedShipModel = 'viper';
+      mod.state.selectedShipColor = 'green';
+      if (mod.state.p2) {
+        mod.state.p2.selectedShipModel = 'viper';
+        mod.state.p2.selectedShipColor = 'green';
+      }
+
+      // Host sendet game_start (Host hat stale clientShipModel 'phantom' gesendet)
+      mod.Network.handleNetworkEvent({
+        type: 'game_start',
+        hostShipModel: 'phantom',
+        hostShipColor: 'blue',
+        clientShipModel: 'phantom', // Stale Host Default
+        clientShipColor: 'blue'
+      });
+    });
+
+    const clientP2State = await page.evaluate(() => {
+      const mod = window.__game;
+      const s2Svg = mod.dom.spieler2 ? mod.dom.spieler2.querySelector('svg') : null;
+      const speed = (mod.shipModels && mod.shipModels[mod.state.p2.selectedShipModel]?.speed) || 0;
+      return {
+        modelP2: mod.state.p2.selectedShipModel,
+        colorP2: mod.state.p2.selectedShipColor,
+        speedP2: speed,
+        hasViperSvg: s2Svg ? s2Svg.innerHTML.includes('#2ecc71') || s2Svg.innerHTML.includes('#27ae60') : false
+      };
+    });
+
+    // Client muss weiterhin die Viper (Speed 6.0, grüne Farbe) fliegen
+    expect(clientP2State.modelP2).toBe('viper');
+    expect(clientP2State.colorP2).toBe('green');
+    expect(clientP2State.speedP2).toBe(6.0);
+    expect(clientP2State.hasViperSvg).toBe(true);
   });
 
 });

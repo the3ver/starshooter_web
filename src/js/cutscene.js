@@ -643,6 +643,7 @@ function endCutsceneAndStartGame(instant = false) {
     let startScreen = document.getElementById('start-screen');
     if (startScreen) startScreen.style.display = 'none';
     Utils.updateMobileControlsVisibility();
+    Utils.updatePlayerShipVisuals();
 
     const isCoop = state.gameMode === 'coop' || state.gameMode === 'online';
 

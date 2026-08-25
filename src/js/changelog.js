@@ -1,6 +1,14 @@
-export const GAME_VERSION = '1.6.45';
+export const GAME_VERSION = '1.6.46';
 
 export const changelogData = {
+  '1.6.46': {
+    version: '1.6.46',
+    intro: 'Hey, es ist jetzt Version 1.6.46 rausgekommen, folgendes wurde behoben:',
+    highlights: [
+      '🚀 Client-Schiffsauswahl im Online-Modus: Client-eigene Schiffs- und Farbauswahl (z. B. Viper-X) wird beim Spielstart zuverlässig beibehalten und fliegt mit voller Geschwindigkeit',
+      '⚡ Visuelle Synchronisation: Aktualisierung aller Spielerschiff-SVGs und Geschwindigkeitswerte vor und nach Cutszenen-Übergängen abgesichert'
+    ]
+  },
   '1.6.45': {
     version: '1.6.45',
     intro: 'Hey, es ist jetzt Version 1.6.45 rausgekommen, folgendes wurde verbessert:',

@@ -1,4 +1,4 @@
-import { state, dom, config, arrays } from './state.js';
+import { state, dom, config, arrays, shipModels } from './state.js';
 import { setupInput } from './input.js';
 import { gameLoop } from './loop.js';
 import * as Audio from './audio.js';
@@ -8,10 +8,10 @@ import * as Changelog from './changelog.js';
 import * as Network from './network.js';
 import * as Cutscene from './cutscene.js';
 
-export { state, dom, config, arrays, Utils, Entities, Audio, Network, Cutscene };
+export { state, dom, config, arrays, shipModels, Utils, Entities, Audio, Network, Cutscene };
 
 // Expose for test access
-window.__game = { state, dom, config, arrays, Utils, Entities, Audio, Network, Cutscene, Loop: { gameLoop } };
+window.__game = { state, dom, config, arrays, shipModels, Utils, Entities, Audio, Network, Cutscene, Loop: { gameLoop } };
 
 document.addEventListener('DOMContentLoaded', () => {
     Audio.initSoundState();
