@@ -193,14 +193,16 @@
                     <span id="highscore-spinner" class="highscore-spinner" style="display: none;">⏳</span>
                 </div>
 
-                <table id="highscore-tabelle">
-                    <thead><tr><th style="width: 25px;">#</th><th>NAME</th><th>PUNKTE</th><th id="hs-col-ship">SCHIFF</th></tr></thead>
-                    <tbody id="highscore-body"></tbody>
-                </table>
+                <div class="highscore-table-container">
+                    <table id="highscore-tabelle">
+                        <thead><tr><th style="width: 25px;">#</th><th>NAME</th><th>PUNKTE</th><th id="hs-col-ship">SCHIFF</th></tr></thead>
+                        <tbody id="highscore-body"></tbody>
+                    </table>
+                </div>
                 
-                <button class="btn" id="btn-restart">NEUSTART</button>
+                <button class="btn" id="btn-restart" style="flex-shrink: 0;">NEUSTART</button>
                 
-                <div class="credits" style="margin-top: 25px; text-align: center; font-size: 14px; color: #7f8c8d; border-top: 1px solid #34495e; padding-top: 15px; width: 80%;">
+                <div class="credits" style="margin-top: 15px; text-align: center; font-size: 13px; color: #7f8c8d; border-top: 1px solid #34495e; padding-top: 10px; width: 80%; flex-shrink: 0;">
                     <p style="margin: 5px 0;"><strong style="color: #bdc3c7;">Entwicklung:</strong> Frank</p>
                     <p style="margin: 5px 0;"><strong style="color: #bdc3c7;">Tester:</strong> Peter, Benni, Max, Jonathan</p>
                 </div>
@@ -209,7 +211,7 @@
             <button id="btn-sound-toggle" class="sound-toggle-btn" title="Sound stummschalten (M)" aria-label="Sound stummschalten (M)">🔊</button>
             <div id="score-anzeige">00000</div>
             <div id="level-anzeige">LEVEL 1</div>
-            <div id="version-anzeige">V 1.6.47</div>
+            <div id="version-anzeige">V 1.6.48</div>
             
             <div id="boss-hp-container">
                 <div id="boss-hp-balken"></div>

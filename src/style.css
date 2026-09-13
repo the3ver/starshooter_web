@@ -911,31 +911,38 @@
             background-color: rgba(0, 0, 0, 0.85);
             display: none;
             flex-direction: column;
-            justify-content: center;
+            justify-content: flex-start;
             align-items: center;
             z-index: 50;
             color: #ecf0f1;
             font-family: 'Courier New', Courier, monospace;
+            overflow-y: auto;
+            max-height: 100%;
+            box-sizing: border-box;
+            padding: 20px 10px;
         }
 
         .game-over-title {
             color: #e74c3c;
-            font-size: 40px;
+            font-size: 34px;
             font-weight: bold;
             text-shadow: 0 0 15px #e74c3c;
-            margin-bottom: 20px;
+            margin-bottom: 8px;
+            flex-shrink: 0;
         }
 
         .score-display {
-            font-size: 24px;
-            margin-bottom: 30px;
+            font-size: 20px;
+            margin-bottom: 12px;
             color: #f1c40f;
+            flex-shrink: 0;
         }
 
         #highscore-form {
             display: none;
-            margin-bottom: 30px;
+            margin-bottom: 15px;
             text-align: center;
+            flex-shrink: 0;
         }
 
         #highscore-name {
@@ -1019,11 +1026,34 @@
             padding: 1px 4px;
         }
 
+        .highscore-table-container {
+            max-height: 200px;
+            overflow-y: auto;
+            width: 290px;
+            max-width: 95%;
+            margin-bottom: 15px;
+            scrollbar-width: thin;
+            scrollbar-color: #1abc9c rgba(26, 37, 47, 0.6);
+            flex-shrink: 1;
+        }
+
+        .highscore-table-container::-webkit-scrollbar {
+            width: 5px;
+        }
+
+        .highscore-table-container::-webkit-scrollbar-thumb {
+            background: #1abc9c;
+            border-radius: 3px;
+        }
+
+        .highscore-table-container::-webkit-scrollbar-track {
+            background: rgba(26, 37, 47, 0.6);
+        }
+
         #highscore-tabelle {
-            margin-bottom: 30px;
+            margin-bottom: 0;
             border-collapse: collapse;
-            width: 270px;
-            max-width: 92%;
+            width: 100%;
         }
 
         #highscore-tabelle th {

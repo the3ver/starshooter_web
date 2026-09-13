@@ -43,10 +43,8 @@ Das Projekt ist in modular gegliederte ES-Module strukturiert:
 3. **Bombe (Leertaste / C):** AoE-Waffe, zündet im Zentrum. Einzige Waffe gegen unzerstörbare Magma-Asteroiden.
 4. **Super-Waffe (S / 10 weiße Splitter):** Max-Waffen, Schild 3, Infinite Energy, Laser-Durchschlag.
 
-## Agent Verhalten
-- Keine Entschuldigungen für Fehler. Halte Antworten kurz, fokussiert und lösungsorientiert.
-- **Test-First / TDD (Inkrementell, 1 Test nach dem anderen):** Neue Features und Verhaltensänderungen müssen immer streng inkrementell testgetrieben implementiert werden: Schreibe und fixe immer genau EINEN Test (Rot -> Grün -> Refactor), bevor der nächste Test angelegt wird. Ein Test muss komplett fertig und grün sein, bevor der nächste angegangen wird. Falls unterwegs auffällt, dass weitere Tests sinnvoll sind, werden diese nach und nach auf dieselbe Weise ergänzt.
-- Vor einem Git Push müssen immer alle Tests erfolgreich durchlaufen (grün sein).
-- Wenn der Sandboxed-Modus aktiv ist und `run_command` aufgrund von Berechtigungen fehlschlägt, MUSS die Kommunikation über die Agent Bridge (`.agents/cmd_request.json` und `.agents/cmd_response.json`) erfolgen. Schreibe den Befehl als JSON (`{"id": <increment>, "command": "..."}`) in die Request-Datei, warte kurz (z.B. per `schedule`) und lese das Ergebnis aus der Response-Datei.
-- Bei jedem Commit, der nicht nur die Infrastruktur des Projekts betrifft (z. B. Spiel-Logik, UI, CSS), muss das Patch-Level der Version erhöht werden (z. B. `0.12.0` -> `0.12.1`). Denke daran, sowohl die `package.json` als auch die Versionsanzeige im `index.html` anzupassen.
+## Projektspezifische Agent-Hinweise
+- **Agent Bridge:** Wenn der Sandboxed-Modus aktiv ist und `run_command` aufgrund von Berechtigungen fehlschlägt, MUSS die Kommunikation über die Agent Bridge (`.agents/cmd_request.json` und `.agents/cmd_response.json`) erfolgen. Schreibe den Befehl als JSON (`{"id": <increment>, "command": "..."}`) in die Request-Datei, warte kurz (z.B. per `schedule`) und lese das Ergebnis aus der Response-Datei.
+- **Versionsanzeige:** Bei Änderungen an Spiel-Logik/UI sowohl `package.json` als auch die Versionsanzeige in `index.html` anpassen.
+
 

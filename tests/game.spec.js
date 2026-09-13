@@ -22,7 +22,7 @@ test.beforeEach(async ({ page }) => {
 
   // Standardmäßig als bereits gesehen markieren, damit die Tests direkt interagieren können
   await page.addInitScript(() => {
-    localStorage.setItem('starshooter_last_seen_version', '1.6.47');
+    localStorage.setItem('starshooter_last_seen_version', '1.6.48');
     localStorage.setItem('starshooter_skip_cutscene', 'true');
   });
   await page.goto('/');
@@ -918,7 +918,7 @@ test.describe('Was gibt es Neues Modal (Changelog)', () => {
     await expect(title).toContainText("WAS GIBT'S NEUES");
 
     const intro = page.locator('#whats-new-intro');
-    await expect(intro).toContainText('1.6.47');
+    await expect(intro).toContainText('1.6.48');
 
     const items = page.locator('#whats-new-list li');
     await expect(items).toHaveCount(2);
@@ -931,7 +931,7 @@ test.describe('Was gibt es Neues Modal (Changelog)', () => {
 
     // Prüfen, dass localStorage aktualisiert wurde
     const storedVersion = await page.evaluate(() => localStorage.getItem('starshooter_last_seen_version'));
-    expect(storedVersion).toBe('1.6.47');
+    expect(storedVersion).toBe('1.6.48');
 
     // Erneut öffnen über Start-Screen Button
     const openBtn = page.locator('#btn-open-whats-new');
@@ -5923,6 +5923,16 @@ test.describe('Bot-Partner', () => {
     // Boss Splitter gehen nur an P2 (Viper), keine an P1 (Phantom)
     expect(coopResults.bossShardsToP2).toBe(4); // 1 aus Minion-Kills + 3 vom Boss
     expect(coopResults.shardsToP1).toBe(0);
+  });
+
+  test('Issue 11: Highscore-Screen besitzt Scroll-Container mit max-height und overflow-y: auto', async ({ page }) => {
+    const container = page.locator('.highscore-table-container');
+    await expect(container).toBeAttached();
+
+    const maxHeight = await container.evaluate((el) => window.getComputedStyle(el).maxHeight);
+    const overflowY = await container.evaluate((el) => window.getComputedStyle(el).overflowY);
+    expect(maxHeight).toBe('200px');
+    expect(overflowY).toBe('auto');
   });
 
 });

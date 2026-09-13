@@ -1,6 +1,14 @@
-export const GAME_VERSION = '1.6.47';
+export const GAME_VERSION = '1.6.48';
 
 export const changelogData = {
+  '1.6.48': {
+    version: '1.6.48',
+    intro: 'Hey, es ist jetzt Version 1.6.48 rausgekommen, folgendes wurde verbessert:',
+    highlights: [
+      '🏆 Highscore-Screen Layout-Optimierung: Die Bestenliste ist nun in einen kompakten Scroll-Container mit dezenter Sci-Fi-Scrollbar eingebettet',
+      '📱 Responsives Game-Over: Alle UI-Elemente, Eingabefelder und Neustart-Buttons bleiben auch bei vielen Highscore-Einträgen auf allen Displaygrößen vollständig erreichbar'
+    ]
+  },
   '1.6.47': {
     version: '1.6.47',
     intro: 'Hey, es ist jetzt Version 1.6.47 rausgekommen, folgendes wurde optimiert:',

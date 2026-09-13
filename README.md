@@ -2,7 +2,7 @@
 
 Ein klassisches "Space Shooter"-Browserspiel, das komplett **ohne HTML5-Canvas** auskommt und stattdessen die performante Positionierung und Transformation von DOM-Elementen (via `CSS position: absolute`, `transform` und inline SVG-Grafiken) nutzt.
 
-![Version](https://img.shields.io/badge/version-1.6.47-blue.svg)
+![Version](https://img.shields.io/badge/version-1.6.48-blue.svg)
 ![Playwright Tests](https://img.shields.io/badge/tests-130%20passing-brightgreen.svg)
 ![WebRTC Multiplayer](https://img.shields.io/badge/multiplayer-WebRTC%20P2P-orange.svg)
 
