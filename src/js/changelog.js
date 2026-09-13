@@ -1,6 +1,14 @@
-export const GAME_VERSION = '1.6.48';
+export const GAME_VERSION = '1.6.49';
 
 export const changelogData = {
+  '1.6.49': {
+    version: '1.6.49',
+    intro: 'Hey, es ist jetzt Version 1.6.49 rausgekommen, folgendes wurde hinzugefügt:',
+    highlights: [
+      '🖼️ Visueller Eindruck in README.md: Actionreicher Gameplay-Screenshot direkt auf der GitHub-Startseite eingebunden',
+      '📸 Automatische Screenshot-Generierung: Playwright-Testsuite um automatisierten Screen-Capture-Workflow ergänzt'
+    ]
+  },
   '1.6.48': {
     version: '1.6.48',
     intro: 'Hey, es ist jetzt Version 1.6.48 rausgekommen, folgendes wurde verbessert:',
