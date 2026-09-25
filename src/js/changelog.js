@@ -1,6 +1,14 @@
-export const GAME_VERSION = '1.6.50';
+export const GAME_VERSION = '1.6.51';
 
 export const changelogData = {
+  '1.6.51': {
+    version: '1.6.51',
+    intro: 'Hey, es ist jetzt Version 1.6.51 rausgekommen, folgendes wurde aktualisiert:',
+    highlights: [
+      '📦 Toolchain-Update: Babel-Abhängigkeiten (@babel/core, @babel/generator, @babel/parser, @babel/traverse) auf v8.0.6 aktualisiert (#13)',
+      '🛡️ Optimierte Build- und Test-Stabilität für Entwicklungs- und Test-Pipelines'
+    ]
+  },
   '1.6.50': {
     version: '1.6.50',
     intro: 'Hey, es ist jetzt Version 1.6.50 rausgekommen, folgendes wurde aktualisiert:',
