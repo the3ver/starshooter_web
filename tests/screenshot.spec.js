@@ -2,7 +2,7 @@ const { test, expect } = require('@playwright/test');
 
 test('Generiere Gameplay-Screenshot fuer README.md', async ({ page }) => {
   await page.addInitScript(() => {
-    localStorage.setItem('starshooter_last_seen_version', '1.6.51');
+    localStorage.setItem('starshooter_last_seen_version', '1.6.53');
     localStorage.setItem('starshooter_skip_cutscene', 'true');
   });
 

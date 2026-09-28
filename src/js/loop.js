@@ -7,9 +7,17 @@ import * as Audio from './audio.js';
 import * as Cutscene from './cutscene.js';
 import * as Bot from './bot.js';
 import * as Network from './network.js';
+import * as Hack from './hack.js';
 
 
 export function verwalteFeindSpawns() {
+  // Hacker: Spezialeinheit ab Level 2, höchstens einer gleichzeitig
+  const hackerAktiv = arrays.feinde.some(f => f.muster === 'hacker');
+  if (state.level >= 2 && !hackerAktiv && Math.random() < 0.1) {
+    Entities.erzeugeFeind(30 + Math.random() * (config.spielfeldBreite - 90), -30, 'hacker', 0);
+    return;
+  }
+
   let pV = state.level >= 2 ? Math.min(0.25, 0.05 + (state.level - 2) * 0.05) : 0;
   let pCross = state.level >= 1 ? Math.min(0.20, 0.05 + (state.level - 1) * 0.05) : 0;
   let pSwoop = state.level >= 1 ? Math.min(0.20, 0.05 + (state.level - 1) * 0.05) : 0;
@@ -48,10 +56,52 @@ export function verwalteFeindSpawns() {
     Entities.erzeugeFeind();
   }
 }
-export
+
+// Position (Mitte) des nächsten lebenden Spielers
+function naechsterSpielerMitte(f) {
+  let zielX = state.x;
+  let zielY = state.y;
+  if (isCoopMode() && state.p2 && !state.p2.isDead) {
+    let distP1 = Math.hypot(state.x - f.x, state.y - f.y);
+    let distP2 = Math.hypot(state.p2.x - f.x, state.p2.y - f.y);
+    if (state.isDead || distP2 < distP1) {
+      zielX = state.p2.x;
+      zielY = state.p2.y;
+    }
+  }
+  return { x: zielX + config.spielerGroesse / 2, y: zielY + config.spielerGroesse / 2 };
+}
+
+const HACKER_LAUERZEIT = 600; // 10 s
+const HACK_MAX_DREHUNG = 0.025; // rad pro Frame (~1,5°), damit man ausweichen kann
+const HACKER_SCHUSSINTERVALL = 120; // 2 s
+
+function aktualisiereHacker(f) {
+  if (f.phase === 'anflug') {
+    f.y += f.vy * 2;
+    if (f.y >= f.stopY) {
+      f.y = f.stopY;
+      f.phase = 'lauern';
+      f.lauerTimer = HACKER_LAUERZEIT;
+      f.hackTimer = 30;
+    }
+  } else if (f.phase === 'lauern') {
+    f.hackTimer--;
+    if (f.hackTimer <= 0) {
+      const ziel = naechsterSpielerMitte(f);
+      Entities.erzeugeHackProjektil(f.x + f.groesse / 2 - 6, f.y + f.groesse, ziel.x, ziel.y, f);
+      f.hackSchuesse++;
+      f.hackTimer = HACKER_SCHUSSINTERVALL;
+    }
+    f.lauerTimer--;
+    if (f.lauerTimer <= 0 || f.hackGelandet) f.phase = 'flucht';
+  } else if (f.phase === 'flucht') {
+    f.y -= 5;
+  }
+}
 // ------------------------------
 
-function versteckeAlleLaser() {
+export function versteckeAlleLaser() {
   dom.laser1.style.display = 'none';
   dom.laser2.style.display = 'none';
   dom.laserDiagLinks.style.display = 'none';
@@ -174,29 +224,31 @@ export function gameLoop() {
       if (state.joystick && state.joystick.active) {
         let mag = Math.sqrt(state.joystick.x * state.joystick.x + state.joystick.y * state.joystick.y);
         if (mag > 0.1) {
-          let dirX = state.joystick.x / mag;
-          let dirY = state.joystick.y / mag;
-          state.p2.x += dirX * p2Speed;
-          state.p2.y += dirY * p2Speed;
+          const b = Hack.hackeBewegung(state.p2, state.joystick.x / mag, state.joystick.y / mag);
+          state.p2.x += b.dx * p2Speed;
+          state.p2.y += b.dy * p2Speed;
         }
         if (state.joystick.y < -0.2) baseFlameScaleP2 = 1.8;
         else if (state.joystick.y > 0.2) baseFlameScaleP2 = 0.4;
         if (state.joystick.x < -0.2) targetRotateP2 = -15;
         else if (state.joystick.x > 0.2) targetRotateP2 = 15;
       } else {
-        if (keys.w || keys.arrowup) {
+        const b = Hack.hackeBewegung(state.p2,
+          ((keys.d || keys.arrowright) ? 1 : 0) - ((keys.a || keys.arrowleft) ? 1 : 0),
+          ((keys.s || keys.arrowdown) ? 1 : 0) - ((keys.w || keys.arrowup) ? 1 : 0));
+        if (b.dy < 0) {
           state.p2.y -= p2Speed;
           baseFlameScaleP2 = 1.8;
         }
-        if (keys.s || keys.arrowdown) {
+        if (b.dy > 0) {
           state.p2.y += p2Speed;
           baseFlameScaleP2 = 0.4;
         }
-        if (keys.a || keys.arrowleft) {
+        if (b.dx < 0) {
           state.p2.x -= p2Speed;
           targetRotateP2 = -15;
         }
-        if (keys.d || keys.arrowright) {
+        if (b.dx > 0) {
           state.p2.x += p2Speed;
           targetRotateP2 = 15;
         }
@@ -220,6 +272,7 @@ export function gameLoop() {
 
     // Partikel auf dem Client animieren und löschen
     animierenPartikel();
+    Hack.zeigeHackStatus();
 
     Network.sendNetworkInput(Network.serializePlayerInput());
 
@@ -245,10 +298,9 @@ export function gameLoop() {
   if (state.joystick && state.joystick.active) {
     let mag = Math.sqrt(state.joystick.x * state.joystick.x + state.joystick.y * state.joystick.y);
     if (mag > 0.1) {
-      let dirX = state.joystick.x / mag;
-      let dirY = state.joystick.y / mag;
-      state.x += dirX * currentSpeed;
-      state.y += dirY * currentSpeed;
+      const b = Hack.hackeBewegung(state, state.joystick.x / mag, state.joystick.y / mag);
+      state.x += b.dx * currentSpeed;
+      state.y += b.dy * currentSpeed;
     }
     
     if (state.joystick.y < -0.2) baseFlameScale = 1.8;
@@ -258,10 +310,12 @@ export function gameLoop() {
     else if (state.joystick.x > 0.2) targetRotate = 15;
   } else if (!state.isDead) {
     const isDualHumanCoop = state.gameMode === 'coop' && !state.p2IsBot;
-    const up = state.tastenGedrueckt.w || (!isDualHumanCoop && state.tastenGedrueckt.arrowup);
-    const down = state.tastenGedrueckt.s || (!isDualHumanCoop && state.tastenGedrueckt.arrowdown);
-    const left = state.tastenGedrueckt.a || (!isDualHumanCoop && state.tastenGedrueckt.arrowleft);
-    const right = state.tastenGedrueckt.d || (!isDualHumanCoop && state.tastenGedrueckt.arrowright);
+    const upRaw = state.tastenGedrueckt.w || (!isDualHumanCoop && state.tastenGedrueckt.arrowup);
+    const downRaw = state.tastenGedrueckt.s || (!isDualHumanCoop && state.tastenGedrueckt.arrowdown);
+    const leftRaw = state.tastenGedrueckt.a || (!isDualHumanCoop && state.tastenGedrueckt.arrowleft);
+    const rightRaw = state.tastenGedrueckt.d || (!isDualHumanCoop && state.tastenGedrueckt.arrowright);
+    const b = Hack.hackeBewegung(state, (rightRaw ? 1 : 0) - (leftRaw ? 1 : 0), (downRaw ? 1 : 0) - (upRaw ? 1 : 0));
+    const up = b.dy < 0, down = b.dy > 0, left = b.dx < 0, right = b.dx > 0;
 
     if (up) {
       state.y -= currentSpeed;
@@ -342,28 +396,34 @@ export function gameLoop() {
         const prevBotX = state.p2.x;
         const prevBotY = state.p2.y;
         Bot.updateBot();
+        // Hacks wirken auch auf die Bewegung des Bots
+        const botB = Hack.hackeBewegung(state.p2, state.p2.x - prevBotX, state.p2.y - prevBotY);
+        state.p2.x = prevBotX + botB.dx;
+        state.p2.y = prevBotY + botB.dy;
         // Flammen/Rotation aus Bot-Bewegung ableiten
-        const botDy = state.p2.y - prevBotY;
-        const botDx = state.p2.x - prevBotX;
+        const botDy = botB.dy;
+        const botDx = botB.dx;
         if (botDy < -0.5) baseFlameScaleP2 = 1.8;
         else if (botDy > 0.5) baseFlameScaleP2 = 0.4;
         if (botDx < -0.5) targetRotateP2 = -15;
         else if (botDx > 0.5) targetRotateP2 = 15;
       } else if (state.gameMode === 'coop') {
         // Menschliche Steuerung via Arrow-Keys im lokalen Coop
-        if (state.tastenGedrueckt.arrowup) {
+        const t = state.tastenGedrueckt;
+        const b2 = Hack.hackeBewegung(state.p2, (t.arrowright ? 1 : 0) - (t.arrowleft ? 1 : 0), (t.arrowdown ? 1 : 0) - (t.arrowup ? 1 : 0));
+        if (b2.dy < 0) {
           state.p2.y -= p2Speed;
           baseFlameScaleP2 = 1.8;
         }
-        if (state.tastenGedrueckt.arrowdown) {
+        if (b2.dy > 0) {
           state.p2.y += p2Speed;
           baseFlameScaleP2 = 0.4;
         }
-        if (state.tastenGedrueckt.arrowleft) {
+        if (b2.dx < 0) {
           state.p2.x -= p2Speed;
           targetRotateP2 = -15;
         }
-        if (state.tastenGedrueckt.arrowright) {
+        if (b2.dx > 0) {
           state.p2.x += p2Speed;
           targetRotateP2 = 15;
         }
@@ -421,6 +481,10 @@ export function gameLoop() {
     }
   }
 
+  Hack.tickHacks(state);
+  if (state.p2) Hack.tickHacks(state.p2);
+  Hack.zeigeHackStatus();
+
   // --- 9.2 STERNE BEWEGUNG & SPARTIKEL ---
   arrays.sterne.forEach(stern => {
     stern.y += stern.speed;
@@ -474,7 +538,7 @@ export function gameLoop() {
   } else {
     state.laserSchiesst = false;
   }
-  let laserAktiv = state.laserSchiesst && state.energie > 0 && !state.isDead;
+  let laserAktiv = state.laserSchiesst && state.energie > 0 && !state.isDead && !Hack.hatHack(state, 'waffenOffline');
   if (laserAktiv) {
     if (!state.unbegrenzteEnergie) {
       state.energie -= 0.8 + Math.min(state.laserStufe, 5) * 0.1;
@@ -507,7 +571,7 @@ export function gameLoop() {
     } else {
       state.p2.laserSchiesst = false;
     };
-    laserAktivP2 = state.p2.laserSchiesst && state.p2.energie > 0;
+    laserAktivP2 = state.p2.laserSchiesst && state.p2.energie > 0 && !Hack.hatHack(state.p2, 'waffenOffline');
     if (laserAktivP2) {
       state.p2.energie -= 0.8 + Math.min(state.p2.laserStufe, 5) * 0.1;
     } else {
@@ -991,6 +1055,8 @@ export function gameLoop() {
         f.y += f.vy;
         f.el.style.transform = `rotate(${Math.atan2(f.vy, f.vx) * 180 / Math.PI - 90}deg)`;
       }
+    } else if (f.muster === 'hacker') {
+      aktualisiereHacker(f);
     } else {
       f.y += f.vy;
       f.zeit += 0.05;
@@ -998,13 +1064,13 @@ export function gameLoop() {
     }
     f.el.style.left = f.x + 'px';
     f.el.style.top = f.y + 'px';
-    if (f.y > config.spielfeldHoehe || f.x < -f.groesse - 50 || f.x > config.spielfeldBreite + 50) {
+    if (f.y > config.spielfeldHoehe || f.x < -f.groesse - 50 || f.x > config.spielfeldBreite + 50 || (f.phase === 'flucht' && f.y < -f.groesse - 10)) {
       f.el.remove();
       arrays.feinde.splice(i, 1);
       continue;
     }
 
-    if (f.muster !== 'clingOn' || f.phase !== 'attached') {
+    if (f.muster !== 'hacker' && (f.muster !== 'clingOn' || f.phase !== 'attached')) {
       if (f.burstCount > 0) {
         f.burstTimer--;
         if (f.burstTimer <= 0) {
@@ -1064,6 +1130,48 @@ export function gameLoop() {
       fl.el.remove();
       arrays.feindLaserArray.splice(i, 1);
       continue;
+    }
+  }
+
+  // --- 9.8b HACK-PROJEKTILE ---
+  for (let i = arrays.hackProjektilArray.length - 1; i >= 0; i--) {
+    let hp = arrays.hackProjektilArray[i];
+    if (hp.lenkZeit > 0) {
+      hp.lenkZeit--;
+      const ziel = naechsterSpielerMitte(hp);
+      // Nach dem Vorbeiflug nicht mehr nachlenken
+      if (hp.y + hp.height / 2 > ziel.y) hp.lenkZeit = 0;
+      const ist = Math.atan2(hp.vy, hp.vx);
+      const soll = Math.atan2(ziel.y - (hp.y + hp.height / 2), ziel.x - (hp.x + hp.width / 2));
+      let diff = Math.atan2(Math.sin(soll - ist), Math.cos(soll - ist));
+      diff = Math.max(-HACK_MAX_DREHUNG, Math.min(HACK_MAX_DREHUNG, diff));
+      const tempo = Math.hypot(hp.vx, hp.vy);
+      hp.vx = Math.cos(ist + diff) * tempo;
+      hp.vy = Math.sin(ist + diff) * tempo;
+    }
+    hp.x += hp.vx;
+    hp.y += hp.vy;
+    hp.el.style.left = hp.x + 'px';
+    hp.el.style.top = hp.y + 'px';
+    if (hp.y > config.spielfeldHoehe || hp.y < -hp.height || hp.x < -hp.width || hp.x > config.spielfeldBreite) {
+      hp.el.remove();
+      arrays.hackProjektilArray.splice(i, 1);
+      continue;
+    }
+    let getroffen = null;
+    if (!state.isDead && state.x < hp.x + hp.width && state.x + config.spielerGroesse > hp.x && state.y < hp.y + hp.height && state.y + config.spielerGroesse > hp.y) {
+      getroffen = state;
+    } else if (isCoopMode() && state.p2 && !state.p2.isDead && state.p2.x < hp.x + hp.width && state.p2.x + config.spielerGroesse > hp.x && state.p2.y < hp.y + hp.height && state.p2.y + config.spielerGroesse > hp.y) {
+      getroffen = state.p2;
+    }
+    if (getroffen) {
+      // Ein Hacker kann nur einen Treffer landen
+      if (!hp.quelle || !hp.quelle.hackGelandet) {
+        Hack.hackeSpieler(getroffen);
+        if (hp.quelle) hp.quelle.hackGelandet = true;
+      }
+      hp.el.remove();
+      arrays.hackProjektilArray.splice(i, 1);
     }
   }
 
@@ -1451,7 +1559,7 @@ export function gameLoop() {
       Utils.updateAktivePowerupsUI();
     }
   }
-  if (state.autolaserAktiv) {
+  if (state.autolaserAktiv && !Hack.hatHack(state, 'waffenOffline')) {
     let target = null;
     let minDist = Infinity;
     let sx = state.x + 15;
@@ -1804,7 +1912,7 @@ export function gameLoop() {
           ? Boolean(state.p2 && state.p2.networkFireRakete)
           : (state.p2IsBot ? (state.p2.botFireRakete || false) : (state.tastenGedrueckt.ö || state.tastenGedrueckt.numpad2 || state.tastenGedrueckt[','])));
 
-    if (isTriggered && pState.raketenCooldown <= 0) {
+    if (isTriggered && pState.raketenCooldown <= 0 && !Hack.hatHack(pState, 'waffenOffline')) {
       if (pKey === 'p2' && state.p2) state.p2.networkFireRakete = false;
       pState.raketenCooldown = maxRaketenCd;
       Audio.playMissile();
@@ -2110,7 +2218,7 @@ export function gameLoop() {
           ? Boolean(state.p2 && state.p2.networkFireBombe)
           : (state.p2IsBot ? (state.p2.botFireBombe || false) : (state.tastenGedrueckt.l || state.tastenGedrueckt.enter || state.tastenGedrueckt.numpad3 || state.tastenGedrueckt.numpad0)));
 
-    if (isTriggered && pState.bombenCooldown <= 0) {
+    if (isTriggered && pState.bombenCooldown <= 0 && !Hack.hatHack(pState, 'waffenOffline')) {
       if (pKey === 'p2' && state.p2) state.p2.networkFireBombe = false;
       pState.bombenCooldown = maxBombenCd;
       Audio.playBomb();

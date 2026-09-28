@@ -386,6 +386,29 @@ export function playEnemyLaser() {
     osc.stop(now + 0.1);
 }
 
+export function playHack() {
+    recordSound('hack');
+    if (isMuted) return;
+    const ctx = getAudioContext();
+    if (!ctx) return;
+    if (ctx.state === 'suspended') ctx.resume().catch(() => {});
+
+    // Digitales Stottern: schnelle Rechteck-Sprünge zwischen zufälligen Frequenzen
+    const now = ctx.currentTime;
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.type = 'square';
+    for (let i = 0; i < 8; i++) {
+        osc.frequency.setValueAtTime(200 + Math.random() * 1400, now + i * 0.04);
+    }
+    gain.gain.setValueAtTime(0.1, now);
+    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.35);
+    osc.connect(gain);
+    gain.connect(masterGain);
+    osc.start(now);
+    osc.stop(now + 0.35);
+}
+
 export function playBossLaser() {
     recordSound('bossLaser');
     if (isMuted) return;

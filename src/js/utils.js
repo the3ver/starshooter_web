@@ -342,7 +342,7 @@ export function zerstoereZiel(ziel, killer = 'p1') {
     state.frameZaehler = 0; // Setzt Level-Timer zurück
   } else {
     Audio.playExplosion(ziel.groesse >= 35 ? 'medium' : 'small');
-    addScore(ziel.istFeind ? 100 : ziel.traegtPowerup ? 50 : ziel.groesse >= 35 ? 20 : 10);
+    addScore(ziel.istFeind ? (ziel.muster === 'hacker' ? 200 : 100) : ziel.traegtPowerup ? 50 : ziel.groesse >= 35 ? 20 : 10);
     if (ziel.istFeind) {
       const killerShipModel = killer === 'p2' ? (state.p2 && state.p2.selectedShipModel) : state.selectedShipModel;
       const currentShip = shipModels && shipModels[killerShipModel || 'viper'];
@@ -648,6 +648,8 @@ export function restartGame() {
   state.splitterWeiss = 0;
   state.viperKillCount = 0;
   state.isDead = false;
+  state.hacks = [];
+  if (state.p2) state.p2.hacks = [];
   Bot.resetBot();
   updateLebenUI();
   updateMaxEnergieMarker();
@@ -708,6 +710,7 @@ export function restartGame() {
   clearArray(arrays.asteroiden);
   clearArray(arrays.feinde);
   clearArray(arrays.feindLaserArray);
+  clearArray(arrays.hackProjektilArray);
   clearArray(arrays.bosses);
   clearArray(arrays.bossLaserArray);
   clearArray(arrays.bossBombenArray);
@@ -1209,6 +1212,7 @@ export function erzeugeRaketenDetonation(rcx, rcy, radius = 70) {
 
   const shockwave = document.createElement('div');
   shockwave.classList.add('schockwelle');
+  shockwave.style.position = 'absolute';
   shockwave.style.width = (radius * 2) + 'px';
   shockwave.style.height = (radius * 2) + 'px';
   shockwave.style.left = (rcx - radius) + 'px';

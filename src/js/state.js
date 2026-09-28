@@ -103,6 +103,7 @@ export const state = {
     feindSpawnZeit: 1200, bossKampfAktiv: false,
     splitterRot: 0, splitterWeiss: 0, viperKillCount: 0,
     isDead: false,
+    hacks: [],
     tastenGedrueckt: {
         w: false, a: false, s: false, d: false,
         l: false, k: false, ' ': false,
@@ -146,7 +147,7 @@ export const state = {
         phantomSchildRegenTimer: 0, phantomSchildRegenMax: 900,
         splitterRot: 0, splitterWeiss: 0, viperKillCount: 0,
         selectedShipModel: 'phantom', selectedShipColor: 'blue',
-        isDead: false, rotate: 0
+        isDead: false, rotate: 0, hacks: []
     },
     network: {
         isOnline: false,
@@ -160,7 +161,7 @@ export const state = {
 
 export const arrays = {
     laserArray: [], raketenArray: [], bombenArray: [], feinde: [], asteroiden: [],
-    bosses: [], bossBombenArray: [], bossRaketenArray: [], partikelArray: [], explosionenArray: [], powerups: [], feindLaserArray: [], bossLaserArray: [], sterne: []
+    bosses: [], bossBombenArray: [], bossRaketenArray: [], partikelArray: [], explosionenArray: [], powerups: [], feindLaserArray: [], hackProjektilArray: [], bossLaserArray: [], sterne: []
 };
 
 export function isCoopMode() {

@@ -214,6 +214,7 @@ export function getFeindColor(muster = 'normal') {
   if (muster === 'stopAndGo') return '#e67e22';
   if (muster === 'crossfire') return '#1abc9c';
   if (muster === 'swoop') return '#2ecc71';
+  if (muster === 'hacker') return '#39ff14';
   return '#9b59b6';
 }
 
@@ -265,6 +266,18 @@ export function getFeindSVGHtml(muster = 'normal', hatSchild = false) {
       <div class="feind-flame" style="left: 13px;"></div>
       ${schildHtml}
     `;
+  } else if (muster === 'hacker') {
+    return `
+      <svg viewBox="0 0 30 30" style="position: absolute; width: 100%; height: 100%; z-index: 2;">
+          <polygon points="15,30 3,18 6,6 24,6 27,18" fill="#1e272e"/>
+          <polygon points="15,26 7,17 9,9 21,9 23,17" fill="#39ff14" opacity="0.85"/>
+          <circle cx="15" cy="15" r="4" fill="#1e272e"/>
+          <circle cx="15" cy="15" r="2" fill="#39ff14"/>
+          <line x1="8" y1="6" x2="5" y2="0" stroke="#7f8c8d" stroke-width="2"/>
+          <line x1="22" y1="6" x2="25" y2="0" stroke="#7f8c8d" stroke-width="2"/>
+      </svg>
+      <div class="feind-flame" style="left: 13px;"></div>
+    `;
   }
   return '';
 }
@@ -280,10 +293,14 @@ export function erzeugeFeind(sX, sY, forceMuster = null, forceVx = 0, forceShiel
   }
   if (muster === 'stopAndGo') {
     stopY = 80 + Math.random() * 120;
+  } else if (muster === 'hacker') {
+    stopY = 100 + Math.random() * 100;
   }
 
   let hatSchild = false;
-  if (forceShield !== null) {
+  if (muster === 'hacker') {
+    hatSchild = false;
+  } else if (forceShield !== null) {
     hatSchild = forceShield;
   } else if (state.level >= 3 && Math.random() < Math.min(0.5, (state.level - 2) * 0.15)) {
     hatSchild = true;
@@ -323,11 +340,15 @@ export function erzeugeFeind(sX, sY, forceMuster = null, forceVx = 0, forceShiel
     burstTimer: 0,
     istFeind: true,
     istUnzerstoerbar: false,
-    traegtPowerup: Math.random() < 0.2,
+    traegtPowerup: Math.random() < (muster === 'hacker' ? 0.4 : 0.2),
     muster: muster,
     phase: 'anflug',
     stopTimer: 0,
-    stopY: stopY
+    stopY: stopY,
+    lauerTimer: 0,
+    hackTimer: 0,
+    hackSchuesse: 0,
+    hackGelandet: false
   });
 }
 
@@ -348,6 +369,29 @@ export function erzeugeClingOnFeind() {
   let flames = f.el.querySelectorAll('.feind-flame');
   flames.forEach(fl => fl.style.display = 'none');
 }
+export function erzeugeHackProjektil(fx, fy, zielX, zielY, quelle = null) {
+  const el = document.createElement('div');
+  el.classList.add('hack-projektil');
+  el.style.left = fx + 'px';
+  el.style.top = fy + 'px';
+  dom.spielfeld.appendChild(el);
+  const speed = 3;
+  let dx = zielX - fx;
+  let dy = zielY - fy;
+  let dist = Math.hypot(dx, dy) || 1;
+  arrays.hackProjektilArray.push({
+    el: el,
+    x: fx,
+    y: fy,
+    vx: dx / dist * speed,
+    vy: dy / dist * speed,
+    width: 12,
+    height: 12,
+    quelle: quelle,
+    lenkZeit: 90 // 1,5 s Zielsuche, danach geradeaus
+  });
+}
+
 export function erzeugeFeindLaser(fx, fy, zielX = null, zielY = null) {
   Audio.playEnemyLaser();
   const el = document.createElement('div');

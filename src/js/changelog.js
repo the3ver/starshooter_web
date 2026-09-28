@@ -1,6 +1,22 @@
-export const GAME_VERSION = '1.6.51';
+export const GAME_VERSION = '1.6.53';
 
 export const changelogData = {
+  '1.6.53': {
+    version: '1.6.53',
+    intro: 'Hey, es ist jetzt Version 1.6.53 rausgekommen, folgendes wurde aktualisiert:',
+    highlights: [
+      '💥 Bugfix: Raketen-Explosionen erscheinen jetzt an der Einschlagstelle statt am linken Bildschirmrand',
+      '🎯 Hack-Projektile des Hackers verfolgen dich jetzt 1,5 s lang mit begrenzter Wendigkeit. Ein schneller Haken rettet dich'
+    ]
+  },
+  '1.6.52': {
+    version: '1.6.52',
+    intro: 'Hey, es ist jetzt Version 1.6.52 rausgekommen, folgendes wurde hinzugefügt:',
+    highlights: [
+      '👾 Neuer Gegner HACKER (ab Level 2): feuert grüne Hack-Projektile, die Steuerung invertieren, Tasten vertauschen, Waffen abschalten oder das HUD stören (3 s, stapelbar, Schilde helfen nicht)',
+      '🏃 Nach einem erfolgreichen Hack flieht der Hacker. Wer ihn vorher abschießt, bekommt doppelte Punkte und 40 % Powerup-Chance'
+    ]
+  },
   '1.6.51': {
     version: '1.6.51',
     intro: 'Hey, es ist jetzt Version 1.6.51 rausgekommen, folgendes wurde aktualisiert:',

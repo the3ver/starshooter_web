@@ -506,7 +506,8 @@ export function serializeGameState() {
             raketenCooldown: state.raketenCooldown,
             bombenCooldown: state.bombenCooldown,
             laserSchiesst: state.laserSchiesst,
-            isDead: state.isDead
+            isDead: state.isDead,
+            hacks: state.hacks || []
         },
         p2: state.p2 ? {
             x: state.p2.x,
@@ -522,7 +523,8 @@ export function serializeGameState() {
             raketenCooldown: state.p2.raketenCooldown,
             bombenCooldown: state.p2.bombenCooldown,
             laserSchiesst: state.p2.laserSchiesst,
-            isDead: state.p2.isDead
+            isDead: state.p2.isDead,
+            hacks: state.p2.hacks || []
         } : null,
         score: state.score,
         level: state.level,
@@ -593,6 +595,10 @@ export function serializeGameState() {
             stufe: b.stufe || 1,
             isMini: b.isMini || false
         })),
+        hackProjektile: arrays.hackProjektilArray.map(hp => ({
+            x: hp.x,
+            y: hp.y
+        })),
         feindLaser: arrays.feindLaserArray.map((fl, idx) => ({
             id: `fl_${idx}_${Math.round(fl.x)}_${Math.round(fl.y)}`,
             x: fl.x,
@@ -649,6 +655,7 @@ export function applyGameStateSnapshot(snapshot) {
         state.maxEnergie = snapshot.p1.maxEnergie || state.maxEnergie;
         state.schildStufe = snapshot.p1.schildStufe || 0;
         state.isDead = snapshot.p1.isDead || false;
+        state.hacks = snapshot.p1.hacks || [];
 
         if (dom.spieler) {
             dom.spieler.style.left = state.x + 'px';
@@ -698,6 +705,7 @@ export function applyGameStateSnapshot(snapshot) {
     // 2. Sync P2 stats
     if (snapshot.p2 && state.p2) {
         state.p2.leben = snapshot.p2.leben;
+        state.p2.hacks = snapshot.p2.hacks || [];
         state.p2.energie = snapshot.p2.energie;
         state.p2.maxEnergie = snapshot.p2.maxEnergie || state.p2.maxEnergie;
         state.p2.schildStufe = snapshot.p2.schildStufe || 0;
@@ -1056,6 +1064,20 @@ export function applyGameStateSnapshot(snapshot) {
                 vx: flData.vx,
                 vy: flData.vy
             });
+        });
+    }
+
+    // 11b. Replicate Hack-Projektile
+    if (snapshot.hackProjektile) {
+        arrays.hackProjektilArray.forEach(hp => { if (hp.el) hp.el.remove(); });
+        arrays.hackProjektilArray.length = 0;
+        snapshot.hackProjektile.forEach(hpData => {
+            const el = document.createElement('div');
+            el.classList.add('hack-projektil');
+            el.style.left = hpData.x + 'px';
+            el.style.top = hpData.y + 'px';
+            spielfeld.appendChild(el);
+            arrays.hackProjektilArray.push({ el: el, x: hpData.x, y: hpData.y, vx: 0, vy: 0, width: 12, height: 12 });
         });
     }
 
