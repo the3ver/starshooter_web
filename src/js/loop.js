@@ -1,11 +1,9 @@
 
-import { state, dom, config, arrays, shipModels, isCoopMode } from './state.js';
+import { state, dom, config, arrays } from './state.js';
 import * as Utils from './utils.js';
 import * as Entities from './entities.js';
-import * as Input from './input.js';
 import * as Audio from './audio.js';
 import * as Cutscene from './cutscene.js';
-import * as Bot from './bot.js';
 import * as Network from './network.js';
 import * as Hack from './hack.js';
 import { animierenPartikel } from './partikel.js';

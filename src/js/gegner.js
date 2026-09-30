@@ -52,19 +52,22 @@ export function verwalteFeindSpawns() {
   }
 }
 
-// Position (Mitte) des nächsten lebenden Spielers
-export function naechsterSpielerMitte(f) {
-  let zielX = state.x;
-  let zielY = state.y;
+// Nächster lebender Spieler (state oder state.p2). Abstand von der Spieler-Ecke
+// (x/y) zum Referenzpunkt; P2 nur im Coop, wenn er lebt. Toter P1 oder
+// kleinerer Abstand wählt P2, bei Gleichstand bleibt es P1.
+export function naechsterSpieler(refX, refY) {
   if (isCoopMode() && state.p2 && !state.p2.isDead) {
-    let distP1 = Math.hypot(state.x - f.x, state.y - f.y);
-    let distP2 = Math.hypot(state.p2.x - f.x, state.p2.y - f.y);
-    if (state.isDead || distP2 < distP1) {
-      zielX = state.p2.x;
-      zielY = state.p2.y;
-    }
+    let distP1 = Math.hypot(state.x - refX, state.y - refY);
+    let distP2 = Math.hypot(state.p2.x - refX, state.p2.y - refY);
+    if (state.isDead || distP2 < distP1) return state.p2;
   }
-  return { x: zielX + config.spielerGroesse / 2, y: zielY + config.spielerGroesse / 2 };
+  return state;
+}
+
+// Position (Mitte) des nächsten lebenden Spielers, gemessen ab der Ecke von f
+export function naechsterSpielerMitte(f) {
+  const s = naechsterSpieler(f.x, f.y);
+  return { x: s.x + config.spielerGroesse / 2, y: s.y + config.spielerGroesse / 2 };
 }
 
 const HACKER_LAUERZEIT = 600; // 10 s
@@ -143,17 +146,8 @@ export function aktualisiereFeinde() {
         f.stopTimer--;
         if (f.stopTimer === 10) {
           // Gezielter Schuss auf den näheren Spieler
-          let targetX = state.x;
-          let targetY = state.y;
-          if (isCoopMode() && state.p2 && !state.p2.isDead) {
-            let distP1 = Math.hypot(state.x - f.x, state.y - f.y);
-            let distP2 = Math.hypot(state.p2.x - f.x, state.p2.y - f.y);
-            if (state.isDead || distP2 < distP1) {
-              targetX = state.p2.x;
-              targetY = state.p2.y;
-            }
-          }
-          Entities.erzeugeFeindLaser(f.x + f.groesse / 2 - 2, f.y + f.groesse, targetX + config.spielerGroesse / 2, targetY + config.spielerGroesse / 2);
+          const ziel = naechsterSpielerMitte(f);
+          Entities.erzeugeFeindLaser(f.x + f.groesse / 2 - 2, f.y + f.groesse, ziel.x, ziel.y);
         }
         if (f.stopTimer <= 0) {
           f.phase = 'abflug';
@@ -179,35 +173,17 @@ export function aktualisiereFeinde() {
           let flames = f.el.querySelectorAll('.feind-flame');
           flames.forEach(fl => fl.style.display = 'block');
           
-          let targetX = state.x;
-          let targetY = state.y;
-          if (isCoopMode() && state.p2 && !state.p2.isDead) {
-            let distP1 = Math.hypot(state.x - f.x, state.y - f.y);
-            let distP2 = Math.hypot(state.p2.x - f.x, state.p2.y - f.y);
-            if (state.isDead || distP2 < distP1) {
-              targetX = state.p2.x;
-              targetY = state.p2.y;
-            }
-          }
-          Entities.erzeugeFeindLaser(f.x + f.groesse / 2 - 2, f.y + f.groesse, targetX + config.spielerGroesse / 2, targetY + config.spielerGroesse / 2);
+          const ziel = naechsterSpielerMitte(f);
+          Entities.erzeugeFeindLaser(f.x + f.groesse / 2 - 2, f.y + f.groesse, ziel.x, ziel.y);
         } else {
           f.x = f.attachedAsteroid.x + f.attachedAsteroid.groesse / 2 - f.groesse / 2;
           f.y = f.attachedAsteroid.y + f.attachedAsteroid.groesse / 2 - f.groesse / 2;
         }
       }
       if (f.phase === 'attack') {
-        let targetX = state.x;
-        let targetY = state.y;
-        if (isCoopMode() && state.p2 && !state.p2.isDead) {
-          let distP1 = Math.hypot(state.x - f.x, state.y - f.y);
-          let distP2 = Math.hypot(state.p2.x - f.x, state.p2.y - f.y);
-          if (state.isDead || distP2 < distP1) {
-            targetX = state.p2.x;
-            targetY = state.p2.y;
-          }
-        }
-        let dx = (targetX + config.spielerGroesse / 2) - (f.x + f.groesse / 2);
-        let dy = (targetY + config.spielerGroesse / 2) - (f.y + f.groesse / 2);
+        const ziel = naechsterSpielerMitte(f);
+        let dx = ziel.x - (f.x + f.groesse / 2);
+        let dy = ziel.y - (f.y + f.groesse / 2);
         let dist = Math.hypot(dx, dy);
         if (dist > 5) {
           f.vx = dx / dist * 3;

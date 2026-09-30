@@ -68,17 +68,7 @@ export function aktualisiereBosse() {
         if (b.x <= 10 || b.x >= config.spielfeldBreite - b.groesse - 10) b.vx *= -1;
       } else if (b.bossTyp === 2) {
         // Jäger - verfolgt den näheren lebenden Spieler
-        let targetX = state.x;
-        let targetY = state.y;
-        if (isCoopMode() && state.p2 && !state.p2.isDead) {
-          let distP1 = Math.hypot(state.x - b.x, state.y - b.y);
-          let distP2 = Math.hypot(state.p2.x - b.x, state.p2.y - b.y);
-          if (state.isDead || distP2 < distP1) {
-            targetX = state.p2.x;
-            targetY = state.p2.y;
-          }
-        }
-        let zielX = targetX + config.spielerGroesse / 2 - b.groesse / 2;
+        let zielX = naechsterSpielerMitte(b).x - b.groesse / 2;
         if (b.x < zielX - 5) b.x += b.vx;else if (b.x > zielX + 5) b.x -= b.vx;
       } else if (b.bossTyp === 3) {
         // Träger
@@ -119,19 +109,10 @@ export function aktualisiereBosse() {
           }
         } else if (b.bossTyp === 2) {
           // Gezielter Schuss auf den näheren lebenden Spieler
-          let targetX = state.x + config.spielerGroesse / 2;
-          let targetY = state.y + config.spielerGroesse / 2;
-          if (isCoopMode() && state.p2 && !state.p2.isDead) {
-            let distP1 = Math.hypot(state.x - b.x, state.y - b.y);
-            let distP2 = Math.hypot(state.p2.x - b.x, state.p2.y - b.y);
-            if (state.isDead || distP2 < distP1) {
-              targetX = state.p2.x + config.spielerGroesse / 2;
-              targetY = state.p2.y + config.spielerGroesse / 2;
-            }
-          }
+          const ziel = naechsterSpielerMitte(b);
           let startX = b.x + b.groesse / 2 - 4;
           let startY = b.y + b.groesse;
-          let winkel = Math.atan2(targetY - startY, targetX - startX);
+          let winkel = Math.atan2(ziel.y - startY, ziel.x - startX);
           Entities.erzeugeBossLaser(startX, startY, Math.cos(winkel) * 8, Math.sin(winkel) * 8);
           if (b.enragePhaseAktiv) {
             Entities.erzeugeBossLaser(startX, startY, Math.cos(winkel - 0.2) * 8, Math.sin(winkel - 0.2) * 8);
@@ -306,18 +287,9 @@ export function aktualisiereBossRaketen() {
     }
 
     // Homing Richtung näherer lebender Spieler
-    let zielX = state.x + config.spielerGroesse / 2;
-    let zielY = state.y + config.spielerGroesse / 2;
-    if (isCoopMode() && state.p2 && !state.p2.isDead) {
-      let distP1 = Math.hypot(state.x - br.x, state.y - br.y);
-      let distP2 = Math.hypot(state.p2.x - br.x, state.p2.y - br.y);
-      if (state.isDead || distP2 < distP1) {
-        zielX = state.p2.x + config.spielerGroesse / 2;
-        zielY = state.p2.y + config.spielerGroesse / 2;
-      }
-    }
-    let dx = zielX - (br.x + br.width / 2);
-    let dy = zielY - (br.y + br.height / 2);
+    const ziel = naechsterSpielerMitte(br);
+    let dx = ziel.x - (br.x + br.width / 2);
+    let dy = ziel.y - (br.y + br.height / 2);
     let targetAngle = Math.atan2(dy, dx);
 
     let currentAngle = Math.atan2(br.vy, br.vx);
