@@ -1,10 +1,9 @@
 // Starshooter Highscores Cloudflare Worker API
+import { bereinigeName } from './validierung.mjs';
+
 const SECRET_SALT = 'st4r-sh00t3r-s3cr3t-k3y-2026';
 const VALID_MODES = ['single', 'coop_bot', 'online'];
 const VALID_SHIPS = ['viper', 'phantom'];
-
-// Schimpfwort-/Profanity-Filter (einfache Sperrliste für 3-Buchstaben-Kürzel & gängige Begriffe)
-const FORBIDDEN_WORDS = ['ASS', 'FUK', 'FCK', 'NAZ', 'SS', 'KKK', 'SEX', 'DIC', 'DIK', 'COK', 'NIG', 'HIT', 'WTF', 'SHI'];
 
 const corsHeaders = {
     'Access-Control-Allow-Origin': '*',
@@ -78,7 +77,8 @@ export default {
                     highscores: results || []
                 });
             } catch (err) {
-                return jsonResponse({ success: false, error: err.message }, 500);
+                console.error('Interner Fehler:', err);
+                return jsonResponse({ success: false, error: 'Interner Serverfehler' }, 500);
             }
         }
 
@@ -94,18 +94,12 @@ export default {
                 }
 
                 // 2. Name bereinigen & prüfen
-                name = (name || '').trim().toUpperCase().slice(0, 10);
-                if (!name || !/^[A-Z0-9+_-]{1,10}$/.test(name)) {
-                    return jsonResponse({ success: false, error: 'Ungültiger Spielername (nur A-Z, 0-9, max. 10 Zeichen)' }, 400);
+                // (inkl. Zeichen-Check und Profanity-Filter, siehe validierung.mjs)
+                const nameErgebnis = bereinigeName(name);
+                if (!nameErgebnis.ok) {
+                    return jsonResponse({ success: false, error: nameErgebnis.fehler }, 400);
                 }
-
-                // Profanity Check
-                const nameParts = name.split('+');
-                for (const part of nameParts) {
-                    if (FORBIDDEN_WORDS.includes(part)) {
-                        name = name.replace(part, '***');
-                    }
-                }
+                name = nameErgebnis.name;
 
                 // 3. Score & Level Plausibilität
                 score = parseInt(score, 10);
@@ -157,7 +151,7 @@ export default {
 
                 const db = env.starshooter_db || env.DB;
                 if (db) {
-                    // Rate-Limit Check: Max 10 Einträge pro Tag/IP
+                    // Rate-Limit Check: Max 15 Einträge pro Stunde/IP
                     const countCheck = await db.prepare(
                         `SELECT COUNT(*) as cnt FROM highscores WHERE ip_hash = ? AND created_at > datetime('now', '-1 hour')`
                     ).bind(ipHash).first();
@@ -200,7 +194,8 @@ export default {
                     entry: { mode, name, score, level, shipP1, shipP2, country, city }
                 }, 201);
             } catch (err) {
-                return jsonResponse({ success: false, error: err.message }, 500);
+                console.error('Interner Fehler:', err);
+                return jsonResponse({ success: false, error: 'Interner Serverfehler' }, 500);
             }
         }
 

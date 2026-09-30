@@ -1281,8 +1281,13 @@ export function serializePlayerInput() {
 export function applyPlayerInput(input) {
     if (!input || !state.p2) return;
 
-    state.p2.x = input.x;
-    state.p2.y = input.y;
+    // Client-Werte nicht vertrauen: nur endliche Zahlen, begrenzt auf das Spielfeld
+    if (Number.isFinite(input.x)) {
+        state.p2.x = Math.min(Math.max(input.x, 0), config.spielfeldBreite - config.spielerGroesse);
+    }
+    if (Number.isFinite(input.y)) {
+        state.p2.y = Math.min(Math.max(input.y, 0), config.spielfeldHoehe - config.spielerGroesse);
+    }
     state.p2.rotate = input.rotate || 0;
 
     if (input.laser !== undefined) {

@@ -6,7 +6,7 @@ test.beforeEach(async ({ page }) => {
     body: JSON.stringify({ success: true, mode: 'single', highscores: [] })
   }));
   await page.addInitScript(() => {
-    localStorage.setItem('starshooter_last_seen_version', '1.6.56');
+    localStorage.setItem('starshooter_last_seen_version', '1.6.57');
     localStorage.setItem('starshooter_skip_cutscene', 'true');
   });
   await page.goto('/');
@@ -108,9 +108,8 @@ test('Client verwendet DOM-Elemente wieder, erzeugt beim zweiten Snapshot keine 
     const obs = new MutationObserver(() => {});
     obs.observe(dom.spielfeld, { childList: true, subtree: true });
     g.Network.applyGameStateSnapshot(snap2);
-    // HUD-Herzen baut Utils.updateLebenUI bei jedem Snapshot neu auf, sie gehoeren nicht zu den Spielobjekten
     const hinzugefuegt = [];
-    obs.takeRecords().forEach(m => m.addedNodes.forEach(n => { if (n.nodeType === 1 && !n.classList.contains('leben-herz')) hinzugefuegt.push(n.className); }));
+    obs.takeRecords().forEach(m => m.addedNodes.forEach(n => { if (n.nodeType === 1) hinzugefuegt.push(n.className); }));
     obs.disconnect();
 
     const out = { hinzugefuegt, listen: {} };

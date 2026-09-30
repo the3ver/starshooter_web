@@ -1,6 +1,14 @@
-export const GAME_VERSION = '1.6.56';
+export const GAME_VERSION = '1.6.57';
 
 export const changelogData = {
+  '1.6.57': {
+    version: '1.6.57',
+    intro: 'Hey, es ist jetzt Version 1.6.57 rausgekommen, folgendes wurde aktualisiert:',
+    highlights: [
+      '🛡️ Im Online-Modus übernimmt der Host die Position des Mitspielers nur noch, wenn sie gültig ist und im Spielfeld liegt',
+      '❤️ Die Herzen-Anzeige wird im Online-Modus nicht mehr bei jedem Update neu gebaut, und die Bestenliste zeigt Namen und Städte sicher als Text an'
+    ]
+  },
   '1.6.56': {
     version: '1.6.56',
     intro: 'Hey, es ist jetzt Version 1.6.56 rausgekommen, folgendes wurde aktualisiert:',

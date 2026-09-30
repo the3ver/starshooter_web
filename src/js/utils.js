@@ -26,6 +26,14 @@ function zeigeMitVerlustAnimation(container, html, lostHtml) {
 
 // Herzen für einen Spieler; stilAttr hängt am span (P2: eigene Farbe)
 function zeichneLeben(leben, prevWert, container, stilAttr) {
+  // Unveränderte Lebenszahl, Herzen schon im DOM und keine Animationsreste: nichts neu aufbauen
+  // (der Online-Client ruft das pro Snapshot auf). Reste (pu-anim-new/-lost) räumt genau ein Neuaufbau weg.
+  if (leben === prevWert
+      && container.querySelectorAll('.leben-herz').length === leben
+      && !container.querySelector('.pu-anim-new, .pu-anim-lost')) {
+    return;
+  }
+
   let html = "";
   let lostHtml = "";
 
@@ -823,6 +831,16 @@ async function submitGlobalScore(mode, name, score, level, shipP1, shipP2) {
   }
 }
 
+// Maskiert HTML-Sonderzeichen für Strings aus der API (Name, Stadt, Land)
+export function escapeHtml(wert) {
+  return String(wert ?? '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
 export function renderHighscoresTable(currentMode, hsList) {
   const tbody = document.getElementById('highscore-body');
   if (!tbody) return;
@@ -833,6 +851,7 @@ export function renderHighscoresTable(currentMode, hsList) {
     return;
   }
 
+  let zeilenHtml = '';
   hsList.forEach((entry, idx) => {
     const rank = idx + 1;
     let rankClass = '';
@@ -847,7 +866,7 @@ export function renderHighscoresTable(currentMode, hsList) {
     if (entry.country) {
       const flag = getCountryFlagEmoji(entry.country);
       const title = entry.city ? `${entry.city}, ${entry.country}` : entry.country;
-      locDisplay = `<span class="hs-location" title="${title}">${flag}</span>`;
+      locDisplay = `<span class="hs-location" title="${escapeHtml(title)}">${escapeHtml(flag)}</span>`;
     }
 
     const isMulti = currentMode === 'coop_bot' || currentMode === 'online';
@@ -857,14 +876,15 @@ export function renderHighscoresTable(currentMode, hsList) {
       const p2Phantom = entry.shipP2 === 'phantom';
       const p1Badge = `<span class="hs-ship-badge hs-badge-mini ${p1Phantom ? 'hs-ship-phantom' : 'hs-ship-viper'}" title="P1: ${p1Phantom ? 'Phantom-NX' : 'Viper-X'}">P1:${p1Phantom ? 'P' : 'V'}</span>`;
       const p2Badge = `<span class="hs-ship-badge hs-badge-mini ${p2Phantom ? 'hs-ship-phantom' : 'hs-ship-viper'}" title="P2: ${p2Phantom ? 'Phantom-NX' : 'Viper-X'}">P2:${p2Phantom ? 'P' : 'V'}</span>`;
-      tbody.innerHTML += `<tr><td>${rankBadge}</td><td>${entry.name}${locDisplay}</td><td>${entry.score}</td><td><div class="hs-coop-badges">${p1Badge} ${p2Badge}</div></td></tr>`;
+      zeilenHtml += `<tr><td>${rankBadge}</td><td>${escapeHtml(entry.name)}${locDisplay}</td><td>${escapeHtml(entry.score)}</td><td><div class="hs-coop-badges">${p1Badge} ${p2Badge}</div></td></tr>`;
     } else {
       const isPhantom = entry.ship === 'phantom' || entry.shipP1 === 'phantom';
       const shipLabel = isPhantom ? 'Phantom-NX' : 'Viper-X';
       const badgeClass = isPhantom ? 'hs-ship-phantom' : 'hs-ship-viper';
-      tbody.innerHTML += `<tr><td>${rankBadge}</td><td>${entry.name}${locDisplay}</td><td>${entry.score}</td><td><span class="hs-ship-badge ${badgeClass}">${shipLabel}</span></td></tr>`;
+      zeilenHtml += `<tr><td>${rankBadge}</td><td>${escapeHtml(entry.name)}${locDisplay}</td><td>${escapeHtml(entry.score)}</td><td><span class="hs-ship-badge ${badgeClass}">${shipLabel}</span></td></tr>`;
     }
   });
+  tbody.innerHTML = zeilenHtml;
 }
 
 export async function fetchGlobalHighscores(mode) {
