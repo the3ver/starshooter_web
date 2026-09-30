@@ -9,7 +9,14 @@ Das Projekt ist in modular gegliederte ES-Module strukturiert:
 - **`src/js/` (Logik & ES-Module):**
   - `main.js`: Einstiegspunkt, Event-Listener & Initialisierung.
   - `state.js`: Zentraler State (Spieler-Stats, P2-State, Arrays, Config, `godMode`, Network-State etc.).
-  - `loop.js`: Der zentrale Game-Loop (`requestAnimationFrame`), Spawns, Bewegung & Kollisionsabfragen.
+  - `loop.js`: Der zentrale Game-Loop (`requestAnimationFrame`, feste 60-Hz-Schritte) und `simulationsSchritt()` als kurzer Orchestrator (Early-Exits, Sterne, Spawns, Score, Netzwerk-Sync), der die Teilmodule in fester Reihenfolge aufruft.
+  - `client.js`: `clientSchritt()` für den Online-Client (lokale P2-Steuerung, Sterne, Partikel, Input senden).
+  - `spieler.js`: I-Frames, Bewegung von P1/P2 inkl. Bot, Energie (liefert `laserAktiv`/`laserAktivP2`) und Schild-Regeneration.
+  - `powerups.js`: Powerup-Bewegung, Einsammeln, Traktorstrahl-Schleppen und Powerup-Effekte (`wendePowerupAn`).
+  - `gegner.js`: Feind-Spawns, Hacker-Verhalten, Update & Kollision von Asteroiden, Feinden, Feind-Lasern und Hack-Projektilen.
+  - `boss.js`: Boss-Logik (Bewegung, Angriffe, Boss-Hacks), Boss-Laser, Boss-Bomben und Boss-Raketen.
+  - `waffen.js`: Spielerwaffen (Autolaser, Hitscan, Laser, Raketen, Bomben) samt Treffer-Logik und `versteckeAlleLaser`.
+  - `partikel.js`: `animierenPartikel()` für Partikel-Bewegung und -Zerfall.
   - `entities.js`: Spawnen und Verhalten von Feinden, Bossen (Typ 1–4), Asteroiden, Magma-Brocken und Powerups.
   - `input.js`: Tastatur- & Touch-Steuerung (Joystick, Buttons), Cheatcode-Erkennung.
   - `utils.js`: Hilfsfunktionen (UI-Updates, Kollisionen, Partikel, Highscores, Spielmodi).
