@@ -110,14 +110,12 @@ export function versteckeAlleLaser() {
   dom.laserDiagLinks.style.display = 'none';
   dom.laserDiagRechts.style.display = 'none';
 }
-export function gameLoop() {
+export function simulationsSchritt() {
   if (state.pausiert) {
-    requestAnimationFrame(gameLoop);
     return;
   }
 
   if (state.cutsceneAktiv) {
-    requestAnimationFrame(gameLoop);
     return;
   }
 
@@ -132,14 +130,12 @@ export function gameLoop() {
       if (state.gameMode === 'online') {
         if (state.network && state.network.isHost && state.network.connected) {
           Network.hostStartGame();
-          requestAnimationFrame(gameLoop);
           return;
         }
       } else {
         let startScreen = document.getElementById('start-screen');
         if (startScreen) startScreen.style.display = 'none';
         Cutscene.startCutscene();
-        requestAnimationFrame(gameLoop);
         return;
       }
     } else {
@@ -153,7 +149,6 @@ export function gameLoop() {
         stern.el.style.top = stern.y + 'px';
         stern.el.style.left = stern.x + 'px';
       });
-      requestAnimationFrame(gameLoop);
       return;
     }
   }
@@ -174,7 +169,6 @@ export function gameLoop() {
       stern.el.style.top = stern.y + 'px';
       stern.el.style.left = stern.x + 'px';
     });
-    requestAnimationFrame(gameLoop);
     return;
   }
   if (state.gameOverAktiv) {
@@ -188,7 +182,6 @@ export function gameLoop() {
       stern.el.style.top = stern.y + 'px';
       stern.el.style.left = stern.x + 'px';
     });
-    requestAnimationFrame(gameLoop);
     return;
   }
 
@@ -279,7 +272,6 @@ export function gameLoop() {
 
     Network.sendNetworkInput(Network.serializePlayerInput());
 
-    requestAnimationFrame(gameLoop);
     return;
   }
 
@@ -1776,6 +1768,7 @@ export function gameLoop() {
         }
         dom.spielfeld.appendChild(el);
         arrays.laserArray.push({
+          id: Entities.neueId('l'),
           el: el,
           x: pState.x + st.offsetX,
           y: pState.y,
@@ -1997,6 +1990,7 @@ export function gameLoop() {
         el.style.transform = `rotate(${winkel + 90}deg)`;
         dom.spielfeld.appendChild(el);
         arrays.raketenArray.push({
+          id: Entities.neueId('r'),
           el: el,
           x: pState.x + off.ox,
           y: pState.y,
@@ -2258,6 +2252,7 @@ export function gameLoop() {
       const stufeColors = { 1: '#e74c3c', 2: '#f39c12', 3: '#9b59b6', 4: '#00ffff', 5: '#f1c40f' };
       const stufeSpeeds = { 1: 1.5, 2: 1.8, 3: 2.0, 4: 2.3, 5: 2.6 };
       arrays.bombenArray.push({
+        id: Entities.neueId('b'),
         el: el,
         x: pState.x + 8,
         y: pState.y,
@@ -2391,6 +2386,7 @@ export function gameLoop() {
           dom.spielfeld.appendChild(miniEl);
 
           arrays.bombenArray.push({
+            id: Entities.neueId('b'),
             el: miniEl,
             x: bcx - 5,
             y: bcy - 10,
@@ -2487,8 +2483,44 @@ export function gameLoop() {
     }
   }
 
+}
+
+// --- FESTE SIMULATIONSSCHRITTE (60 Hz, unabhaengig von der Monitor-Bildrate) ---
+export const SCHRITT_MS = 1000 / 60;
+export const MAX_SCHRITTE_PRO_FRAME = 5;
+
+// Wie viele feste Simulationsschritte fuer die vergangene Zeit faellig sind
+export function berechneSchritte(kontoMs, deltaMs) {
+  const delta = (typeof deltaMs === 'number' && deltaMs > 0) ? deltaMs : 0;
+  const konto = (typeof kontoMs === 'number' && kontoMs > 0) ? kontoMs : 0;
+  let neuesKonto = konto + delta;
+  const schritte = Math.floor(neuesKonto / SCHRITT_MS);
+  if (schritte > MAX_SCHRITTE_PRO_FRAME) {
+    // Rueckstand (z.B. nach Tab-Wechsel) verwerfen statt vorzuspulen
+    return { schritte: MAX_SCHRITTE_PRO_FRAME, kontoMs: 0 };
+  }
+  neuesKonto -= schritte * SCHRITT_MS;
+  return { schritte, kontoMs: neuesKonto };
+}
+
+let letzterZeitstempel = null;
+let zeitKontoMs = 0;
+
+export function gameLoop(zeitstempel) {
+  if (letzterZeitstempel === null || typeof zeitstempel !== 'number') {
+    // Erster Aufruf: genau ein Schritt
+    simulationsSchritt();
+  } else {
+    const ergebnis = berechneSchritte(zeitKontoMs, zeitstempel - letzterZeitstempel);
+    zeitKontoMs = ergebnis.kontoMs;
+    for (let i = 0; i < ergebnis.schritte; i++) {
+      simulationsSchritt();
+    }
+  }
+  if (typeof zeitstempel === 'number') letzterZeitstempel = zeitstempel;
   requestAnimationFrame(gameLoop);
 }
+
 
 export function animierenPartikel() {
   for (let i = arrays.partikelArray.length - 1; i >= 0; i--) {

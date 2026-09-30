@@ -22,7 +22,7 @@ test.beforeEach(async ({ page }) => {
 
   // Standardmäßig als bereits gesehen markieren, damit die Tests direkt interagieren können
   await page.addInitScript(() => {
-    localStorage.setItem('starshooter_last_seen_version', '1.6.54');
+    localStorage.setItem('starshooter_last_seen_version', '1.6.56');
     localStorage.setItem('starshooter_skip_cutscene', 'true');
   });
   await page.goto('/');
@@ -918,7 +918,7 @@ test.describe('Was gibt es Neues Modal (Changelog)', () => {
     await expect(title).toContainText("WAS GIBT'S NEUES");
 
     const intro = page.locator('#whats-new-intro');
-    await expect(intro).toContainText('1.6.54');
+    await expect(intro).toContainText('1.6.56');
 
     const items = page.locator('#whats-new-list li');
     await expect(items).toHaveCount(2);
@@ -931,7 +931,7 @@ test.describe('Was gibt es Neues Modal (Changelog)', () => {
 
     // Prüfen, dass localStorage aktualisiert wurde
     const storedVersion = await page.evaluate(() => localStorage.getItem('starshooter_last_seen_version'));
-    expect(storedVersion).toBe('1.6.54');
+    expect(storedVersion).toBe('1.6.56');
 
     // Erneut öffnen über Start-Screen Button
     const openBtn = page.locator('#btn-open-whats-new');
@@ -3169,7 +3169,7 @@ test.describe('2-Spieler-Modus (Co-op)', () => {
     const result = await page.evaluate(async () => {
       const { arrays, state } = await import('./js/state.js');
       const { erzeugeBossRakete } = await import('./js/entities.js');
-      const { gameLoop } = await import('./js/loop.js');
+      const { simulationsSchritt } = await import('./js/loop.js');
 
       // Spielerposition unten in der Mitte
       state.x = 185;
@@ -3182,7 +3182,7 @@ test.describe('2-Spieler-Modus (Co-op)', () => {
       br.vy = 2.5; // Fliegt senkrecht nach unten auf den Spieler zu
 
       // Einen Loop-Frame ausführen
-      gameLoop();
+      simulationsSchritt();
 
       return {
         vx: br.vx,
@@ -3214,7 +3214,7 @@ test.describe('2-Spieler-Modus (Co-op)', () => {
     const testResult = await page.evaluate(async () => {
       const { arrays, state, config } = await import('./js/state.js');
       const { erzeugeFeind } = await import('./js/entities.js');
-      const { gameLoop } = await import('./js/loop.js');
+      const { simulationsSchritt } = await import('./js/loop.js');
 
       // Leere bisherige Feinde und Raketen
       arrays.feinde.forEach(f => { if (f.el) f.el.remove(); });
@@ -3249,7 +3249,7 @@ test.describe('2-Spieler-Modus (Co-op)', () => {
       let maxObservedVy = 0;
 
       for (let f = 0; f < 45; f++) {
-        gameLoop();
+        simulationsSchritt();
         if (rocket.age === 15) vyAtPhase2 = rocket.vy;
         if (rocket.vy > maxObservedVy) maxObservedVy = rocket.vy;
       }
@@ -3374,7 +3374,7 @@ test.describe('2-Spieler-Modus (Co-op)', () => {
     const result = await page.evaluate(async () => {
       const { arrays, state } = await import('./js/state.js');
       const { erzeugePowerup } = await import('./js/entities.js');
-      const { gameLoop } = await import('./js/loop.js');
+      const { simulationsSchritt } = await import('./js/loop.js');
 
       // Leere vorhandene Powerups
       arrays.powerups.forEach(p => { if (p.el) p.el.remove(); });
@@ -3385,16 +3385,16 @@ test.describe('2-Spieler-Modus (Co-op)', () => {
       state.y = 300;
 
       erzeugePowerup(200, 300, 'laserWaffe', 'p2');
-      gameLoop();
+      simulationsSchritt();
 
       erzeugePowerup(200, 300, 'raketenWaffe', 'p2');
-      gameLoop();
+      simulationsSchritt();
 
       erzeugePowerup(200, 300, 'bombenWaffe', 'p2');
-      gameLoop();
+      simulationsSchritt();
 
       erzeugePowerup(200, 300, 'schild', 'p2');
-      gameLoop();
+      simulationsSchritt();
 
       return {
         totalPowerups: arrays.powerups.length,
@@ -3424,7 +3424,7 @@ test.describe('2-Spieler-Modus (Co-op)', () => {
     const testSpeeds = await page.evaluate(async () => {
       const { arrays, state, config } = await import('./js/state.js');
       const { erzeugePowerup } = await import('./js/entities.js');
-      const { gameLoop } = await import('./js/loop.js');
+      const { simulationsSchritt } = await import('./js/loop.js');
 
       arrays.powerups.forEach(p => { if (p.el) p.el.remove(); });
       arrays.powerups.length = 0;
@@ -3432,34 +3432,34 @@ test.describe('2-Spieler-Modus (Co-op)', () => {
       // Base Speed mit 0 Powerups
       state.y = 300;
       state.tastenGedrueckt.w = true;
-      gameLoop();
+      simulationsSchritt();
       const dist0 = 300 - state.y;
       state.tastenGedrueckt.w = false;
 
       // 1 Powerup angehängt
       erzeugePowerup(state.x, state.y, 'laserWaffe', 'p2');
-      gameLoop(); // P1 koppelt an
+      simulationsSchritt(); // P1 koppelt an
       state.y = 300;
       state.tastenGedrueckt.w = true;
-      gameLoop();
+      simulationsSchritt();
       const dist1 = 300 - state.y;
       state.tastenGedrueckt.w = false;
 
       // 2 Powerups angehängt
       erzeugePowerup(state.x, state.y, 'raketenWaffe', 'p2');
-      gameLoop(); // P1 koppelt an
+      simulationsSchritt(); // P1 koppelt an
       state.y = 300;
       state.tastenGedrueckt.w = true;
-      gameLoop();
+      simulationsSchritt();
       const dist2 = 300 - state.y;
       state.tastenGedrueckt.w = false;
 
       // 3 Powerups angehängt
       erzeugePowerup(state.x, state.y, 'bombenWaffe', 'p2');
-      gameLoop(); // P1 koppelt an
+      simulationsSchritt(); // P1 koppelt an
       state.y = 300;
       state.tastenGedrueckt.w = true;
-      gameLoop();
+      simulationsSchritt();
       const dist3 = 300 - state.y;
       state.tastenGedrueckt.w = false;
 
@@ -3493,7 +3493,7 @@ test.describe('2-Spieler-Modus (Co-op)', () => {
     const result = await page.evaluate(async () => {
       const { arrays, state } = await import('./js/state.js');
       const { erzeugePowerup } = await import('./js/entities.js');
-      const { gameLoop } = await import('./js/loop.js');
+      const { simulationsSchritt } = await import('./js/loop.js');
 
       arrays.powerups.forEach(p => { if (p.el) p.el.remove(); });
       arrays.powerups.length = 0;
@@ -3508,7 +3508,7 @@ test.describe('2-Spieler-Modus (Co-op)', () => {
       state.p2.y = 300;
 
       erzeugePowerup(200, 300, 'laserWaffe', 'p2');
-      gameLoop();
+      simulationsSchritt();
 
       const pu = arrays.powerups[0];
       const afterAttach = {
@@ -3522,7 +3522,7 @@ test.describe('2-Spieler-Modus (Co-op)', () => {
       state.p2.x = pu.x;
       state.p2.y = pu.y;
 
-      gameLoop();
+      simulationsSchritt();
 
       const afterHandoff = {
         totalPowerups: arrays.powerups.length,
@@ -3564,7 +3564,7 @@ test.describe('2-Spieler-Modus (Co-op)', () => {
     const result = await page.evaluate(async () => {
       const { arrays, state } = await import('./js/state.js');
       const { erzeugePowerup } = await import('./js/entities.js');
-      const { gameLoop } = await import('./js/loop.js');
+      const { simulationsSchritt } = await import('./js/loop.js');
 
       arrays.powerups.forEach(p => { if (p.el) p.el.remove(); });
       arrays.powerups.length = 0;
@@ -3573,7 +3573,7 @@ test.describe('2-Spieler-Modus (Co-op)', () => {
       state.x = 200;
       state.y = 300;
       erzeugePowerup(200, 300, 'schild', 'p2');
-      gameLoop();
+      simulationsSchritt();
 
       const pu = arrays.powerups[0];
       const beforeDeath = {
@@ -3583,7 +3583,7 @@ test.describe('2-Spieler-Modus (Co-op)', () => {
 
       // P1 wird zerstört
       state.isDead = true;
-      gameLoop();
+      simulationsSchritt();
 
       const afterDeath = {
         isTowed: pu && pu.towedBy !== null,
@@ -3712,7 +3712,7 @@ test.describe('2-Spieler-Modus (Co-op)', () => {
     const result = await page.evaluate(async () => {
       const { arrays, state, dom } = await import('./js/state.js');
       const { erzeugePowerup } = await import('./js/entities.js');
-      const { gameLoop } = await import('./js/loop.js');
+      const { simulationsSchritt } = await import('./js/loop.js');
 
       arrays.powerups.forEach(p => { if (p.el) p.el.remove(); });
       arrays.powerups.length = 0;
@@ -3725,7 +3725,7 @@ test.describe('2-Spieler-Modus (Co-op)', () => {
 
       // Sammle 1 roten Splitter ein
       erzeugePowerup(200, 200, 'splitterRot');
-      gameLoop();
+      simulationsSchritt();
 
       const after1 = {
         splitterRot: state.splitterRot,
@@ -3735,7 +3735,7 @@ test.describe('2-Spieler-Modus (Co-op)', () => {
       // Setze Zähler auf 9 und sammle den 10. Splitter ein
       state.splitterRot = 9;
       erzeugePowerup(200, 200, 'splitterRot');
-      gameLoop();
+      simulationsSchritt();
 
       const after10 = {
         splitterRot: state.splitterRot,
@@ -3771,7 +3771,7 @@ test.describe('2-Spieler-Modus (Co-op)', () => {
     const result = await page.evaluate(async () => {
       const { arrays, state, dom } = await import('./js/state.js');
       const { erzeugePowerup } = await import('./js/entities.js');
-      const { gameLoop } = await import('./js/loop.js');
+      const { simulationsSchritt } = await import('./js/loop.js');
 
       arrays.powerups.forEach(p => { if (p.el) p.el.remove(); });
       arrays.powerups.length = 0;
@@ -3786,7 +3786,7 @@ test.describe('2-Spieler-Modus (Co-op)', () => {
 
       // Sammle 1 weißen Splitter ein
       erzeugePowerup(200, 200, 'splitterWeiss');
-      gameLoop();
+      simulationsSchritt();
 
       const after1 = {
         splitterWeiss: state.splitterWeiss,
@@ -3798,7 +3798,7 @@ test.describe('2-Spieler-Modus (Co-op)', () => {
       // Setze Zähler auf 9 und sammle den 10. Splitter ein
       state.splitterWeiss = 9;
       erzeugePowerup(200, 200, 'splitterWeiss');
-      gameLoop();
+      simulationsSchritt();
 
       const after10 = {
         splitterWeiss: state.splitterWeiss,
@@ -3841,7 +3841,7 @@ test.describe('2-Spieler-Modus (Co-op)', () => {
     const result = await page.evaluate(async () => {
       const { arrays, state, dom } = await import('./js/state.js');
       const { erzeugePowerup } = await import('./js/entities.js');
-      const { gameLoop } = await import('./js/loop.js');
+      const { simulationsSchritt } = await import('./js/loop.js');
       const { updateSplitterUI, updateSplitterP2UI } = await import('./js/utils.js');
 
       arrays.powerups.forEach(p => { if (p.el) p.el.remove(); });
@@ -3866,12 +3866,12 @@ test.describe('2-Spieler-Modus (Co-op)', () => {
       // P1 sammelt roten Splitter
       state.x = 100; state.y = 200;
       erzeugePowerup(100, 200, 'splitterRot', 'p1');
-      gameLoop();
+      simulationsSchritt();
 
       // P2 sammelt weißen Splitter
       state.p2.x = 400; state.p2.y = 200;
       erzeugePowerup(400, 200, 'splitterWeiss', 'p2');
-      gameLoop();
+      simulationsSchritt();
 
       const afterPickups = {
         p1Rot: state.splitterRot,
@@ -4184,23 +4184,20 @@ test.describe('Bot-Partner', () => {
       return mod && mod.state && mod.state.spielLaeuft;
     }, null, { timeout: 5000 });
 
-    // Asteroid nahe P2 rechts spawnen
-    const initialData = await page.evaluate(() => {
+    // Asteroid nahe P2 rechts spawnen und eine feste Anzahl Simulationsschritte
+    // synchron ausführen (unabhängig von Wanduhrzeit und Bildrate). Nach ca. 20
+    // Schritten verlässt der Asteroid den Ausweichradius und der Bot zielt wieder
+    // auf ihn, deshalb 10 Schritte.
+    const initialData = { startX: 300, startY: 480 };
+    const endX = await page.evaluate(() => {
       const mod = window.__game;
       const s = mod.state;
       s.p2.x = 300;
       s.p2.y = 480;
       // Asteroid 30px rechts und 50px oberhalb von P2 spawnen
       mod.Entities.erzeugeAsteroid(330, 430);
-      return { startX: 300, startY: 480 };
-    });
-
-    // Kurz warten, damit der Bot ausweicht
-    await page.waitForTimeout(300);
-
-    const endX = await page.evaluate(() => {
-      const mod = window.__game;
-      return mod.state.p2.x;
+      for (let i = 0; i < 10; i++) mod.Loop.simulationsSchritt();
+      return s.p2.x;
     });
 
     // Der Bot sollte nach links ausgewichen sein (weg vom Asteroiden)
@@ -5386,9 +5383,9 @@ test.describe('Bot-Partner', () => {
       mod.dom.spieler2.classList.add('spieler-blink');
 
       // 3 Frames im GameLoop simulieren
-      mod.Loop.gameLoop();
-      mod.Loop.gameLoop();
-      mod.Loop.gameLoop();
+      mod.Loop.simulationsSchritt();
+      mod.Loop.simulationsSchritt();
+      mod.Loop.simulationsSchritt();
     });
 
     const result = await page.evaluate(() => {
@@ -5425,9 +5422,9 @@ test.describe('Bot-Partner', () => {
       });
 
       // 3 Frames im GameLoop simulieren (0.2 -> 0.1 -> 0.0 -> gelöscht)
-      mod.Loop.gameLoop();
-      mod.Loop.gameLoop();
-      mod.Loop.gameLoop();
+      mod.Loop.simulationsSchritt();
+      mod.Loop.simulationsSchritt();
+      mod.Loop.simulationsSchritt();
     });
 
     const result = await page.evaluate(() => {
@@ -5572,7 +5569,7 @@ test.describe('Bot-Partner', () => {
       mod.Network.applyPlayerInput({ laser: true });
 
       // Host simuliert einen Frame im GameLoop
-      mod.Loop.gameLoop();
+      mod.Loop.simulationsSchritt();
     });
 
     const hostP2Laser = await page.evaluate(() => window.__game.state.p2.laserSchiesst);
@@ -5731,7 +5728,7 @@ test.describe('Bot-Partner', () => {
       mod.state.tastenGedrueckt[' '] = true;
 
       // 1 Frame des GameLoops ausführen
-      mod.Loop.gameLoop();
+      mod.Loop.simulationsSchritt();
     });
 
     const p1Actions = await page.evaluate(() => {

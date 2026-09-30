@@ -708,10 +708,14 @@ function endCutsceneAndStartGame(instant = false) {
 
         let entryY = config.spielfeldHoehe + 40;
         const targetY = 285;
-        function flyInStep() {
+        let flyInLastTime = null;
+        function flyInStep(time) {
             if (!state.spielLaeuft || state.gameOverAktiv) return;
             if (entryY > targetY) {
-                entryY -= 6;
+                // Zeitbasiert: 6px pro 16.6ms, unabhaengig von der Bildrate
+                const dt = flyInLastTime === null ? 16.6 : Math.max(0, Math.min(32, time - flyInLastTime));
+                flyInLastTime = time;
+                entryY -= 6 * (dt / 16.6);
                 if (entryY < targetY) entryY = targetY;
                 state.y = entryY;
                 dom.spieler.style.top = state.y + 'px';

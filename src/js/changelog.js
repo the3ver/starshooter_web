@@ -1,6 +1,22 @@
-export const GAME_VERSION = '1.6.54';
+export const GAME_VERSION = '1.6.56';
 
 export const changelogData = {
+  '1.6.56': {
+    version: '1.6.56',
+    intro: 'Hey, es ist jetzt Version 1.6.56 rausgekommen, folgendes wurde aktualisiert:',
+    highlights: [
+      '🌐 Online-Multiplayer läuft flüssiger: Gegner, Asteroiden, Bosse und Powerups behalten beim Client ihre Identität und werden nicht mehr bei jedem Update neu gezeichnet',
+      '🔫 Auch Laser, Raketen und Bomben werden beim Mitspieler jetzt wiederverwendet statt jedes Mal neu aufgebaut. Das spart Rechenarbeit im Browser'
+    ]
+  },
+  '1.6.55': {
+    version: '1.6.55',
+    intro: 'Hey, es ist jetzt Version 1.6.55 rausgekommen, folgendes wurde aktualisiert:',
+    highlights: [
+      '⏱️ Das Spieltempo ist jetzt auf 60-, 120- und 144-Hz-Monitoren gleich. Vorher lief das Spiel auf schnellen Monitoren bis zu 2,4-mal schneller',
+      '🚀 Auch der Einflug deines Schiffs nach der Intro-Szene läuft jetzt unabhängig von der Bildrate gleich schnell'
+    ]
+  },
   '1.6.54': {
     version: '1.6.54',
     intro: 'Hey, es ist jetzt Version 1.6.54 rausgekommen, folgendes wurde hinzugefügt:',

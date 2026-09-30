@@ -6,6 +6,12 @@ import * as Loop from './loop.js';
 import * as Audio from './audio.js';
 
 
+// Stabile Objekt-IDs, damit der Online-Client DOM-Elemente zwischen Snapshots wiederverwenden kann
+let idZaehler = 0;
+export function neueId(praefix) {
+  return `${praefix}_${++idZaehler}`;
+}
+
 export function generiereAsteroidPolygon() {
   let punkte = [];
   let anzahlEcken = Math.floor(Math.random() * 4) + 6;
@@ -129,6 +135,7 @@ export function erzeugePowerup(px, py, forceType = null, forceOwner = null) {
   el.style.top = py + 'px';
   dom.spielfeld.appendChild(el);
   arrays.powerups.push({
+    id: neueId('pu'),
     el: el,
     x: px,
     y: py,
@@ -192,6 +199,7 @@ export function erzeugeAsteroid(startX, startY, startGroesse, startVx, startVy, 
   let startRot = Math.random() * 360;
   let vRot = (Math.random() - 0.5) * 3;
   arrays.asteroiden.push({
+    id: neueId('a'),
     el: el,
     x: finalX,
     y: finalY,
@@ -322,6 +330,7 @@ export function erzeugeFeind(sX, sY, forceMuster = null, forceVx = 0, forceShiel
   const feindHp = Math.round(20 * feindHpMult);
   const feindSchildHp = hatSchild ? Math.round(20 * feindHpMult) : 0;
   arrays.feinde.push({
+    id: neueId('f'),
     el: el,
     x: startX,
     y: startY,
@@ -380,6 +389,7 @@ export function erzeugeHackProjektil(fx, fy, zielX, zielY, quelle = null) {
   let dy = zielY - fy;
   let dist = Math.hypot(dx, dy) || 1;
   arrays.hackProjektilArray.push({
+    id: neueId('hp'),
     el: el,
     x: fx,
     y: fy,
@@ -412,6 +422,7 @@ export function erzeugeFeindLaser(fx, fy, zielX = null, zielY = null) {
     el.style.transform = `rotate(${Math.atan2(dy, dx) * 180 / Math.PI - 90}deg)`;
   }
   arrays.feindLaserArray.push({
+    id: neueId('fl'),
     el: el,
     x: fx,
     y: fy,
@@ -508,6 +519,7 @@ export function erzeugeBoss() {
   let bossVx = 2 + (state.level - 1) * 0.2;
   let schussRhythmus = Math.max(45, 90 - (state.level - 1) * 10);
   arrays.bosses.push({
+    id: neueId('boss'),
     el: el,
     x: startX,
     y: -150,
@@ -539,6 +551,7 @@ export function erzeugeBossLaser(fx, fy, vx = 0, vy = 6) {
   }
   dom.spielfeld.appendChild(el);
   arrays.bossLaserArray.push({
+    id: neueId('bl'),
     el: el,
     x: fx,
     y: fy,
@@ -564,6 +577,7 @@ export function erzeugeBossBombe(bx, by) {
 
   let bHp = 20 + state.level * 5;
   arrays.bossBombenArray.push({
+    id: neueId('bb'),
     el: el,
     x: bx,
     y: by,
@@ -604,6 +618,7 @@ export function erzeugeBossRakete(bx, by, sideDirection = 1) {
   let initVy = 0.8 + Math.random() * 0.4;
   let rHp = 15;
   arrays.bossRaketenArray.push({
+    id: neueId('br'),
     el: el,
     x: bx,
     y: by,

@@ -529,8 +529,8 @@ export function serializeGameState() {
         score: state.score,
         level: state.level,
         bossAktiv: state.bossAktiv,
-        feinde: arrays.feinde.map((f, idx) => ({
-            id: f.id || `f_${idx}_${Math.round(f.x)}_${Math.round(f.y)}`,
+        feinde: arrays.feinde.map((f) => ({
+            id: f.id,
             x: f.x,
             y: f.y,
             hp: f.hp,
@@ -541,8 +541,8 @@ export function serializeGameState() {
             hatSchild: (f.schildHp || 0) > 0,
             schildHp: f.schildHp || 0
         })),
-        asteroiden: arrays.asteroiden.map((a, idx) => ({
-            id: a.id || `a_${idx}_${Math.round(a.x)}_${Math.round(a.y)}`,
+        asteroiden: arrays.asteroiden.map((a) => ({
+            id: a.id,
             x: a.x,
             y: a.y,
             groesse: a.groesse || 30,
@@ -556,8 +556,8 @@ export function serializeGameState() {
             hp: a.hp,
             maxHp: a.maxHp || a.hp
         })),
-        bosses: arrays.bosses.map((b, idx) => ({
-            id: b.id || `boss_${idx}_${b.typ}`,
+        bosses: arrays.bosses.map((b) => ({
+            id: b.id,
             x: b.x,
             y: b.y,
             hp: b.hp,
@@ -566,8 +566,8 @@ export function serializeGameState() {
             typ: b.typ || 1,
             enrage: b.enragePhaseAktiv || false
         })),
-        laser: arrays.laserArray.map((l, idx) => ({
-            id: `l_${idx}_${Math.round(l.x)}_${Math.round(l.y)}`,
+        laser: arrays.laserArray.map((l) => ({
+            id: l.id,
             x: l.x,
             y: l.y,
             vx: l.vx || 0,
@@ -577,8 +577,8 @@ export function serializeGameState() {
             color: l.el ? l.el.style.backgroundColor : (l.owner === 'p2' ? '#3498db' : '#00ffff'),
             owner: l.owner || 'p1'
         })),
-        raketen: arrays.raketenArray.map((r, idx) => ({
-            id: `r_${idx}_${Math.round(r.x)}_${Math.round(r.y)}`,
+        raketen: arrays.raketenArray.map((r) => ({
+            id: r.id,
             x: r.x,
             y: r.y,
             rot: r.rot || (r.vy ? (Math.atan2(-r.vy, r.vx || 0.0001) * 180 / Math.PI + 90) : 0),
@@ -586,8 +586,8 @@ export function serializeGameState() {
             homing: r.homing || false,
             stufe: (r.owner === 'p2' ? (state.p2 && state.p2.raketenStufe) : state.raketenStufe) || 1
         })),
-        bomben: arrays.bombenArray.map((b, idx) => ({
-            id: `b_${idx}_${Math.round(b.x)}_${Math.round(b.y)}`,
+        bomben: arrays.bombenArray.map((b) => ({
+            id: b.id,
             x: b.x,
             y: b.y,
             rot: b.rot || 0,
@@ -596,18 +596,19 @@ export function serializeGameState() {
             isMini: b.isMini || false
         })),
         hackProjektile: arrays.hackProjektilArray.map(hp => ({
+            id: hp.id,
             x: hp.x,
             y: hp.y
         })),
-        feindLaser: arrays.feindLaserArray.map((fl, idx) => ({
-            id: `fl_${idx}_${Math.round(fl.x)}_${Math.round(fl.y)}`,
+        feindLaser: arrays.feindLaserArray.map((fl) => ({
+            id: fl.id,
             x: fl.x,
             y: fl.y,
             vx: fl.vx || 0,
             vy: fl.vy || 7
         })),
-        bossLaser: arrays.bossLaserArray.map((bl, idx) => ({
-            id: `bl_${idx}_${Math.round(bl.x)}_${Math.round(bl.y)}`,
+        bossLaser: arrays.bossLaserArray.map((bl) => ({
+            id: bl.id,
             x: bl.x,
             y: bl.y,
             vx: bl.vx || 0,
@@ -615,22 +616,22 @@ export function serializeGameState() {
             width: bl.width || 8,
             height: bl.height || 25
         })),
-        bossRaketen: arrays.bossRaketenArray.map((br, idx) => ({
-            id: `br_${idx}_${Math.round(br.x)}_${Math.round(br.y)}`,
+        bossRaketen: arrays.bossRaketenArray.map((br) => ({
+            id: br.id,
             x: br.x,
             y: br.y,
             vx: br.vx || 0,
             vy: br.vy || 2,
             rot: Math.atan2(br.vy || 2, br.vx || 0) * 180 / Math.PI + 90
         })),
-        bossBomben: arrays.bossBombenArray.map((bb, idx) => ({
-            id: `bb_${idx}_${Math.round(bb.x)}_${Math.round(bb.y)}`,
+        bossBomben: arrays.bossBombenArray.map((bb) => ({
+            id: bb.id,
             x: bb.x,
             y: bb.y,
             groesse: bb.groesse || 26
         })),
-        powerups: arrays.powerups.map((p, idx) => ({
-            id: p.id || `pu_${idx}_${Math.round(p.x)}_${Math.round(p.y)}`,
+        powerups: arrays.powerups.map((p) => ({
+            id: p.id,
             x: p.x,
             y: p.y,
             type: p.type || p.typ,
@@ -638,6 +639,32 @@ export function serializeGameState() {
             towedBy: p.towedBy
         }))
     };
+}
+
+// Gleicht eine Client-Liste per id mit den Snapshot-Daten ab: bestehende Elemente werden
+// wiederverwendet und aktualisiert, neue erzeugt, verschwundene entfernt.
+function synchronisiereListe(liste, datenListe, erzeuge, aktualisiere) {
+    if (!datenListe) return;
+    const vorhanden = new Map();
+    liste.forEach(obj => { if (obj.id !== undefined) vorhanden.set(obj.id, obj); });
+    const neueListe = [];
+    datenListe.forEach(daten => {
+        const obj = vorhanden.get(daten.id);
+        if (obj) {
+            vorhanden.delete(daten.id);
+            aktualisiere(obj, daten);
+            neueListe.push(obj);
+        } else {
+            neueListe.push(erzeuge(daten));
+        }
+    });
+    liste.forEach(obj => {
+        if (obj.id === undefined || vorhanden.get(obj.id) === obj) {
+            if (obj.el) obj.el.remove();
+        }
+    });
+    liste.length = 0;
+    neueListe.forEach(obj => liste.push(obj));
 }
 
 export function applyGameStateSnapshot(snapshot) {
@@ -953,211 +980,250 @@ export function applyGameStateSnapshot(snapshot) {
     }
 
     // 8. Replicate Lasers
-    if (snapshot.laser) {
-        arrays.laserArray.forEach(l => { if (l.el) l.el.remove(); });
-        arrays.laserArray.length = 0;
-        snapshot.laser.forEach(lData => {
-            const el = document.createElement('div');
-            el.classList.add('laser-projektil');
-            if (lData.owner === 'p2') el.classList.add('laser-p2');
-            el.style.backgroundColor = lData.color || (lData.owner === 'p2' ? '#3498db' : '#00ffff');
-            el.style.boxShadow = `0 0 10px ${lData.color || '#00ffff'}`;
-            el.style.width = (lData.width || 4) + 'px';
-            el.style.height = (lData.height || 20) + 'px';
-            el.style.left = lData.x + 'px';
-            el.style.top = lData.y + 'px';
-            if (lData.vx && lData.vx !== 0) {
-                let winkel = Math.atan2(-15, lData.vx) * 180 / Math.PI;
-                el.style.transform = `rotate(${winkel + 90}deg)`;
-            }
-            spielfeld.appendChild(el);
-            arrays.laserArray.push({
-                el: el,
-                x: lData.x,
-                y: lData.y,
-                vx: lData.vx || 0,
-                vy: lData.vy || 15,
-                owner: lData.owner
-            });
-        });
-    }
+    synchronisiereListe(arrays.laserArray, snapshot.laser, lData => {
+        const el = document.createElement('div');
+        el.classList.add('laser-projektil');
+        if (lData.owner === 'p2') el.classList.add('laser-p2');
+        el.style.backgroundColor = lData.color || (lData.owner === 'p2' ? '#3498db' : '#00ffff');
+        el.style.boxShadow = `0 0 10px ${lData.color || '#00ffff'}`;
+        el.style.width = (lData.width || 4) + 'px';
+        el.style.height = (lData.height || 20) + 'px';
+        el.style.left = lData.x + 'px';
+        el.style.top = lData.y + 'px';
+        if (lData.vx && lData.vx !== 0) {
+            let winkel = Math.atan2(-15, lData.vx) * 180 / Math.PI;
+            el.style.transform = `rotate(${winkel + 90}deg)`;
+        }
+        spielfeld.appendChild(el);
+        return {
+            id: lData.id,
+            el: el,
+            x: lData.x,
+            y: lData.y,
+            vx: lData.vx || 0,
+            vy: lData.vy || 15,
+            owner: lData.owner
+        };
+    }, (obj, lData) => {
+        obj.x = lData.x;
+        obj.y = lData.y;
+        obj.vx = lData.vx || 0;
+        obj.vy = lData.vy || 15;
+        obj.el.style.left = lData.x + 'px';
+        obj.el.style.top = lData.y + 'px';
+        if (lData.vx && lData.vx !== 0) {
+            let winkel = Math.atan2(-15, lData.vx) * 180 / Math.PI;
+            obj.el.style.transform = `rotate(${winkel + 90}deg)`;
+        }
+    });
 
     // 9. Replicate Rockets
-    if (snapshot.raketen) {
-        arrays.raketenArray.forEach(r => { if (r.el) r.el.remove(); });
-        arrays.raketenArray.length = 0;
-        snapshot.raketen.forEach(rData => {
-            const el = document.createElement('div');
-            el.classList.add('raketen-projektil');
-            if (rData.stufe >= 2) el.classList.add('rakete-lvl-2');
-            if (rData.homing) el.classList.add('rakete-homing');
-            if (rData.owner === 'p2') el.classList.add('rakete-p2');
-            el.innerHTML = `
-                <div class="rakete-sensor"></div>
-                <div class="rakete-canards"></div>
-                <div class="rakete-rumpf"></div>
-                <div class="rakete-fluegel"></div>
-                <div class="rakete-feuer"></div>
-            `;
-            el.style.left = rData.x + 'px';
-            el.style.top = rData.y + 'px';
-            el.style.transform = `rotate(${rData.rot || 0}deg)`;
-            spielfeld.appendChild(el);
-            arrays.raketenArray.push({
-                el: el,
-                x: rData.x,
-                y: rData.y,
-                rot: rData.rot || 0,
-                owner: rData.owner
-            });
-        });
-    }
+    synchronisiereListe(arrays.raketenArray, snapshot.raketen, rData => {
+        const el = document.createElement('div');
+        el.classList.add('raketen-projektil');
+        if (rData.stufe >= 2) el.classList.add('rakete-lvl-2');
+        if (rData.homing) el.classList.add('rakete-homing');
+        if (rData.owner === 'p2') el.classList.add('rakete-p2');
+        el.innerHTML = `
+            <div class="rakete-sensor"></div>
+            <div class="rakete-canards"></div>
+            <div class="rakete-rumpf"></div>
+            <div class="rakete-fluegel"></div>
+            <div class="rakete-feuer"></div>
+        `;
+        el.style.left = rData.x + 'px';
+        el.style.top = rData.y + 'px';
+        el.style.transform = `rotate(${rData.rot || 0}deg)`;
+        spielfeld.appendChild(el);
+        return {
+            id: rData.id,
+            el: el,
+            x: rData.x,
+            y: rData.y,
+            rot: rData.rot || 0,
+            owner: rData.owner
+        };
+    }, (obj, rData) => {
+        obj.x = rData.x;
+        obj.y = rData.y;
+        obj.rot = rData.rot || 0;
+        obj.el.style.left = rData.x + 'px';
+        obj.el.style.top = rData.y + 'px';
+        obj.el.style.transform = `rotate(${obj.rot}deg)`;
+    });
 
     // 10. Replicate Bombs
-    if (snapshot.bomben) {
-        arrays.bombenArray.forEach(b => { if (b.el) b.el.remove(); });
-        arrays.bombenArray.length = 0;
-        snapshot.bomben.forEach(bData => {
-            const el = document.createElement('div');
-            el.classList.add('bomben-projektil', `bombe-lvl-${bData.stufe || 1}`);
-            if (bData.isMini) el.classList.add('bombe-mini');
-            if (bData.owner === 'p2') el.classList.add('bombe-p2');
-            el.innerHTML = `
-                <div class="bombe-aura"></div>
-                <div class="bombe-body"></div>
-                <div class="bombe-licht" style="top: 4px;"></div>
-                <div class="bombe-licht" style="top: 13px;"></div>
-                <div class="bombe-licht" style="top: 22px;"></div>
-            `;
-            el.style.left = bData.x + 'px';
-            el.style.top = bData.y + 'px';
-            el.style.transform = `rotate(${bData.rot || 0}deg)`;
-            spielfeld.appendChild(el);
-            arrays.bombenArray.push({
-                el: el,
-                x: bData.x,
-                y: bData.y,
-                rot: bData.rot || 0,
-                owner: bData.owner
-            });
-        });
-    }
+    synchronisiereListe(arrays.bombenArray, snapshot.bomben, bData => {
+        const el = document.createElement('div');
+        el.classList.add('bomben-projektil', `bombe-lvl-${bData.stufe || 1}`);
+        if (bData.isMini) el.classList.add('bombe-mini');
+        if (bData.owner === 'p2') el.classList.add('bombe-p2');
+        el.innerHTML = `
+            <div class="bombe-aura"></div>
+            <div class="bombe-body"></div>
+            <div class="bombe-licht" style="top: 4px;"></div>
+            <div class="bombe-licht" style="top: 13px;"></div>
+            <div class="bombe-licht" style="top: 22px;"></div>
+        `;
+        el.style.left = bData.x + 'px';
+        el.style.top = bData.y + 'px';
+        el.style.transform = `rotate(${bData.rot || 0}deg)`;
+        spielfeld.appendChild(el);
+        return {
+            id: bData.id,
+            el: el,
+            x: bData.x,
+            y: bData.y,
+            rot: bData.rot || 0,
+            owner: bData.owner
+        };
+    }, (obj, bData) => {
+        obj.x = bData.x;
+        obj.y = bData.y;
+        obj.rot = bData.rot || 0;
+        obj.el.style.left = bData.x + 'px';
+        obj.el.style.top = bData.y + 'px';
+        obj.el.style.transform = `rotate(${obj.rot}deg)`;
+    });
 
     // 11. Replicate Enemy Lasers
-    if (snapshot.feindLaser) {
-        arrays.feindLaserArray.forEach(fl => { if (fl.el) fl.el.remove(); });
-        arrays.feindLaserArray.length = 0;
-        snapshot.feindLaser.forEach(flData => {
-            const el = document.createElement('div');
-            el.classList.add('feind-laser');
-            el.style.left = flData.x + 'px';
-            el.style.top = flData.y + 'px';
-            if (flData.vx && flData.vx !== 0) {
-                let winkel = Math.atan2(flData.vy || 7, flData.vx) * 180 / Math.PI;
-                el.style.transform = `rotate(${winkel - 90}deg)`;
-            }
-            spielfeld.appendChild(el);
-            arrays.feindLaserArray.push({
-                el: el,
-                x: flData.x,
-                y: flData.y,
-                vx: flData.vx,
-                vy: flData.vy
-            });
-        });
-    }
+    synchronisiereListe(arrays.feindLaserArray, snapshot.feindLaser, flData => {
+        const el = document.createElement('div');
+        el.classList.add('feind-laser');
+        el.style.left = flData.x + 'px';
+        el.style.top = flData.y + 'px';
+        if (flData.vx && flData.vx !== 0) {
+            let winkel = Math.atan2(flData.vy || 7, flData.vx) * 180 / Math.PI;
+            el.style.transform = `rotate(${winkel - 90}deg)`;
+        }
+        spielfeld.appendChild(el);
+        return {
+            id: flData.id,
+            el: el,
+            x: flData.x,
+            y: flData.y,
+            vx: flData.vx,
+            vy: flData.vy
+        };
+    }, (obj, flData) => {
+        obj.x = flData.x;
+        obj.y = flData.y;
+        obj.vx = flData.vx;
+        obj.vy = flData.vy;
+        obj.el.style.left = flData.x + 'px';
+        obj.el.style.top = flData.y + 'px';
+        if (flData.vx && flData.vx !== 0) {
+            let winkel = Math.atan2(flData.vy || 7, flData.vx) * 180 / Math.PI;
+            obj.el.style.transform = `rotate(${winkel - 90}deg)`;
+        }
+    });
 
     // 11b. Replicate Hack-Projektile
-    if (snapshot.hackProjektile) {
-        arrays.hackProjektilArray.forEach(hp => { if (hp.el) hp.el.remove(); });
-        arrays.hackProjektilArray.length = 0;
-        snapshot.hackProjektile.forEach(hpData => {
-            const el = document.createElement('div');
-            el.classList.add('hack-projektil');
-            el.style.left = hpData.x + 'px';
-            el.style.top = hpData.y + 'px';
-            spielfeld.appendChild(el);
-            arrays.hackProjektilArray.push({ el: el, x: hpData.x, y: hpData.y, vx: 0, vy: 0, width: 12, height: 12 });
-        });
-    }
+    synchronisiereListe(arrays.hackProjektilArray, snapshot.hackProjektile, hpData => {
+        const el = document.createElement('div');
+        el.classList.add('hack-projektil');
+        el.style.left = hpData.x + 'px';
+        el.style.top = hpData.y + 'px';
+        spielfeld.appendChild(el);
+        return { id: hpData.id, el: el, x: hpData.x, y: hpData.y, vx: 0, vy: 0, width: 12, height: 12 };
+    }, (obj, hpData) => {
+        obj.x = hpData.x;
+        obj.y = hpData.y;
+        obj.el.style.left = hpData.x + 'px';
+        obj.el.style.top = hpData.y + 'px';
+    });
 
     // 12. Replicate Boss Lasers
-    if (snapshot.bossLaser) {
-        arrays.bossLaserArray.forEach(bl => { if (bl.el) bl.el.remove(); });
-        arrays.bossLaserArray.length = 0;
-        snapshot.bossLaser.forEach(blData => {
-            const el = document.createElement('div');
-            el.classList.add('boss-laser');
-            el.style.left = blData.x + 'px';
-            el.style.top = blData.y + 'px';
-            if (blData.vx && blData.vx !== 0) {
-                let winkel = Math.atan2(blData.vy || 6, blData.vx) * 180 / Math.PI;
-                el.style.transform = `rotate(${winkel - 90}deg)`;
-            }
-            spielfeld.appendChild(el);
-            arrays.bossLaserArray.push({
-                el: el,
-                x: blData.x,
-                y: blData.y,
-                vx: blData.vx,
-                vy: blData.vy
-            });
-        });
-    }
+    synchronisiereListe(arrays.bossLaserArray, snapshot.bossLaser, blData => {
+        const el = document.createElement('div');
+        el.classList.add('boss-laser');
+        el.style.left = blData.x + 'px';
+        el.style.top = blData.y + 'px';
+        if (blData.vx && blData.vx !== 0) {
+            let winkel = Math.atan2(blData.vy || 6, blData.vx) * 180 / Math.PI;
+            el.style.transform = `rotate(${winkel - 90}deg)`;
+        }
+        spielfeld.appendChild(el);
+        return {
+            id: blData.id,
+            el: el,
+            x: blData.x,
+            y: blData.y,
+            vx: blData.vx,
+            vy: blData.vy
+        };
+    }, (obj, blData) => {
+        obj.x = blData.x;
+        obj.y = blData.y;
+        obj.vx = blData.vx;
+        obj.vy = blData.vy;
+        obj.el.style.left = blData.x + 'px';
+        obj.el.style.top = blData.y + 'px';
+        if (blData.vx && blData.vx !== 0) {
+            let winkel = Math.atan2(blData.vy || 6, blData.vx) * 180 / Math.PI;
+            obj.el.style.transform = `rotate(${winkel - 90}deg)`;
+        }
+    });
 
     // 13. Replicate Boss Rockets
-    if (snapshot.bossRaketen) {
-        arrays.bossRaketenArray.forEach(br => { if (br.el) br.el.remove(); });
-        arrays.bossRaketenArray.length = 0;
-        snapshot.bossRaketen.forEach(brData => {
-            const el = document.createElement('div');
-            el.classList.add('boss-rakete');
-            el.innerHTML = `
-                <svg viewBox="0 0 14 24" style="width: 100%; height: 100%;">
-                    <path d="M7 0 L12 8 L11 20 L3 20 L2 8 Z" fill="#c0392b" stroke="#e74c3c" stroke-width="1"/>
-                    <polygon points="7,1 11,8 3,8" fill="#e67e22"/>
-                    <polygon points="2,14 0,22 3,20" fill="#d35400"/>
-                    <polygon points="12,14 14,22 11,20" fill="#d35400"/>
-                    <circle cx="7" cy="11" r="1.5" fill="#f1c40f"/>
-                </svg>
-                <div class="boss-rakete-flame"></div>
-            `;
-            el.style.left = brData.x + 'px';
-            el.style.top = brData.y + 'px';
-            el.style.transform = `rotate(${brData.rot || 0}deg)`;
-            spielfeld.appendChild(el);
-            arrays.bossRaketenArray.push({
-                el: el,
-                x: brData.x,
-                y: brData.y,
-                rot: brData.rot || 0
-            });
-        });
-    }
+    synchronisiereListe(arrays.bossRaketenArray, snapshot.bossRaketen, brData => {
+        const el = document.createElement('div');
+        el.classList.add('boss-rakete');
+        el.innerHTML = `
+            <svg viewBox="0 0 14 24" style="width: 100%; height: 100%;">
+                <path d="M7 0 L12 8 L11 20 L3 20 L2 8 Z" fill="#c0392b" stroke="#e74c3c" stroke-width="1"/>
+                <polygon points="7,1 11,8 3,8" fill="#e67e22"/>
+                <polygon points="2,14 0,22 3,20" fill="#d35400"/>
+                <polygon points="12,14 14,22 11,20" fill="#d35400"/>
+                <circle cx="7" cy="11" r="1.5" fill="#f1c40f"/>
+            </svg>
+            <div class="boss-rakete-flame"></div>
+        `;
+        el.style.left = brData.x + 'px';
+        el.style.top = brData.y + 'px';
+        el.style.transform = `rotate(${brData.rot || 0}deg)`;
+        spielfeld.appendChild(el);
+        return {
+            id: brData.id,
+            el: el,
+            x: brData.x,
+            y: brData.y,
+            rot: brData.rot || 0
+        };
+    }, (obj, brData) => {
+        obj.x = brData.x;
+        obj.y = brData.y;
+        obj.rot = brData.rot || 0;
+        obj.el.style.left = brData.x + 'px';
+        obj.el.style.top = brData.y + 'px';
+        obj.el.style.transform = `rotate(${obj.rot}deg)`;
+    });
 
     // 14. Replicate Boss Bombs
-    if (snapshot.bossBomben) {
-        arrays.bossBombenArray.forEach(bb => { if (bb.el) bb.el.remove(); });
-        arrays.bossBombenArray.length = 0;
-        snapshot.bossBomben.forEach(bbData => {
-            const el = document.createElement('div');
-            el.classList.add('boss-bombe');
-            el.innerHTML = `
-                <div class="boss-bombe-aura"></div>
-                <div class="boss-bombe-body"></div>
-                <div class="boss-bombe-core"></div>
-            `;
-            el.style.left = bbData.x + 'px';
-            el.style.top = bbData.y + 'px';
-            spielfeld.appendChild(el);
-            arrays.bossBombenArray.push({
-                el: el,
-                x: bbData.x,
-                y: bbData.y,
-                groesse: bbData.groesse || 26
-            });
-        });
-    }
+    synchronisiereListe(arrays.bossBombenArray, snapshot.bossBomben, bbData => {
+        const el = document.createElement('div');
+        el.classList.add('boss-bombe');
+        el.innerHTML = `
+            <div class="boss-bombe-aura"></div>
+            <div class="boss-bombe-body"></div>
+            <div class="boss-bombe-core"></div>
+        `;
+        el.style.left = bbData.x + 'px';
+        el.style.top = bbData.y + 'px';
+        spielfeld.appendChild(el);
+        return {
+            id: bbData.id,
+            el: el,
+            x: bbData.x,
+            y: bbData.y,
+            groesse: bbData.groesse || 26
+        };
+    }, (obj, bbData) => {
+        obj.x = bbData.x;
+        obj.y = bbData.y;
+        obj.el.style.left = bbData.x + 'px';
+        obj.el.style.top = bbData.y + 'px';
+    });
 
     // 15. Replicate Powerups with full styling & owner badges
     if (snapshot.powerups) {

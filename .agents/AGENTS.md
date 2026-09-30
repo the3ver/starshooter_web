@@ -20,7 +20,7 @@ Das Projekt ist in modular gegliederte ES-Module strukturiert:
   - `changelog.js`: In-Game Versionsanzeige und Dialog für neue Features ("Was gibt's Neues?").
 
 ## Game-Loop, Kollisionen & Spielmodi
-- **Game-Loop:** Gesteuert über `gameLoop()` via `requestAnimationFrame`.
+- **Game-Loop:** `gameLoop(zeitstempel)` läuft per `requestAnimationFrame` und führt über einen Zeit-Akkumulator (`berechneSchritte`) feste 60-Hz-Simulationsschritte (`simulationsSchritt()`) aus, maximal 5 pro Frame (Rückstand nach Tab-Wechsel wird verworfen). Das Spieltempo ist dadurch unabhängig von der Monitor-Bildrate. `simulationsSchritt()` plant selbst keinen Frame ein; Tests rufen ihn direkt auf.
 - **Entitäten-Arrays:** Verwaltet im `arrays`-Objekt in `state.js` (`asteroiden`, `feinde`, `bosses`, `powerups`, `laserArray`, `raketenArray`, `bombenArray`, `partikel`, `sterne`).
 - **Kollisionserkennung:** Bounding-Box Checks (`x < targetX + width ...`) im `gameLoop`.
 - **Spielmodi:**

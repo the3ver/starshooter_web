@@ -1,6 +1,6 @@
 import { state, dom, config, arrays, shipModels } from './state.js';
 import { setupInput } from './input.js';
-import { gameLoop } from './loop.js';
+import { gameLoop, simulationsSchritt, berechneSchritte } from './loop.js';
 import * as Audio from './audio.js';
 import * as Utils from './utils.js';
 import * as Entities from './entities.js';
@@ -11,7 +11,7 @@ import * as Cutscene from './cutscene.js';
 export { state, dom, config, arrays, shipModels, Utils, Entities, Audio, Network, Cutscene };
 
 // Expose for test access
-window.__game = { state, dom, config, arrays, shipModels, Utils, Entities, Audio, Network, Cutscene, Loop: { gameLoop } };
+window.__game = { state, dom, config, arrays, shipModels, Utils, Entities, Audio, Network, Cutscene, Loop: { gameLoop, simulationsSchritt, berechneSchritte } };
 
 document.addEventListener('DOMContentLoaded', () => {
     Audio.initSoundState();
