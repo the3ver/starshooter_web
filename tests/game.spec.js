@@ -410,13 +410,16 @@ test.describe('Space Shooter', () => {
   test('Automatischer Laser zielt nicht auf unzerstoerbare Asteroiden, sondern waehlt zerstoerbare Ziele', async ({ page }) => {
     // Spiel starten
     await page.keyboard.down('KeyW');
-    await page.waitForTimeout(50);
+    await page.waitForFunction(() => window.__game.state.spielLaeuft);
     await page.keyboard.up('KeyW');
 
-    // Unzerstörbaren Asteroiden nahe am Spieler und zerstörbaren Feind weiter oben platzieren
-    await page.evaluate(async () => {
+    // Aufbau, feste Simulationsschritte und Auswertung in einem synchronen Block,
+    // damit die Live-Loop nicht dazwischen weiterrechnet. Der Autolaser macht 1,5
+    // Schaden pro Schritt: nach 5 Schritten lebt der Feind (20 HP) sicher noch.
+    const enemyHp = await page.evaluate(async () => {
       const stateMod = await import('./js/state.js');
       const entitiesMod = await import('./js/entities.js');
+      const { simulationsSchritt } = await import('./js/loop.js');
       stateMod.state.autolaserAktiv = true;
       stateMod.state.autolaserTimer = 600;
       stateMod.state.x = 200;
@@ -429,13 +432,8 @@ test.describe('Space Shooter', () => {
 
       // 2. Zerstörbarer Feind weiter weg (y: 200, x: 250)
       entitiesMod.erzeugeFeind(250, 200, 'normal', 0);
-    });
 
-    // Kurz warten, damit Autolaser im Loop zielen und feuern kann
-    await page.waitForTimeout(200);
-
-    const enemyHp = await page.evaluate(async () => {
-      const stateMod = await import('./js/state.js');
+      for (let i = 0; i < 5; i++) simulationsSchritt();
       return stateMod.arrays.feinde[0]?.hp;
     });
 
