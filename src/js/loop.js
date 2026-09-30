@@ -75,6 +75,9 @@ function naechsterSpielerMitte(f) {
 const HACKER_LAUERZEIT = 600; // 10 s
 const HACK_MAX_DREHUNG = 0.025; // rad pro Frame (~1,5°), damit man ausweichen kann
 const HACKER_SCHUSSINTERVALL = 120; // 2 s
+const BOSS_HACK_AB_LEVEL = 5;
+const BOSS_HACK_INTERVALL = 300; // 5 s
+const BOSS_HACK_INTERVALL_ENRAGE = 180; // 3 s
 
 function aktualisiereHacker(f) {
   if (f.phase === 'anflug') {
@@ -1214,6 +1217,16 @@ export function gameLoop() {
         b.baseSchussRate = Math.max(15, Math.floor(b.baseSchussRate / 2));
         dom.bossHpBalken.style.backgroundColor = '#8e44ad'; // Visualisiert Enrage im Balken
         if (b.bossTyp === 2) b.vx *= 1.5; // Jäger wird im Enrage schneller
+      }
+
+      // Hack-Projektile ab Level 5 (Quelle null, damit der Boss mehrfach hacken kann)
+      if (state.level >= BOSS_HACK_AB_LEVEL) {
+        b.hackTimer--;
+        if (b.hackTimer <= 0) {
+          const ziel = naechsterSpielerMitte(b);
+          Entities.erzeugeHackProjektil(b.x + b.groesse / 2 - 6, b.y + b.groesse, ziel.x, ziel.y, null);
+          b.hackTimer = b.enragePhaseAktiv ? BOSS_HACK_INTERVALL_ENRAGE : BOSS_HACK_INTERVALL;
+        }
       }
 
       // Bewegung

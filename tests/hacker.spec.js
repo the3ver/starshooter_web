@@ -9,7 +9,7 @@ test.beforeEach(async ({ page }) => {
     });
   });
   await page.addInitScript(() => {
-    localStorage.setItem('starshooter_last_seen_version', '1.6.53');
+    localStorage.setItem('starshooter_last_seen_version', '1.6.54');
     localStorage.setItem('starshooter_skip_cutscene', 'true');
   });
   await page.goto('/');
@@ -486,6 +486,69 @@ test.describe('Hacker-Gegner', () => {
       return hp ? hp.vy : 3;
     });
     expect(vy).toBeGreaterThan(0);
+  });
+
+  async function bossKampf(page, level, enrage) {
+    await starteSpiel(page);
+    await page.evaluate(async ({ level, enrage }) => {
+      const { state, arrays } = await import('./js/state.js');
+      const Entities = await import('./js/entities.js');
+      state.godMode = true;
+      state.level = level;
+      state.x = 185; state.y = 500;
+      Entities.erzeugeBoss();
+      const b = arrays.bosses[arrays.bosses.length - 1];
+      b.phase = 'kampf'; b.y = 20;
+      b.schussTimer = 999999; b.baseSchussRate = 999999;
+      b.enragePhaseAktiv = enrage;
+      b.hackTimer = 2;
+    }, { level, enrage });
+  }
+
+  test('Boss feuert ab Level 5 Hack-Projektile, Reset auf 300 Frames', async ({ page }) => {
+    await bossKampf(page, 5, false);
+    await page.waitForFunction(() => window.__game.arrays.hackProjektilArray.length > 0);
+    const r = await page.evaluate(() => {
+      const b = window.__game.arrays.bosses[0];
+      return { timer: b.hackTimer, quelle: window.__game.arrays.hackProjektilArray[0].quelle };
+    });
+    expect(r.timer).toBeGreaterThan(280);
+    expect(r.timer).toBeLessThanOrEqual(300);
+    expect(r.quelle).toBeNull();
+  });
+
+  test('Boss unter Level 5 feuert keine Hack-Projektile', async ({ page }) => {
+    await bossKampf(page, 4, false);
+    await page.waitForTimeout(500);
+    const n = await page.evaluate(() => window.__game.arrays.hackProjektilArray.length);
+    expect(n).toBe(0);
+  });
+
+  test('Boss im Enrage feuert alle 180 Frames', async ({ page }) => {
+    await bossKampf(page, 5, true);
+    await page.waitForFunction(() => window.__game.arrays.hackProjektilArray.length > 0);
+    const timer = await page.evaluate(() => window.__game.arrays.bosses[0].hackTimer);
+    expect(timer).toBeGreaterThan(160);
+    expect(timer).toBeLessThanOrEqual(180);
+  });
+
+  test('Boss kann den Spieler mehrfach hacken (Quelle null blockiert nicht)', async ({ page }) => {
+    await starteSpiel(page);
+    await page.evaluate(async () => {
+      const { state } = await import('./js/state.js');
+      const Entities = await import('./js/entities.js');
+      state.godMode = true;
+      state.x = 185; state.y = 400;
+      Entities.erzeugeHackProjektil(194, 395, 194, 415, null);
+    });
+    await page.waitForFunction(() => window.__game.arrays.hackProjektilArray.length === 0);
+    await page.evaluate(async () => {
+      const Entities = await import('./js/entities.js');
+      Entities.erzeugeHackProjektil(194, 395, 194, 415, null);
+    });
+    await page.waitForFunction(() => window.__game.arrays.hackProjektilArray.length === 0);
+    const n = await page.evaluate(() => window.__game.state.hacks.length);
+    expect(n).toBe(2);
   });
 
 });

@@ -523,7 +523,8 @@ export function erzeugeBoss() {
     istBoss: true,
     istUnzerstoerbar: false,
     bossTyp: bTyp,
-    enragePhaseAktiv: false
+    enragePhaseAktiv: false,
+    hackTimer: 180 // erster Hack-Orb nach 3 s Kampf (ab Level 5)
   });
 }
 export function erzeugeBossLaser(fx, fy, vx = 0, vy = 6) {

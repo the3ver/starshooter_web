@@ -1,6 +1,14 @@
-export const GAME_VERSION = '1.6.53';
+export const GAME_VERSION = '1.6.54';
 
 export const changelogData = {
+  '1.6.54': {
+    version: '1.6.54',
+    intro: 'Hey, es ist jetzt Version 1.6.54 rausgekommen, folgendes wurde hinzugefügt:',
+    highlights: [
+      '👾 Ab Level 5 feuern alle Bosse Hack-Projektile auf den nächsten Spieler: alle 5 s, im Enrage alle 3 s',
+      '🔓 Bosse können mehrfach hacken, die Effekte stapeln sich wie beim Hacker und Schilde helfen nicht'
+    ]
+  },
   '1.6.53': {
     version: '1.6.53',
     intro: 'Hey, es ist jetzt Version 1.6.53 rausgekommen, folgendes wurde aktualisiert:',
