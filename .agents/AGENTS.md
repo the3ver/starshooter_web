@@ -37,6 +37,7 @@ Das Projekt ist in modular gegliederte ES-Module strukturiert:
 
 ## Multiplayer & WebRTC Architektur (`network.js`)
 - **P2P Broker:** Verwendet `@trystero-p2p/torrent` (mit dynamischem Fallback).
+- **TURN-Relay:** Vor dem Raumbeitritt holt `holeTurnConfig()` kurzlebige Cloudflare-TURN-Zugangsdaten vom Worker-Endpoint `GET /api/turn` (3 s Timeout) und reicht sie als `turnConfig` an Trystero. Schlägt das fehl (503, Timeout, ungültige Antwort), läuft die Verbindung wie bisher nur mit STUN. Secrets `TURN_KEY_ID` und `TURN_KEY_API_TOKEN` liegen im Worker.
 - **Host-Autorität:** Host berechnet Gegner, Bosse, Kollisionen, Powerups und sendet Snapshots.
 - **Client-Prediction:** Client berechnet seine eigene Schiffsbewegung lokal ohne Input-Lag.
 - **Zielgerichtete Events:** Schadens-Flashes, Treffer-Sounds und Powerup-Flashes werden nur für den betroffenen Spieler getriggert.

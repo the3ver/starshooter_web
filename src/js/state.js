@@ -125,6 +125,7 @@ export const state = {
     selectedShipModel: 'viper',
     selectedShipColor: 'red',
     highscoreApiUrl: 'https://starshooter-api.starshooter.workers.dev/api/highscores',
+    turnApiUrl: 'https://starshooter-api.starshooter.workers.dev/api/turn',
     currentHighscoreTab: 'single', // 'single' | 'coop_bot' | 'online'
     highscoreLoading: false,
     highscoreError: false,

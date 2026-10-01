@@ -1,5 +1,6 @@
 // Starshooter Highscores Cloudflare Worker API
 import { bereinigeName } from './validierung.mjs';
+import { behandleTurnAnfrage } from './turn.mjs';
 
 const SECRET_SALT = 'st4r-sh00t3r-s3cr3t-k3y-2026';
 const VALID_MODES = ['single', 'coop_bot', 'online'];
@@ -41,6 +42,12 @@ export default {
                 status: 204,
                 headers: corsHeaders
             });
+        }
+
+        // --- GET /api/turn (Cloudflare TURN Zugangsdaten, Rate-Limit ueber Cache API) ---
+        if (request.method === 'GET' && url.pathname === '/api/turn') {
+            const cache = typeof caches !== 'undefined' ? caches.default : null;
+            return behandleTurnAnfrage(request, env, fetch, cache);
         }
 
         // --- GET /api/highscores ---

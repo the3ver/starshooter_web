@@ -1,6 +1,14 @@
-export const GAME_VERSION = '1.6.57';
+export const GAME_VERSION = '1.6.58';
 
 export const changelogData = {
+  '1.6.58': {
+    version: '1.6.58',
+    intro: 'Hey, es ist jetzt Version 1.6.58 rausgekommen, folgendes wurde aktualisiert:',
+    highlights: [
+      '🌐 Online-Multiplayer verbindet sich jetzt auch hinter strengen Firmen-, Mobilfunk- und Heimnetzen: Wenn keine direkte Verbindung klappt, läuft der Datenverkehr über einen Cloudflare-Relay-Server',
+      '🔒 Die Relay-Zugangsdaten holt das Spiel kurzlebig vom Server. Ist der Relay nicht erreichbar, verbindet sich das Spiel wie bisher direkt'
+    ]
+  },
   '1.6.57': {
     version: '1.6.57',
     intro: 'Hey, es ist jetzt Version 1.6.57 rausgekommen, folgendes wurde aktualisiert:',

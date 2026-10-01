@@ -43,6 +43,31 @@ async function loadTrystero() {
     }
 }
 
+let turnWarnungAusgegeben = false;
+
+// Holt TURN-Zugangsdaten vom Worker. Gibt bei jedem Fehler null zurueck (Verbindung laeuft dann nur mit STUN).
+export async function holeTurnConfig(timeoutMs = 3000) {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), timeoutMs);
+    try {
+        const antwort = await fetch(state.turnApiUrl, { signal: controller.signal, cache: 'no-store' });
+        if (!antwort.ok) throw new Error('HTTP ' + antwort.status);
+        const daten = await antwort.json();
+        if (daten && Array.isArray(daten.iceServers) && daten.iceServers.length > 0) {
+            return daten.iceServers;
+        }
+        throw new Error('Keine iceServers in der Antwort');
+    } catch (e) {
+        if (!turnWarnungAusgegeben) {
+            turnWarnungAusgegeben = true;
+            console.warn('TURN nicht verfuegbar, nutze nur STUN:', e && e.message);
+        }
+        return null;
+    } finally {
+        clearTimeout(timer);
+    }
+}
+
 export function generateRoomCode() {
     const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
     let code = '';
@@ -201,7 +226,8 @@ export async function hostRoom(customCode = null) {
         try { room.leave(); } catch (e) {}
     }
 
-    room = joinRoomFn({ appId: 'starshooter-p2p' }, 'star_' + code);
+    const turnConfig = await holeTurnConfig();
+    room = joinRoomFn({ appId: 'starshooter-p2p', ...(turnConfig ? { turnConfig } : {}) }, 'star_' + code);
 
     sendStateAction = setupAction(room, 'state', (data, peerId) => {
         onStateCallbacks.forEach(cb => cb(data, peerId));
@@ -284,7 +310,8 @@ export async function joinOnlineRoom(code) {
         try { room.leave(); } catch (e) {}
     }
 
-    room = joinRoomFn({ appId: 'starshooter-p2p' }, 'star_' + cleanCode);
+    const turnConfig = await holeTurnConfig();
+    room = joinRoomFn({ appId: 'starshooter-p2p', ...(turnConfig ? { turnConfig } : {}) }, 'star_' + cleanCode);
 
     sendStateAction = setupAction(room, 'state', (data, peerId) => {
         onStateCallbacks.forEach(cb => cb(data, peerId));
