@@ -6,6 +6,8 @@ import * as Audio from './audio.js';
 import { p1Anzeige, setzeInterpolationsZiel, leiteGeschwindigkeitAb, snapshotEmpfangen } from './client.js';
 import { entferneTraktorstrahl } from './powerups.js';
 import { beendePause, verarbeitePauseEvent } from './pause.js';
+import { GAME_VERSION } from './changelog.js';
+import { PROTOKOLL_VERSION, KEYFRAME_INTERVALL, SnapshotKodierer, SnapshotDekodierer, EingabeSender } from './netzkodierung.js';
 
 let room = null;
 let sendStateAction = null;
@@ -17,6 +19,69 @@ let onInputCallbacks = [];
 let onEventCallbacks = [];
 
 let trysteroJoinRoom = null;
+
+// Netzkodierung: Host kodiert Snapshots als Deltas, Client dekodiert sie, Client sendet Eingaben nur bei Aenderung
+const kodierer = new SnapshotKodierer();
+const dekodierer = new SnapshotDekodierer();
+const eingabeSender = new EingabeSender();
+let keyframeWarteZaehler = 0;
+
+export const VERSIONS_MELDUNG = 'Unterschiedliche Spielversionen, bitte Seite neu laden (Strg+F5)';
+export const HALLO_TIMEOUT_MS = 10000;
+let halloTimer = null;
+
+function setzeNetzkodierungZurueck() {
+    kodierer.reset();
+    dekodierer.reset();
+    eingabeSender.reset();
+    keyframeWarteZaehler = 0;
+}
+
+// Gehaltene Tasten des Clients auf dem Host vergessen (Spielstart, Verbindungsende)
+function setzeNetzEingabenZurueck() {
+    if (!state.p2) return;
+    state.p2.laserInputRequested = false;
+    state.p2.raketeGehalten = false;
+    state.p2.bombeGehalten = false;
+    state.p2.networkFireRakete = false;
+    state.p2.networkFireBombe = false;
+}
+
+// Beide Peers schicken nach dem Verbinden ihre Protokollversion. Alte Versionen schicken kein
+// 'hallo'; kommt keins rechtzeitig, gilt das ebenfalls als unterschiedliche Version.
+// protokollOk wird nur beim Raumaufbau und Trennen zurueckgesetzt, falls das hallo des Peers vor dem eigenen Join-Ereignis ankommt.
+function starteHandshake() {
+    setzeNetzkodierungZurueck();
+    sendNetworkEvent({ type: 'hallo', protokoll: PROTOKOLL_VERSION, version: GAME_VERSION });
+    clearTimeout(halloTimer);
+    halloTimer = setTimeout(() => {
+        halloTimer = null;
+        if (state.network.connected && !state.network.protokollOk) brecheWegenVersionAb();
+    }, HALLO_TIMEOUT_MS);
+}
+
+function pruefeHallo(data) {
+    if (data.protokoll === PROTOKOLL_VERSION) {
+        state.network.protokollOk = true;
+        clearTimeout(halloTimer);
+        halloTimer = null;
+    } else {
+        brecheWegenVersionAb();
+    }
+}
+
+// Online-Sitzung wegen unterschiedlicher Protokollversion sauber beenden
+export function brecheWegenVersionAb() {
+    clearTimeout(halloTimer);
+    halloTimer = null;
+    if (!state.network.isOnline) return;
+    if (state.network.connected) sendNetworkEvent({ type: 'peer_left' });
+    if (state.cutsceneAktiv) Cutscene.skipCutscene(true);
+    disconnectNetwork();
+    if (state.spielLaeuft || state.gameOverAktiv) Utils.restartGame();
+    if (Utils && Utils.setGameMode) Utils.setGameMode('online');
+    updateOnlineStatus(VERSIONS_MELDUNG, true);
+}
 
 // Dynamischer Import von modernem Trystero (@trystero-p2p/torrent oder nostr)
 async function loadTrystero() {
@@ -220,6 +285,8 @@ export async function hostRoom(customCode = null) {
     state.network.isClient = false;
     state.network.roomCode = code;
     state.network.connected = false;
+    state.network.protokollOk = false;
+    setzeNetzkodierungZurueck();
 
     updateOnlineStatus(`RAUM-CODE: ${code} | WARTE AUF MITSPIELER...`);
 
@@ -253,6 +320,8 @@ export async function hostRoom(customCode = null) {
         (peerId) => {
             state.network.connected = false;
             beendePause();
+            setzeNetzEingabenZurueck();
+            state.network.protokollOk = false;
             updateOnlineStatus(`MITSPIELER HAT DAS SPIEL VERLASSEN!`, true);
             updateOnlineLobbyUI();
         }
@@ -277,6 +346,10 @@ export function startOnlineGame() {
 
     state.invulnerableTimer = 0;
     if (state.p2) state.p2.invulnerableTimer = 0;
+    // Nach (Neu-)Start beginnt der Host mit einem Keyframe, der Client mit frischen Eingaben
+    kodierer.erzwingeKeyframe();
+    eingabeSender.reset();
+    if (state.network.isHost) setzeNetzEingabenZurueck();
     if (dom.spieler) dom.spieler.classList.remove('spieler-blink');
     if (dom.spieler2) dom.spieler2.classList.remove('spieler-blink');
 
@@ -287,6 +360,7 @@ export function onPeerJoined(peerId) {
     state.network.connected = true;
     state.network.peerId = peerId;
     updateOnlineLobbyUI();
+    starteHandshake();
 
     if (state.network.isHost) {
         hostStartGame();
@@ -305,6 +379,8 @@ export async function joinOnlineRoom(code) {
     state.network.isClient = true;
     state.network.roomCode = cleanCode;
     state.network.connected = false;
+    state.network.protokollOk = false;
+    setzeNetzkodierungZurueck();
 
     updateOnlineStatus(`VERBINDE MIT RAUM ${cleanCode}...`);
 
@@ -336,6 +412,7 @@ export async function joinOnlineRoom(code) {
             state.network.connected = true;
             state.network.peerId = peerId;
             updateOnlineLobbyUI();
+            starteHandshake();
             
             // Client meldet sein im Hangar gewähltes Schiff an den Host
             const myModel = state.selectedShipModel || (state.p2 && state.p2.selectedShipModel) || 'phantom';
@@ -369,6 +446,16 @@ export function handleNetworkEvent(data, peerId = null) {
         return;
     }
 
+    if (data.type === 'hallo') {
+        pruefeHallo(data);
+        return;
+    }
+
+    if (data.type === 'keyframe_anfordern') {
+        if (state.network.isHost) kodierer.erzwingeKeyframe();
+        return;
+    }
+
     if (state.network.isHost) {
         if (data.type === 'client_ready') {
             if (state.p2) {
@@ -386,6 +473,8 @@ export function handleNetworkEvent(data, peerId = null) {
         if (data.type === 'peer_left') {
             state.network.connected = false;
             beendePause();
+            setzeNetzEingabenZurueck();
+            state.network.protokollOk = false;
             updateOnlineStatus('MITSPIELER HAT DEN RAUM VERLASSEN!', true);
             updateOnlineLobbyUI();
         }
@@ -486,16 +575,54 @@ export function handleNetworkEvent(data, peerId = null) {
     onEventCallbacks.forEach(cb => cb(data, peerId));
 }
 
-export function sendNetworkState(stateSnapshot) {
-    if (sendStateAction && state.network.connected) {
-        sendStateAction(stateSnapshot);
+// Host: vollen Snapshot als Delta-Paket senden (weltSchritt: bewegte Simulationsschritte, fuer Dead Reckoning)
+export function sendNetworkState(stateSnapshot, weltSchritt) {
+    if (!state.network.connected) return;
+    state.network.snapshotPakete = (state.network.snapshotPakete || 0) + 1;
+    const paket = kodierer.kodiere(stateSnapshot, weltSchritt);
+    if (sendStateAction) {
+        sendStateAction(paket);
     }
 }
 
+// Client: Snapshot-Paket dekodieren und anwenden. Ohne Keyframe (Start, Luecke) wird gewartet
+// und ein Keyframe angefordert; Pakete einer anderen Protokollversion beenden die Sitzung.
+export function empfangeSnapshotPaket(paket) {
+    if (!paket || paket.v !== PROTOKOLL_VERSION) {
+        brecheWegenVersionAb();
+        return;
+    }
+    const snapshot = dekodierer.dekodiere(paket);
+    if (!snapshot) {
+        if (keyframeWarteZaehler % KEYFRAME_INTERVALL === 0) sendNetworkEvent({ type: 'keyframe_anfordern' });
+        keyframeWarteZaehler++;
+        return;
+    }
+    keyframeWarteZaehler = 0;
+    applyGameStateSnapshot(snapshot);
+}
+
 export function sendNetworkInput(inputData) {
+    state.network.eingabePakete = (state.network.eingabePakete || 0) + 1;
+    state.network.lastSentInput = inputData;
     if (sendInputAction && state.network.connected) {
         sendInputAction(inputData);
     }
+}
+
+// Client: einmal pro Schritt aufrufen, sendet nur bei Aenderung oder als Heartbeat
+export function sendeEingabe() {
+    const paket = eingabeSender.naechstes(serializePlayerInput());
+    if (paket) sendNetworkInput(paket);
+}
+
+// Host: Eingabe-Paket des Clients pruefen und anwenden
+export function empfangeEingabePaket(paket) {
+    if (!paket || paket.v !== PROTOKOLL_VERSION) {
+        brecheWegenVersionAb();
+        return;
+    }
+    applyPlayerInput(paket);
 }
 
 export function sendNetworkEvent(eventData) {
@@ -527,6 +654,11 @@ export function disconnectNetwork() {
     state.network.isClient = false;
     state.network.roomCode = null;
     state.network.connected = false;
+    state.network.protokollOk = false;
+    clearTimeout(halloTimer);
+    halloTimer = null;
+    setzeNetzkodierungZurueck();
+    setzeNetzEingabenZurueck();
     beendePause();
     state.network.peerId = null;
     const statusEl = document.getElementById('online-status');
@@ -553,6 +685,11 @@ export function serializeGameState() {
             bombenCooldown: state.bombenCooldown,
             laserSchiesst: state.laserSchiesst,
             isDead: state.isDead,
+            // Viper-Splitter und Phantom-Schildladung fuer das HUD des Clients
+            splitterRot: state.splitterRot || 0,
+            splitterWeiss: state.splitterWeiss || 0,
+            phantomSchildRegenTimer: state.phantomSchildRegenTimer || 0,
+            phantomSchildRegenMax: state.phantomSchildRegenMax || 900,
             hacks: state.hacks || []
         },
         p2: state.p2 ? {
@@ -573,6 +710,11 @@ export function serializeGameState() {
             bombenCooldown: state.p2.bombenCooldown,
             laserSchiesst: state.p2.laserSchiesst,
             isDead: state.p2.isDead,
+            // Viper-Splitter und Phantom-Schildladung fuer das HUD des Clients
+            splitterRot: state.p2.splitterRot || 0,
+            splitterWeiss: state.p2.splitterWeiss || 0,
+            phantomSchildRegenTimer: state.p2.phantomSchildRegenTimer || 0,
+            phantomSchildRegenMax: state.p2.phantomSchildRegenMax || 900,
             hacks: state.p2.hacks || []
         } : null,
         score: state.score,
@@ -724,14 +866,26 @@ function uebernehmeWaffenStufen(ziel, daten) {
     if (daten.bombenStufe !== undefined) ziel.bombenStufe = daten.bombenStufe;
     ziel.laserDurchschlag = Boolean(daten.laserDurchschlag);
     ziel.autolaserAktiv = Boolean(daten.autolaserAktiv);
+    // Viper-Splitter und Phantom-Schildladung (fehlende Werte bleiben)
+    if (daten.splitterRot !== undefined) ziel.splitterRot = daten.splitterRot;
+    if (daten.splitterWeiss !== undefined) ziel.splitterWeiss = daten.splitterWeiss;
+    if (daten.phantomSchildRegenTimer !== undefined) ziel.phantomSchildRegenTimer = daten.phantomSchildRegenTimer;
+    if (daten.phantomSchildRegenMax !== undefined) ziel.phantomSchildRegenMax = daten.phantomSchildRegenMax;
 }
 
-// Alles, was das Powerup-HUD anzeigt; nur bei Aenderung neu zeichnen
+// Alles, was das Powerup-HUD anzeigt; nur bei Aenderung neu zeichnen.
+// Die Phantom-Schildladung zeichnet der Host alle 6 Schritte neu, der Client ebenso grob.
 function hudSignatur(s) {
-    return [s.laserStufe, s.raketenStufe, s.bombenStufe, s.laserDurchschlag, s.schildStufe, s.autolaserAktiv].join('|');
+    const ladung = Math.floor((s.phantomSchildRegenTimer || 0) / 6);
+    return [s.laserStufe, s.raketenStufe, s.bombenStufe, s.laserDurchschlag, s.schildStufe, s.autolaserAktiv, ladung].join('|');
+}
+function splitterSignatur(s) {
+    return [s.splitterRot || 0, s.splitterWeiss || 0, s.selectedShipModel].join('|');
 }
 let letzteHudSignaturP1 = null;
 let letzteHudSignaturP2 = null;
+let letzteSplitterSignaturP1 = null;
+let letzteSplitterSignaturP2 = null;
 
 export function applyGameStateSnapshot(snapshot) {
     if (!snapshot) return;
@@ -811,6 +965,11 @@ export function applyGameStateSnapshot(snapshot) {
             letzteHudSignaturP1 = sigP1;
             Utils.updateAktivePowerupsUI();
         }
+        const splitterP1 = splitterSignatur(state);
+        if (splitterP1 !== letzteSplitterSignaturP1) {
+            letzteSplitterSignaturP1 = splitterP1;
+            Utils.updateSplitterUI();
+        }
     }
 
     // 2. Sync P2 stats
@@ -863,6 +1022,11 @@ export function applyGameStateSnapshot(snapshot) {
         if (sigP2 !== letzteHudSignaturP2) {
             letzteHudSignaturP2 = sigP2;
             Utils.updateAktivePowerupsP2UI();
+        }
+        const splitterP2 = splitterSignatur(state.p2);
+        if (splitterP2 !== letzteSplitterSignaturP2) {
+            letzteSplitterSignaturP2 = splitterP2;
+            Utils.updateSplitterP2UI();
         }
     }
 
@@ -1408,6 +1572,11 @@ export function applyPlayerInput(input) {
     if (input.laser !== undefined) {
         state.p2.laserInputRequested = Boolean(input.laser);
     }
+
+    // Gehaltene Tasten gelten bis zum naechsten Paket (waffen.js feuert damit wie bei
+    // einem true in jedem Schritt); ein kurzer Druck bleibt wie bisher bis zum Schuss gemerkt
+    if (input.rakete !== undefined) state.p2.raketeGehalten = Boolean(input.rakete);
+    if (input.bombe !== undefined) state.p2.bombeGehalten = Boolean(input.bombe);
 
     if (input.rakete) {
         state.p2.networkFireRakete = true;

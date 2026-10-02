@@ -28,13 +28,13 @@ document.addEventListener('DOMContentLoaded', () => {
 
     Network.onNetworkState((snapshot) => {
         if (state.network.isClient) {
-            Network.applyGameStateSnapshot(snapshot);
+            Network.empfangeSnapshotPaket(snapshot);
         }
     });
 
     Network.onNetworkInput((input) => {
         if (state.network.isHost) {
-            Network.applyPlayerInput(input);
+            Network.empfangeEingabePaket(input);
         }
     });
     

@@ -211,5 +211,6 @@ export function clientSchritt() {
   animierenPartikel();
   Hack.zeigeHackStatus();
 
-  Network.sendNetworkInput(Network.serializePlayerInput());
+  // Eingaben nur bei Aenderung, Bewegung (jeden 2. Schritt) oder als Heartbeat senden
+  Network.sendeEingabe();
 }

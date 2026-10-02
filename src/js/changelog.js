@@ -1,6 +1,14 @@
-export const GAME_VERSION = '1.6.60';
+export const GAME_VERSION = '1.7.0';
 
 export const changelogData = {
+  '1.7.0': {
+    version: '1.7.0',
+    intro: 'Hey, es ist jetzt Version 1.7.0 rausgekommen, folgendes wurde aktualisiert:',
+    highlights: [
+      '📉 Der Online-Modus braucht deutlich weniger Datenvolumen: Der Host schickt nur noch, was sich seit dem letzten Update geändert hat, und der Mitspieler meldet seine Eingaben nur noch bei Änderungen',
+      '🔄 Alte und neue Spielversionen können nicht mehr zusammen online spielen. Bei unterschiedlichen Versionen erscheint ein Hinweis, dann bitte die Seite neu laden (Strg+F5)'
+    ]
+  },
   '1.6.60': {
     version: '1.6.60',
     intro: 'Hey, es ist jetzt Version 1.6.60 rausgekommen, folgendes wurde aktualisiert:',

@@ -18,6 +18,15 @@ import { pruefePause } from './pause.js';
 // Bestehende Exporte bleiben ueber loop.js erreichbar
 export { verwalteFeindSpawns, versteckeAlleLaser, animierenPartikel };
 
+// Zaehlt die Schritte, in denen sich die Welt bewegt. Die Netzkodierung sagt damit
+// Projektilpositionen voraus (Dead Reckoning); in der Boss-Warnung steht die Welt still.
+let weltSchritt = 0;
+
+function sendeHostSnapshot() {
+  if (state.network && state.network.isOnline && state.network.isHost && state.network.connected) {
+    Network.sendNetworkState(Network.serializeGameState(), weltSchritt);
+  }
+}
 
 export function simulationsSchritt() {
   if (state.pausiert) {
@@ -79,6 +88,8 @@ export function simulationsSchritt() {
       stern.el.style.top = stern.y + 'px';
       stern.el.style.left = stern.x + 'px';
     });
+    // Auch waehrend der Warnung senden, damit der Client sie sicher sieht (und danach den Boss)
+    if (state.bossWarningTimer % 2 === 0) sendeHostSnapshot();
     return;
   }
   if (state.gameOverAktiv) {
@@ -100,6 +111,8 @@ export function simulationsSchritt() {
     clientSchritt();
     return;
   }
+
+  weltSchritt++;
 
   // --- I-Frames (Unverwundbarkeit Timer) ---
   aktualisiereUnverwundbarkeit();
@@ -199,14 +212,8 @@ export function simulationsSchritt() {
   animierenPartikel();
 
 
-  // Network Syncing in Online Mode
-  if (state.network && state.network.isOnline && state.network.connected) {
-    if (state.network.isHost && state.frameZaehler % 2 === 0) {
-      Network.sendNetworkState(Network.serializeGameState());
-    } else if (state.network.isClient) {
-      Network.sendNetworkInput(Network.serializePlayerInput());
-    }
-  }
+  // Network Syncing in Online Mode (der Client sendet seine Eingaben in clientSchritt)
+  if (state.frameZaehler % 2 === 0) sendeHostSnapshot();
 
 }
 

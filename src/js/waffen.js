@@ -145,6 +145,10 @@ function feuerRaketenFuerSpieler(pKey, pState) {
   }
 
   const isDualHumanCoop = state.gameMode === 'coop' && !state.p2IsBot;
+  // Online-Host: gehaltene Raketentaste des Clients wirkt wie ein true in jedem Schritt
+  if (pKey === 'p2' && state.p2 && state.p2.raketeGehalten && state.network && state.network.isOnline && state.network.isHost) {
+    state.p2.networkFireRakete = true;
+  }
   const isTriggered = pKey === 'p1'
     ? (isDualHumanCoop ? state.tastenGedrueckt.v : (state.tastenGedrueckt.k || state.tastenGedrueckt.v))
     : ((state.network && state.network.isOnline && state.network.isHost)
@@ -269,6 +273,10 @@ function wirfBombeFuerSpieler(pKey, pState) {
   }
 
   const isDualHumanCoop = state.gameMode === 'coop' && !state.p2IsBot;
+  // Online-Host: gehaltene Bombentaste des Clients wirkt wie ein true in jedem Schritt
+  if (pKey === 'p2' && state.p2 && state.p2.bombeGehalten && state.network && state.network.isOnline && state.network.isHost) {
+    state.p2.networkFireBombe = true;
+  }
   const isTriggered = pKey === 'p1'
     ? (isDualHumanCoop ? state.tastenGedrueckt.c : (state.tastenGedrueckt[' '] || state.tastenGedrueckt.c))
     : ((state.network && state.network.isOnline && state.network.isHost)
