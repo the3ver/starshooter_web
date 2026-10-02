@@ -1,6 +1,14 @@
-export const GAME_VERSION = '1.7.0';
+export const GAME_VERSION = '1.7.1';
 
 export const changelogData = {
+  '1.7.1': {
+    version: '1.7.1',
+    intro: 'Hey, es ist jetzt Version 1.7.1 rausgekommen, folgendes wurde aktualisiert:',
+    highlights: [
+      '📶 Beim Online-Verbinden zeigt das Spiel jetzt Schritt für Schritt an, wie weit die Verbindung ist (1/5 bis 5/5), samt Wartezeit und Hinweisen, wenn es länger dauert',
+      '🛰️ Das Spiel zeigt außerdem an, ob eine TURN-Weiterleitung für schwierige Netzwerke verfügbar ist, und nennt bei Verbindungsabbrüchen den Schritt, an dem es gescheitert ist'
+    ]
+  },
   '1.7.0': {
     version: '1.7.0',
     intro: 'Hey, es ist jetzt Version 1.7.0 rausgekommen, folgendes wurde aktualisiert:',

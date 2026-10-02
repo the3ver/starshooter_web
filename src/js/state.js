@@ -156,7 +156,9 @@ export const state = {
         isClient: false,
         roomCode: null,
         connected: false,
-        peerId: null
+        peerId: null,
+        verbindungsPhase: 0,
+        verbindungsVerlauf: []
     }
 };
 

@@ -65,6 +65,9 @@ function pruefeHallo(data) {
         state.network.protokollOk = true;
         clearTimeout(halloTimer);
         halloTimer = null;
+        if (state.network.connected && state.network.verbindungsPhase === 4) {
+            setzeVerbindungsPhase(5, 'BEREIT, SPIEL STARTET');
+        }
     } else {
         brecheWegenVersionAb();
     }
@@ -155,6 +158,96 @@ export function updateOnlineStatus(text, isError = false) {
     statusEl.style.borderColor = isError ? 'rgba(231, 76, 60, 0.4)' : 'rgba(241, 196, 15, 0.3)';
 }
 
+// Verbindungsfortschritt (Schritt 1/5 bis 5/5). Angezeigt werden nur Phasen, die das Spiel wirklich erkennt:
+// Tracker-Signalisierung, Schluesseltausch und ICE sind in Trystero nicht beobachtbar.
+export const VERBINDUNGS_SCHRITTE = 5;
+export const HINWEIS_RAUMCODE_NACH_S = 20;
+export const HINWEIS_NETZ_NACH_S = 45;
+export const HINWEIS_RAUMCODE = 'Raum-Code prüfen, der Host muss den Raum geöffnet haben';
+export const HINWEIS_NETZ = 'Manche Netzwerke blockieren direkte Verbindungen. Ggf. anderes Netz versuchen';
+let verbindungsTimer = null;
+let verbindungsStart = 0; // Beginn von Schritt 3 (Date.now())
+let verbindungsText = '';
+
+function stoppeVerbindungsTimer() {
+    clearInterval(verbindungsTimer);
+    verbindungsTimer = null;
+}
+
+function zeichneVerbindung() {
+    const statusEl = document.getElementById('online-status');
+    if (!statusEl) return;
+    const net = state.network;
+    const nummer = net.verbindungsPhase;
+    statusEl.style.display = 'block';
+    statusEl.style.color = '#f1c40f';
+    statusEl.style.borderColor = 'rgba(241, 196, 15, 0.3)';
+    statusEl.textContent = '';
+    const zeile = (klasse, text) => {
+        const el = document.createElement('div');
+        el.className = klasse;
+        el.textContent = text;
+        statusEl.appendChild(el);
+    };
+    const code = net.roomCode || '---';
+    zeile('vp-kopf', net.isHost ? `RAUM-CODE: ${code}` : `VERBINDE MIT RAUM ${code}`);
+    let schritt = `${nummer}/${VERBINDUNGS_SCHRITTE} ${verbindungsText}`;
+    const sekunden = nummer === 3 ? Math.max(0, Math.floor((Date.now() - verbindungsStart) / 1000)) : -1;
+    if (sekunden >= 0) schritt += ` (${Math.floor(sekunden / 60)}:${String(sekunden % 60).padStart(2, '0')})`;
+    zeile('vp-schritt', schritt);
+    const balken = document.createElement('div');
+    balken.className = 'vp-balken';
+    for (let i = 1; i <= VERBINDUNGS_SCHRITTE; i++) {
+        const segment = document.createElement('span');
+        if (i <= nummer) segment.className = 'aktiv';
+        balken.appendChild(segment);
+    }
+    statusEl.appendChild(balken);
+    if (net.verbindungsDetail) zeile('vp-detail', net.verbindungsDetail);
+    if (nummer === 3) {
+        if (!net.isHost && sekunden >= HINWEIS_RAUMCODE_NACH_S) zeile('vp-detail', HINWEIS_RAUMCODE);
+        if (sekunden >= HINWEIS_NETZ_NACH_S) zeile('vp-detail', HINWEIS_NETZ);
+    }
+}
+
+// Setzt Schritt nummer (1-5) mit Text; detail (z. B. TURN-Status) bleibt bis zum naechsten Detail sichtbar.
+export function setzeVerbindungsPhase(nummer, text, detail) {
+    const net = state.network;
+    if (nummer === 1) {
+        net.verbindungsVerlauf = [];
+        net.verbindungsDetail = '';
+    }
+    if (detail !== undefined) net.verbindungsDetail = detail;
+    net.verbindungsPhase = nummer;
+    net.verbindungsVerlauf.push(nummer);
+    verbindungsText = text;
+    if (nummer === 3) verbindungsStart = Date.now();
+    if (nummer === 3 || nummer === 4) {
+        if (!verbindungsTimer) verbindungsTimer = setInterval(zeichneVerbindung, 1000);
+    } else {
+        stoppeVerbindungsTimer();
+    }
+    zeichneVerbindung();
+}
+
+// Verbindungsaufbau endet (Fehler, Abbruch, Trennen). Liefert den Zusatz fuer Fehlermeldungen,
+// falls der Aufbau in Schritt 1-4 steckte.
+function beendeVerbindungsPhase() {
+    const nummer = state.network.verbindungsPhase;
+    stoppeVerbindungsTimer();
+    state.network.verbindungsPhase = 0;
+    return nummer >= 1 && nummer < VERBINDUNGS_SCHRITTE ? ` (BEI SCHRITT ${nummer}/${VERBINDUNGS_SCHRITTE})` : '';
+}
+
+function verbindungNochAktuell(code) {
+    return state.network.isOnline && state.network.roomCode === code;
+}
+
+function markiereMitspielerVerbunden() {
+    if (state.network.protokollOk) setzeVerbindungsPhase(5, 'BEREIT, SPIEL STARTET');
+    else setzeVerbindungsPhase(4, 'MITSPIELER VERBUNDEN, VERSIONEN ABGLEICHEN');
+}
+
 export function updateOnlineLobbyUI() {
     const isOnline = state.gameMode === 'online' || (state.network && state.network.isOnline);
     const lobby = document.getElementById('online-lobby-container');
@@ -174,16 +267,19 @@ export function updateOnlineLobbyUI() {
         if (initialActions) initialActions.style.display = 'none';
         if (connectedControls) connectedControls.style.display = 'flex';
 
+        const zeigeFortschritt = state.network.verbindungsPhase === 4;
+        if (zeigeFortschritt) zeichneVerbindung();
+
         if (isHost) {
             if (btnStart) btnStart.style.display = 'block';
-            updateOnlineStatus(`MITSPIELER VERBUNDEN! (CODE: ${roomCode || '---'})`);
+            if (!zeigeFortschritt) updateOnlineStatus(`MITSPIELER VERBUNDEN! (CODE: ${roomCode || '---'})`);
             if (startText) {
                 startText.textContent = 'KLICKE "SPIEL STARTEN" ZUM BEGINN';
                 startText.style.color = '#2ecc71';
             }
         } else {
             if (btnStart) btnStart.style.display = 'none';
-            updateOnlineStatus(`VERBUNDEN MIT HOST! (CODE: ${roomCode || '---'})`);
+            if (!zeigeFortschritt) updateOnlineStatus(`VERBUNDEN MIT HOST! (CODE: ${roomCode || '---'})`);
             if (startText) {
                 startText.textContent = 'WARTE AUF SPIELSTART DURCH DEN HOST...';
                 startText.style.color = '#3498db';
@@ -288,17 +384,20 @@ export async function hostRoom(customCode = null) {
     state.network.protokollOk = false;
     setzeNetzkodierungZurueck();
 
-    updateOnlineStatus(`RAUM-CODE: ${code} | WARTE AUF MITSPIELER...`);
+    setzeVerbindungsPhase(1, 'VERBINDUNGSDATEN HOLEN');
+    const turnConfig = await holeTurnConfig();
+    if (!verbindungNochAktuell(code)) return;
 
+    setzeVerbindungsPhase(2, 'NETZWERK-MODUL LADEN', turnConfig ? 'TURN verfügbar' : 'ohne TURN');
     const joinRoomFn = await loadTrystero();
-    if (!joinRoomFn) return;
+    if (!joinRoomFn || !verbindungNochAktuell(code)) return;
 
     if (room) {
         try { room.leave(); } catch (e) {}
     }
 
-    const turnConfig = await holeTurnConfig();
     room = joinRoomFn({ appId: 'starshooter-p2p', ...(turnConfig ? { turnConfig } : {}) }, 'star_' + code);
+    setzeVerbindungsPhase(3, `RAUM ${code} GEÖFFNET, WARTE AUF MITSPIELER`);
 
     sendStateAction = setupAction(room, 'state', (data, peerId) => {
         onStateCallbacks.forEach(cb => cb(data, peerId));
@@ -322,7 +421,7 @@ export async function hostRoom(customCode = null) {
             beendePause();
             setzeNetzEingabenZurueck();
             state.network.protokollOk = false;
-            updateOnlineStatus(`MITSPIELER HAT DAS SPIEL VERLASSEN!`, true);
+            updateOnlineStatus(`MITSPIELER HAT DAS SPIEL VERLASSEN!${beendeVerbindungsPhase()}`, true);
             updateOnlineLobbyUI();
         }
     );
@@ -359,6 +458,7 @@ export function startOnlineGame() {
 export function onPeerJoined(peerId) {
     state.network.connected = true;
     state.network.peerId = peerId;
+    markiereMitspielerVerbunden();
     updateOnlineLobbyUI();
     starteHandshake();
 
@@ -382,17 +482,20 @@ export async function joinOnlineRoom(code) {
     state.network.protokollOk = false;
     setzeNetzkodierungZurueck();
 
-    updateOnlineStatus(`VERBINDE MIT RAUM ${cleanCode}...`);
+    setzeVerbindungsPhase(1, 'VERBINDUNGSDATEN HOLEN');
+    const turnConfig = await holeTurnConfig();
+    if (!verbindungNochAktuell(cleanCode)) return;
 
+    setzeVerbindungsPhase(2, 'NETZWERK-MODUL LADEN', turnConfig ? 'TURN verfügbar' : 'ohne TURN');
     const joinRoomFn = await loadTrystero();
-    if (!joinRoomFn) return;
+    if (!joinRoomFn || !verbindungNochAktuell(cleanCode)) return;
 
     if (room) {
         try { room.leave(); } catch (e) {}
     }
 
-    const turnConfig = await holeTurnConfig();
     room = joinRoomFn({ appId: 'starshooter-p2p', ...(turnConfig ? { turnConfig } : {}) }, 'star_' + cleanCode);
+    setzeVerbindungsPhase(3, `SUCHE HOST IN RAUM ${cleanCode}`);
 
     sendStateAction = setupAction(room, 'state', (data, peerId) => {
         onStateCallbacks.forEach(cb => cb(data, peerId));
@@ -411,6 +514,7 @@ export async function joinOnlineRoom(code) {
         (peerId) => {
             state.network.connected = true;
             state.network.peerId = peerId;
+            markiereMitspielerVerbunden();
             updateOnlineLobbyUI();
             starteHandshake();
             
@@ -430,7 +534,7 @@ export async function joinOnlineRoom(code) {
         (peerId) => {
             state.network.connected = false;
             beendePause();
-            updateOnlineStatus(`VERBINDUNG ZUM HOST VERLOREN!`, true);
+            updateOnlineStatus(`VERBINDUNG ZUM HOST VERLOREN!${beendeVerbindungsPhase()}`, true);
             updateOnlineLobbyUI();
         }
     );
@@ -475,7 +579,7 @@ export function handleNetworkEvent(data, peerId = null) {
             beendePause();
             setzeNetzEingabenZurueck();
             state.network.protokollOk = false;
-            updateOnlineStatus('MITSPIELER HAT DEN RAUM VERLASSEN!', true);
+            updateOnlineStatus(`MITSPIELER HAT DEN RAUM VERLASSEN!${beendeVerbindungsPhase()}`, true);
             updateOnlineLobbyUI();
         }
     } else {
@@ -501,7 +605,7 @@ export function handleNetworkEvent(data, peerId = null) {
         if (data.type === 'peer_left') {
             state.network.connected = false;
             beendePause();
-            updateOnlineStatus('HOST HAT DEN RAUM VERLASSEN!', true);
+            updateOnlineStatus(`HOST HAT DEN RAUM VERLASSEN!${beendeVerbindungsPhase()}`, true);
             updateOnlineLobbyUI();
         }
         if (data.type === 'game_start') {
@@ -657,6 +761,7 @@ export function disconnectNetwork() {
     state.network.protokollOk = false;
     clearTimeout(halloTimer);
     halloTimer = null;
+    beendeVerbindungsPhase();
     setzeNetzkodierungZurueck();
     setzeNetzEingabenZurueck();
     beendePause();

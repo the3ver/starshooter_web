@@ -2268,6 +2268,13 @@
             font-weight: bold;
         }
 
+        .online-status .vp-kopf { letter-spacing: 1px; }
+        .online-status .vp-schritt { margin-top: 4px; }
+        .online-status .vp-detail { margin-top: 4px; font-size: 10px; font-weight: normal; opacity: 0.85; }
+        .online-status .vp-balken { display: flex; gap: 3px; max-width: 240px; margin: 6px auto 0; }
+        .online-status .vp-balken span { flex: 1; height: 6px; border-radius: 3px; background: rgba(255, 255, 255, 0.15); }
+        .online-status .vp-balken span.aktiv { background: #f1c40f; }
+
         #start-screen .steuerung-titel {
             margin-top: 10px;
             margin-bottom: 4px;
