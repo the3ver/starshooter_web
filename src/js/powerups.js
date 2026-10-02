@@ -140,6 +140,20 @@ function wendePowerupAn(p, targetKey = 'p1') {
 }
 
 function updateTractorBeam(p, sx, sy) {
+  zeichneTraktorstrahl(p, sx, sy, p.x + p.groesse / 2, p.y + p.groesse / 2);
+}
+
+// Entfernt den Strahl eines Powerups (falls vorhanden)
+export function entferneTraktorstrahl(p) {
+  if (p.beamEl) {
+    p.beamEl.remove();
+    p.beamEl = null;
+  }
+}
+
+// Zeichnet den Traktorstrahl vom Schiff (sx, sy) zum Powerup (px, py), ohne Spiellogik.
+// Host und Online-Client nutzen dieselbe Darstellung; die Farbe richtet sich nach p.towedBy.
+export function zeichneTraktorstrahl(p, sx, sy, px, py) {
   const spielfeld = dom.spielfeld || document.getElementById('spielfeld');
   if (!spielfeld) return;
 
@@ -171,9 +185,6 @@ function updateTractorBeam(p, sx, sy) {
     spielfeld.appendChild(beamSvg);
     p.beamEl = beamSvg;
   }
-
-  const px = p.x + p.groesse / 2;
-  const py = p.y + p.groesse / 2;
 
   const lines = p.beamEl.querySelectorAll('line');
   lines.forEach(l => {

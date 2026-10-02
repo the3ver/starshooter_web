@@ -3,7 +3,124 @@ import { state, dom, config, arrays, shipModels } from './state.js';
 import * as Network from './network.js';
 import * as Hack from './hack.js';
 import { animierenPartikel } from './partikel.js';
+import { zeichneTraktorstrahl, entferneTraktorstrahl } from './powerups.js';
 
+
+// --- GLAETTUNG ZWISCHEN HOST-SNAPSHOTS ---
+// Der Host sendet nur jeden 2. Simulationsschritt einen Snapshot. Dazwischen bewegt der Client:
+// - Projektile mit bekannter Geschwindigkeit weiter (Extrapolation, der naechste Snapshot korrigiert)
+// - alle anderen entfernten Objekte gleichmaessig zur letzten Snapshot-Position (Interpolation)
+export const INTERPOLATION_SCHRITTE = 2;     // Schritte zwischen zwei Host-Snapshots
+export const SPRUNG_DISTANZ = 100;           // ab dieser Distanz (px) springen statt gleiten (Respawn/Teleport)
+export const MAX_EXTRAPOLATION_SCHRITTE = 4; // ohne neuen Snapshot nicht endlos weiterfliegen
+
+// Angezeigte Position des Host-Schiffs (P1) auf dem Client
+export const p1Anzeige = {};
+
+let schritteSeitSnapshot = 0;
+
+export function snapshotEmpfangen() {
+  schritteSeitSnapshot = 0;
+}
+
+// Glaetten nur, wenn clientSchritt auch laeuft; sonst Snapshot-Position direkt zeigen
+function glaettungAktiv() {
+  return Boolean(state.network && state.network.isClient && state.network.connected && !state.pausiert);
+}
+
+function setzePosition(el, x, y) {
+  if (!el) return;
+  el.style.left = x + 'px';
+  el.style.top = y + 'px';
+}
+
+// Neue Snapshot-Position (x, y) fuer ein entferntes Objekt merken. Das Objekt gleitet in
+// INTERPOLATION_SCHRITTE Schritten von seiner angezeigten Position dorthin.
+export function setzeInterpolationsZiel(obj, el, x, y) {
+  const distanz = Math.hypot(x - obj.anzeigeX, y - obj.anzeigeY); // NaN beim ersten Mal
+  obj.zielX = x;
+  obj.zielY = y;
+  if (!glaettungAktiv() || !(distanz <= SPRUNG_DISTANZ)) {
+    obj.anzeigeX = x;
+    obj.anzeigeY = y;
+    obj.ipSchritte = 0;
+    setzePosition(el, x, y);
+    return;
+  }
+  obj.ipDx = (x - obj.anzeigeX) / INTERPOLATION_SCHRITTE;
+  obj.ipDy = (y - obj.anzeigeY) / INTERPOLATION_SCHRITTE;
+  obj.ipSchritte = INTERPOLATION_SCHRITTE;
+}
+
+function interpoliere(obj, el) {
+  if (!obj.ipSchritte) return;
+  obj.ipSchritte--;
+  if (obj.ipSchritte === 0) {
+    obj.anzeigeX = obj.zielX;
+    obj.anzeigeY = obj.zielY;
+  } else {
+    obj.anzeigeX += obj.ipDx;
+    obj.anzeigeY += obj.ipDy;
+  }
+  setzePosition(el, obj.anzeigeX, obj.anzeigeY);
+}
+
+// Fuer Projektile ohne Geschwindigkeit im Snapshot: aus zwei Snapshots ableiten
+export function leiteGeschwindigkeitAb(obj, x, y) {
+  if (obj.snapX !== undefined) {
+    obj.vx = (x - obj.snapX) / INTERPOLATION_SCHRITTE;
+    obj.vy = (y - obj.snapY) / INTERPOLATION_SCHRITTE;
+  }
+  obj.snapX = x;
+  obj.snapY = y;
+}
+
+function bewegeProjektil(o, vx, vy) {
+  if (!vx && !vy) return;
+  o.x += vx || 0;
+  o.y += vy || 0;
+  setzePosition(o.el, o.x, o.y);
+}
+
+function extrapoliereProjektile() {
+  if (schritteSeitSnapshot >= MAX_EXTRAPOLATION_SCHRITTE) return;
+  schritteSeitSnapshot++;
+  // Spielerlaser fliegen auf dem Host mit y -= vy
+  arrays.laserArray.forEach(l => bewegeProjektil(l, l.vx, -(l.vy || 0)));
+  [arrays.feindLaserArray, arrays.hackProjektilArray, arrays.bossLaserArray, arrays.bossRaketenArray,
+    arrays.raketenArray, arrays.bombenArray, arrays.bossBombenArray].forEach(liste => {
+    liste.forEach(o => bewegeProjektil(o, o.vx, o.vy));
+  });
+}
+
+function interpoliereObjekte() {
+  [arrays.feinde, arrays.asteroiden, arrays.bosses, arrays.powerups].forEach(liste => {
+    liste.forEach(o => interpoliere(o, o.el));
+  });
+  interpoliere(p1Anzeige, dom.spieler);
+}
+
+// Traktorstrahlen geschleppter Powerups mit derselben Darstellung wie beim Host zeichnen
+function zeichneTraktorstrahlen() {
+  const ss = config.spielerGroesse;
+  arrays.powerups.forEach(p => {
+    let sx, sy;
+    if (p.towedBy === 'p1') {
+      sx = p1Anzeige.anzeigeX !== undefined ? p1Anzeige.anzeigeX : state.x;
+      sy = p1Anzeige.anzeigeY !== undefined ? p1Anzeige.anzeigeY : state.y;
+    } else if (p.towedBy === 'p2' && state.p2) {
+      sx = state.p2.x;
+      sy = state.p2.y;
+    } else {
+      entferneTraktorstrahl(p);
+      return;
+    }
+    const groesse = p.groesse || 24;
+    const px = p.anzeigeX !== undefined ? p.anzeigeX : p.x;
+    const py = p.anzeigeY !== undefined ? p.anzeigeY : p.y;
+    zeichneTraktorstrahl(p, sx + ss / 2, sy + ss, px + groesse / 2, py + groesse / 2);
+  });
+}
 
 export function clientSchritt() {
   // I-Frames / Blink-Timer auf Client dekrementieren
@@ -84,6 +201,11 @@ export function clientSchritt() {
     if (fLeftP2) fLeftP2.style.transform = `scaleY(${baseFlameScaleP2})`;
     if (fRightP2) fRightP2.style.transform = `scaleY(${baseFlameScaleP2})`;
   }
+
+  // Entfernte Objekte zwischen den Snapshots weiterbewegen
+  extrapoliereProjektile();
+  interpoliereObjekte();
+  zeichneTraktorstrahlen();
 
   // Partikel auf dem Client animieren und löschen
   animierenPartikel();

@@ -2,6 +2,9 @@ import { state, dom, config, arrays } from './state.js';
 import * as Cutscene from './cutscene.js';
 import * as Utils from './utils.js';
 import * as Entities from './entities.js';
+import * as Audio from './audio.js';
+import { p1Anzeige, setzeInterpolationsZiel, leiteGeschwindigkeitAb, snapshotEmpfangen } from './client.js';
+import { entferneTraktorstrahl } from './powerups.js';
 
 let room = null;
 let sendStateAction = null;
@@ -530,6 +533,9 @@ export function serializeGameState() {
             laserStufe: state.laserStufe,
             raketenStufe: state.raketenStufe,
             bombenStufe: state.bombenStufe,
+            // HUD-Flags nur senden, wenn aktiv (spart Bandbreite, fehlend = false)
+            ...(state.laserDurchschlag ? { laserDurchschlag: true } : {}),
+            ...(state.autolaserAktiv ? { autolaserAktiv: true } : {}),
             raketenCooldown: state.raketenCooldown,
             bombenCooldown: state.bombenCooldown,
             laserSchiesst: state.laserSchiesst,
@@ -547,6 +553,9 @@ export function serializeGameState() {
             laserStufe: state.p2.laserStufe,
             raketenStufe: state.p2.raketenStufe,
             bombenStufe: state.p2.bombenStufe,
+            // HUD-Flags nur senden, wenn aktiv (spart Bandbreite, fehlend = false)
+            ...(state.p2.laserDurchschlag ? { laserDurchschlag: true } : {}),
+            ...(state.p2.autolaserAktiv ? { autolaserAktiv: true } : {}),
             raketenCooldown: state.p2.raketenCooldown,
             bombenCooldown: state.p2.bombenCooldown,
             laserSchiesst: state.p2.laserSchiesst,
@@ -556,6 +565,7 @@ export function serializeGameState() {
         score: state.score,
         level: state.level,
         bossAktiv: state.bossAktiv,
+        ...(state.bossWarningAktiv ? { bossWarningAktiv: true } : {}),
         feinde: arrays.feinde.map((f) => ({
             id: f.id,
             x: f.x,
@@ -694,11 +704,40 @@ function synchronisiereListe(liste, datenListe, erzeuge, aktualisiere) {
     neueListe.forEach(obj => liste.push(obj));
 }
 
+// Waffenstufen und HUD-Flags eines Spielers aus dem Snapshot uebernehmen (fehlende Stufen bleiben)
+function uebernehmeWaffenStufen(ziel, daten) {
+    if (daten.laserStufe !== undefined) ziel.laserStufe = daten.laserStufe;
+    if (daten.raketenStufe !== undefined) ziel.raketenStufe = daten.raketenStufe;
+    if (daten.bombenStufe !== undefined) ziel.bombenStufe = daten.bombenStufe;
+    ziel.laserDurchschlag = Boolean(daten.laserDurchschlag);
+    ziel.autolaserAktiv = Boolean(daten.autolaserAktiv);
+}
+
+// Alles, was das Powerup-HUD anzeigt; nur bei Aenderung neu zeichnen
+function hudSignatur(s) {
+    return [s.laserStufe, s.raketenStufe, s.bombenStufe, s.laserDurchschlag, s.schildStufe, s.autolaserAktiv].join('|');
+}
+let letzteHudSignaturP1 = null;
+let letzteHudSignaturP2 = null;
+
 export function applyGameStateSnapshot(snapshot) {
     if (!snapshot) return;
 
     const spielfeld = dom.spielfeld || document.getElementById('spielfeld');
     if (!spielfeld) return;
+
+    snapshotEmpfangen();
+
+    // 0. Boss-Warnung des Hosts anzeigen (Alarm nur beim Einblenden)
+    if (dom.warningOverlay) {
+        const warnungAngezeigt = dom.warningOverlay.style.display === 'flex';
+        if (snapshot.bossWarningAktiv && !warnungAngezeigt) {
+            dom.warningOverlay.style.display = 'flex';
+            Audio.playBossAlert();
+        } else if (!snapshot.bossWarningAktiv && warnungAngezeigt) {
+            dom.warningOverlay.style.display = 'none';
+        }
+    }
 
     // 1. Sync P1 state & visuals on client
     if (snapshot.p1) {
@@ -708,12 +747,12 @@ export function applyGameStateSnapshot(snapshot) {
         state.energie = snapshot.p1.energie;
         state.maxEnergie = snapshot.p1.maxEnergie || state.maxEnergie;
         state.schildStufe = snapshot.p1.schildStufe || 0;
+        uebernehmeWaffenStufen(state, snapshot.p1);
         state.isDead = snapshot.p1.isDead || false;
         state.hacks = snapshot.p1.hacks || [];
 
         if (dom.spieler) {
-            dom.spieler.style.left = state.x + 'px';
-            dom.spieler.style.top = state.y + 'px';
+            setzeInterpolationsZiel(p1Anzeige, dom.spieler, state.x, state.y);
             dom.spieler.style.display = state.isDead ? 'none' : 'block';
             dom.spieler.style.transform = `rotate(${snapshot.p1.rotate || 0}deg)`;
             
@@ -754,6 +793,11 @@ export function applyGameStateSnapshot(snapshot) {
                 bombenCdBalken.style.backgroundColor = state.bombenCooldown <= 0 ? '#2ecc71' : '#f39c12';
             }
         }
+        const sigP1 = hudSignatur(state);
+        if (sigP1 !== letzteHudSignaturP1) {
+            letzteHudSignaturP1 = sigP1;
+            Utils.updateAktivePowerupsUI();
+        }
     }
 
     // 2. Sync P2 stats
@@ -763,6 +807,7 @@ export function applyGameStateSnapshot(snapshot) {
         state.p2.energie = snapshot.p2.energie;
         state.p2.maxEnergie = snapshot.p2.maxEnergie || state.p2.maxEnergie;
         state.p2.schildStufe = snapshot.p2.schildStufe || 0;
+        uebernehmeWaffenStufen(state.p2, snapshot.p2);
         state.p2.isDead = snapshot.p2.isDead || false;
 
         if (dom.spieler2) {
@@ -801,6 +846,11 @@ export function applyGameStateSnapshot(snapshot) {
         }
         Utils.updateLebenP2UI();
         Utils.updateMaxEnergieMarkerP2();
+        const sigP2 = hudSignatur(state.p2);
+        if (sigP2 !== letzteHudSignaturP2) {
+            letzteHudSignaturP2 = sigP2;
+            Utils.updateAktivePowerupsP2UI();
+        }
     }
 
     // 3. HUD (Score, Level, Boss-HP)
@@ -861,13 +911,13 @@ export function applyGameStateSnapshot(snapshot) {
                     typ: fData.typ || 1,
                     muster: fData.muster || 'normal'
                 };
+                setzeInterpolationsZiel(existing, el, fData.x, fData.y);
                 arrays.feinde.push(existing);
             } else {
                 existing.x = fData.x;
                 existing.y = fData.y;
                 existing.hp = fData.hp;
-                existing.el.style.left = fData.x + 'px';
-                existing.el.style.top = fData.y + 'px';
+                setzeInterpolationsZiel(existing, existing.el, fData.x, fData.y);
             }
         });
         for (let i = arrays.feinde.length - 1; i >= 0; i--) {
@@ -938,12 +988,12 @@ export function applyGameStateSnapshot(snapshot) {
                     rissEl: rissEl,
                     rot: aData.rot || 0
                 };
+                setzeInterpolationsZiel(existing, el, aData.x, aData.y);
                 arrays.asteroiden.push(existing);
             } else {
                 existing.x = aData.x;
                 existing.y = aData.y;
-                existing.el.style.left = aData.x + 'px';
-                existing.el.style.top = aData.y + 'px';
+                setzeInterpolationsZiel(existing, existing.el, aData.x, aData.y);
                 if (aData.rot) {
                     existing.el.style.transform = `rotate(${aData.rot}deg)`;
                 }
@@ -989,13 +1039,13 @@ export function applyGameStateSnapshot(snapshot) {
                     groesse: bData.groesse || 100,
                     typ: bData.typ || 1
                 };
+                setzeInterpolationsZiel(existing, el, bData.x, bData.y);
                 arrays.bosses.push(existing);
             } else {
                 existing.x = bData.x;
                 existing.y = bData.y;
                 existing.hp = bData.hp;
-                existing.el.style.left = bData.x + 'px';
-                existing.el.style.top = bData.y + 'px';
+                setzeInterpolationsZiel(existing, existing.el, bData.x, bData.y);
             }
         });
         for (let i = arrays.bosses.length - 1; i >= 0; i--) {
@@ -1068,9 +1118,12 @@ export function applyGameStateSnapshot(snapshot) {
             x: rData.x,
             y: rData.y,
             rot: rData.rot || 0,
-            owner: rData.owner
+            owner: rData.owner,
+            snapX: rData.x,
+            snapY: rData.y
         };
     }, (obj, rData) => {
+        leiteGeschwindigkeitAb(obj, rData.x, rData.y);
         obj.x = rData.x;
         obj.y = rData.y;
         obj.rot = rData.rot || 0;
@@ -1102,9 +1155,12 @@ export function applyGameStateSnapshot(snapshot) {
             x: bData.x,
             y: bData.y,
             rot: bData.rot || 0,
-            owner: bData.owner
+            owner: bData.owner,
+            snapX: bData.x,
+            snapY: bData.y
         };
     }, (obj, bData) => {
+        leiteGeschwindigkeitAb(obj, bData.x, bData.y);
         obj.x = bData.x;
         obj.y = bData.y;
         obj.rot = bData.rot || 0;
@@ -1152,8 +1208,9 @@ export function applyGameStateSnapshot(snapshot) {
         el.style.left = hpData.x + 'px';
         el.style.top = hpData.y + 'px';
         spielfeld.appendChild(el);
-        return { id: hpData.id, el: el, x: hpData.x, y: hpData.y, vx: 0, vy: 0, width: 12, height: 12 };
+        return { id: hpData.id, el: el, x: hpData.x, y: hpData.y, vx: 0, vy: 0, width: 12, height: 12, snapX: hpData.x, snapY: hpData.y };
     }, (obj, hpData) => {
+        leiteGeschwindigkeitAb(obj, hpData.x, hpData.y);
         obj.x = hpData.x;
         obj.y = hpData.y;
         obj.el.style.left = hpData.x + 'px';
@@ -1215,11 +1272,15 @@ export function applyGameStateSnapshot(snapshot) {
             el: el,
             x: brData.x,
             y: brData.y,
+            vx: brData.vx || 0,
+            vy: brData.vy || 0,
             rot: brData.rot || 0
         };
     }, (obj, brData) => {
         obj.x = brData.x;
         obj.y = brData.y;
+        obj.vx = brData.vx || 0;
+        obj.vy = brData.vy || 0;
         obj.rot = brData.rot || 0;
         obj.el.style.left = brData.x + 'px';
         obj.el.style.top = brData.y + 'px';
@@ -1243,9 +1304,12 @@ export function applyGameStateSnapshot(snapshot) {
             el: el,
             x: bbData.x,
             y: bbData.y,
-            groesse: bbData.groesse || 26
+            groesse: bbData.groesse || 26,
+            snapX: bbData.x,
+            snapY: bbData.y
         };
     }, (obj, bbData) => {
+        leiteGeschwindigkeitAb(obj, bbData.x, bbData.y);
         obj.x = bbData.x;
         obj.y = bbData.y;
         obj.el.style.left = bbData.x + 'px';
@@ -1269,19 +1333,30 @@ export function applyGameStateSnapshot(snapshot) {
                     el: el,
                     x: pData.x,
                     y: pData.y,
+                    groesse: 24,
                     type: pData.type,
-                    owner: pData.owner
+                    owner: pData.owner,
+                    towedBy: null
                 };
+                setzeInterpolationsZiel(existing, el, pData.x, pData.y);
                 arrays.powerups.push(existing);
             } else {
                 existing.x = pData.x;
                 existing.y = pData.y;
-                existing.el.style.left = pData.x + 'px';
-                existing.el.style.top = pData.y + 'px';
+                setzeInterpolationsZiel(existing, existing.el, pData.x, pData.y);
+            }
+            // Schlepp-Zustand des Hosts uebernehmen; den Strahl zeichnet clientSchritt
+            const towedBy = pData.towedBy || null;
+            if (existing.towedBy !== towedBy) {
+                entferneTraktorstrahl(existing);
+                existing.towedBy = towedBy;
+                existing.el.classList.remove('powerup-towed', 'powerup-towed-p1', 'powerup-towed-p2');
+                if (towedBy) existing.el.classList.add('powerup-towed', `powerup-towed-${towedBy}`);
             }
         });
         for (let i = arrays.powerups.length - 1; i >= 0; i--) {
             if (!currentIds.has(arrays.powerups[i].id)) {
+                entferneTraktorstrahl(arrays.powerups[i]);
                 if (arrays.powerups[i].el) arrays.powerups[i].el.remove();
                 arrays.powerups.splice(i, 1);
             }

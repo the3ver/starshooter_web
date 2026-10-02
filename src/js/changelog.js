@@ -1,6 +1,14 @@
-export const GAME_VERSION = '1.6.58';
+export const GAME_VERSION = '1.6.59';
 
 export const changelogData = {
+  '1.6.59': {
+    version: '1.6.59',
+    intro: 'Hey, es ist jetzt Version 1.6.59 rausgekommen, folgendes wurde aktualisiert:',
+    highlights: [
+      '🛸 Online-Mitspieler sehen jetzt die Boss-Warnung, die richtigen Waffenstufen beider Spieler und den Traktorstrahl beim Abschleppen von Powerups',
+      '🌊 Beim Online-Mitspieler bewegen sich Gegner, Asteroiden, Schüsse und das Schiff des Hosts flüssig zwischen den Updates, ohne mehr Daten zu senden'
+    ]
+  },
   '1.6.58': {
     version: '1.6.58',
     intro: 'Hey, es ist jetzt Version 1.6.58 rausgekommen, folgendes wurde aktualisiert:',
