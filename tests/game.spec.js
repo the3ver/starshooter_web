@@ -779,16 +779,17 @@ test.describe('Space Shooter', () => {
 
     // Spiel starten und Energie auf 0 setzen
     await page.keyboard.down('KeyW');
-    await page.waitForTimeout(50);
+    await page.waitForFunction(() => window.__game.state.spielLaeuft);
     await page.keyboard.up('KeyW');
 
+    // Feste Anzahl Simulationsschritte in einem synchronen Block statt Echtzeit-Wartezeit,
+    // damit beide Schiffe gleich viele Schritte regenerieren
     const viperRegen = await page.evaluate(async () => {
       const stateMod = await import('./js/state.js');
+      const { simulationsSchritt } = await import('./js/loop.js');
       stateMod.state.energie = 0;
       stateMod.state.laserSchiesst = false;
-      
-      // 100ms warten damit der Game-Loop Energie regeneriert
-      await new Promise(r => setTimeout(r, 100));
+      for (let i = 0; i < 30; i++) simulationsSchritt();
       return {
         energie: stateMod.state.energie,
         configRegen: stateMod.shipModels.viper.energyRegen
@@ -801,15 +802,15 @@ test.describe('Space Shooter', () => {
     await phantomBtn.click();
 
     await page.keyboard.down('KeyW');
-    await page.waitForTimeout(50);
+    await page.waitForFunction(() => window.__game.state.spielLaeuft);
     await page.keyboard.up('KeyW');
 
     const phantomRegen = await page.evaluate(async () => {
       const stateMod = await import('./js/state.js');
+      const { simulationsSchritt } = await import('./js/loop.js');
       stateMod.state.energie = 0;
       stateMod.state.laserSchiesst = false;
-
-      await new Promise(r => setTimeout(r, 100));
+      for (let i = 0; i < 30; i++) simulationsSchritt();
       return {
         energie: stateMod.state.energie,
         configRegen: stateMod.shipModels.phantom.energyRegen
