@@ -13,6 +13,7 @@ import { aktualisierePowerups } from './powerups.js';
 import { aktualisiereUnverwundbarkeit, bewegeSpieler, aktualisiereEnergie, regeneriereSchild } from './spieler.js';
 import { aktualisiereWaffen, versteckeAlleLaser } from './waffen.js';
 import { clientSchritt } from './client.js';
+import { pruefePause } from './pause.js';
 
 // Bestehende Exporte bleiben ueber loop.js erreichbar
 export { verwalteFeindSpawns, versteckeAlleLaser, animierenPartikel };
@@ -20,6 +21,7 @@ export { verwalteFeindSpawns, versteckeAlleLaser, animierenPartikel };
 
 export function simulationsSchritt() {
   if (state.pausiert) {
+    pruefePause();
     return;
   }
 

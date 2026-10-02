@@ -488,7 +488,7 @@ export function spielerGetroffen(kollisionsObjekt, explodiert = true, targetPlay
           dom.spielfeld.style.backgroundColor = '#0b1319';
         }, 150);
       } else {
-        Network.sendNetworkEvent({ type: 'player_hit', target: 'p2', shield: true });
+        Network.sendNetworkEvent({ type: 'player_hit', target: 'p2', shield: true, invulnerable: state.p2.invulnerableTimer });
       }
       return;
     }
@@ -518,7 +518,7 @@ export function spielerGetroffen(kollisionsObjekt, explodiert = true, targetPlay
         dom.spielfeld.style.backgroundColor = '#0b1319';
       }, 150);
     } else {
-      Network.sendNetworkEvent({ type: 'player_hit', target: 'p2', shield: false });
+      Network.sendNetworkEvent({ type: 'player_hit', target: 'p2', shield: false, invulnerable: state.p2.invulnerableTimer });
     }
     if (explodiert && kollisionsObjekt && !kollisionsObjekt.istBoss) {
       let c = kollisionsObjekt.istFeind ? '#9b59b6' : (kollisionsObjekt.el?.dataset?.baseColor || kollisionsObjekt.el?.style?.backgroundColor || '#7f8c8d');
@@ -667,6 +667,8 @@ export function restartGame() {
   dom.bossHpContainer.style.display = 'none';
   
   state.pausiert = false;
+  state.pauseVon = null;
+  state.pauseEndeZeit = 0;
   dom.pauseOverlay.style.display = 'none';
   
   state.bossKampfAktiv = false;

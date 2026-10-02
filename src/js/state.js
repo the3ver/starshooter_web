@@ -115,7 +115,7 @@ export const state = {
     mausGedrueckt: false,
     bossAktiv: false, bossWarningAktiv: false, bossWarningTimer: 0, gameOverAktiv: false,
     spielerSchussCooldown: 0, finalerScore: 0, cheatUsed: false, typedCheatKeys: '',
-    godMode: false, pausiert: false, unbegrenzteEnergie: false, invulnerableTimer: 0,
+    godMode: false, pausiert: false, pauseVon: null, pauseEndeZeit: 0,unbegrenzteEnergie: false, invulnerableTimer: 0,
     phantomSchildRegenTimer: 0, phantomSchildRegenMax: 900,
     joystick: { x: 0, y: 0, active: false },
     gameMode: 'single', // 'single' | 'coop' | 'online'

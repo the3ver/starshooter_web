@@ -23,6 +23,7 @@ Das Projekt ist in modular gegliederte ES-Module strukturiert:
   - `cutscene.js`: Intro-Cutszene mit Konvoi, Angriff, Explosionen und synchronem Skip.
   - `audio.js`: Sound-Synthesizer via Web Audio API (Laser, Raketen, Bomben, Treffer, Boss-Warnung, BGM).
   - `bot.js`: KI-Partner für 2-Spieler Co-op (Ausweichen, Zielen, Powerup-Sammeln, Schwierigkeitsgrade).
+  - `pause.js`: Pause-Logik inkl. gemeinsamer Online-Pause mit 60-s-Limit.
   - `network.js`: Serverloser P2P-Multiplayer via WebRTC/Trystero (State-Serialisierung, Input-Handling, Event-Broadcasts).
   - `changelog.js`: In-Game Versionsanzeige und Dialog für neue Features ("Was gibt's Neues?").
 
@@ -43,6 +44,7 @@ Das Projekt ist in modular gegliederte ES-Module strukturiert:
 - **Zielgerichtete Events:** Schadens-Flashes, Treffer-Sounds und Powerup-Flashes werden nur für den betroffenen Spieler getriggert.
 - **Synchrone Aktionen:** Cutszenen-Skip (ESC), synchrone Bomben- & Raketen-Detonationen (`bomb_detonated`, `missile_detonated`, `target_destroyed`) und Highscore-Eingabe (Kombination `AAA+BBB`) werden über DataChannels abgeglichen.
 - **Rematch-Workflow:** Nach Spielende und Neustart bleibt die Verbindung bestehen; Host startet nächste Runde via `#btn-online-start` oder verlässt den Raum via `#btn-online-leave`.
+- **Gemeinsame Pause:** `pause.js` pausiert im Online-Modus beide Spieler (`pause_start` mit `von` und `dauerMs`, `pause_ende`); nur der Besitzer (`state.pauseVon`, Host `p1`, Client `p2`) beendet sie, nach 60 s endet sie automatisch (Host sendet `pause_ende`, Client beendet lokal als Fallback), bei `peer_left` bzw. Verbindungsabbruch ebenfalls. Single/Coop pausieren weiter lokal ohne Limit.
 - **Cheat-Sperre:** Im Online-Modus sind Cheatcodes für alle Peers deaktiviert.
 
 ## Waffensysteme (Getrenntes Leveln bis Stufe 5)

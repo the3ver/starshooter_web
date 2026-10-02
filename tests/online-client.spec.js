@@ -9,7 +9,7 @@ test.beforeEach(async ({ page }) => {
   }));
   await page.route('**/api/turn*', route => route.fulfill({ status: 503, body: '' }));
   await page.addInitScript(() => {
-    localStorage.setItem('starshooter_last_seen_version', '1.6.59');
+    localStorage.setItem('starshooter_last_seen_version', '1.6.60');
     localStorage.setItem('starshooter_skip_cutscene', 'true');
   });
   await page.goto('/');

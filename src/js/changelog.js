@@ -1,6 +1,14 @@
-export const GAME_VERSION = '1.6.59';
+export const GAME_VERSION = '1.6.60';
 
 export const changelogData = {
+  '1.6.60': {
+    version: '1.6.60',
+    intro: 'Hey, es ist jetzt Version 1.6.60 rausgekommen, folgendes wurde aktualisiert:',
+    highlights: [
+      '⏸️ Im Online-Modus pausiert das Spiel jetzt für beide Spieler: Wer pausiert, sieht und zeigt den Countdown (max. 60 Sekunden) und kann die Pause allein beenden',
+      '✨ Das Schiff des Online-Mitspielers blinkt nach einem Treffer nicht mehr dauerhaft, sondern nur noch während der kurzen Unverwundbarkeit'
+    ]
+  },
   '1.6.59': {
     version: '1.6.59',
     intro: 'Hey, es ist jetzt Version 1.6.59 rausgekommen, folgendes wurde aktualisiert:',

@@ -5,6 +5,7 @@ import * as Entities from './entities.js';
 import * as Loop from './loop.js';
 import * as Audio from './audio.js';
 import * as Cutscene from './cutscene.js';
+import { schaltePause } from './pause.js';
 
 
 export function setupInput() {
@@ -30,9 +31,8 @@ export function setupInput() {
       if (k === 'm') {
         Audio.toggleMute();
       }
-      if (k === 'p' && state.spielLaeuft && !state.gameOverAktiv) {
-        state.pausiert = !state.pausiert;
-        dom.pauseOverlay.style.display = state.pausiert ? 'block' : 'none';
+      if (k === 'p') {
+        schaltePause(e.repeat);
       }
       
       const isOnline = state.gameMode === 'online' || (state.network && state.network.isOnline);
@@ -238,8 +238,7 @@ export function setupInput() {
     if (e.touches.length > 0) {
       let touchY = e.touches[0].clientY;
       if (touchY < window.innerHeight * 0.3) {
-        state.pausiert = !state.pausiert;
-        dom.pauseOverlay.style.display = state.pausiert ? 'block' : 'none';
+        schaltePause();
       }
     }
   }, { passive: false });

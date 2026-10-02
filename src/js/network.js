@@ -5,6 +5,7 @@ import * as Entities from './entities.js';
 import * as Audio from './audio.js';
 import { p1Anzeige, setzeInterpolationsZiel, leiteGeschwindigkeitAb, snapshotEmpfangen } from './client.js';
 import { entferneTraktorstrahl } from './powerups.js';
+import { beendePause, verarbeitePauseEvent } from './pause.js';
 
 let room = null;
 let sendStateAction = null;
@@ -251,6 +252,7 @@ export async function hostRoom(customCode = null) {
         },
         (peerId) => {
             state.network.connected = false;
+            beendePause();
             updateOnlineStatus(`MITSPIELER HAT DAS SPIEL VERLASSEN!`, true);
             updateOnlineLobbyUI();
         }
@@ -350,6 +352,7 @@ export async function joinOnlineRoom(code) {
         },
         (peerId) => {
             state.network.connected = false;
+            beendePause();
             updateOnlineStatus(`VERBINDUNG ZUM HOST VERLOREN!`, true);
             updateOnlineLobbyUI();
         }
@@ -360,6 +363,11 @@ export async function joinOnlineRoom(code) {
 
 export function handleNetworkEvent(data, peerId = null) {
     if (!data) return;
+
+    if (data.type === 'pause_start' || data.type === 'pause_ende') {
+        verarbeitePauseEvent(data);
+        return;
+    }
 
     if (state.network.isHost) {
         if (data.type === 'client_ready') {
@@ -377,6 +385,7 @@ export function handleNetworkEvent(data, peerId = null) {
         }
         if (data.type === 'peer_left') {
             state.network.connected = false;
+            beendePause();
             updateOnlineStatus('MITSPIELER HAT DEN RAUM VERLASSEN!', true);
             updateOnlineLobbyUI();
         }
@@ -402,6 +411,7 @@ export function handleNetworkEvent(data, peerId = null) {
         }
         if (data.type === 'peer_left') {
             state.network.connected = false;
+            beendePause();
             updateOnlineStatus('HOST HAT DEN RAUM VERLASSEN!', true);
             updateOnlineLobbyUI();
         }
@@ -431,6 +441,8 @@ export function handleNetworkEvent(data, peerId = null) {
         if (data.type === 'player_hit' && data.target === 'p2') {
             Audio.playHit('player');
             if (dom.spieler2) dom.spieler2.classList.add('spieler-blink');
+            // I-Frames wie auf dem Host setzen, damit clientSchritt() das Blinken wieder beendet
+            if (state.p2) state.p2.invulnerableTimer = Number.isFinite(data.invulnerable) && data.invulnerable > 0 ? data.invulnerable : 45;
             const spielfeld = dom.spielfeld || document.getElementById('spielfeld');
             if (spielfeld) {
                 spielfeld.style.backgroundColor = data.shield ? 'rgba(52, 152, 219, 0.3)' : '#900';
@@ -515,6 +527,7 @@ export function disconnectNetwork() {
     state.network.isClient = false;
     state.network.roomCode = null;
     state.network.connected = false;
+    beendePause();
     state.network.peerId = null;
     const statusEl = document.getElementById('online-status');
     if (statusEl) statusEl.style.display = 'none';
