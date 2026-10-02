@@ -37,7 +37,7 @@ Das Projekt ist in modular gegliederte ES-Module strukturiert:
 
 ## Multiplayer & WebRTC Architektur (`network.js`)
 - **P2P Broker:** Verwendet `@trystero-p2p/torrent` (mit dynamischem Fallback).
-- **TURN-Relay:** Vor dem Raumbeitritt holt `holeTurnConfig()` kurzlebige Cloudflare-TURN-Zugangsdaten vom Worker-Endpoint `GET /api/turn` (3 s Timeout) und reicht sie als `turnConfig` an Trystero. Schlägt das fehl (503, Timeout, ungültige Antwort), läuft die Verbindung wie bisher nur mit STUN. Secrets `TURN_KEY_ID` und `TURN_KEY_API_TOKEN` liegen im Worker.
+- **TURN-Relay:** Vor dem Raumbeitritt holt `holeTurnConfig()` kurzlebige Cloudflare-TURN-Zugangsdaten vom Worker-Endpoint `GET /api/turn` (3 s Timeout) und reicht sie als `turnConfig` an Trystero. Schlägt das fehl (503, Timeout, ungültige Antwort), läuft die Verbindung wie bisher nur mit STUN. Secrets `TURN_KEY_ID` und `TURN_KEY_API_TOKEN` liegen im Worker. **Kostenbremse:** Der Worker fragt den TURN-Egress des laufenden Monats über die Cloudflare-GraphQL-API ab (`callsTurnUsageAdaptiveGroups`, Secret `CF_ANALYTICS_TOKEN` mit Recht "Account Analytics: Read", Var `CF_ACCOUNT_ID`), speichert ihn 10 Minuten zwischen und gibt ab `TURN_MONATSLIMIT_GB` (Standard 800 von 1.000 GB Free Tier) keine Zugangsdaten mehr aus. Ist der Verbrauch nicht abfragbar, gibt er ebenfalls keine aus. Zugangsdaten gelten 2 Stunden.
 - **Host-Autorität:** Host berechnet Gegner, Bosse, Kollisionen, Powerups und sendet Snapshots.
 - **Client-Prediction:** Client berechnet seine eigene Schiffsbewegung lokal ohne Input-Lag.
 - **Zielgerichtete Events:** Schadens-Flashes, Treffer-Sounds und Powerup-Flashes werden nur für den betroffenen Spieler getriggert.

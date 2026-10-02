@@ -103,7 +103,19 @@ function turnAnfrage(origin, ip = '1.2.3.4') {
   if (origin) headers.Origin = origin;
   return new Request('https://api.example/api/turn', { headers });
 }
-const TURN_ENV = { TURN_KEY_ID: 'kid', TURN_KEY_API_TOKEN: 'geheim' };
+const TURN_ENV = { TURN_KEY_ID: 'kid', TURN_KEY_API_TOKEN: 'geheim', CF_ANALYTICS_TOKEN: 'analytics', CF_ACCOUNT_ID: 'konto' };
+const GRAPHQL_URL = 'https://api.cloudflare.com/client/v4/graphql';
+
+// Beantwortet die Verbrauchsabfrage (Kostenbremse) mit `bytes`, alle anderen Aufrufe gehen an turnFetch
+function mitVerbrauch(turnFetch, bytes = 0) {
+  return async (url, opts) => {
+    if (url === GRAPHQL_URL) {
+      const gruppen = bytes === null ? [] : [{ sum: { egressBytes: bytes } }];
+      return new Response(JSON.stringify({ data: { viewer: { accounts: [{ callsTurnUsageAdaptiveGroups: gruppen }] } } }), { status: 200 });
+    }
+    return turnFetch(url, opts);
+  };
+}
 
 test('TURN-Route: 403 bei fremder oder fehlender Herkunft', async () => {
   const { behandleTurnAnfrage } = await ladeTurn();
@@ -124,11 +136,11 @@ test('TURN-Route: 503 ohne Secrets', async () => {
 test('TURN-Route: 502 bei Upstream-Fehler ohne Leck von Details', async () => {
   const { behandleTurnAnfrage } = await ladeTurn();
   const fehlerStatus = await behandleTurnAnfrage(turnAnfrage('https://the3ver.github.io'), TURN_ENV,
-    async () => new Response('interner Fehler geheim', { status: 500 }));
+    mitVerbrauch(async () => new Response('interner Fehler geheim', { status: 500 })));
   expect(fehlerStatus.status).toBe(502);
   expect(await fehlerStatus.text()).not.toContain('geheim');
   const fehlerWurf = await behandleTurnAnfrage(turnAnfrage('https://the3ver.github.io'), TURN_ENV,
-    async () => { throw new Error('Token geheim'); });
+    mitVerbrauch(async () => { throw new Error('Token geheim'); }));
   expect(fehlerWurf.status).toBe(502);
   expect(await fehlerWurf.text()).not.toContain('geheim');
 });
@@ -144,7 +156,7 @@ test('TURN-Route: 200 liefert gefilterte iceServers, CORS-Origin und no-store', 
       { urls: ['turn:turn.cloudflare.com:3478?transport=udp'], username: 'u', credential: 'c' }
     ] }), { status: 201 });
   };
-  const r = await behandleTurnAnfrage(turnAnfrage('http://localhost:3000'), TURN_ENV, fetchFn);
+  const r = await behandleTurnAnfrage(turnAnfrage('http://localhost:3000'), TURN_ENV, mitVerbrauch(fetchFn));
   expect(r.status).toBe(200);
   expect(r.headers.get('Access-Control-Allow-Origin')).toBe('http://localhost:3000');
   expect(r.headers.get('Cache-Control')).toBe('no-store');
@@ -167,7 +179,7 @@ test('TURN-Route: Rate-Limit liefert 429 nach zu vielen Anfragen derselben IP', 
     match: async (req) => { const v = speicher.get(req.url); return v ? new Response(v) : undefined; },
     put: async (req, res) => { speicher.set(req.url, await res.text()); }
   };
-  const fetchFn = async () => new Response(JSON.stringify({ iceServers: [{ urls: ['stun:a:3478'] }] }), { status: 201 });
+  const fetchFn = mitVerbrauch(async () => new Response(JSON.stringify({ iceServers: [{ urls: ['stun:a:3478'] }] }), { status: 201 }));
   for (let i = 0; i < TURN_MAX_ANFRAGEN_PRO_STUNDE; i++) {
     const r = await behandleTurnAnfrage(turnAnfrage('https://the3ver.github.io'), TURN_ENV, fetchFn, cache);
     expect(r.status).toBe(200);
@@ -176,4 +188,94 @@ test('TURN-Route: Rate-Limit liefert 429 nach zu vielen Anfragen derselben IP', 
   expect(zuViel.status).toBe(429);
   const andereIp = await behandleTurnAnfrage(turnAnfrage('https://the3ver.github.io', '9.9.9.9'), TURN_ENV, fetchFn, cache);
   expect(andereIp.status).toBe(200);
+});
+
+// --- TURN-Kostenbremse (Monatslimit) ---
+const TURN_OK = async () => new Response(JSON.stringify({ iceServers: [{ urls: ['stun:a:3478'] }] }), { status: 201 });
+
+test('Kostenbremse: monatsZeitraum liefert Monatsanfang bis heute (UTC)', async () => {
+  const { monatsZeitraum } = await ladeTurn();
+  expect(monatsZeitraum(new Date('2026-10-02T12:00:00Z'))).toEqual({ von: '2026-10-01', bis: '2026-10-02' });
+  expect(monatsZeitraum(new Date('2026-12-31T23:59:00Z'))).toEqual({ von: '2026-12-01', bis: '2026-12-31' });
+});
+
+test('Kostenbremse: Verbrauchsabfrage nutzt Konto, Schluessel, Monatszeitraum und Analytics-Token', async () => {
+  const { holeMonatsverbrauchBytes } = await ladeTurn();
+  let aufruf;
+  const fetchFn = async (url, opts) => {
+    aufruf = { url, opts };
+    return new Response(JSON.stringify({ data: { viewer: { accounts: [{ callsTurnUsageAdaptiveGroups: [
+      { sum: { egressBytes: 300 } }, { sum: { egressBytes: 200 } }
+    ] }] } } }), { status: 200 });
+  };
+  const bytes = await holeMonatsverbrauchBytes(TURN_ENV, fetchFn, new Date('2026-10-02T12:00:00Z'));
+  expect(bytes).toBe(500);
+  expect(aufruf.url).toBe(GRAPHQL_URL);
+  expect(aufruf.opts.headers.Authorization).toBe('Bearer analytics');
+  const body = JSON.parse(aufruf.opts.body);
+  expect(body.variables).toEqual({ konto: 'konto', von: '2026-10-01', bis: '2026-10-02', schluessel: 'kid' });
+  expect(body.query).toContain('callsTurnUsageAdaptiveGroups');
+  expect(body.query).toContain('egressBytes');
+});
+
+test('Kostenbremse: unter dem Limit gibt es Zugangsdaten, ab dem Limit 503', async () => {
+  const { behandleTurnAnfrage } = await ladeTurn();
+  const unter = await behandleTurnAnfrage(turnAnfrage('https://the3ver.github.io'), TURN_ENV, mitVerbrauch(TURN_OK, 799e9));
+  expect(unter.status).toBe(200);
+  const kein = await behandleTurnAnfrage(turnAnfrage('https://the3ver.github.io'), TURN_ENV, mitVerbrauch(TURN_OK, null));
+  expect(kein.status).toBe(200);
+  let turnAufgerufen = false;
+  const genau = await behandleTurnAnfrage(turnAnfrage('https://the3ver.github.io'), TURN_ENV,
+    mitVerbrauch(async () => { turnAufgerufen = true; return TURN_OK(); }, 800e9));
+  expect(genau.status).toBe(503);
+  expect(await genau.json()).toEqual({ success: false, error: 'TURN-Monatslimit erreicht' });
+  expect(turnAufgerufen).toBe(false);
+});
+
+test('Kostenbremse: Limit per TURN_MONATSLIMIT_GB einstellbar', async () => {
+  const { behandleTurnAnfrage } = await ladeTurn();
+  const env = { ...TURN_ENV, TURN_MONATSLIMIT_GB: '1' };
+  const unter = await behandleTurnAnfrage(turnAnfrage('https://the3ver.github.io'), env, mitVerbrauch(TURN_OK, 0.5e9));
+  expect(unter.status).toBe(200);
+  const ueber = await behandleTurnAnfrage(turnAnfrage('https://the3ver.github.io'), env, mitVerbrauch(TURN_OK, 1e9));
+  expect(ueber.status).toBe(503);
+});
+
+test('Kostenbremse: im Zweifel keine Zugangsdaten (fehlende Analytics-Daten, API-Fehler, GraphQL-Fehler)', async () => {
+  const { behandleTurnAnfrage } = await ladeTurn();
+  const nieTurn = async (url) => {
+    if (url === GRAPHQL_URL) throw new Error('Analytics geheim');
+    throw new Error('TURN darf nicht aufgerufen werden');
+  };
+  const ohneToken = await behandleTurnAnfrage(turnAnfrage('https://the3ver.github.io'),
+    { TURN_KEY_ID: 'kid', TURN_KEY_API_TOKEN: 'geheim' }, nieTurn);
+  expect(ohneToken.status).toBe(503);
+  const apiWirft = await behandleTurnAnfrage(turnAnfrage('https://the3ver.github.io'), TURN_ENV, nieTurn);
+  expect(apiWirft.status).toBe(503);
+  expect(await apiWirft.text()).not.toContain('geheim');
+  const apiStatus = await behandleTurnAnfrage(turnAnfrage('https://the3ver.github.io'), TURN_ENV,
+    async (url) => url === GRAPHQL_URL ? new Response('x', { status: 403 }) : TURN_OK());
+  expect(apiStatus.status).toBe(503);
+  const gqlFehler = await behandleTurnAnfrage(turnAnfrage('https://the3ver.github.io'), TURN_ENV,
+    async (url) => url === GRAPHQL_URL
+      ? new Response(JSON.stringify({ data: null, errors: [{ message: 'not authorized' }] }), { status: 200 })
+      : TURN_OK());
+  expect(gqlFehler.status).toBe(503);
+});
+
+test('Kostenbremse: Verbrauch wird zwischengespeichert, nicht bei jeder Anfrage abgefragt', async () => {
+  const { behandleTurnAnfrage } = await ladeTurn();
+  const speicher = new Map();
+  const cache = {
+    match: async (req) => { const v = speicher.get(req.url); return v ? new Response(v) : undefined; },
+    put: async (req, res) => { speicher.set(req.url, await res.text()); }
+  };
+  let abfragen = 0;
+  const zaehlend = mitVerbrauch(TURN_OK, 1e9);
+  const fetchFn = async (url, opts) => { if (url === GRAPHQL_URL) abfragen++; return zaehlend(url, opts); };
+  for (let i = 0; i < 3; i++) {
+    const r = await behandleTurnAnfrage(turnAnfrage('https://the3ver.github.io', `10.0.0.${i}`), TURN_ENV, fetchFn, cache);
+    expect(r.status).toBe(200);
+  }
+  expect(abfragen).toBe(1);
 });

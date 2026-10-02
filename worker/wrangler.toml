@@ -2,6 +2,12 @@ name = "starshooter-api"
 main = "index.js"
 compatibility_date = "2024-01-01"
 
+# TURN-Kostenbremse: ab diesem Monatsverbrauch (GB Egress) gibt /api/turn keine Zugangsdaten mehr aus.
+# Free Tier: 1.000 GB/Monat. Secrets (per `wrangler secret put`): TURN_KEY_ID, TURN_KEY_API_TOKEN, CF_ANALYTICS_TOKEN.
+[vars]
+CF_ACCOUNT_ID = "4450b3122c407d72dec6f911d0ff219c"
+TURN_MONATSLIMIT_GB = "800"
+
 [[d1_databases]]
 binding = "starshooter_db"
 database_name = "starshooter-db"
