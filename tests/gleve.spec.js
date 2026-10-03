@@ -652,6 +652,156 @@ test.describe('Gleve-MR Laser-Sweep', () => {
   });
 });
 
+test.describe('Gleve-MR Bot und Online-Host', () => {
+  // Bot (schwer: entscheidet jeden Schritt) fliegt die Gleve als Spieler 2
+  async function starteBot(page) {
+    await starteGleve(page, { coop: true });
+    await page.evaluate(async () => {
+      const Bot = await import('./js/bot.js');
+      window.__gleveTest.botLeeren = () => {
+        const { state } = window.__game;
+        window.__gleveTest.leeren();
+        state.p2IsBot = true;
+        state.p2BotDifficulty = 'hard';
+        Bot.resetBot();
+        state.p2.x = 400;
+        state.p2.y = 400;
+        state.p2.botFireLaser = false;
+        state.p2.botFireRakete = false;
+        state.p2.botDashRichtung = null;
+        window.__game.Audio.clearAudioHistory();
+      };
+    });
+  }
+
+  test('Bot dasht gezielt auf einen nahen Feind, aber nicht ohne Ziel, ohne Energie oder in einen Boss', async ({ page }) => {
+    await starteBot(page);
+    const r = await page.evaluate(() => {
+      const { state, arrays, Entities, Audio } = window.__game;
+      const T = window.__gleveTest;
+      const dashs = () => Audio.audioHistory.filter(a => a.name === 'dash').length;
+      const feind = (x, y) => {
+        Entities.erzeugeFeind(x, y, 'normal', 0, false);
+        const f = arrays.feinde[arrays.feinde.length - 1];
+        f.schussTimer = 9999;
+        f.traegtPowerup = false;
+        return f;
+      };
+      const out = {};
+
+      // Leeres Feld: kein Dash
+      T.botLeeren();
+      T.schritte(60);
+      out.leer = dashs();
+
+      // Feind schraeg rechts oben in Reichweite (Sweep auf Cooldown, damit nur der Dash trifft)
+      T.botLeeren();
+      state.p2.raketenCooldown = 999;
+      feind(440, 330);
+      T.schritte(12);
+      out.nah = { dashs: dashs(), feinde: arrays.feinde.length, energie: state.p2.energie, x: state.p2.x, y: state.p2.y };
+      // Danach kein weiterer Dash ohne Ziel
+      T.schritte(60);
+      out.nahDanach = dashs();
+
+      // Zu wenig Energie: kein Dash
+      T.botLeeren();
+      state.p2.raketenCooldown = 999;
+      state.p2.energie = 10;
+      feind(440, 330);
+      T.schritte(12);
+      out.ohneEnergie = { dashs: dashs(), feinde: arrays.feinde.length };
+
+      // Feind hinter einem Boss: kein Dash in den Boss
+      T.botLeeren();
+      state.p2.raketenCooldown = 999;
+      Entities.erzeugeBoss();
+      const b = arrays.bosses[0];
+      Object.assign(b, { phase: 'kampf', x: 360, y: 280, vx: 0, schussTimer: 9999, bombenTimer: 9999, raketenTimer: 9999 });
+      state.p2.y = 420;
+      feind(400, 330);
+      T.schritte(4);
+      out.boss = { dashs: dashs(), bossHp: b.hp, maxHp: b.maxHp };
+      return out;
+    });
+    expect(r.leer).toBe(0);
+    expect(r.nah.dashs).toBe(1);
+    expect(r.nah.feinde).toBe(0);
+    expect(r.nah.x).toBeGreaterThan(400);
+    expect(r.nah.y).toBeLessThan(400);
+    expect(r.nahDanach).toBe(1);
+    expect(r.ohneEnergie).toEqual({ dashs: 0, feinde: 1 });
+    expect(r.boss.dashs).toBe(0);
+    expect(r.boss.bossHp).toBe(r.boss.maxHp);
+  });
+
+  test('Bot sweept bei einem Feindlaser vor sich und pariert ihn', async ({ page }) => {
+    await starteBot(page);
+    const r = await page.evaluate(() => {
+      const { state, arrays, Entities, Audio } = window.__game;
+      const T = window.__gleveTest;
+      T.botLeeren();
+      // Feindlaser seitlich daneben: kein Sweep
+      Entities.erzeugeFeindLaser(300, 330);
+      T.schritte(3);
+      const seitlich = { sweeps: Audio.audioHistory.filter(a => a.name === 'sweep').length, cd: state.p2.raketenCooldown };
+      T.botLeeren();
+      // Feindlaser direkt vor dem Schiff
+      Entities.erzeugeFeindLaser(state.p2.x + 13, 330);
+      const fl = arrays.feindLaserArray[0];
+      T.schritte(10);
+      return {
+        seitlich,
+        sweeps: Audio.audioHistory.filter(a => a.name === 'sweep').length,
+        cd: state.p2.raketenCooldown,
+        harmlos: !!fl.harmlos,
+        leben: state.p2.leben,
+        dashs: Audio.audioHistory.filter(a => a.name === 'dash').length
+      };
+    });
+    expect(r.seitlich).toEqual({ sweeps: 0, cd: 0 });
+    expect(r.sweeps).toBe(1);
+    expect(r.cd).toBeGreaterThan(100);
+    expect(r.harmlos).toBe(true);
+    expect(r.leben).toBe(3);
+    expect(r.dashs).toBe(0);
+  });
+
+  test('Online-Host: Dash des Clients mit gemeldeter Richtung, auch bei kurzem Druck; Client-Positionen ruhen waehrend des Dashs', async ({ page }) => {
+    await starteGleve(page, { coop: true });
+    const r = await page.evaluate(() => {
+      const { state, Network } = window.__game;
+      const T = window.__gleveTest;
+      T.leeren();
+      state.gameMode = 'online';
+      Object.assign(state.network, { isOnline: true, isHost: true, isClient: false, connected: false });
+      state.p2.laserInputRequested = false;
+      state.p2.netzDashAnfrage = false;
+      const eingabe = (e) => Network.applyPlayerInput(Object.assign({ x: 300, y: 400, rotate: 0, laser: false, rakete: false, bombe: false, rx: 0, ry: 0 }, e));
+
+      // Druck und Loslassen kommen vor demselben Host-Schritt an
+      eingabe({ laser: true, rx: 1, ry: 0 });
+      eingabe({ laser: false, rx: 1, ry: 0 });
+      T.schritte(1);
+      const erster = { x: state.p2.x, energie: state.p2.energie };
+      // Position des Clients waehrend des Dashs wird ignoriert
+      eingabe({ x: 500, y: 300 });
+      T.schritte(7);
+      const ende = { x: state.p2.x, y: state.p2.y };
+      // Danach gilt wieder die Client-Position
+      eingabe({ x: 410, y: 390 });
+      const danach = { x: state.p2.x, y: state.p2.y };
+      Object.assign(state.network, { isOnline: false, isHost: false });
+      return { erster, ende, danach };
+    });
+    expect(r.erster.x).toBeCloseTo(312.5, 5);
+    expect(r.erster.energie).toBeCloseTo(25, 5);
+    expect(r.ende.x).toBeCloseTo(400, 5);
+    expect(r.ende.y).toBeCloseTo(400, 5);
+    expect(r.danach).toEqual({ x: 410, y: 390 });
+  });
+});
+
 test('Gleve-MR: im Coop für Spieler 2 wählbar, P2-HUD und Highscore-Badge G', async ({ page }) => {
   await page.evaluate(async () => {
     const Utils = await import('./js/utils.js');

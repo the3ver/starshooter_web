@@ -13,11 +13,26 @@ function laserTasteP1() {
   return isDualHumanCoop ? state.tastenGedrueckt.b : (state.tastenGedrueckt.l || state.tastenGedrueckt.b);
 }
 
+function istOnlineHost() {
+  return Boolean(state.network && state.network.isOnline && state.network.isHost);
+}
+
 // Laser-Taste von P2 (Online-Host: gehaltene Client-Eingabe, Bot: KI-Entscheidung)
 function laserTasteP2() {
-  if (state.network && state.network.isOnline && state.network.isHost) return Boolean(state.p2 && state.p2.laserInputRequested);
+  if (istOnlineHost()) return Boolean(state.p2 && state.p2.laserInputRequested);
   if (state.p2IsBot) return state.p2.botFireLaser || false;
   return state.tastenGedrueckt.ä || state.tastenGedrueckt.numpad1 || state.tastenGedrueckt['.'];
+}
+
+// Dash-Taste von P2: online zusaetzlich ein gemerkter kurzer Druck (Druck und Loslassen im selben Host-Schritt)
+function dashTasteP2() {
+  if (istOnlineHost() && state.p2.netzDashAnfrage) {
+    state.p2.netzDashAnfrage = false;
+    // Jede Anfrage ist ein neuer Druck: ein verpasstes Loslassen nachholen, damit er als Flanke zaehlt
+    state.p2.gleveDashTasteGehalten = false;
+    return true;
+  }
+  return laserTasteP2();
 }
 
 // Aktuelle Steuerrichtung von P1 (Joystick oder Tasten, Hacks angewendet)
@@ -36,11 +51,16 @@ function steuerRichtungP1() {
   return Hack.hackeBewegung(state, (right ? 1 : 0) - (left ? 1 : 0), (down ? 1 : 0) - (up ? 1 : 0));
 }
 
-// Aktuelle Steuerrichtung von P2: lokal die Pfeiltasten, sonst die letzte Bewegung
+// Aktuelle Steuerrichtung von P2: lokal die Pfeiltasten, online die vom Client gemeldete Richtung
+// (Hacks dort bereits angewendet), beim Bot die gewaehlte Dash-Richtung, sonst die letzte Bewegung
 function steuerRichtungP2() {
   if (state.gameMode === 'coop' && !state.p2IsBot) {
     const t = state.tastenGedrueckt;
     return Hack.hackeBewegung(state.p2, (t.arrowright ? 1 : 0) - (t.arrowleft ? 1 : 0), (t.arrowdown ? 1 : 0) - (t.arrowup ? 1 : 0));
+  }
+  if (istOnlineHost() && state.p2.netzRichtung) return state.p2.netzRichtung;
+  if (state.p2IsBot && state.p2.botDashRichtung) {
+    return Hack.hackeBewegung(state.p2, state.p2.botDashRichtung.dx, state.p2.botDashRichtung.dy);
   }
   return { dx: state.p2.spielerVx || 0, dy: -(state.p2.spielerVy || 0) };
 }
@@ -187,7 +207,7 @@ export function bewegeSpieler() {
       const speedMultP2 = Math.max(0.1, 1.0 - 0.10 * towedCountP2);
       const p2Speed = ((shipModels && shipModels[state.p2.selectedShipModel]?.speed) || config.geschwindigkeit) * speedMultP2;
 
-      const gleveDashP2 = Gleve.istGleve(state.p2) && Gleve.aktualisiereGleve(state.p2, 'p2', laserTasteP2(), steuerRichtungP2());
+      const gleveDashP2 = Gleve.istGleve(state.p2) && Gleve.aktualisiereGleve(state.p2, 'p2', dashTasteP2(), steuerRichtungP2());
 
       if (gleveDashP2) {
         // Gleve-Dash/Abprall uebernimmt die Bewegung

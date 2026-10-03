@@ -403,7 +403,7 @@ test('Eingaben: Client sendet nur bei Tastenwechsel sofort, Bewegung jeden 2. Sc
   });
   expect(r).toEqual({
     ruhe90: 3, druck: 1, druckWert: true, halten: 0, loslassen: 1, loslassenWert: false,
-    bewegung20: 10, xGerundet: true, version: 2
+    bewegung20: 10, xGerundet: true, version: 3
   });
 });
 

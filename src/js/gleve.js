@@ -67,6 +67,7 @@ function starteDash(pState, pKey, richtung) {
     dy /= laenge;
   }
   if (!pState.unbegrenzteEnergie) pState.energie -= dashKosten(pState);
+  pState.gleveDashRichtung = { dx, dy };
   const schritt = dashReichweite(pState) / DASH_FRAMES;
   pState.gleveDashVx = dx * schritt;
   pState.gleveDashVy = dy * schritt;
@@ -258,6 +259,142 @@ export function aktualisiereGleve(pState, pKey, tasteGedrueckt, richtung) {
   return uebernommen;
 }
 
+// --- ONLINE-CLIENT ---
+// Der Client steuert sein Schiff selbst und schickt die Position an den Host. Den eigenen Dash sagt er
+// mit derselben Bewegung voraus: Im Schritt des Tastendrucks bleibt das Schiff stehen und das Eingabe-Paket
+// traegt Startposition und Richtung zum Host, der von genau dort aus dasht (und solange Client-Positionen
+// ignoriert). Ab dem naechsten Schritt laufen beide Dashs gleich. Treffer, Schaden und der Abprall bleiben
+// beim Host: An Bossen/Magma haelt die Vorhersage nur an, den Abprall uebernimmt der Client aus dem Snapshot.
+
+// Steht das Schiff im naechsten Dash-Schritt in einem Hindernis (Boss, Magma unter Stufe 5)?
+function hindernisAufClient(pState) {
+  const stufe5 = (pState.laserStufe || 1) >= 5;
+  for (const b of arrays.bosses) {
+    if (ueberlappt(pState, b, (b.groesse || 100) * 0.15)) return true;
+  }
+  if (!stufe5) {
+    for (const a of arrays.asteroiden) {
+      if (a.istUnzerstoerbar && ueberlappt(pState, a)) return true;
+    }
+  }
+  return false;
+}
+
+// Pro Client-Schritt fuer das eigene Schiff (vor der normalen Steuerung). Liefert true, wenn
+// Dash/Abprall die Bewegung in diesem Schritt uebernimmt.
+export function sageDashVorher(pState, tasteGedrueckt, richtung) {
+  const flanke = !!tasteGedrueckt && !pState.gleveDashTasteGehalten;
+  pState.gleveDashTasteGehalten = !!tasteGedrueckt;
+  if (pState.isDead) {
+    pState.gleveDashTimer = 0;
+    pState.gleveNetzAbprall = null;
+    return false;
+  }
+
+  // Abprall vom Host: zur gemeldeten Host-Position gleiten
+  if (pState.gleveNetzAbprall) {
+    const ziel = pState.gleveNetzAbprall;
+    pState.x += (ziel.x - pState.x) / 2;
+    pState.y += (ziel.y - pState.y) / 2;
+    begrenzeAufSpielfeld(pState);
+    // Sicherheitsnetz, falls kein Snapshot mehr kommt
+    if (++ziel.schritte > ABPRALL_FRAMES + ABPRALL_NACHLAUF_FRAMES) {
+      pState.gleveNetzAbprall = null;
+      pState.gleveAbprallTimer = 0;
+    }
+    return true;
+  }
+
+  if ((pState.gleveDashTimer || 0) > 0) {
+    const altX = pState.x;
+    const altY = pState.y;
+    pState.x += pState.gleveDashVx;
+    pState.y += pState.gleveDashVy;
+    begrenzeAufSpielfeld(pState);
+    pState.gleveDashTimer--;
+    if (hindernisAufClient(pState)) {
+      // Am Hindernis stehen bleiben, der Host meldet den Abprall
+      pState.x = altX;
+      pState.y = altY;
+      pState.gleveDashTimer = 0;
+    }
+    return true;
+  }
+
+  if (flanke && kannDashen(pState)) {
+    starteDash(pState, 'p2', richtung);
+    pState.gleveDashStartX = pState.x;
+    pState.gleveDashStartY = pState.y;
+    return true; // Startschritt ohne Bewegung (siehe oben)
+  }
+  return false;
+}
+
+// Was der Client dem Host meldet: waehrend des vorhergesagten Dashs Startposition und Dash-Richtung
+export function netzEingabe(pState, richtung) {
+  if (istGleve(pState) && (pState.gleveDashTimer || 0) > 0 && pState.gleveDashRichtung) {
+    return { x: pState.gleveDashStartX, y: pState.gleveDashStartY, rx: pState.gleveDashRichtung.dx, ry: pState.gleveDashRichtung.dy };
+  }
+  return { x: pState.x, y: pState.y, rx: richtung ? richtung.dx : 0, ry: richtung ? richtung.dy : 0 };
+}
+
+// Gleve-Zustand eines Spielers aus dem Host-Snapshot uebernehmen. eigenes: Schiff des Clients
+// (Dash lokal vorhergesagt, vom Host kommen nur Abprall, Sweep und Unverwundbarkeit).
+export function uebernehmeSnapshot(pState, daten, eigenes) {
+  if (!daten || daten.gleveSweepTimer === undefined) return;
+  const sweepTimer = daten.gleveSweepTimer || 0;
+  const sweepRichtung = daten.gleveSweepRichtung || 0;
+  // Neuer Sweep: Richtung wechselt bei jedem Einsatz
+  if (sweepTimer > 0 && sweepRichtung !== (pState.gleveSweepRichtung || 0)) Audio.playSweep(pState.raketenStufe);
+  pState.gleveSweepTimer = sweepTimer;
+  pState.gleveSweepWinkel = daten.gleveSweepWinkel || 0;
+  pState.gleveSweepRichtung = sweepRichtung;
+  pState.gleveUnverwundbar = daten.gleveUnverwundbar || 0;
+
+  const abprall = daten.gleveAbprallTimer || 0;
+  if (eigenes) {
+    if (abprall > 0) {
+      pState.gleveDashTimer = 0;
+      pState.gleveAbprallTimer = abprall;
+      pState.gleveNetzAbprall = { x: daten.x, y: daten.y, schritte: 0 };
+    } else if (pState.gleveNetzAbprall) {
+      // Abprall auf dem Host beendet: Landepunkt uebernehmen, danach steuert wieder der Client
+      if (Number.isFinite(daten.x)) pState.x = daten.x;
+      if (Number.isFinite(daten.y)) pState.y = daten.y;
+      pState.gleveNetzAbprall = null;
+      pState.gleveAbprallTimer = 0;
+    }
+  } else {
+    const dash = daten.gleveDashTimer || 0;
+    if (dash > 0 && !istDashAktiv(pState)) Audio.playDash(pState.laserStufe);
+    pState.gleveDashTimer = dash;
+    pState.gleveAbprallTimer = abprall;
+  }
+}
+
+// Pro Client-Schritt fuer beide Schiffe: Dash-Darstellung und Sweep-Klinge zwischen den Snapshots
+export function zeigeGleveZustand(pState, pKey) {
+  const el = schiffElement(pKey);
+  const gleve = istGleve(pState) && !pState.isDead;
+  const dash = gleve && istDashAktiv(pState);
+  if (el) el.classList.toggle('gleve-dash', dash);
+  if (dash) erzeugeNachbild(pState);
+
+  if (gleve && istSweepAktiv(pState)) {
+    zeigeKlinge(pState, pKey);
+    // Strahl bis zum naechsten Snapshot weiterdrehen
+    pState.gleveSweepWinkel += (pState.gleveSweepRichtung || 1) * SWEEP_BOGEN / SWEEP_FRAMES;
+    pState.gleveSweepTimer--;
+    if (pState.gleveSweepTimer <= 0) {
+      pState.gleveSweepTimer = 0;
+      entferneKlinge(pKey);
+      erzeugeFaecherSpur(pState);
+    }
+  } else if (klingen[pKey]) {
+    entferneKlinge(pKey);
+  }
+}
+
 // --- LASER-SWEEP ---
 
 export const SWEEP_FRAMES = 10;
@@ -416,10 +553,16 @@ function schleudereWeg(p, o) {
   p.lenkZeit = 0; // Hack-Projektile lenken nicht mehr nach
   p.vx = seite * 9;
   p.vy = -1.5;
-  if (p.el) {
-    p.el.classList.add('gleve-pariert');
-    faerbeOrange(p.el);
-    p.el.style.transform = `rotate(${Math.atan2(p.vy, p.vx) * 180 / Math.PI - 90}deg)`;
+  zeigePariert(p.el, p.vx, p.vy);
+}
+
+// Darstellung eines weggeschleuderten Geschosses (auch beim Online-Client aus dem harmlos-Flag)
+export function zeigePariert(el, vx, vy) {
+  if (!el) return;
+  el.classList.add('gleve-pariert');
+  faerbeOrange(el);
+  if (Number.isFinite(vx) && Number.isFinite(vy) && (vx || vy)) {
+    el.style.transform = `rotate(${Math.atan2(vy, vx) * 180 / Math.PI - 90}deg)`;
   }
 }
 

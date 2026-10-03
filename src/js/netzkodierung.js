@@ -12,7 +12,7 @@
 //   Delta eines Objekts: geaenderte Felder, '_d' = entfernte Felder, '_r' = Wert ersetzt.
 //   Fehlt 'i', bleiben die Ids wie im letzten Paket; fehlt eine Liste, ist sie unveraendert.
 
-export const PROTOKOLL_VERSION = 2;
+export const PROTOKOLL_VERSION = 3;
 export const KEYFRAME_INTERVALL = 30;   // jedes 30. Paket ist ein Keyframe (~1 s)
 export const DR_TOLERANZ = 0.5;         // px, ab dieser Abweichung wird x/y mitgesendet
 
@@ -29,6 +29,7 @@ const BEWEGUNG = { laser: -1, feindLaser: 1, bossLaser: 1, bossRaketen: 1 };
 
 const runde1 = (v) => (Math.round(v * 10) / 10) || 0;
 const runde0 = (v) => Math.round(v) || 0;
+const runde2 = (v) => (Math.round(v * 100) / 100) || 0;
 
 // Rundung je Feldname. Ids, Typen, Besitzer, Texte und Booleans werden nie gerundet.
 export const RUNDUNG = {
@@ -37,7 +38,10 @@ export const RUNDUNG = {
     rot: runde0, rotate: runde0,
     hp: runde0, maxHp: runde0, schildHp: runde0,
     raketenCooldown: runde0, bombenCooldown: runde0,
-    phantomSchildRegenTimer: runde0
+    phantomSchildRegenTimer: runde0,
+    // Gleve: Restframes ganzzahlig, Strahlwinkel (Grad, Schritte von 4,5) mit 1 Nachkommastelle
+    gleveDashTimer: runde0, gleveAbprallTimer: runde0, gleveUnverwundbar: runde0,
+    gleveSweepTimer: runde0, gleveSweepWinkel: runde1, gleveSweepRichtung: runde0
 };
 
 function rundungsErsetzer(schluessel, wert) {
@@ -344,6 +348,11 @@ export class EingabeSender {
             rakete: Boolean(eingabe.rakete),
             bombe: Boolean(eingabe.bombe)
         };
+        // Gleve: Steuerrichtung fuer den Dash (2 Nachkommastellen), geht mit jedem Paket mit
+        if (Number.isFinite(eingabe.rx) && Number.isFinite(eingabe.ry)) {
+            e.rx = runde2(eingabe.rx);
+            e.ry = runde2(eingabe.ry);
+        }
         const l = this.letzte;
         const seit = this.schritt - this.letzterVersand;
         const tastenGeaendert = !l || l.laser !== e.laser || l.rakete !== e.rakete || l.bombe !== e.bombe;

@@ -8,6 +8,7 @@ import { entferneTraktorstrahl } from './powerups.js';
 import { beendePause, verarbeitePauseEvent } from './pause.js';
 import { GAME_VERSION } from './changelog.js';
 import { PROTOKOLL_VERSION, KEYFRAME_INTERVALL, SnapshotKodierer, SnapshotDekodierer, EingabeSender } from './netzkodierung.js';
+import * as Gleve from './gleve.js';
 
 let room = null;
 let sendStateAction = null;
@@ -45,6 +46,8 @@ function setzeNetzEingabenZurueck() {
     state.p2.bombeGehalten = false;
     state.p2.networkFireRakete = false;
     state.p2.networkFireBombe = false;
+    state.p2.netzDashAnfrage = false;
+    state.p2.netzRichtung = null;
 }
 
 // Beide Peers schicken nach dem Verbinden ihre Protokollversion. Alte Versionen schicken kein
@@ -449,6 +452,8 @@ export function startOnlineGame() {
     kodierer.erzwingeKeyframe();
     eingabeSender.reset();
     if (state.network.isHost) setzeNetzEingabenZurueck();
+    // HUD-Beschriftungen (Gleve: ANTRIEB/SWEEP) fuer beide Schiffe, Mobile-Button fuer den lokalen Spieler
+    Utils.updateSchiffHudLabels();
     if (dom.spieler) dom.spieler.classList.remove('spieler-blink');
     if (dom.spieler2) dom.spieler2.classList.remove('spieler-blink');
 
@@ -770,6 +775,24 @@ export function disconnectNetwork() {
     if (statusEl) statusEl.style.display = 'none';
 }
 
+// Dash-/Sweep-Zustand der Gleve fuer die Darstellung beim Client (nur fuer Gleve-Schiffe)
+function gleveZustand(s) {
+    if (!Gleve.istGleve(s)) return {};
+    return {
+        gleveDashTimer: s.gleveDashTimer || 0,
+        gleveAbprallTimer: s.gleveAbprallTimer || 0,
+        gleveUnverwundbar: s.gleveUnverwundbar || 0,
+        gleveSweepTimer: s.gleveSweepTimer || 0,
+        gleveSweepWinkel: s.gleveSweepWinkel || 0,
+        gleveSweepRichtung: s.gleveSweepRichtung || 0
+    };
+}
+
+// Von der Gleve weggeschleuderte Geschosse (fehlend = false)
+function harmlosFlag(o) {
+    return o.harmlos ? { harmlos: true } : {};
+}
+
 export function serializeGameState() {
     return {
         p1: {
@@ -795,7 +818,8 @@ export function serializeGameState() {
             splitterWeiss: state.splitterWeiss || 0,
             phantomSchildRegenTimer: state.phantomSchildRegenTimer || 0,
             phantomSchildRegenMax: state.phantomSchildRegenMax || 900,
-            hacks: state.hacks || []
+            hacks: state.hacks || [],
+            ...gleveZustand(state)
         },
         p2: state.p2 ? {
             x: state.p2.x,
@@ -820,7 +844,8 @@ export function serializeGameState() {
             splitterWeiss: state.p2.splitterWeiss || 0,
             phantomSchildRegenTimer: state.p2.phantomSchildRegenTimer || 0,
             phantomSchildRegenMax: state.p2.phantomSchildRegenMax || 900,
-            hacks: state.p2.hacks || []
+            hacks: state.p2.hacks || [],
+            ...gleveZustand(state.p2)
         } : null,
         score: state.score,
         level: state.level,
@@ -895,14 +920,16 @@ export function serializeGameState() {
         hackProjektile: arrays.hackProjektilArray.map(hp => ({
             id: hp.id,
             x: hp.x,
-            y: hp.y
+            y: hp.y,
+            ...harmlosFlag(hp)
         })),
         feindLaser: arrays.feindLaserArray.map((fl) => ({
             id: fl.id,
             x: fl.x,
             y: fl.y,
             vx: fl.vx || 0,
-            vy: fl.vy || 7
+            vy: fl.vy || 7,
+            ...harmlosFlag(fl)
         })),
         bossLaser: arrays.bossLaserArray.map((bl) => ({
             id: bl.id,
@@ -911,7 +938,8 @@ export function serializeGameState() {
             vx: bl.vx || 0,
             vy: bl.vy || 6,
             width: bl.width || 8,
-            height: bl.height || 25
+            height: bl.height || 25,
+            ...harmlosFlag(bl)
         })),
         bossRaketen: arrays.bossRaketenArray.map((br) => ({
             id: br.id,
@@ -962,6 +990,26 @@ function synchronisiereListe(liste, datenListe, erzeuge, aktualisiere) {
     });
     liste.length = 0;
     neueListe.forEach(obj => liste.push(obj));
+}
+
+// Von der Gleve weggeschleudert: orange einfaerben und in Flugrichtung drehen (einmalig)
+function uebernehmeHarmlos(obj, daten) {
+    if (!daten.harmlos || obj.harmlos) return;
+    obj.harmlos = true;
+    Gleve.zeigePariert(obj.el, daten.vx, daten.vy);
+}
+
+// Max-Cooldown fuer den Raketen-HUD-Balken (Gleve: Sweep-Cooldown)
+function maxRaketenCooldown(s) {
+    if (Gleve.istGleve(s)) return Gleve.sweepCooldown(s);
+    if (s.raketenStufe >= 4) return 120;
+    if (s.raketenStufe >= 2) return 150;
+    return 180;
+}
+
+// Ab welcher Energie die Primaerwaffe bereit ist (Gleve: Dash-Kosten), fuer die Balkenfarbe
+function zuendSchwelle(s) {
+    return Gleve.istGleve(s) ? Gleve.dashKosten(s) : (s.minZuendEnergie || 15);
 }
 
 // Waffenstufen und HUD-Flags eines Spielers aus dem Snapshot uebernehmen (fehlende Stufen bleiben)
@@ -1022,6 +1070,8 @@ export function applyGameStateSnapshot(snapshot) {
         uebernehmeWaffenStufen(state, snapshot.p1);
         state.isDead = snapshot.p1.isDead || false;
         state.hacks = snapshot.p1.hacks || [];
+        // Gleve des Hosts: Dash/Abprall/Sweep nur darstellen (clientSchritt zeichnet)
+        Gleve.uebernehmeSnapshot(state, snapshot.p1, false);
 
         if (dom.spieler) {
             setzeInterpolationsZiel(p1Anzeige, dom.spieler, state.x, state.y);
@@ -1040,16 +1090,14 @@ export function applyGameStateSnapshot(snapshot) {
             if (state.unbegrenzteEnergie) {
                 dom.energieBalken.style.backgroundColor = '#f1c40f';
             } else {
-                dom.energieBalken.style.backgroundColor = state.energie < (state.minZuendEnergie || 15) && !state.laserSchiesst ? '#e67e22' : '#1abc9c';
+                dom.energieBalken.style.backgroundColor = state.energie < zuendSchwelle(state) && !state.laserSchiesst ? '#e67e22' : '#1abc9c';
             }
         }
         if (snapshot.p1.raketenCooldown !== undefined) {
             state.raketenCooldown = snapshot.p1.raketenCooldown;
             const raketenCdBalken = document.getElementById('raketen-cd-balken');
             if (raketenCdBalken) {
-                let maxRaketenCd = 180;
-                if (state.raketenStufe >= 2 && state.raketenStufe <= 3) maxRaketenCd = 150;
-                if (state.raketenStufe >= 4) maxRaketenCd = 120;
+                const maxRaketenCd = maxRaketenCooldown(state);
                 let pctR = Math.max(0, 100 - state.raketenCooldown / maxRaketenCd * 100);
                 raketenCdBalken.style.width = pctR + '%';
                 raketenCdBalken.style.backgroundColor = state.raketenCooldown <= 0 ? '#2ecc71' : '#e74c3c';
@@ -1086,6 +1134,8 @@ export function applyGameStateSnapshot(snapshot) {
         state.p2.schildStufe = snapshot.p2.schildStufe || 0;
         uebernehmeWaffenStufen(state.p2, snapshot.p2);
         state.p2.isDead = snapshot.p2.isDead || false;
+        // Eigene Gleve: Dash sagt client.js voraus, Abprall und Sweep kommen vom Host
+        Gleve.uebernehmeSnapshot(state.p2, snapshot.p2, true);
 
         if (dom.spieler2) {
             dom.spieler2.classList.remove('schild-aktiv-1', 'schild-aktiv-2', 'schild-aktiv-3');
@@ -1097,15 +1147,13 @@ export function applyGameStateSnapshot(snapshot) {
 
         if (dom.energieBalkenP2) {
             dom.energieBalkenP2.style.width = (state.p2.energie / (state.p2.absMaxEnergie || 100)) * 100 + '%';
-            dom.energieBalkenP2.style.backgroundColor = state.p2.energie < (state.p2.minZuendEnergie || 15) && !state.p2.laserSchiesst ? '#e67e22' : '#3498db';
+            dom.energieBalkenP2.style.backgroundColor = state.p2.energie < zuendSchwelle(state.p2) && !state.p2.laserSchiesst ? '#e67e22' : '#3498db';
         }
         if (snapshot.p2.raketenCooldown !== undefined) {
             state.p2.raketenCooldown = snapshot.p2.raketenCooldown;
             const raketenCdBalkenP2 = document.getElementById('raketen-cd-balken-p2');
             if (raketenCdBalkenP2) {
-                let maxRaketenCd = 180;
-                if (state.p2.raketenStufe >= 2 && state.p2.raketenStufe <= 3) maxRaketenCd = 150;
-                if (state.p2.raketenStufe >= 4) maxRaketenCd = 120;
+                const maxRaketenCd = maxRaketenCooldown(state.p2);
                 let pctR = Math.max(0, 100 - state.p2.raketenCooldown / maxRaketenCd * 100);
                 raketenCdBalkenP2.style.width = pctR + '%';
                 raketenCdBalkenP2.style.backgroundColor = state.p2.raketenCooldown <= 0 ? '#2ecc71' : '#e74c3c';
@@ -1462,7 +1510,7 @@ export function applyGameStateSnapshot(snapshot) {
             el.style.transform = `rotate(${winkel - 90}deg)`;
         }
         spielfeld.appendChild(el);
-        return {
+        const obj = {
             id: flData.id,
             el: el,
             x: flData.x,
@@ -1470,6 +1518,8 @@ export function applyGameStateSnapshot(snapshot) {
             vx: flData.vx,
             vy: flData.vy
         };
+        uebernehmeHarmlos(obj, flData);
+        return obj;
     }, (obj, flData) => {
         obj.x = flData.x;
         obj.y = flData.y;
@@ -1481,6 +1531,7 @@ export function applyGameStateSnapshot(snapshot) {
             let winkel = Math.atan2(flData.vy || 7, flData.vx) * 180 / Math.PI;
             obj.el.style.transform = `rotate(${winkel - 90}deg)`;
         }
+        uebernehmeHarmlos(obj, flData);
     });
 
     // 11b. Replicate Hack-Projektile
@@ -1490,13 +1541,16 @@ export function applyGameStateSnapshot(snapshot) {
         el.style.left = hpData.x + 'px';
         el.style.top = hpData.y + 'px';
         spielfeld.appendChild(el);
-        return { id: hpData.id, el: el, x: hpData.x, y: hpData.y, vx: 0, vy: 0, width: 12, height: 12, snapX: hpData.x, snapY: hpData.y };
+        const obj = { id: hpData.id, el: el, x: hpData.x, y: hpData.y, vx: 0, vy: 0, width: 12, height: 12, snapX: hpData.x, snapY: hpData.y };
+        uebernehmeHarmlos(obj, hpData);
+        return obj;
     }, (obj, hpData) => {
         leiteGeschwindigkeitAb(obj, hpData.x, hpData.y);
         obj.x = hpData.x;
         obj.y = hpData.y;
         obj.el.style.left = hpData.x + 'px';
         obj.el.style.top = hpData.y + 'px';
+        uebernehmeHarmlos(obj, hpData);
     });
 
     // 12. Replicate Boss Lasers
@@ -1510,7 +1564,7 @@ export function applyGameStateSnapshot(snapshot) {
             el.style.transform = `rotate(${winkel - 90}deg)`;
         }
         spielfeld.appendChild(el);
-        return {
+        const obj = {
             id: blData.id,
             el: el,
             x: blData.x,
@@ -1518,6 +1572,8 @@ export function applyGameStateSnapshot(snapshot) {
             vx: blData.vx,
             vy: blData.vy
         };
+        uebernehmeHarmlos(obj, blData);
+        return obj;
     }, (obj, blData) => {
         obj.x = blData.x;
         obj.y = blData.y;
@@ -1529,6 +1585,7 @@ export function applyGameStateSnapshot(snapshot) {
             let winkel = Math.atan2(blData.vy || 6, blData.vx) * 180 / Math.PI;
             obj.el.style.transform = `rotate(${winkel - 90}deg)`;
         }
+        uebernehmeHarmlos(obj, blData);
     });
 
     // 13. Replicate Boss Rockets
@@ -1651,10 +1708,13 @@ export function serializePlayerInput() {
     const isLaser = Boolean(keys.l || keys.b);
     const isRakete = Boolean(keys.k || keys.v);
     const isBombe = Boolean(keys[' '] || keys.c || keys.enter);
+    // Gleve: Steuerrichtung fuer den Dash; waehrend des vorhergesagten Dashs Startposition und Dash-Richtung
+    const gleve = state.p2 && Gleve.istGleve(state.p2) ? Gleve.netzEingabe(state.p2, state.p2.clientSteuerRichtung) : null;
 
     return {
-        x: state.p2 ? state.p2.x : state.x,
-        y: state.p2 ? state.p2.y : state.y,
+        x: gleve ? gleve.x : (state.p2 ? state.p2.x : state.x),
+        y: gleve ? gleve.y : (state.p2 ? state.p2.y : state.y),
+        ...(gleve ? { rx: gleve.rx, ry: gleve.ry } : {}),
         rotate: state.p2 ? (state.p2.rotate || 0) : (state.rotate || 0),
         laser: isLaser,
         rakete: isRakete,
@@ -1665,16 +1725,27 @@ export function serializePlayerInput() {
 export function applyPlayerInput(input) {
     if (!input || !state.p2) return;
 
-    // Client-Werte nicht vertrauen: nur endliche Zahlen, begrenzt auf das Spielfeld
-    if (Number.isFinite(input.x)) {
+    // Client-Werte nicht vertrauen: nur endliche Zahlen, begrenzt auf das Spielfeld.
+    // Waehrend Gleve-Dash/-Abprall bewegt der Host das Schiff selbst (Treffer und Abprall sind Host-Sache).
+    const dashAktiv = Gleve.istGleve(state.p2) && Gleve.istDashAktiv(state.p2);
+    if (Number.isFinite(input.x) && !dashAktiv) {
         state.p2.x = Math.min(Math.max(input.x, 0), config.spielfeldBreite - config.spielerGroesse);
     }
-    if (Number.isFinite(input.y)) {
+    if (Number.isFinite(input.y) && !dashAktiv) {
         state.p2.y = Math.min(Math.max(input.y, 0), config.spielfeldHoehe - config.spielerGroesse);
     }
     state.p2.rotate = input.rotate || 0;
 
+    // Gleve: Dash-Richtung des Clients (Betrag hoechstens 1)
+    if (Number.isFinite(input.rx) && Number.isFinite(input.ry)) {
+        const laenge = Math.hypot(input.rx, input.ry);
+        const f = laenge > 1 ? 1 / laenge : 1;
+        state.p2.netzRichtung = { dx: input.rx * f, dy: input.ry * f };
+    }
+
     if (input.laser !== undefined) {
+        // Neuer Druck bleibt fuer den Gleve-Dash gemerkt, auch wenn das Loslassen im selben Host-Schritt ankommt
+        if (input.laser && !state.p2.laserInputRequested) state.p2.netzDashAnfrage = true;
         state.p2.laserInputRequested = Boolean(input.laser);
     }
 

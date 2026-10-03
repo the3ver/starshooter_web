@@ -204,6 +204,145 @@ test('Online-Client: Projektile fliegen zwischen Snapshots mit ihrer Geschwindig
   expect(r.rakete).toEqual([60, 295, '60px', '295px']);
 });
 
+test('Online: Gleve-Zustand und harmlos-Flag gehen in den Snapshot, Client zeigt Dash, Klinge und parierte Geschosse', async ({ page }) => {
+  const r = await page.evaluate(async () => {
+    const g = window.__game;
+    const { state, arrays, dom } = g;
+    const NK = await import('./js/netzkodierung.js');
+    const { simulationsSchritt } = await import('./js/loop.js');
+    const out = {};
+
+    // Host-Seite: Gleve-Felder nur fuer Gleve-Schiffe, harmlos nur bei weggeschleuderten Geschossen
+    state.selectedShipModel = 'gleve';
+    state.p2.selectedShipModel = 'viper';
+    Object.assign(state, { gleveDashTimer: 5, gleveAbprallTimer: 0, gleveUnverwundbar: 13, gleveSweepTimer: 7, gleveSweepWinkel: -9, gleveSweepRichtung: 1 });
+    g.Entities.erzeugeFeindLaser(100, 100);
+    g.Entities.erzeugeFeindLaser(150, 100);
+    arrays.feindLaserArray[0].harmlos = true;
+    const voll = g.Network.serializeGameState();
+    out.p1Felder = [voll.p1.gleveDashTimer, voll.p1.gleveUnverwundbar, voll.p1.gleveSweepTimer, voll.p1.gleveSweepWinkel, voll.p1.gleveSweepRichtung];
+    out.p2OhneGleve = voll.p2.gleveSweepTimer === undefined;
+    out.harmlos = voll.feindLaser.map(f => f.harmlos === true);
+    // Ueber Kodierer/Dekodierer (Rundung) kommt alles an
+    const paket = new NK.SnapshotKodierer().kodiere(voll, 0);
+    const dek = new NK.SnapshotDekodierer().dekodiere(JSON.parse(JSON.stringify(paket)));
+    out.dekodiert = [dek.p1.gleveDashTimer, dek.p1.gleveSweepWinkel, dek.p1.gleveSweepRichtung, dek.feindLaser[0].harmlos === true];
+    arrays.feindLaserArray.forEach(o => o.el.remove());
+    arrays.feindLaserArray.length = 0;
+    Object.assign(state, { gleveDashTimer: 0, gleveUnverwundbar: 0, gleveSweepTimer: 0, gleveSweepWinkel: 0, gleveSweepRichtung: 0 });
+
+    // Client-Seite: beide Schiffe sind Gleves
+    state.p2.selectedShipModel = 'gleve';
+    g.Audio.clearAudioHistory();
+    const gleve = { gleveDashTimer: 5, gleveAbprallTimer: 0, gleveUnverwundbar: 13, gleveSweepTimer: 9, gleveSweepWinkel: -18, gleveSweepRichtung: 1 };
+    const snap = window.__snapshot({
+      feindLaser: [{ id: 'fl_1', x: 100, y: 100, vx: 9, vy: -1.5, harmlos: true }, { id: 'fl_2', x: 150, y: 100, vx: 0, vy: 7 }],
+      bossLaser: [{ id: 'bl_1', x: 200, y: 100, vx: -9, vy: -1.5, width: 8, height: 25, harmlos: true }],
+      hackProjektile: [{ id: 'hp_1', x: 250, y: 100, harmlos: true }]
+    });
+    Object.assign(snap.p1, gleve);
+    g.Network.applyGameStateSnapshot(snap);
+    simulationsSchritt();
+    const klinge = document.querySelector('.gleve-klinge');
+    out.client = {
+      dashKlasse: dom.spieler.classList.contains('gleve-dash'),
+      klinge: klinge ? klinge.style.transform : null,
+      winkelDanach: state.gleveSweepWinkel,
+      sounds: g.Audio.audioHistory.map(a => a.name).filter(n => n === 'dash' || n === 'sweep').sort(),
+      pariert: [arrays.feindLaserArray[0].el.classList.contains('gleve-pariert'), arrays.feindLaserArray[1].el.classList.contains('gleve-pariert'),
+        arrays.bossLaserArray[0].el.classList.contains('gleve-pariert'), arrays.hackProjektilArray[0].el.classList.contains('gleve-pariert')],
+      farbe: arrays.feindLaserArray[0].el.style.backgroundColor
+    };
+    // Gleicher Zustand noch einmal: keine neuen Sounds
+    g.Network.applyGameStateSnapshot(JSON.parse(JSON.stringify(snap)));
+    out.soundsNachZweitem = g.Audio.audioHistory.filter(a => a.name === 'dash' || a.name === 'sweep').length;
+
+    // Dash und Sweep vorbei: Klasse und Klinge weg
+    const ende = window.__snapshot();
+    Object.assign(ende.p1, gleve, { gleveDashTimer: 0, gleveSweepTimer: 0, gleveSweepWinkel: 22.5 });
+    g.Network.applyGameStateSnapshot(ende);
+    simulationsSchritt();
+    out.ende = { dashKlasse: dom.spieler.classList.contains('gleve-dash'), klingen: document.querySelectorAll('.gleve-klinge').length };
+    return out;
+  });
+  expect(r.p1Felder).toEqual([5, 13, 7, -9, 1]);
+  expect(r.p2OhneGleve).toBe(true);
+  expect(r.harmlos).toEqual([true, false]);
+  expect(r.dekodiert).toEqual([5, -9, 1, true]);
+  expect(r.client.dashKlasse).toBe(true);
+  expect(r.client.klinge).toBe('rotate(-18deg)');
+  expect(r.client.winkelDanach).toBeCloseTo(-13.5, 5);
+  expect(r.client.sounds).toEqual(['dash', 'sweep']);
+  expect(r.client.pariert).toEqual([true, false, true, true]);
+  expect(r.client.farbe).toBe('rgb(230, 126, 34)');
+  expect(r.soundsNachZweitem).toBe(2);
+  expect(r.ende).toEqual({ dashKlasse: false, klingen: 0 });
+});
+
+test('Online-Client: eigener Gleve-Dash wird lokal vorhergesagt, Abprall kommt vom Host', async ({ page }) => {
+  const r = await page.evaluate(async () => {
+    const g = window.__game;
+    const { state, dom } = g;
+    const { simulationsSchritt } = await import('./js/loop.js');
+    const out = {};
+    g.config.spielfeldBreite = 600; // wie in startOnlineGame
+    state.selectedShipModel = 'viper';
+    Object.assign(state.p2, {
+      selectedShipModel: 'gleve', x: 300, y: 400, energie: 50, maxEnergie: 50, laserStufe: 1, isDead: false, hacks: [],
+      gleveDashTimer: 0, gleveAbprallTimer: 0, gleveDashTasteGehalten: false, gleveNetzAbprall: null
+    });
+    g.Audio.clearAudioHistory();
+
+    // Druck mit Richtung rechts: im ersten Schritt steht das Schiff, Paket traegt Start und Richtung
+    state.tastenGedrueckt.l = true;
+    state.tastenGedrueckt.d = true;
+    simulationsSchritt();
+    const paket = state.network.lastSentInput;
+    out.start = { x: state.p2.x, paket: [paket.x, paket.y, paket.laser, paket.rx, paket.ry], energie: state.p2.energie };
+    state.tastenGedrueckt.l = false;
+    state.tastenGedrueckt.d = false;
+    simulationsSchritt();
+    out.loslassenPaket = [state.network.lastSentInput.x, state.network.lastSentInput.laser];
+    out.klasseWaehrend = dom.spieler2.classList.contains('gleve-dash');
+    for (let i = 0; i < 7; i++) simulationsSchritt();
+    out.ende = { x: state.p2.x, y: state.p2.y, klasse: dom.spieler2.classList.contains('gleve-dash'), dashSounds: g.Audio.audioHistory.filter(a => a.name === 'dash').length };
+    simulationsSchritt();
+    out.danach = { x: state.p2.x, paketX: state.network.lastSentInput.x };
+
+    // Host meldet Abprall: Client gleitet zur Host-Position und uebernimmt am Ende den Landepunkt
+    const abprall = window.__snapshot();
+    Object.assign(abprall.p2, { x: 360, y: 440, gleveDashTimer: 0, gleveAbprallTimer: 6, gleveUnverwundbar: 30, gleveSweepTimer: 0, gleveSweepWinkel: 0, gleveSweepRichtung: 0 });
+    g.Network.applyGameStateSnapshot(abprall);
+    simulationsSchritt();
+    out.gleiten = { x: state.p2.x, y: state.p2.y, klasse: dom.spieler2.classList.contains('gleve-dash') };
+    const gelandet = window.__snapshot();
+    Object.assign(gelandet.p2, { x: 365, y: 445, gleveDashTimer: 0, gleveAbprallTimer: 0, gleveUnverwundbar: 25, gleveSweepTimer: 0, gleveSweepWinkel: 0, gleveSweepRichtung: 0 });
+    g.Network.applyGameStateSnapshot(gelandet);
+    out.landung = { x: state.p2.x, y: state.p2.y };
+    simulationsSchritt();
+    out.wiederFrei = dom.spieler2.classList.contains('gleve-dash');
+    return out;
+  });
+  expect(r.start.x).toBe(300);
+  expect(r.start.paket).toEqual([300, 400, true, 1, 0]);
+  expect(r.start.energie).toBeCloseTo(25, 5);
+  // Waehrend des Dashs bleibt die gemeldete Position der Startpunkt
+  expect(r.loslassenPaket).toEqual([300, false]);
+  expect(r.klasseWaehrend).toBe(true);
+  expect(r.ende.x).toBeCloseTo(400, 5);
+  expect(r.ende.y).toBeCloseTo(400, 5);
+  expect(r.ende.klasse).toBe(false);
+  expect(r.ende.dashSounds).toBe(1);
+  // Nach dem Dash steuert und meldet der Client wieder seine echte Position
+  expect(r.danach.x).toBeCloseTo(400, 5);
+  expect(r.danach.paketX).toBe(400);
+  expect(r.gleiten.x).toBeCloseTo(380, 5);
+  expect(r.gleiten.y).toBeCloseTo(420, 5);
+  expect(r.gleiten.klasse).toBe(true);
+  expect(r.landung).toEqual({ x: 365, y: 445 });
+  expect(r.wiederFrei).toBe(false);
+});
+
 test('Online-Client: Gegner und Host-Schiff gleiten zur neuen Snapshot-Position statt zu springen', async ({ page }) => {
   const r = await page.evaluate(async () => {
     const g = window.__game;

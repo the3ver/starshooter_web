@@ -4,6 +4,19 @@ import * as Network from './network.js';
 import * as Hack from './hack.js';
 import { animierenPartikel } from './partikel.js';
 import { zeichneTraktorstrahl, entferneTraktorstrahl } from './powerups.js';
+import * as Gleve from './gleve.js';
+
+// Steuerrichtung des Clients (Joystick normalisiert oder Tasten, Hacks angewendet)
+function steuerRichtung(keys) {
+  if (state.joystick && state.joystick.active) {
+    const mag = Math.sqrt(state.joystick.x * state.joystick.x + state.joystick.y * state.joystick.y);
+    if (mag <= 0.1) return { dx: 0, dy: 0 };
+    return Hack.hackeBewegung(state.p2, state.joystick.x / mag, state.joystick.y / mag);
+  }
+  return Hack.hackeBewegung(state.p2,
+    ((keys.d || keys.arrowright) ? 1 : 0) - ((keys.a || keys.arrowleft) ? 1 : 0),
+    ((keys.s || keys.arrowdown) ? 1 : 0) - ((keys.w || keys.arrowup) ? 1 : 0));
+}
 
 
 // --- GLAETTUNG ZWISCHEN HOST-SNAPSHOTS ---
@@ -153,7 +166,17 @@ export function clientSchritt() {
     const p2Speed = (shipModels && shipModels[state.p2.selectedShipModel]?.speed) || config.geschwindigkeit;
     const keys = state.tastenGedrueckt;
 
-    if (state.joystick && state.joystick.active) {
+    // Gleve: Steuerrichtung (fuer Dash und Eingabe-Paket) und lokal vorhergesagter Dash
+    let gleveDash = false;
+    if (Gleve.istGleve(state.p2)) {
+      const richtung = steuerRichtung(keys);
+      state.p2.clientSteuerRichtung = richtung;
+      gleveDash = Gleve.sageDashVorher(state.p2, keys.l || keys.b, richtung);
+    }
+
+    if (gleveDash) {
+      baseFlameScaleP2 = 2.2;
+    } else if (state.joystick && state.joystick.active) {
       let mag = Math.sqrt(state.joystick.x * state.joystick.x + state.joystick.y * state.joystick.y);
       if (mag > 0.1) {
         const b = Hack.hackeBewegung(state.p2, state.joystick.x / mag, state.joystick.y / mag);
@@ -201,6 +224,10 @@ export function clientSchritt() {
     if (fLeftP2) fLeftP2.style.transform = `scaleY(${baseFlameScaleP2})`;
     if (fRightP2) fRightP2.style.transform = `scaleY(${baseFlameScaleP2})`;
   }
+
+  // Gleve-Effekte beider Schiffe (Dash-Klasse, Nachbilder, Sweep-Klinge)
+  Gleve.zeigeGleveZustand(state, 'p1');
+  if (state.p2) Gleve.zeigeGleveZustand(state.p2, 'p2');
 
   // Entfernte Objekte zwischen den Snapshots weiterbewegen
   extrapoliereProjektile();

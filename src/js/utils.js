@@ -569,6 +569,12 @@ function setzeGleveDashZurueck(pState, schiffEl) {
   pState.gleveSweepWinkel = 0;
   pState.gleveSweepRichtung = 0;
   pState.gleveSweepTreffer = [];
+  // Online: Dash-Richtung, Client-Vorhersage und Bot-Dash
+  pState.gleveDashRichtung = null;
+  pState.gleveNetzAbprall = null;
+  pState.netzRichtung = null;
+  pState.netzDashAnfrage = false;
+  pState.botDashRichtung = null;
   if (schiffEl) schiffEl.classList.remove('gleve-dash');
 }
 

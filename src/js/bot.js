@@ -1,5 +1,7 @@
 
 import { state, config, arrays, shipModels } from './state.js';
+import * as Gleve from './gleve.js';
+import * as Hack from './hack.js';
 
 // --- Bot-Schwierigkeitsstufen ---
 const BOT_DIFFICULTY = {
@@ -10,6 +12,10 @@ const BOT_DIFFICULTY = {
 
 let reactionCounter = 0;
 let lastDecision = { moveX: 0, moveY: 0 };
+
+// Gleve-Bot: Mindestabstand zwischen zwei Dashs (Schritte), damit er nicht dauernd dasht
+const GLEVE_DASH_PAUSE = 40;
+let gleveDashSperre = 0;
 
 // --- Hilfsfunktionen ---
 
@@ -188,8 +194,10 @@ function computeMovement(p2, target, danger, powerup, diff) {
     if (Math.abs(dx) > diff.aimCorridor / 2) {
       moveX = dx > 0 ? 0.8 : -0.8;
     }
-    // Vertikal: Bleibe im unteren Viertel (Grundlinie), um Feinde/Bosse aus sicherer Distanz zu beschießen
-    const idealY = target.isBoss ? baselineY : Math.max(baselineY, target.y + 250);
+    // Vertikal: Bleibe im unteren Viertel (Grundlinie), um Feinde/Bosse aus sicherer Distanz zu beschießen.
+    // Die Gleve (Nahkampf) haelt sich knapp ausserhalb der Dash-Reichweite unter normalen Feinden.
+    let idealY = target.isBoss ? baselineY : Math.max(baselineY, target.y + 250);
+    if (Gleve.istGleve(p2) && !target.isBoss) idealY = Math.min(baselineY, target.y + Gleve.dashReichweite(p2) * 0.8);
     const dy = idealY - cy;
     if (Math.abs(dy) > 15) {
       moveY = dy > 0 ? 0.5 : -0.5;
@@ -210,10 +218,120 @@ function computeMovement(p2, target, danger, powerup, diff) {
   return { moveX, moveY };
 }
 
+// --- Gleve: Dash auf nahe Feinde, Sweep gegen Geschosse und Gegner im Bogen ---
+
+function boxVon(z) {
+  const g = z.groesse || 20;
+  return { x: z.x, y: z.y, w: z.width || g, h: z.height || g };
+}
+
+// Wuerde der Dash vom Schiff aus in Richtung (dx, dy) einen Boss oder (unter Stufe 5) Magma streifen?
+function dashWegBlockiert(p2, dx, dy) {
+  const s = config.spielerGroesse;
+  const reichweite = Gleve.dashReichweite(p2);
+  const hindernisse = [...arrays.bosses];
+  if ((p2.laserStufe || 1) < 5) hindernisse.push(...arrays.asteroiden.filter(a => a.istUnzerstoerbar));
+  for (let i = 1; i <= Gleve.DASH_FRAMES; i++) {
+    const x = p2.x + dx * reichweite * i / Gleve.DASH_FRAMES;
+    const y = p2.y + dy * reichweite * i / Gleve.DASH_FRAMES;
+    for (const h of hindernisse) {
+      const b = boxVon(h);
+      if (x < b.x + b.w && x + s > b.x && y < b.y + b.h && y + s > b.y) return true;
+    }
+  }
+  return false;
+}
+
+// Naechster normaler Feind in Dash-Reichweite mit freiem Weg; liefert die Dash-Richtung oder null
+function findeDashZiel(p2) {
+  const halfSize = config.spielerGroesse / 2;
+  const cx = p2.x + halfSize;
+  const cy = p2.y + halfSize;
+  const reichweite = Gleve.dashReichweite(p2);
+  let beste = null;
+  let besteDSq = Infinity;
+  for (const f of arrays.feinde) {
+    const b = boxVon(f);
+    const fx = b.x + b.w / 2;
+    const fy = b.y + b.h / 2;
+    const dSq = distanceSq(cx, cy, fx, fy);
+    // Ziel muss vollstaendig erreichbar sein (Mitte innerhalb der Reichweite)
+    if (dSq > reichweite * reichweite || dSq >= besteDSq || dSq < 1) continue;
+    const d = Math.sqrt(dSq);
+    const dx = (fx - cx) / d;
+    const dy = (fy - cy) / d;
+    if (dashWegBlockiert(p2, dx, dy)) continue;
+    beste = { dx, dy };
+    besteDSq = dSq;
+  }
+  return beste;
+}
+
+// Liegt der Punkt im Sweep-Bogen (45 Grad nach oben, etwas Spielraum) bis zur Sweep-Laenge?
+function imSweepBogen(p2, px, py) {
+  const ox = p2.x + config.spielerGroesse / 2;
+  const oy = p2.y + 5;
+  const dx = px - ox;
+  const dy = py - oy;
+  const dist = Math.hypot(dx, dy);
+  if (dist > Gleve.sweepLaenge(p2) || dy > 0) return false;
+  return Math.abs(Math.atan2(dx, -dy) * 180 / Math.PI) <= 25;
+}
+
+function sweepLohntSich(p2) {
+  const geschosse = [...arrays.feindLaserArray, ...arrays.hackProjektilArray, ...arrays.bossLaserArray];
+  for (const p of geschosse) {
+    if (p.harmlos) continue;
+    const b = boxVon(p);
+    if (imSweepBogen(p2, b.x + b.w / 2, b.y + b.h / 2)) return true;
+  }
+  const ziele = [...arrays.feinde, ...arrays.asteroiden.filter(a => !a.istUnzerstoerbar), ...arrays.bosses, ...arrays.bossRaketenArray];
+  for (const z of ziele) {
+    const b = boxVon(z);
+    // Mitte oder untere Kante (grosse Ziele wie Bosse)
+    if (imSweepBogen(p2, b.x + b.w / 2, b.y + b.h / 2) || imSweepBogen(p2, b.x + b.w / 2, b.y + b.h)) return true;
+  }
+  return false;
+}
+
+function updateGleveWaffen(p2) {
+  // Dash: nur mit genug Energie, ohne Waffen-Hack und nicht dauernd
+  p2.botFireLaser = false;
+  const genugEnergie = p2.unbegrenzteEnergie || p2.energie >= Gleve.dashKosten(p2);
+  if (gleveDashSperre <= 0 && genugEnergie && !Gleve.istDashAktiv(p2) && !Hack.hatHack(p2, 'waffenOffline')) {
+    const ziel = findeDashZiel(p2);
+    if (ziel) {
+      p2.botDashRichtung = ziel;
+      p2.botFireLaser = true;
+      gleveDashSperre = GLEVE_DASH_PAUSE;
+    }
+  }
+
+  // Sweep: wenn Feindgeschosse oder Gegner im Bogen vor dem Schiff sind
+  p2.botFireRakete = p2.raketenCooldown <= 0 && sweepLohntSich(p2);
+}
+
 function updateBotWeapons(p2, diff, target) {
   const halfSize = config.spielerGroesse / 2;
   const cx = p2.x + halfSize;
 
+  if (Gleve.istGleve(p2)) {
+    updateGleveWaffen(p2);
+  } else {
+    updateStandardWaffen(p2, diff, target, cx);
+  }
+
+  // Bomben: Sehr selektiv — nur wenn ≥3 Feinde sichtbar + Cooldown voll abgelaufen
+  p2.botFireBombe = false;
+  if (p2.bombenCooldown <= 0) {
+    const sichtbareFeinde = arrays.feinde.length + arrays.bosses.filter(b => b.hp > 0).length;
+    if (sichtbareFeinde >= 3) {
+      p2.botFireBombe = true;
+    }
+  }
+}
+
+function updateStandardWaffen(p2, diff, target, cx) {
   // Laser: Feuern wenn Ziel im Aim-Korridor
   p2.botFireLaser = false;
   if (target && Math.abs(target.x - cx) <= diff.aimCorridor) {
@@ -230,15 +348,6 @@ function updateBotWeapons(p2, diff, target) {
       p2.botFireRakete = true;
     }
   }
-
-  // Bomben: Sehr selektiv — nur wenn ≥3 Feinde sichtbar + Cooldown voll abgelaufen
-  p2.botFireBombe = false;
-  if (p2.bombenCooldown <= 0) {
-    const sichtbareFeinde = arrays.feinde.length + arrays.bosses.filter(b => b.hp > 0).length;
-    if (sichtbareFeinde >= 3) {
-      p2.botFireBombe = true;
-    }
-  }
 }
 
 // --- Haupt-Update-Funktion (1x pro Frame) ---
@@ -247,6 +356,7 @@ export function updateBot() {
   if (!p2 || p2.isDead) return;
 
   const diff = BOT_DIFFICULTY[state.p2BotDifficulty || 'normal'];
+  if (gleveDashSperre > 0) gleveDashSperre--;
 
   // Reaktionszeit: Entscheidung nur alle N Frames aktualisieren
   reactionCounter++;
@@ -279,4 +389,5 @@ export function updateBot() {
 export function resetBot() {
   reactionCounter = 0;
   lastDecision = { moveX: 0, moveY: 0 };
+  gleveDashSperre = 0;
 }
