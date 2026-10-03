@@ -37,7 +37,7 @@ test.beforeEach(async ({ page }) => {
 
   // Standardmäßig als bereits gesehen markieren, damit die Tests direkt interagieren können
   await page.addInitScript(() => {
-    localStorage.setItem('starshooter_last_seen_version', '1.7.1');
+    localStorage.setItem('starshooter_last_seen_version', '1.8.0');
     localStorage.setItem('starshooter_skip_cutscene', 'true');
   });
   await page.goto('/');
@@ -837,30 +837,27 @@ test.describe('Space Shooter', () => {
     const viperBtn = page.locator('.hangar-model-btn[data-model="viper"]');
     await viperBtn.click();
 
-    // Spiel starten und Energie auf 20 setzen
+    // Spiel starten
     await page.keyboard.down('KeyW');
-    await page.waitForTimeout(50);
+    await page.waitForFunction(() => window.__game.state.spielLaeuft);
     await page.keyboard.up('KeyW');
 
-    await page.evaluate(async () => {
-      const stateMod = await import('./js/state.js');
-      const entitiesMod = await import('./js/entities.js');
-      const utilsMod = await import('./js/utils.js');
-
-      stateMod.state.energie = 20;
+    // Energie setzen, Feind erzeugen, zerstoeren und auslesen in einem synchronen Block:
+    // Der echte Game-Loop kann dazwischen nicht laufen (keine Regeneration zwischen den Schritten)
+    const r = await page.evaluate(() => {
+      const { state, arrays, Entities, Utils } = window.__game;
+      state.energie = 20;
       // Kleinen Feind erzeugen und zerstören
-      entitiesMod.erzeugeFeind(200, 100, 'normal', 0);
-      const feind = stateMod.arrays.feinde[0];
-      utilsMod.zerstoereZiel(feind);
+      Entities.erzeugeFeind(200, 100, 'normal', 0);
+      const feind = arrays.feinde[arrays.feinde.length - 1];
+      Utils.zerstoereZiel(feind);
+      return { energie: state.energie, modell: state.selectedShipModel, entfernt: !arrays.feinde.includes(feind) };
     });
 
-    const energyAfterKill = await page.evaluate(async () => {
-      const stateMod = await import('./js/state.js');
-      return stateMod.state.energie;
-    });
-
-    // Energie muss von 20 auf 25 gestiegen sein
-    expect(energyAfterKill).toBe(25);
+    expect(r.modell).toBe('viper');
+    expect(r.entfernt).toBe(true);
+    // Energie muss von 20 auf genau 25 gestiegen sein
+    expect(r.energie).toBe(25);
   });
 
   test('Hangar: Zeigt beim Umschalten dynamisch die Perk-Badges der Schiffe an', async ({ page }) => {
@@ -932,10 +929,10 @@ test.describe('Was gibt es Neues Modal (Changelog)', () => {
     await expect(title).toContainText("WAS GIBT'S NEUES");
 
     const intro = page.locator('#whats-new-intro');
-    await expect(intro).toContainText('1.7.1');
+    await expect(intro).toContainText('1.8.0');
 
     const items = page.locator('#whats-new-list li');
-    await expect(items).toHaveCount(2);
+    await expect(items).toHaveCount(4);
 
     // Schließen
     const closeBtn = page.locator('#btn-close-whats-new');
@@ -945,7 +942,7 @@ test.describe('Was gibt es Neues Modal (Changelog)', () => {
 
     // Prüfen, dass localStorage aktualisiert wurde
     const storedVersion = await page.evaluate(() => localStorage.getItem('starshooter_last_seen_version'));
-    expect(storedVersion).toBe('1.7.1');
+    expect(storedVersion).toBe('1.8.0');
 
     // Erneut öffnen über Start-Screen Button
     const openBtn = page.locator('#btn-open-whats-new');

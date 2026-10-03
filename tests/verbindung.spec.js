@@ -73,7 +73,7 @@ test.beforeEach(async ({ page }) => {
     body: JSON.stringify({ success: true, mode: 'single', highscores: [] })
   }));
   await page.addInitScript(() => {
-    localStorage.setItem('starshooter_last_seen_version', '1.7.1');
+    localStorage.setItem('starshooter_last_seen_version', '1.8.0');
     localStorage.setItem('starshooter_skip_cutscene', 'true');
   });
 });
@@ -195,7 +195,7 @@ test('TURN-Detail: "ohne TURN" bei 503, "TURN verfügbar" bei 200', async ({ pag
   const seite2 = await page.context().newPage();
   await routen(seite2, { turnStatus: 200 });
   await seite2.addInitScript(() => {
-    localStorage.setItem('starshooter_last_seen_version', '1.7.1');
+    localStorage.setItem('starshooter_last_seen_version', '1.8.0');
     localStorage.setItem('starshooter_skip_cutscene', 'true');
   });
   await seite2.route('**/api/highscores*', route => route.fulfill({
@@ -226,7 +226,7 @@ test('Fehler in Schritt 4 nennt den Schritt, Versionsabweichung behaelt ihre Mel
   const client = await page.context().newPage();
   await routen(client);
   await client.addInitScript(() => {
-    localStorage.setItem('starshooter_last_seen_version', '1.7.1');
+    localStorage.setItem('starshooter_last_seen_version', '1.8.0');
     localStorage.setItem('starshooter_skip_cutscene', 'true');
   });
   await client.route('**/api/highscores*', route => route.fulfill({

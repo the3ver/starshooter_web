@@ -6,7 +6,7 @@ test.beforeEach(async ({ page }) => {
     body: JSON.stringify({ success: true, mode: 'single', highscores: [] })
   }));
   await page.addInitScript(() => {
-    localStorage.setItem('starshooter_last_seen_version', '1.7.1');
+    localStorage.setItem('starshooter_last_seen_version', '1.8.0');
     localStorage.setItem('starshooter_skip_cutscene', 'true');
   });
   await page.goto('/');
@@ -834,4 +834,131 @@ test('Gleve-MR: im Coop für Spieler 2 wählbar, P2-HUD und Highscore-Badge G', 
   });
   expect(badges.soloText).toBe('Gleve-MR');
   expect(badges.miniText).toBe('P2:G');
+});
+
+test('Gleve-MR: Game Over während Sweep und Dash räumt Klinge und Dash-Darstellung ab', async ({ page }) => {
+  await starteGleve(page);
+  const r = await page.evaluate(() => {
+    const { state, Utils } = window.__game;
+    const T = window.__gleveTest;
+    T.leeren();
+    state.tastenGedrueckt.k = true;
+    state.tastenGedrueckt.l = true;
+    T.schritte(3);
+    const vorher = {
+      klingen: document.querySelectorAll('.gleve-klinge').length,
+      dash: document.getElementById('spieler').classList.contains('gleve-dash')
+    };
+    Object.keys(state.tastenGedrueckt).forEach(k => { state.tastenGedrueckt[k] = false; });
+    Utils.triggerGameOver();
+    // Nach dem Game Over laeuft die Simulation nicht weiter
+    T.schritte(5);
+    return {
+      vorher,
+      klingen: document.querySelectorAll('.gleve-klinge').length,
+      dash: document.getElementById('spieler').classList.contains('gleve-dash')
+    };
+  });
+  expect(r.vorher.klingen).toBe(1);
+  expect(r.vorher.dash).toBe(true);
+  expect(r.klingen).toBe(0);
+  expect(r.dash).toBe(false);
+});
+
+test.describe('Gleve-MR Mobile-Steuerung', () => {
+  test.use({ hasTouch: true, isMobile: true, viewport: { width: 412, height: 915 } });
+
+  test('Joystick feuert bei der Gleve nicht automatisch, eigener Dash-Button löst genau einen Dash aus', async ({ page }) => {
+    await page.locator('.hangar-model-btn[data-model="gleve"]').click();
+    await page.tap('#start-text');
+    await page.waitForFunction(() => window.__game.state.spielLaeuft && !window.__game.state.cutsceneAktiv);
+    await expect(page.locator('#mobile-controls')).toBeVisible();
+    await expect(page.locator('#btn-dash')).toBeVisible();
+
+    const r = await page.evaluate(() => {
+      const { state, arrays, Loop } = window.__game;
+      ['feinde', 'asteroiden', 'feindLaserArray', 'hackProjektilArray', 'bossLaserArray', 'bosses', 'powerups'].forEach(name => {
+        arrays[name].forEach(o => o.el && o.el.remove());
+        arrays[name].length = 0;
+      });
+      state.frameZaehler = 1;
+      state.energie = 30;
+      state.maxEnergie = 50;
+      state.gleveDashTasteGehalten = false;
+      state.x = 185;
+      state.y = 400;
+      const beruehre = (el, typ) => {
+        const t = new Touch({ identifier: 1, target: el, clientX: el.getBoundingClientRect().left + 20, clientY: el.getBoundingClientRect().top + 20 });
+        el.dispatchEvent(new TouchEvent(typ, { touches: typ === 'touchstart' ? [t] : [], changedTouches: [t], bubbles: true, cancelable: true }));
+      };
+      const zone = document.getElementById('joystick-zone');
+      const btn = document.getElementById('btn-dash');
+
+      // Joystick-Berührung: kein Auto-Fire, also kein Dash
+      beruehre(zone, 'touchstart');
+      const laserNachJoystick = state.tastenGedrueckt.l;
+      Loop.simulationsSchritt();
+      const dashNachJoystick = state.gleveDashTimer;
+      beruehre(zone, 'touchend');
+
+      // Dash-Button: hält die Laser-Taste, ein Dash trotz gehaltenem Button
+      beruehre(btn, 'touchstart');
+      const laserGedrueckt = state.tastenGedrueckt.l;
+      for (let i = 0; i < 20; i++) Loop.simulationsSchritt();
+      const yNachDash = state.y;
+      const energieNachDash = state.energie;
+      beruehre(btn, 'touchend');
+      const laserLosgelassen = state.tastenGedrueckt.l;
+      const cdHoehe = document.getElementById('btn-dash-cd').style.height;
+      return { laserNachJoystick, dashNachJoystick, laserGedrueckt, yNachDash, energieNachDash, laserLosgelassen, cdHoehe };
+    });
+    expect(r.laserNachJoystick).toBe(false);
+    expect(r.dashNachJoystick).toBe(0);
+    expect(r.laserGedrueckt).toBe(true);
+    // Genau ein Dash nach oben (Stufe 1: 100 px)
+    expect(r.yNachDash).toBeCloseTo(300, 5);
+    expect(r.laserLosgelassen).toBe(false);
+    // 25 Energie verbraucht: Rest reicht nicht für den nächsten Dash, Ladeanzeige unter 100 %
+    expect(r.energieNachDash).toBeLessThan(25);
+    expect(parseFloat(r.cdHoehe)).toBeLessThan(100);
+
+    // Viper: Dash-Button verschwindet, Joystick feuert wieder automatisch
+    const viper = await page.evaluate(() => {
+      const { state, Utils } = window.__game;
+      state.selectedShipModel = 'viper';
+      Utils.updatePlayerShipVisuals();
+      const zone = document.getElementById('joystick-zone');
+      const t = new Touch({ identifier: 2, target: zone, clientX: 50, clientY: 850 });
+      zone.dispatchEvent(new TouchEvent('touchstart', { touches: [t], changedTouches: [t], bubbles: true, cancelable: true }));
+      const anBeiBeruehrung = state.tastenGedrueckt.l;
+      zone.dispatchEvent(new TouchEvent('touchend', { touches: [], changedTouches: [t], bubbles: true, cancelable: true }));
+      return { anBeiBeruehrung, ausDanach: state.tastenGedrueckt.l, btnDisplay: document.getElementById('btn-dash').style.display };
+    });
+    expect(viper.anBeiBeruehrung).toBe(true);
+    expect(viper.ausDanach).toBe(false);
+    expect(viper.btnDisplay).toBe('none');
+  });
+
+  test('Online-Client: Dash-Button folgt dem eigenen Schiff (P2)', async ({ page }) => {
+    const r = await page.evaluate(() => {
+      const { state, Utils } = window.__game;
+      const alt = { mode: state.gameMode, isClient: state.network.isClient, p2: state.p2.selectedShipModel };
+      state.selectedShipModel = 'viper';
+      state.gameMode = 'online';
+      state.network.isClient = true;
+      state.p2.selectedShipModel = 'gleve';
+      Utils.updateSchiffHudLabels();
+      const clientGleve = { modell: Utils.lokalesSchiffModell(), display: document.getElementById('btn-dash').style.display };
+      state.p2.selectedShipModel = 'phantom';
+      Utils.updateSchiffHudLabels();
+      const clientPhantom = document.getElementById('btn-dash').style.display;
+      state.gameMode = alt.mode;
+      state.network.isClient = alt.isClient;
+      state.p2.selectedShipModel = alt.p2;
+      return { clientGleve, clientPhantom };
+    });
+    expect(r.clientGleve.modell).toBe('gleve');
+    expect(r.clientGleve.display).toBe('');
+    expect(r.clientPhantom).toBe('none');
+  });
 });

@@ -1,6 +1,16 @@
-export const GAME_VERSION = '1.7.1';
+export const GAME_VERSION = '1.8.0';
 
 export const changelogData = {
+  '1.8.0': {
+    version: '1.8.0',
+    intro: 'Hey, es ist jetzt Version 1.8.0 rausgekommen, folgendes wurde aktualisiert:',
+    highlights: [
+      '🗡️ Neues Nahkampfschiff im Hangar: die Gleve-MR! Statt Laser hat sie einen Dash, bei dem sie kurz unverwundbar ist und kleine Gegner und Asteroiden einfach durchschneidet. Auf Stufe 5 knackt der Dash sogar Magma-Asteroiden',
+      '🌀 Statt Raketen fegt die Gleve mit einem Laser-Sweep vor sich her und pariert dabei feindliche Schüsse, ab Stufe 3 wirft sie diese sogar zurück',
+      '🤖 Die Gleve fliegt auch im Coop, mit dem Bot als Partner und online. Auf dem Handy gibt es für den Dash einen eigenen D-Knopf',
+      '🔄 Für den Online-Modus brauchen beide Spieler Version 1.8.0, sonst bitte die Seite neu laden (Strg+F5)'
+    ]
+  },
   '1.7.1': {
     version: '1.7.1',
     intro: 'Hey, es ist jetzt Version 1.7.1 rausgekommen, folgendes wurde aktualisiert:',

@@ -297,6 +297,7 @@ export function aktualisiereEnergie() {
       dom.energieBalken.style.backgroundColor = state.energie < zuendSchwelle(state) && !state.laserSchiesst ? '#e67e22' : '#1abc9c';
     }
   }
+  Gleve.zeigeDashBereitschaft(state);
 
   // --- 9.4 ENERGIE SPIELER 2 (Co-op) ---
   let laserAktivP2 = false;

@@ -1149,6 +1149,8 @@ export function applyGameStateSnapshot(snapshot) {
             dom.energieBalkenP2.style.width = (state.p2.energie / (state.p2.absMaxEnergie || 100)) * 100 + '%';
             dom.energieBalkenP2.style.backgroundColor = state.p2.energie < zuendSchwelle(state.p2) && !state.p2.laserSchiesst ? '#e67e22' : '#3498db';
         }
+        // Mobile-Dash-Button gehört dem Client (eigenes Schiff = P2)
+        Gleve.zeigeDashBereitschaft(state.p2);
         if (snapshot.p2.raketenCooldown !== undefined) {
             state.p2.raketenCooldown = snapshot.p2.raketenCooldown;
             const raketenCdBalkenP2 = document.getElementById('raketen-cd-balken-p2');

@@ -325,9 +325,18 @@ export function zerstoereZiel(ziel, killer = 'p1') {
   if (bIndex > -1) arrays.bosses.splice(bIndex, 1);
 }
 
+// Laufende Sweep-Klingen und Dash-Darstellung entfernen (Darstellung aus gleve.js).
+// Nach dem Game Over laeuft keine Simulation mehr, die sie selbst abraeumen wuerde.
+function entferneGleveEffekte() {
+  document.querySelectorAll('.gleve-klinge').forEach(el => el.remove());
+  if (dom.spieler) dom.spieler.classList.remove('gleve-dash');
+  if (dom.spieler2) dom.spieler2.classList.remove('gleve-dash');
+}
+
 export function triggerGameOver(finalScoreFromHost = null) {
   Audio.playGameOver();
   state.gameOverAktiv = true;
+  entferneGleveEffekte();
   state.finalerScore = finalScoreFromHost !== null ? finalScoreFromHost : (state.cheatUsed ? 0 : state.score);
   
   state.onlineHighscoreNames = { p1: null, p2: null };
@@ -611,8 +620,7 @@ export function restartGame() {
   if (state.p2) state.p2.hacks = [];
   setzeGleveDashZurueck(state, dom.spieler);
   if (state.p2) setzeGleveDashZurueck(state.p2, dom.spieler2);
-  // Laufende Sweep-Klingen entfernen (Darstellung aus gleve.js)
-  document.querySelectorAll('.gleve-klinge').forEach(el => el.remove());
+  entferneGleveEffekte();
   Bot.resetBot();
   updateLebenUI();
   updateMaxEnergieMarker();
@@ -1532,10 +1540,20 @@ export function updateSchiffHudLabels() {
   setzeHudLabel(document.querySelector('#raketen-cd-container-p2 .cooldown-letter'), labelsP2.rakete, modelP2 === 'gleve');
 
   // Mobile-Raketen-Button gehört dem lokalen Spieler (Online-Client = P2)
-  const istClient = state.gameMode === 'online' && state.network && state.network.isClient;
-  const mobilLabels = istClient ? labelsP2 : labelsP1;
+  const mobilLabels = HUD_LABELS[lokalesSchiffModell()] || HUD_LABELS.standard;
   const mobilSpan = document.querySelector('#btn-rakete span');
   if (mobilSpan && mobilSpan.textContent !== mobilLabels.mobilRakete) mobilSpan.textContent = mobilLabels.mobilRakete;
+
+  // Dash-Button nur für eine lokale Gleve (sie feuert nicht automatisch über den Joystick)
+  const btnDash = document.getElementById('btn-dash');
+  if (btnDash) btnDash.style.display = lokalesSchiffModell() === 'gleve' ? '' : 'none';
+}
+
+// Schiff des Spielers an diesem Gerät: Online-Client steuert P2, sonst P1
+export function lokalesSchiffModell() {
+  const istClient = state.gameMode === 'online' && state.network && state.network.isClient;
+  if (istClient) return (state.p2 && state.p2.selectedShipModel) || 'phantom';
+  return state.selectedShipModel || 'viper';
 }
 
 export function erzeugeAbgeworfenenWerfer(x, y, vx, vy, vRot) {

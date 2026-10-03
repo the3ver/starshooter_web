@@ -259,6 +259,17 @@ export function aktualisiereGleve(pState, pKey, tasteGedrueckt, richtung) {
   return uebernommen;
 }
 
+// Mobile-Dash-Button des lokalen Spielers: Füllstand = Energie im Verhältnis zu den Dash-Kosten
+export function zeigeDashBereitschaft(pState) {
+  const cd = document.getElementById('btn-dash-cd');
+  if (!cd || !istGleve(pState)) return;
+  const kosten = dashKosten(pState);
+  const bereit = pState.unbegrenzteEnergie || (pState.energie || 0) >= kosten;
+  const pct = bereit ? 100 : Math.max(0, (pState.energie || 0) / kosten * 100);
+  cd.style.height = pct + '%';
+  cd.style.backgroundColor = bereit ? 'rgba(46, 204, 113, 0.5)' : 'rgba(231, 76, 60, 0.5)';
+}
+
 // --- ONLINE-CLIENT ---
 // Der Client steuert sein Schiff selbst und schickt die Position an den Host. Den eigenen Dash sagt er
 // mit derselben Bewegung voraus: Im Schritt des Tastendrucks bleibt das Schiff stehen und das Eingabe-Paket

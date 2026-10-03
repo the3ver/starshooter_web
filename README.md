@@ -2,7 +2,7 @@
 
 Ein klassisches "Space Shooter"-Browserspiel, das komplett **ohne HTML5-Canvas** auskommt und stattdessen die performante Positionierung und Transformation von DOM-Elementen (via `CSS position: absolute`, `transform` und inline SVG-Grafiken) nutzt.
 
-![Version](https://img.shields.io/badge/version-1.7.1-blue.svg)
+![Version](https://img.shields.io/badge/version-1.8.0-blue.svg)
 ![Playwright Tests](https://img.shields.io/badge/tests-132%20passing-brightgreen.svg)
 ![WebRTC Multiplayer](https://img.shields.io/badge/multiplayer-WebRTC%20P2P-orange.svg)
 
@@ -45,6 +45,7 @@ Im Hangar vor Spielbeginn wählt jeder Spieler sein Schiffsmodell und seine indi
 | :--- | :--- | :--- |
 | **VIPER-X Interceptor** | Offensiver Abfangjäger | <ul><li>⚡ **Energie-Rückgewinnung:** +5 Energie bei jedem Feind-Abschuss</li><li>💎 **Splitter-Drops:** Jeder 10. Kill droppt Splitter für Extra-Leben oder Super-Waffen</li><li>⚠️ Verliert bei Hüllentreffern Waffen-Upgrades</li></ul> |
 | **PHANTOM-NX Striker** | Taktischer Schildträger | <ul><li>🛡️ **Start-Schild:** Startet mit Schildstufe 2</li><li>🔄 **Schild-Regeneration:** Regeneriert automatisch Schild nach 15s ohne Treffer</li><li>🔒 **Upgrade-Sicherung:** Behält Waffenstufen auch bei Treffern</li></ul> |
+| **GLEVE-MR Reaver** | Nahkampf-Schiff | <ul><li>🗡️ **Dash statt Laser:** Kurzer Sprint in Steuerrichtung (Laser-Taste, mobil eigener D-Knopf), unverwundbar, zerschneidet kleine Gegner und Asteroiden; Stufe 5 knackt Magma</li><li>🌀 **Laser-Sweep statt Raketen:** 45°-Strahl vor dem Schiff, pariert Feind-Laser und wirft sie ab Stufe 3 teils zurück</li><li>🔗 **Kill-Kette:** +8 Energie pro Dash-Kill</li><li>⚠️ Niedrige Energie-Regeneration, kein Fernkampf</li></ul> |
 
 ---
 

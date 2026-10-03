@@ -5,8 +5,8 @@ CREATE TABLE IF NOT EXISTS highscores (
     name TEXT NOT NULL,           -- 'AAA' oder 'P1+P2'
     score INTEGER NOT NULL,       -- Punktzahl
     level INTEGER NOT NULL,       -- Erreichtes Level
-    ship_p1 TEXT NOT NULL,        -- 'viper' oder 'phantom'
-    ship_p2 TEXT,                 -- 'viper', 'phantom' oder NULL
+    ship_p1 TEXT NOT NULL,        -- 'viper', 'phantom' oder 'gleve'
+    ship_p2 TEXT,                 -- 'viper', 'phantom', 'gleve' oder NULL
     country TEXT,                 -- ISO-Ländercode z.B. 'DE', 'US'
     city TEXT,                    -- Stadt z.B. 'Frankfurt', 'Berlin'
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
