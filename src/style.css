@@ -2080,6 +2080,27 @@
             pointer-events: none;
         }
 
+        /* Gleve-Sweep: weiße Klinge mit Rand in Schiffsfarbe, dreht sich um den Schiffsbug */
+        .gleve-klinge {
+            position: absolute;
+            width: 4px;
+            background: linear-gradient(to top, rgba(255, 255, 255, 0.5), #ffffff 30%, #ffffff);
+            border-right: 1px solid;
+            transform-origin: 50% 100%;
+            z-index: 7;
+            pointer-events: none;
+        }
+        .gleve-faecher {
+            position: absolute;
+            transform-origin: 50% 100%;
+            z-index: 4;
+            pointer-events: none;
+        }
+        /* Parierte Geschosse */
+        .gleve-pariert {
+            filter: brightness(1.3);
+        }
+
         #hangar-ship-name {
             margin-top: 6px;
             font-size: 10px;

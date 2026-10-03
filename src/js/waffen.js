@@ -5,6 +5,7 @@ import * as Entities from './entities.js';
 import * as Audio from './audio.js';
 import * as Network from './network.js';
 import * as Hack from './hack.js';
+import * as Gleve from './gleve.js';
 
 
 export function versteckeAlleLaser() {
@@ -114,13 +115,20 @@ function feuerLaserFuerSpieler(pKey, pState, isFiring) {
 }
 
 // --- 9.13 RAKETEN ---
+// Gleve: gleiche Taste, gleicher Cooldown-Zaehler und HUD-Balken, aber Laser-Sweep statt Raketen (gleve.js)
 function feuerRaketenFuerSpieler(pKey, pState) {
-  if (!pState || pState.isDead) return;
+  if (!pState) return;
+  const istGleve = Gleve.istGleve(pState);
+  if (pState.isDead) {
+    if (istGleve) Gleve.aktualisiereSweep(pState, pKey);
+    return;
+  }
   if (pState.raketenCooldown > 0) pState.raketenCooldown--;
 
   let maxRaketenCd = 180;
   if (pState.raketenStufe >= 2 && pState.raketenStufe <= 3) maxRaketenCd = 150;
   if (pState.raketenStufe >= 4) maxRaketenCd = 120;
+  if (istGleve) maxRaketenCd = Gleve.sweepCooldown(pState);
 
   if (pKey === 'p1') {
     const raketenCdBalken = document.getElementById('raketen-cd-balken');
@@ -154,6 +162,15 @@ function feuerRaketenFuerSpieler(pKey, pState) {
     : ((state.network && state.network.isOnline && state.network.isHost)
         ? Boolean(state.p2 && state.p2.networkFireRakete)
         : (state.p2IsBot ? (state.p2.botFireRakete || false) : (state.tastenGedrueckt.ö || state.tastenGedrueckt.numpad2 || state.tastenGedrueckt[','])));
+
+  if (istGleve) {
+    if (isTriggered && pState.raketenCooldown <= 0 && !Hack.hatHack(pState, 'waffenOffline')) {
+      if (pKey === 'p2' && state.p2) state.p2.networkFireRakete = false;
+      if (Gleve.starteSweep(pState, pKey)) pState.raketenCooldown = maxRaketenCd;
+    }
+    Gleve.aktualisiereSweep(pState, pKey);
+    return;
+  }
 
   if (isTriggered && pState.raketenCooldown <= 0 && !Hack.hatHack(pState, 'waffenOffline')) {
     if (pKey === 'p2' && state.p2) state.p2.networkFireRakete = false;

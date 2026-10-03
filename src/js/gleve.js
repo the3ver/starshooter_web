@@ -1,11 +1,15 @@
-// Gleve-MR: Dash statt Laser. pState ist `state` (P1) oder `state.p2`, pKey 'p1' / 'p2'.
+// Gleve-MR: Dash statt Laser, Laser-Sweep statt Raketen. pState ist `state` (P1) oder `state.p2`, pKey 'p1' / 'p2'.
 // Zustand pro Spieler: gleveDashTimer, gleveDashVx/Vy (Schritt pro Frame, auch fuer den Abprall),
 // gleveAbprallTimer, gleveUnverwundbar, gleveDashTasteGehalten (Flanke), gleveDashTreffer (Ziele dieses Dashs).
+// Sweep: gleveSweepTimer (Restframes), gleveSweepWinkel (aktueller Strahlwinkel in Grad, 0 = senkrecht nach oben,
+// positiv = rechts), gleveSweepRichtung (+1 links->rechts, -1 rechts->links; wechselt bei jedem Start),
+// gleveSweepTreffer (Ziele dieses Sweeps).
 
 import { dom, config, arrays, shipModels, shipColors } from './state.js';
 import * as Utils from './utils.js';
 import * as Audio from './audio.js';
 import * as Hack from './hack.js';
+import * as Entities from './entities.js';
 
 export const DASH_FRAMES = 8;
 export const DASH_NACHLAUF_FRAMES = 10; // Unverwundbar nach dem Dash
@@ -254,7 +258,286 @@ export function aktualisiereGleve(pState, pKey, tasteGedrueckt, richtung) {
   return uebernommen;
 }
 
+// --- LASER-SWEEP ---
+
+export const SWEEP_FRAMES = 10;
+const SWEEP_BOGEN = 45; // Grad, symmetrisch um die Senkrechte
+const SWEEP_UMKEHR_TEMPO = 10; // zurueckgeworfene Geschosse fliegen mit vy 10 nach oben
+const SWEEP_UMKEHR_SCHADEN = 15;
+const SWEEP_PARADE_FARBE = '#e67e22';
+
+// Werte pro Stufe (raketenStufe 1-5)
+const SWEEP_LAENGE = [90, 100, 110, 120, 130];
+const SWEEP_SCHADEN = [25, 30, 30, 35, 35];
+const SWEEP_COOLDOWN = [120, 105, 90, 75, 60];
+
+function sweepStufenIndex(pState) {
+  return Math.max(1, Math.min(5, pState.raketenStufe || 1)) - 1;
+}
+
+export function sweepLaenge(pState) { return SWEEP_LAENGE[sweepStufenIndex(pState)]; }
+export function sweepSchaden(pState) { return SWEEP_SCHADEN[sweepStufenIndex(pState)]; }
+export function sweepCooldown(pState) { return SWEEP_COOLDOWN[sweepStufenIndex(pState)]; }
+
+export function istSweepAktiv(pState) {
+  return (pState.gleveSweepTimer || 0) > 0;
+}
+
+// Ursprung des Strahls: Schiffsmitte oben
+function sweepUrsprung(pState) {
+  return { x: pState.x + config.spielerGroesse / 2, y: pState.y + 5 };
+}
+
+// Box eines Ziels oder Geschosses (Bosse wie bei den anderen Waffen etwas verkleinert)
+function zielBox(z) {
+  const g = z.groesse || 20;
+  const w = z.width || g;
+  const h = z.height || g;
+  const pad = z.istBoss ? g * 0.15 : 0;
+  return { x1: z.x + pad, y1: z.y + pad, x2: z.x + w - pad, y2: z.y + h - pad };
+}
+
+// Liegt der Punkt im Kreissektor [winkelA, winkelB] (Grad, 0 = oben) bis zur Laenge?
+function imSektor(o, px, py, winkelA, winkelB, laenge) {
+  const dx = px - o.x;
+  const dy = py - o.y;
+  const dist = Math.hypot(dx, dy);
+  if (dist > laenge) return false;
+  if (dist < 0.5) return true;
+  const phi = Math.atan2(dx, -dy) * 180 / Math.PI;
+  return phi >= Math.min(winkelA, winkelB) - 0.001 && phi <= Math.max(winkelA, winkelB) + 0.001;
+}
+
+// Schneidet die Strahl-Strecke (Ursprung, Winkel, Laenge) die Box? (Slab-Verfahren)
+function strahlTrifftBox(o, winkel, laenge, b) {
+  const rad = winkel * Math.PI / 180;
+  const dx = Math.sin(rad) * laenge;
+  const dy = -Math.cos(rad) * laenge;
+  let tMin = 0;
+  let tMax = 1;
+  for (const [start, d, lo, hi] of [[o.x, dx, b.x1, b.x2], [o.y, dy, b.y1, b.y2]]) {
+    if (Math.abs(d) < 1e-9) {
+      if (start < lo || start > hi) return false;
+    } else {
+      let t1 = (lo - start) / d;
+      let t2 = (hi - start) / d;
+      if (t1 > t2) [t1, t2] = [t2, t1];
+      tMin = Math.max(tMin, t1);
+      tMax = Math.min(tMax, t2);
+      if (tMin > tMax) return false;
+    }
+  }
+  return true;
+}
+
+// Wird die Box in diesem Frame vom Strahl ueberstrichen (Teilsektor winkelA -> winkelB)?
+function imSweep(o, b, winkelA, winkelB, laenge) {
+  // Naechster Punkt der Box zum Ursprung und Mittelpunkt
+  const nx = Math.max(b.x1, Math.min(o.x, b.x2));
+  const ny = Math.max(b.y1, Math.min(o.y, b.y2));
+  if (imSektor(o, nx, ny, winkelA, winkelB, laenge)) return true;
+  if (imSektor(o, (b.x1 + b.x2) / 2, (b.y1 + b.y2) / 2, winkelA, winkelB, laenge)) return true;
+  // Breite Ziele, deren naechster Punkt ausserhalb des Bogens liegt, aber vom Strahl geschnitten werden
+  return strahlTrifftBox(o, winkelA, laenge, b) || strahlTrifftBox(o, winkelB, laenge, b);
+}
+
+function kannSweepen(pState) {
+  if (pState.isDead || istSweepAktiv(pState)) return false;
+  return !Hack.hatHack(pState, 'waffenOffline');
+}
+
+// Startet einen Sweep (Cooldown, Tastenerkennung und HUD-Balken liegen in waffen.js).
+// Liefert true, wenn der Sweep gestartet wurde.
+export function starteSweep(pState, pKey) {
+  if (!kannSweepen(pState)) return false;
+  pState.gleveSweepRichtung = (pState.gleveSweepRichtung || -1) > 0 ? -1 : 1;
+  pState.gleveSweepWinkel = -pState.gleveSweepRichtung * SWEEP_BOGEN / 2;
+  pState.gleveSweepTimer = SWEEP_FRAMES;
+  pState.gleveSweepTreffer = [];
+  Audio.playSweep(pState.raketenStufe);
+  zeigeKlinge(pState, pKey);
+  return true;
+}
+
+// Sweep abbrechen (Tod, Neustart): Klinge entfernen
+export function beendeSweep(pState, pKey) {
+  pState.gleveSweepTimer = 0;
+  pState.gleveSweepTreffer = [];
+  entferneKlinge(pKey);
+}
+
+// Schaden fuer alle in diesem Frame ueberstrichenen Ziele (je einmal pro Sweep)
+function sweepTreffer(pState, pKey, o, winkelA, winkelB, laenge) {
+  const schaden = sweepSchaden(pState);
+  const treffer = pState.gleveSweepTreffer || (pState.gleveSweepTreffer = []);
+  const ziele = [...arrays.feinde, ...arrays.asteroiden, ...arrays.bosses, ...arrays.bossRaketenArray, ...arrays.bossBombenArray];
+  for (const z of ziele) {
+    // Magma bleibt unversehrt
+    if (z.istUnzerstoerbar || treffer.includes(z) || (z.immune || 0) > 0) continue;
+    if (!imSweep(o, zielBox(z), winkelA, winkelB, laenge)) continue;
+    treffer.push(z);
+    erzeugeFunken(pState, z);
+    schadeZiel(z, schaden, pKey);
+  }
+}
+
+// Parade: Feind-, Hack- und Boss-Geschosse, die der Strahl beruehrt, werden weggeschleudert oder zurueckgeworfen
+function sweepParade(pState, pKey, o, winkelA, winkelB, laenge) {
+  const stufe = pState.raketenStufe || 1;
+  const listen = [arrays.feindLaserArray, arrays.hackProjektilArray, arrays.bossLaserArray];
+  for (const liste of listen) {
+    for (let i = liste.length - 1; i >= 0; i--) {
+      const p = liste[i];
+      if (p.harmlos || !imSweep(o, zielBox(p), winkelA, winkelB, laenge)) continue;
+      const zurueck = stufe >= 5 || (stufe >= 3 && Math.random() < 0.5);
+      erzeugeParadeFunken(p);
+      if (zurueck) {
+        liste.splice(i, 1);
+        wirfZurueck(p, pKey);
+      } else {
+        schleudereWeg(p, o);
+      }
+    }
+  }
+}
+
+function faerbeOrange(el) {
+  if (!el) return;
+  el.style.backgroundColor = SWEEP_PARADE_FARBE;
+  el.style.boxShadow = `0 0 10px ${SWEEP_PARADE_FARBE}`;
+}
+
+// Seitlich weg von der Schiffsmitte, harmlos (gegner.js / boss.js pruefen `harmlos`), verlaesst das Feld
+function schleudereWeg(p, o) {
+  const b = zielBox(p);
+  let seite = Math.sign((b.x1 + b.x2) / 2 - o.x);
+  if (seite === 0) seite = Math.random() < 0.5 ? -1 : 1;
+  p.harmlos = true;
+  p.lenkZeit = 0; // Hack-Projektile lenken nicht mehr nach
+  p.vx = seite * 9;
+  p.vy = -1.5;
+  if (p.el) {
+    p.el.classList.add('gleve-pariert');
+    faerbeOrange(p.el);
+    p.el.style.transform = `rotate(${Math.atan2(p.vy, p.vx) * 180 / Math.PI - 90}deg)`;
+  }
+}
+
+// Zurueckgeworfen: wird zum Spieler-Projektil in arrays.laserArray (Bewegung y -= vy)
+function wirfZurueck(p, pKey) {
+  const el = p.el || document.createElement('div');
+  el.className = 'laser-projektil gleve-reflektiert';
+  if (pKey === 'p2') el.classList.add('laser-p2');
+  faerbeOrange(el);
+  el.style.width = (p.width || 4) + 'px';
+  el.style.height = (p.height || 15) + 'px';
+  el.style.left = p.x + 'px';
+  el.style.top = p.y + 'px';
+  el.style.transform = 'rotate(0deg)';
+  if (!el.isConnected) dom.spielfeld.appendChild(el);
+  arrays.laserArray.push({
+    id: Entities.neueId('l'),
+    el,
+    x: p.x,
+    y: p.y,
+    vx: 0,
+    vy: SWEEP_UMKEHR_TEMPO,
+    width: p.width || 4,
+    height: p.height || 15,
+    schaden: SWEEP_UMKEHR_SCHADEN,
+    owner: pKey,
+    reflektiert: true
+  });
+}
+
+// Pro Simulationsschritt fuer eine Gleve aufrufen (aus waffen.js, nach dem Start-Check)
+export function aktualisiereSweep(pState, pKey) {
+  if (pState.isDead) {
+    if (istSweepAktiv(pState)) beendeSweep(pState, pKey);
+    return;
+  }
+  if (!istSweepAktiv(pState)) return;
+
+  const richtung = pState.gleveSweepRichtung || 1;
+  const winkelA = pState.gleveSweepWinkel;
+  const winkelB = winkelA + richtung * SWEEP_BOGEN / SWEEP_FRAMES;
+  const o = sweepUrsprung(pState);
+  const laenge = sweepLaenge(pState);
+
+  sweepTreffer(pState, pKey, o, winkelA, winkelB, laenge);
+  sweepParade(pState, pKey, o, winkelA, winkelB, laenge);
+
+  pState.gleveSweepWinkel = winkelB;
+  pState.gleveSweepTimer--;
+  if (pState.gleveSweepTimer <= 0) {
+    pState.gleveSweepTimer = 0;
+    pState.gleveSweepTreffer = [];
+    entferneKlinge(pKey);
+    erzeugeFaecherSpur(pState);
+  } else {
+    zeigeKlinge(pState, pKey);
+  }
+}
+
 // --- EFFEKTE ---
+
+// Klingen-Element pro Spieler (nur Darstellung, nicht im State)
+const klingen = { p1: null, p2: null };
+
+function zeigeKlinge(pState, pKey) {
+  let el = klingen[pKey];
+  if (!el || !el.isConnected) {
+    el = document.createElement('div');
+    el.classList.add('gleve-klinge');
+    dom.spielfeld.appendChild(el);
+    klingen[pKey] = el;
+  }
+  const o = sweepUrsprung(pState);
+  const laenge = sweepLaenge(pState);
+  const farbe = schiffFarbe(pState);
+  el.style.height = laenge + 'px';
+  el.style.left = (o.x - 2) + 'px';
+  el.style.top = (o.y - laenge) + 'px';
+  el.style.boxShadow = `0 0 4px #ffffff, 0 0 8px ${farbe}, 0 0 14px ${farbe}`;
+  el.style.borderColor = farbe;
+  // Leicht gebogen: Neigung gegen die Laufrichtung
+  el.style.borderRadius = (pState.gleveSweepRichtung || 1) > 0 ? '0 100% 0 0 / 0 100% 0 0' : '100% 0 0 0 / 100% 0 0 0';
+  el.style.transform = `rotate(${pState.gleveSweepWinkel}deg)`;
+}
+
+function entferneKlinge(pKey) {
+  if (klingen[pKey]) {
+    klingen[pKey].remove();
+    klingen[pKey] = null;
+  }
+}
+
+// Kurz verblassende Faecher-Spur ueber den ganzen Bogen (Kreissektor ueber dem Ursprung)
+function erzeugeFaecherSpur(pState) {
+  const o = sweepUrsprung(pState);
+  const laenge = sweepLaenge(pState);
+  const farbe = schiffFarbe(pState);
+  const el = document.createElement('div');
+  el.classList.add('gleve-faecher');
+  el.style.width = (laenge * 2) + 'px';
+  el.style.height = laenge + 'px';
+  el.style.borderRadius = `${laenge}px ${laenge}px 0 0`;
+  el.style.background = `conic-gradient(from ${-SWEEP_BOGEN / 2}deg at 50% 100%, ${farbe}99 0deg, rgba(255, 255, 255, 0.6) ${SWEEP_BOGEN / 2}deg, ${farbe}99 ${SWEEP_BOGEN}deg, transparent ${SWEEP_BOGEN}deg)`;
+  const x = o.x - laenge;
+  const y = o.y - laenge;
+  el.style.left = x + 'px';
+  el.style.top = y + 'px';
+  dom.spielfeld.appendChild(el);
+  arrays.partikelArray.push({ el, x, y, vx: 0, vy: 0, leben: 0.8, zerfall: 0.08 });
+}
+
+function erzeugeParadeFunken(p) {
+  const b = zielBox(p);
+  const cx = (b.x1 + b.x2) / 2;
+  const cy = (b.y1 + b.y2) / 2;
+  Utils.erzeugeExplosion(cx, cy, '#ffffff', 5);
+  Utils.erzeugeExplosion(cx, cy, SWEEP_PARADE_FARBE, 5);
+}
 
 function erzeugeStartBlitz(pState) {
   const cx = pState.x + config.spielerGroesse / 2;

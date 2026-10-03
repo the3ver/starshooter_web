@@ -92,7 +92,7 @@ async function starteGleve(page, { coop = false } = {}) {
       leeren() {
         const { state, arrays } = window.__game;
         ['feinde', 'asteroiden', 'feindLaserArray', 'hackProjektilArray', 'bossLaserArray', 'bossBombenArray',
-          'bossRaketenArray', 'bosses', 'powerups', 'laserArray'].forEach(name => {
+          'bossRaketenArray', 'bosses', 'powerups', 'laserArray', 'raketenArray'].forEach(name => {
           arrays[name].forEach(o => o.el && o.el.remove());
           arrays[name].length = 0;
         });
@@ -113,7 +113,13 @@ async function starteGleve(page, { coop = false } = {}) {
           s.gleveAbprallTimer = 0;
           s.gleveUnverwundbar = 0;
           s.gleveDashTasteGehalten = false;
+          s.raketenStufe = 1;
+          s.raketenCooldown = 0;
+          s.gleveSweepTimer = 0;
+          s.gleveSweepRichtung = 0;
+          s.gleveSweepTreffer = [];
         }
+        document.querySelectorAll('.gleve-klinge').forEach(el => el.remove());
         state.x = 185;
         state.y = 400;
       },
@@ -363,6 +369,286 @@ test.describe('Gleve-MR Dash', () => {
     expect(r.y).toBeCloseTo(400, 5);
     expect(r.energie).toBeCloseTo(25.3, 5);
     expect(r.p1y).toBeCloseTo(400, 5);
+  });
+});
+
+test.describe('Gleve-MR Laser-Sweep', () => {
+  test('Sweep trifft Ziele im Bogen genau einmal, nicht seitlich, dahinter oder zu weit weg; Magma bleibt heil', async ({ page }) => {
+    await starteGleve(page);
+    const r = await page.evaluate(() => {
+      const { state, arrays, Entities } = window.__game;
+      const T = window.__gleveTest;
+      T.leeren();
+      // Ursprung des Strahls: (200, 405), Stufe 1: Länge 90, Schaden 25
+      const asteroid = (x, y, g = 30) => {
+        Entities.erzeugeAsteroid(x, y, g, 0, 0, 0, true);
+        const a = arrays.asteroiden[arrays.asteroiden.length - 1];
+        a.vRot = 0;
+        return a;
+      };
+      // Feind mit Schild direkt voraus: Schild fängt den Schaden ab
+      Entities.erzeugeFeind(185, 340, 'normal', 0, true);
+      const feind = arrays.feinde[0];
+      Object.assign(feind, { vy: 0, schussTimer: 9999 });
+      const imBogen = asteroid(167, 322); // ca. -15 Grad, 70 px
+      const seitlich = asteroid(240, 390);
+      const schraeg = asteroid(228, 363, 20); // ca. 50 Grad, ausserhalb des 45-Grad-Bogens
+      const dahinter = asteroid(185, 440);
+      const zuWeit = asteroid(185, 275); // naechster Punkt 100 px entfernt
+      Entities.erzeugeAsteroid(250, 330, 30, 0, 0, 0, true);
+      const magma = arrays.asteroiden[arrays.asteroiden.length - 1];
+      Object.assign(magma, { x: 205, y: 340, istUnzerstoerbar: true, istMagma: true, traegtPowerup: false, vRot: 0 });
+      magma.el.classList.add('unzerstoerbar');
+      const hpVorher = [imBogen, seitlich, schraeg, dahinter, zuWeit, magma].map(a => a.hp);
+
+      state.tastenGedrueckt.k = true;
+      T.schritte(5);
+      const klinge = document.querySelector('.gleve-klinge');
+      const klingeWaehrend = klinge ? { transform: klinge.style.transform, origin: getComputedStyle(klinge).transformOrigin } : null;
+      T.schritte(5);
+      state.tastenGedrueckt.k = false;
+      const nachSweep = {
+        klinge: document.querySelectorAll('.gleve-klinge').length,
+        faecher: document.querySelectorAll('.gleve-faecher').length
+      };
+      // Weitere Schritte: kein zweiter Schaden
+      T.schritte(20);
+      return {
+        feind: { da: arrays.feinde.includes(feind), schild: feind.schildHp, hp: feind.hp },
+        hp: [imBogen, seitlich, schraeg, dahinter, zuWeit, magma].map((a, i) => hpVorher[i] - a.hp),
+        magma: { da: arrays.asteroiden.includes(magma), unzerstoerbar: magma.istUnzerstoerbar },
+        klingeWaehrend,
+        nachSweep,
+        timer: state.gleveSweepTimer,
+        sounds: window.__game.Audio.audioHistory.filter(a => a.name === 'sweep').length
+      };
+    });
+    expect(r.feind.da).toBe(true);
+    expect(r.feind.schild).toBe(0);
+    expect(r.feind.hp).toBe(20);
+    // im Bogen: genau einmal 25 Schaden; seitlich, schräg ausserhalb, dahinter, zu weit, Magma: nichts
+    expect(r.hp).toEqual([25, 0, 0, 0, 0, 0]);
+    expect(r.magma.da).toBe(true);
+    expect(r.magma.unzerstoerbar).toBe(true);
+    // Klinge rotiert um den Schiffsbug (nach 5 von 10 Frames senkrecht)
+    expect(r.klingeWaehrend).not.toBeNull();
+    expect(r.klingeWaehrend.transform).toBe('rotate(0deg)');
+    expect(r.klingeWaehrend.origin).toMatch(/ 90px$/);
+    expect(r.nachSweep.klinge).toBe(0);
+    expect(r.nachSweep.faecher).toBe(1);
+    expect(r.timer).toBe(0);
+    expect(r.sounds).toBe(1);
+  });
+
+  test('Cooldown nach Stufe, Richtung wechselt, waffenOffline blockiert, keine Raketen', async ({ page }) => {
+    await starteGleve(page);
+    const r = await page.evaluate(async () => {
+      const { state, arrays } = window.__game;
+      const Hack = await import('./js/hack.js');
+      const T = window.__gleveTest;
+      T.leeren();
+      const balken = () => parseFloat(document.getElementById('raketen-cd-balken').style.width);
+
+      // Erster Sweep: links -> rechts, Stufe 1: 120 Frames Cooldown
+      state.tastenGedrueckt.k = true;
+      T.schritte(1);
+      const erster = { richtung: state.gleveSweepRichtung, winkel: state.gleveSweepWinkel, cd: state.raketenCooldown, timer: state.gleveSweepTimer };
+      T.schritte(9);
+      const ersterEnde = { winkel: state.gleveSweepWinkel, timer: state.gleveSweepTimer, balken: balken() };
+      // Taste gehalten: erst nach Ablauf des Cooldowns der zweite Sweep
+      T.schritte(110);
+      const vorAblauf = { richtung: state.gleveSweepRichtung, timer: state.gleveSweepTimer };
+      T.schritte(1);
+      const zweiter = { richtung: state.gleveSweepRichtung, winkel: state.gleveSweepWinkel, cd: state.raketenCooldown };
+      state.tastenGedrueckt.k = false;
+      T.schritte(10);
+
+      // Stufe 5: 60 Frames Cooldown, HUD-Balken danach
+      state.raketenStufe = 5;
+      state.raketenCooldown = 0;
+      state.tastenGedrueckt.k = true;
+      T.schritte(1);
+      state.tastenGedrueckt.k = false;
+      const stufe5 = { cd: state.raketenCooldown, richtung: state.gleveSweepRichtung };
+      T.schritte(30);
+      const stufe5Balken = balken();
+      T.schritte(40);
+
+      // waffenOffline blockiert den Sweep
+      Hack.hackeSpieler(state, 'waffenOffline');
+      state.raketenCooldown = 0;
+      state.tastenGedrueckt.k = true;
+      T.schritte(5);
+      state.tastenGedrueckt.k = false;
+      const gehackt = { timer: state.gleveSweepTimer, cd: state.raketenCooldown };
+      state.hacks = [];
+
+      return {
+        erster, ersterEnde, vorAblauf, zweiter, stufe5, stufe5Balken, gehackt,
+        raketen: arrays.raketenArray.length,
+        raketenSounds: window.__game.Audio.audioHistory.filter(a => a.name === 'missile').length
+      };
+    });
+    expect(r.erster.richtung).toBe(1);
+    expect(r.erster.winkel).toBeCloseTo(-18, 5);
+    expect(r.erster.cd).toBe(120);
+    expect(r.erster.timer).toBe(9);
+    expect(r.ersterEnde.winkel).toBeCloseTo(22.5, 5);
+    expect(r.ersterEnde.timer).toBe(0);
+    expect(r.ersterEnde.balken).toBeCloseTo(100 - 111 / 120 * 100, 3);
+    expect(r.vorAblauf.richtung).toBe(1);
+    expect(r.vorAblauf.timer).toBe(0);
+    // Zweiter Sweep rechts -> links
+    expect(r.zweiter.richtung).toBe(-1);
+    expect(r.zweiter.winkel).toBeCloseTo(18, 5);
+    expect(r.zweiter.cd).toBe(120);
+    expect(r.stufe5.cd).toBe(60);
+    expect(r.stufe5.richtung).toBe(1);
+    expect(r.stufe5Balken).toBeCloseTo(50, 3);
+    expect(r.gehackt.timer).toBe(0);
+    expect(r.gehackt.cd).toBe(0);
+    expect(r.raketen).toBe(0);
+    expect(r.raketenSounds).toBe(0);
+  });
+
+  test('Parade Stufe 1: Feindlaser wird seitlich weggeschleudert, ist harmlos und verlässt das Feld', async ({ page }) => {
+    await starteGleve(page);
+    const r = await page.evaluate(() => {
+      const { state, arrays, Entities } = window.__game;
+      const T = window.__gleveTest;
+      T.leeren();
+      // Feindlaser fliegt von oben auf das Schiff zu (leicht rechts der Mitte)
+      Entities.erzeugeFeindLaser(201, 320);
+      const fl = arrays.feindLaserArray[0];
+      // Hack-Projektil links davon, ohne Zielsuche
+      Entities.erzeugeHackProjektil(186, 330, 186, 600);
+      const hp = arrays.hackProjektilArray[0];
+      hp.lenkZeit = 0;
+      hp.vx = 0;
+      hp.vy = 3;
+      state.tastenGedrueckt.k = true;
+      T.schritte(10);
+      state.tastenGedrueckt.k = false;
+      const pariert = {
+        harmlos: fl.harmlos, vx: fl.vx, farbe: fl.el.style.backgroundColor,
+        hackHarmlos: hp.harmlos, hackVx: hp.vx, hackLenkZeit: hp.lenkZeit
+      };
+      // Schiff direkt in die Flugbahn stellen: kein Treffer
+      state.x = fl.x + fl.vx - 10;
+      state.y = fl.y + fl.vy - 10;
+      T.schritte(1);
+      const imWeg = { leben: state.leben, laserDa: arrays.feindLaserArray.includes(fl), hacks: state.hacks.length };
+      state.x = 185;
+      state.y = 400;
+      T.schritte(60);
+      return { pariert, imWeg, laserRest: arrays.feindLaserArray.length, hackRest: arrays.hackProjektilArray.length, leben: state.leben, hacks: state.hacks.length, spielerLaser: arrays.laserArray.length };
+    });
+    expect(r.pariert.harmlos).toBe(true);
+    expect(r.pariert.vx).toBeGreaterThan(0);
+    expect(r.pariert.farbe).toBe('rgb(230, 126, 34)');
+    expect(r.pariert.hackHarmlos).toBe(true);
+    expect(r.pariert.hackVx).toBeLessThan(0);
+    expect(r.pariert.hackLenkZeit).toBe(0);
+    expect(r.imWeg.leben).toBe(3);
+    expect(r.imWeg.laserDa).toBe(true);
+    expect(r.imWeg.hacks).toBe(0);
+    expect(r.laserRest).toBe(0);
+    expect(r.hackRest).toBe(0);
+    expect(r.leben).toBe(3);
+    expect(r.hacks).toBe(0);
+    // Stufe 1 wirft nichts zurück
+    expect(r.spielerLaser).toBe(0);
+  });
+
+  test('Parade Stufe 5: Boss-Laser wird zurückgeworfen und trifft; Stufe 3 mit 50 % Chance', async ({ page }) => {
+    await starteGleve(page);
+    const r = await page.evaluate(() => {
+      const { state, arrays, Entities } = window.__game;
+      const T = window.__gleveTest;
+      T.leeren();
+      state.raketenStufe = 5;
+      // Ziel weit oberhalb der Sweep-Länge (130 px), direkt über dem Schiff
+      Entities.erzeugeAsteroid(185, 150, 30, 0, 0, 0, true);
+      const ziel = arrays.asteroiden[0];
+      ziel.vRot = 0;
+      const hpVorher = ziel.hp;
+      Entities.erzeugeBossLaser(196, 320, 0, 6);
+      const bl = arrays.bossLaserArray[0];
+      state.tastenGedrueckt.k = true;
+      T.schritte(10);
+      state.tastenGedrueckt.k = false;
+      const l = arrays.laserArray[0];
+      const zurueck = {
+        bossLaser: arrays.bossLaserArray.length,
+        spielerLaser: arrays.laserArray.length,
+        owner: l && l.owner, schaden: l && l.schaden, vy: l && l.vy, vx: l && l.vx,
+        farbe: l && l.el.style.backgroundColor, gleichesEl: l && l.el === bl.el
+      };
+      T.schritte(30);
+      const ergebnis = { schaden: hpVorher - ziel.hp, spielerLaser: arrays.laserArray.length, leben: state.leben };
+
+      // Stufe 3: Zufall entscheidet (Math.random gestubbt)
+      const original = Math.random;
+      const parade = (zufall) => {
+        T.leeren();
+        state.raketenStufe = 3;
+        Entities.erzeugeFeindLaser(201, 320);
+        const fl = arrays.feindLaserArray[0];
+        Math.random = () => zufall;
+        try {
+          state.tastenGedrueckt.k = true;
+          T.schritte(10);
+          state.tastenGedrueckt.k = false;
+        } finally {
+          Math.random = original;
+        }
+        return { feindLaser: arrays.feindLaserArray.length, harmlos: !!fl.harmlos, spielerLaser: arrays.laserArray.length };
+      };
+      return { zurueck, ergebnis, stufe3Zurueck: parade(0.1), stufe3Weg: parade(0.9) };
+    });
+    expect(r.zurueck.bossLaser).toBe(0);
+    expect(r.zurueck.spielerLaser).toBe(1);
+    expect(r.zurueck.owner).toBe('p1');
+    expect(r.zurueck.schaden).toBe(15);
+    expect(r.zurueck.vy).toBe(10);
+    expect(r.zurueck.vx).toBe(0);
+    expect(r.zurueck.farbe).toBe('rgb(230, 126, 34)');
+    expect(r.zurueck.gleichesEl).toBe(true);
+    expect(r.ergebnis.schaden).toBe(15);
+    expect(r.ergebnis.spielerLaser).toBe(0);
+    expect(r.ergebnis.leben).toBe(3);
+    expect(r.stufe3Zurueck).toEqual({ feindLaser: 0, harmlos: false, spielerLaser: 1 });
+    expect(r.stufe3Weg).toEqual({ feindLaser: 1, harmlos: true, spielerLaser: 0 });
+  });
+
+  test('Coop: Spieler 2 sweept mit Ö, eigener HUD-Balken', async ({ page }) => {
+    await starteGleve(page, { coop: true });
+    const r = await page.evaluate(() => {
+      const { state, arrays, Entities } = window.__game;
+      const T = window.__gleveTest;
+      T.leeren();
+      state.p2.x = 400;
+      state.p2.y = 400;
+      Entities.erzeugeAsteroid(400, 330, 30, 0, 0, 0, true);
+      const a = arrays.asteroiden[0];
+      a.vRot = 0;
+      const hpVorher = a.hp;
+      state.tastenGedrueckt['ö'] = true;
+      T.schritte(10);
+      state.tastenGedrueckt['ö'] = false;
+      return {
+        schaden: hpVorher - a.hp,
+        cdP2: state.p2.raketenCooldown,
+        cdP1: state.raketenCooldown,
+        richtungP1: state.gleveSweepRichtung,
+        balkenP2: parseFloat(document.getElementById('raketen-cd-balken-p2').style.width)
+      };
+    });
+    expect(r.schaden).toBe(25);
+    expect(r.cdP2).toBe(111);
+    expect(r.cdP1).toBe(0);
+    expect(r.richtungP1).toBe(0);
+    expect(r.balkenP2).toBeCloseTo(100 - 111 / 120 * 100, 3);
   });
 });
 

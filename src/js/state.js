@@ -124,6 +124,8 @@ export const state = {
     // Gleve-Dash (gleve.js): Restframes, Schritt pro Frame, Abprall, Unverwundbarkeit, Flanke, getroffene Ziele
     gleveDashTimer: 0, gleveDashVx: 0, gleveDashVy: 0, gleveAbprallTimer: 0,
     gleveUnverwundbar: 0, gleveDashTasteGehalten: false, gleveDashTreffer: [],
+    // Gleve-Sweep: Restframes, Strahlwinkel (Grad), Richtung (+1/-1, 0 = noch kein Sweep), getroffene Ziele
+    gleveSweepTimer: 0, gleveSweepWinkel: 0, gleveSweepRichtung: 0, gleveSweepTreffer: [],
     tastenGedrueckt: {
         w: false, a: false, s: false, d: false,
         l: false, k: false, ' ': false,
@@ -170,7 +172,8 @@ export const state = {
         selectedShipModel: 'phantom', selectedShipColor: 'blue',
         isDead: false, rotate: 0, hacks: [],
         gleveDashTimer: 0, gleveDashVx: 0, gleveDashVy: 0, gleveAbprallTimer: 0,
-        gleveUnverwundbar: 0, gleveDashTasteGehalten: false, gleveDashTreffer: []
+        gleveUnverwundbar: 0, gleveDashTasteGehalten: false, gleveDashTreffer: [],
+        gleveSweepTimer: 0, gleveSweepWinkel: 0, gleveSweepRichtung: 0, gleveSweepTreffer: []
     },
     network: {
         isOnline: false,

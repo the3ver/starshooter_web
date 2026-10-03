@@ -170,11 +170,13 @@ export function aktualisiereBosse() {
     bl.y += bl.vy;
     bl.el.style.left = bl.x + 'px';
     bl.el.style.top = bl.y + 'px';
-    if (bl.y > config.spielfeldHoehe || bl.x < -10 || bl.x > config.spielfeldBreite + 10) {
+    if (bl.y > config.spielfeldHoehe || bl.y < -bl.height || bl.x < -10 || bl.x > config.spielfeldBreite + 10) {
       bl.el.remove();
       arrays.bossLaserArray.splice(i, 1);
       continue;
     }
+    // Von der Gleve seitlich weggeschleudert: trifft keine Spieler mehr
+    if (bl.harmlos) continue;
     if (!state.isDead && !Utils.istDashUnverwundbar(state) && state.x < bl.x + bl.width && state.x + config.spielerGroesse > bl.x && state.y < bl.y + bl.height && state.y + config.spielerGroesse > bl.y) {
       Utils.spielerGetroffen(bl, false, 'p1');
       bl.el.remove();

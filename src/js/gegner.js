@@ -253,11 +253,13 @@ export function aktualisiereFeindLaser() {
     if (fl.vx) fl.x += fl.vx;
     fl.el.style.top = fl.y + 'px';
     fl.el.style.left = fl.x + 'px';
-    if (fl.y > config.spielfeldHoehe || fl.x < -fl.width || fl.x > config.spielfeldBreite) {
+    if (fl.y > config.spielfeldHoehe || fl.y < -fl.height || fl.x < -fl.width || fl.x > config.spielfeldBreite) {
       fl.el.remove();
       arrays.feindLaserArray.splice(i, 1);
       continue;
     }
+    // Von der Gleve seitlich weggeschleudert: trifft keine Spieler mehr
+    if (fl.harmlos) continue;
     if (!state.isDead && !Utils.istDashUnverwundbar(state) && state.x < fl.x + fl.width && state.x + config.spielerGroesse > fl.x && state.y < fl.y + fl.height && state.y + config.spielerGroesse > fl.y) {
       Utils.spielerGetroffen(fl, false, 'p1');
       fl.el.remove();
@@ -298,6 +300,8 @@ export function aktualisiereHackProjektile() {
       arrays.hackProjektilArray.splice(i, 1);
       continue;
     }
+    // Von der Gleve seitlich weggeschleudert: trifft keine Spieler mehr
+    if (hp.harmlos) continue;
     let getroffen = null;
     if (!state.isDead && !Utils.istDashUnverwundbar(state) && state.x < hp.x + hp.width && state.x + config.spielerGroesse > hp.x && state.y < hp.y + hp.height && state.y + config.spielerGroesse > hp.y) {
       getroffen = state;

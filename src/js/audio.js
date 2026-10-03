@@ -782,3 +782,58 @@ export function playDash(level = 1) {
     osc.stop(now + duration);
 }
 
+// Gleve-Laser-Sweep: heller, singender Klingen-Ton mit kurzem Zisch-Rauschen
+export function playSweep(level = 1) {
+    recordSound('sweep', { level });
+    if (isMuted) return;
+    const ctx = getAudioContext();
+    if (!ctx) return;
+    if (ctx.state === 'suspended') ctx.resume().catch(() => {});
+
+    const now = ctx.currentTime;
+    const duration = 0.25;
+
+    // 1. Zischen: Hochpass-Rauschen, schnell ein- und ausgeblendet
+    try {
+        const noiseBuf = getNoiseBuffer(ctx);
+        if (noiseBuf) {
+            const noiseSource = ctx.createBufferSource();
+            noiseSource.buffer = noiseBuf;
+            noiseSource.loop = true;
+
+            const highpass = ctx.createBiquadFilter();
+            highpass.type = 'highpass';
+            highpass.frequency.setValueAtTime(2500, now);
+            highpass.frequency.exponentialRampToValueAtTime(5000, now + duration);
+
+            const noiseGain = ctx.createGain();
+            noiseGain.gain.setValueAtTime(0.02, now);
+            noiseGain.gain.linearRampToValueAtTime(0.18, now + duration * 0.25);
+            noiseGain.gain.exponentialRampToValueAtTime(0.001, now + duration);
+
+            noiseSource.connect(highpass);
+            highpass.connect(noiseGain);
+            noiseGain.connect(masterGain);
+
+            noiseSource.start(now);
+            noiseSource.stop(now + duration);
+        }
+    } catch (e) {}
+
+    // 2. Klinge: zwei leicht verstimmte Dreiecks-Toene, die nach oben gleiten
+    [0, 7].forEach(verstimmung => {
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc.type = 'triangle';
+        osc.frequency.setValueAtTime(600 + level * 50 + verstimmung, now);
+        osc.frequency.exponentialRampToValueAtTime(1400 + level * 80 + verstimmung, now + duration * 0.6);
+        osc.frequency.exponentialRampToValueAtTime(900 + verstimmung, now + duration);
+        gain.gain.setValueAtTime(0.08, now);
+        gain.gain.exponentialRampToValueAtTime(0.001, now + duration);
+        osc.connect(gain);
+        gain.connect(masterGain);
+        osc.start(now);
+        osc.stop(now + duration);
+    });
+}
+

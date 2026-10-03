@@ -38,6 +38,7 @@ function findNearestDanger(p2, diff) {
 
   // Feindliche Projektile (Laser + Bomben + Raketen)
   for (const fl of arrays.feindLaserArray) {
+    if (fl.harmlos) continue; // von der Gleve weggeschleudert
     const fx = fl.x + 2;
     const fy = fl.y + 5;
     const dSq = distanceSq(cx, cy, fx, fy);
@@ -46,6 +47,7 @@ function findNearestDanger(p2, diff) {
     }
   }
   for (const bl of arrays.bossLaserArray) {
+    if (bl.harmlos) continue; // von der Gleve weggeschleudert
     const bx = bl.x + 3;
     const by = bl.y + 5;
     const dSq = distanceSq(cx, cy, bx, by);

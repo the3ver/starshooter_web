@@ -556,7 +556,7 @@ export function updateMobileControlsVisibility() {
   }
 }
 
-// Gleve-Dash-Zustand eines Spielers zuruecksetzen (Felder siehe gleve.js)
+// Gleve-Dash- und Sweep-Zustand eines Spielers zuruecksetzen (Felder siehe gleve.js)
 function setzeGleveDashZurueck(pState, schiffEl) {
   pState.gleveDashTimer = 0;
   pState.gleveDashVx = 0;
@@ -565,6 +565,10 @@ function setzeGleveDashZurueck(pState, schiffEl) {
   pState.gleveUnverwundbar = 0;
   pState.gleveDashTasteGehalten = false;
   pState.gleveDashTreffer = [];
+  pState.gleveSweepTimer = 0;
+  pState.gleveSweepWinkel = 0;
+  pState.gleveSweepRichtung = 0;
+  pState.gleveSweepTreffer = [];
   if (schiffEl) schiffEl.classList.remove('gleve-dash');
 }
 
@@ -601,6 +605,8 @@ export function restartGame() {
   if (state.p2) state.p2.hacks = [];
   setzeGleveDashZurueck(state, dom.spieler);
   if (state.p2) setzeGleveDashZurueck(state.p2, dom.spieler2);
+  // Laufende Sweep-Klingen entfernen (Darstellung aus gleve.js)
+  document.querySelectorAll('.gleve-klinge').forEach(el => el.remove());
   Bot.resetBot();
   updateLebenUI();
   updateMaxEnergieMarker();
