@@ -843,6 +843,17 @@ export function escapeHtml(wert) {
     .replace(/'/g, '&#39;');
 }
 
+// Badge-Daten je Schiffsmodell für die Bestenliste (unbekannt/fehlend = Viper-X)
+const HS_SCHIFFE = {
+  viper: { klasse: 'hs-ship-viper', label: 'Viper-X', kurz: 'V' },
+  phantom: { klasse: 'hs-ship-phantom', label: 'Phantom-NX', kurz: 'P' },
+  gleve: { klasse: 'hs-ship-gleve', label: 'Gleve-MR', kurz: 'G' }
+};
+
+function hsSchiffInfo(model) {
+  return HS_SCHIFFE[model] || HS_SCHIFFE.viper;
+}
+
 export function renderHighscoresTable(currentMode, hsList) {
   const tbody = document.getElementById('highscore-body');
   if (!tbody) return;
@@ -874,16 +885,14 @@ export function renderHighscoresTable(currentMode, hsList) {
     const isMulti = currentMode === 'coop_bot' || currentMode === 'online';
 
     if (isMulti) {
-      const p1Phantom = entry.shipP1 === 'phantom';
-      const p2Phantom = entry.shipP2 === 'phantom';
-      const p1Badge = `<span class="hs-ship-badge hs-badge-mini ${p1Phantom ? 'hs-ship-phantom' : 'hs-ship-viper'}" title="P1: ${p1Phantom ? 'Phantom-NX' : 'Viper-X'}">P1:${p1Phantom ? 'P' : 'V'}</span>`;
-      const p2Badge = `<span class="hs-ship-badge hs-badge-mini ${p2Phantom ? 'hs-ship-phantom' : 'hs-ship-viper'}" title="P2: ${p2Phantom ? 'Phantom-NX' : 'Viper-X'}">P2:${p2Phantom ? 'P' : 'V'}</span>`;
+      const p1Info = hsSchiffInfo(entry.shipP1);
+      const p2Info = hsSchiffInfo(entry.shipP2);
+      const p1Badge = `<span class="hs-ship-badge hs-badge-mini ${p1Info.klasse}" title="P1: ${p1Info.label}">P1:${p1Info.kurz}</span>`;
+      const p2Badge = `<span class="hs-ship-badge hs-badge-mini ${p2Info.klasse}" title="P2: ${p2Info.label}">P2:${p2Info.kurz}</span>`;
       zeilenHtml += `<tr><td>${rankBadge}</td><td>${escapeHtml(entry.name)}${locDisplay}</td><td>${escapeHtml(entry.score)}</td><td><div class="hs-coop-badges">${p1Badge} ${p2Badge}</div></td></tr>`;
     } else {
-      const isPhantom = entry.ship === 'phantom' || entry.shipP1 === 'phantom';
-      const shipLabel = isPhantom ? 'Phantom-NX' : 'Viper-X';
-      const badgeClass = isPhantom ? 'hs-ship-phantom' : 'hs-ship-viper';
-      zeilenHtml += `<tr><td>${rankBadge}</td><td>${escapeHtml(entry.name)}${locDisplay}</td><td>${escapeHtml(entry.score)}</td><td><span class="hs-ship-badge ${badgeClass}">${shipLabel}</span></td></tr>`;
+      const info = hsSchiffInfo(entry.shipP1 || entry.ship);
+      zeilenHtml += `<tr><td>${rankBadge}</td><td>${escapeHtml(entry.name)}${locDisplay}</td><td>${escapeHtml(entry.score)}</td><td><span class="hs-ship-badge ${info.klasse}">${info.label}</span></td></tr>`;
     }
   });
   tbody.innerHTML = zeilenHtml;
@@ -1259,6 +1268,21 @@ export function getShipSVGContent(model, colorId) {
       <rect x="21" y="24" width="4" height="4" fill="#7f8c8d"/>
     `;
   }
+  if (model === 'gleve') {
+    return `
+      <!-- Gleve-MR: Manta-Fluegel -->
+      <path d="M15 6 Q5 6 1 18 Q8 16 11 22 L15 26 L19 22 Q22 16 29 18 Q25 6 15 6 Z" fill="${c.sec}"/>
+      <!-- Kopfflossen -->
+      <path d="M10 7 L8 1 L12 6 Z" fill="${c.accent}"/>
+      <path d="M20 7 L22 1 L18 6 Z" fill="${c.accent}"/>
+      <!-- Rumpf -->
+      <path d="M15 6 L12 13 L15 24 L18 13 Z" fill="${c.prim}"/>
+      <!-- Cockpit -->
+      <path d="M15 10 L13.6 13 L15 15 L16.4 13 Z" fill="#87CEEB"/>
+      <!-- Triebwerk -->
+      <rect x="13" y="24" width="4" height="4" fill="#7f8c8d"/>
+    `;
+  }
   // Default: Viper-X Interceptor
   return `
     <!-- Viper-X: Delta Wings -->
@@ -1400,15 +1424,22 @@ export function updatePlayerShipVisuals() {
     spieler2Svg.innerHTML = getShipSVGContent(modelP2, colorIdP2);
   }
 
+  // Gleve hat nur ein Mittel-Triebwerk: Flammen per Klasse zentrieren
+  const spielerEl = dom.spieler || document.getElementById('spieler');
+  if (spielerEl) spielerEl.classList.toggle('schiff-gleve', modelP1 === 'gleve');
+  const spieler2El = dom.spieler2 || document.getElementById('spieler-2');
+  if (spieler2El) spieler2El.classList.toggle('schiff-gleve', modelP2 === 'gleve');
+
   // Hangar Preview im Startscreen aktualisieren
   const previewSvg = document.getElementById('hangar-preview-svg');
   if (previewSvg) {
     previewSvg.innerHTML = getShipSVGContent(activeHangarModel, activeHangarColor);
+    if (previewSvg.parentElement) previewSvg.parentElement.classList.toggle('schiff-gleve', activeHangarModel === 'gleve');
   }
   const previewName = document.getElementById('hangar-ship-name');
   const shipData = shipModels && shipModels[activeHangarModel];
   if (previewName) {
-    previewName.textContent = (shipData && shipData.name) || (activeHangarModel === 'phantom' ? 'PHANTOM-NX STRIKER' : 'VIPER-X INTERCEPTOR');
+    previewName.textContent = (shipData && shipData.name) || 'VIPER-X INTERCEPTOR';
   }
 
   // Hangar Perks rendern
@@ -1442,6 +1473,38 @@ export function updatePlayerShipVisuals() {
   }
 
   updateRaketenWerferVisuals();
+  updateSchiffHudLabels();
+}
+
+// HUD-Beschriftungen je Schiff: Gleve nutzt den Energiebalken als Antrieb (Dash)
+// und den Raketen-Cooldown für den Laser-Sweep. Sonst Originaltexte (E / R).
+const HUD_LABELS = {
+  standard: { energie: 'E', rakete: 'R', mobilRakete: 'R' },
+  gleve: { energie: 'ANTRIEB', rakete: 'SWEEP', mobilRakete: 'SW' }
+};
+
+function setzeHudLabel(el, text, lang) {
+  if (!el) return;
+  if (el.textContent !== text) el.textContent = text;
+  el.classList.toggle('cooldown-letter-lang', lang);
+}
+
+export function updateSchiffHudLabels() {
+  const modelP1 = state.selectedShipModel || 'viper';
+  const modelP2 = (state.p2 && state.p2.selectedShipModel) || 'phantom';
+  const labelsP1 = HUD_LABELS[modelP1] || HUD_LABELS.standard;
+  const labelsP2 = HUD_LABELS[modelP2] || HUD_LABELS.standard;
+
+  setzeHudLabel(document.querySelector('#energie-cd-container .cooldown-letter'), labelsP1.energie, modelP1 === 'gleve');
+  setzeHudLabel(document.querySelector('#raketen-cd-container .cooldown-letter'), labelsP1.rakete, modelP1 === 'gleve');
+  setzeHudLabel(document.querySelector('#energie-cd-container-p2 .cooldown-letter'), labelsP2.energie, modelP2 === 'gleve');
+  setzeHudLabel(document.querySelector('#raketen-cd-container-p2 .cooldown-letter'), labelsP2.rakete, modelP2 === 'gleve');
+
+  // Mobile-Raketen-Button gehört dem lokalen Spieler (Online-Client = P2)
+  const istClient = state.gameMode === 'online' && state.network && state.network.isClient;
+  const mobilLabels = istClient ? labelsP2 : labelsP1;
+  const mobilSpan = document.querySelector('#btn-rakete span');
+  if (mobilSpan && mobilSpan.textContent !== mobilLabels.mobilRakete) mobilSpan.textContent = mobilLabels.mobilRakete;
 }
 
 export function erzeugeAbgeworfenenWerfer(x, y, vx, vy, vRot) {
@@ -1498,7 +1561,9 @@ function updateWerferForShip(spielerEl, pState, prevKey) {
   let showRight = false;
   let showCenter = false;
 
-  if (lvl <= 2) {
+  if (model === 'gleve') {
+    // Gleve hat keine Raketenwerfer (Laser-Sweep statt Raketen): alle Pods aus
+  } else if (lvl <= 2) {
     if (model === 'phantom') {
       showRight = true;
     } else {
@@ -1516,8 +1581,8 @@ function updateWerferForShip(spielerEl, pState, prevKey) {
 
   const prevStates = (prevKey === 'p1') ? prevWerferStatesP1 : prevWerferStatesP2;
 
-  // Prüfen, ob Werfer durch Downgrade verloren gingen
-  if (prevStates && state.spielLaeuft && !pState.isDead) {
+  // Prüfen, ob Werfer durch Downgrade verloren gingen (Gleve: nie Abwurf-Effekt)
+  if (prevStates && state.spielLaeuft && !pState.isDead && model !== 'gleve') {
     if (prevStates.left && !showLeft) {
       erzeugeAbgeworfenenWerfer(pState.x - 8, pState.y + 7, -3 - Math.random() * 2, 2 + Math.random() * 2, -10);
     }

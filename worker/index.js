@@ -4,7 +4,7 @@ import { behandleTurnAnfrage } from './turn.mjs';
 
 const SECRET_SALT = 'st4r-sh00t3r-s3cr3t-k3y-2026';
 const VALID_MODES = ['single', 'coop_bot', 'online'];
-const VALID_SHIPS = ['viper', 'phantom'];
+const VALID_SHIPS = ['viper', 'phantom', 'gleve'];
 
 const corsHeaders = {
     'Access-Control-Allow-Origin': '*',

@@ -91,6 +91,23 @@ export const shipModels = {
             { icon: '🔄', label: 'REGEN-SCHILD LVL 1', desc: 'Schild Stufe 1 lädt sich nach Treffern automatisch wieder auf', type: 'buff' },
             { icon: '⏳', label: '-35% TEMPO', desc: 'Schwere Masse, spürbar langsamere Fluggeschwindigkeit', type: 'nerf' }
         ]
+    },
+    gleve: {
+        name: 'GLEVE-MR REAVER',
+        shortName: 'GLEVE-MR',
+        speed: 5.0,
+        energyRegen: 0.3,
+        startShield: 0,
+        loseUpgradesOnHit: false,
+        // Kill-Kette: Energie pro durch einen Dash zerstörten Gegner (nicht über energyPerKill, gilt nur für Dash-Kills)
+        dashKillEnergie: 8,
+        perks: [
+            { icon: '🗡️', label: 'DASH STATT LASER', desc: 'Laser-Taste löst einen Sturmangriff aus, der kleine Gegner durchschneidet', type: 'buff' },
+            { icon: '🌀', label: 'LASER-SWEEP STATT RAKETEN', desc: 'Raketen-Taste fegt eine Laserklinge im Bogen vor das Schiff und pariert Geschosse', type: 'buff' },
+            { icon: '🔗', label: 'KILL-KETTE', desc: '+8 Energie für jeden durch einen Dash zerstörten Gegner', type: 'buff' },
+            { icon: '⚠️', label: 'NIEDRIGE REGENERATION', desc: 'Antriebs-Energie lädt langsamer wieder auf', type: 'nerf' },
+            { icon: '🚫', label: 'KEIN FERNKAMPF', desc: 'Keine Laser und Raketen, nur Nahkampf', type: 'nerf' }
+        ]
     }
 };
 

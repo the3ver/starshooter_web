@@ -534,6 +534,16 @@
             user-select: none;
         }
 
+        /* Lange Beschriftung (Gleve: ANTRIEB / SWEEP) als Pille statt Kreis */
+        .cooldown-letter.cooldown-letter-lang {
+            width: auto;
+            min-width: 18px;
+            padding: 0 5px;
+            border-radius: 9px;
+            font-size: 8px;
+            letter-spacing: 0.5px;
+        }
+
         .cooldown-letter-e {
             border: 1.5px solid #f1c40f;
             color: #f1c40f;
@@ -1155,6 +1165,13 @@
             border: 1px solid #3498db;
             color: #74b9ff;
             box-shadow: 0 0 5px rgba(52, 152, 219, 0.3);
+        }
+
+        .hs-ship-gleve {
+            background: rgba(46, 204, 113, 0.2);
+            border: 1px solid #2ecc71;
+            color: #55efc4;
+            box-shadow: 0 0 5px rgba(46, 204, 113, 0.3);
         }
 
         .hs-rank {
@@ -2033,6 +2050,11 @@
 
         .hangar-flame.flame-left { left: 9px; }
         .hangar-flame.flame-right { right: 9px; }
+
+        /* Gleve-MR: nur ein Mittel-Triebwerk */
+        .hangar-ship-display.schiff-gleve .hangar-flame.flame-left { left: 16px; }
+        .hangar-ship-display.schiff-gleve .hangar-flame.flame-right { display: none; }
+        .spieler-schiff.schiff-gleve .ship-flame { left: 13.5px !important; }
 
         #hangar-ship-name {
             margin-top: 6px;
