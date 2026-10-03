@@ -332,6 +332,9 @@ function wirfBombeFuerSpieler(pKey, pState) {
 }
 
 export function aktualisiereWaffen(laserAktiv, laserAktivP2) {
+  // Gleve hat statt Laser den Dash (gleve.js): weder Projektil- noch Hitscan-Laser
+  if (state.selectedShipModel === 'gleve') laserAktiv = false;
+  if (state.p2 && state.p2.selectedShipModel === 'gleve') laserAktivP2 = false;
   const alleZiele = [...arrays.asteroiden, ...arrays.feinde, ...arrays.bosses, ...arrays.bossBombenArray, ...arrays.bossRaketenArray];
 
   // --- 9.9 AUTOLASER ---
@@ -552,7 +555,7 @@ export function aktualisiereWaffen(laserAktiv, laserAktivP2) {
       }
     } else if (l.isDeflected) {
       // Kollision mit Spieler, falls abgelenkt
-      if (l.x < state.x + config.spielerGroesse && l.x + l.width > state.x && l.y < state.y + config.spielerGroesse && l.y + l.height > state.y) {
+      if (!Utils.istDashUnverwundbar(state) && l.x < state.x + config.spielerGroesse && l.x + l.width > state.x && l.y < state.y + config.spielerGroesse && l.y + l.height > state.y) {
         Utils.spielerGetroffen(l, false);
         l.el.remove();
         arrays.laserArray.splice(i, 1);

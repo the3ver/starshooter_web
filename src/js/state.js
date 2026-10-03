@@ -121,6 +121,9 @@ export const state = {
     splitterRot: 0, splitterWeiss: 0, viperKillCount: 0,
     isDead: false,
     hacks: [],
+    // Gleve-Dash (gleve.js): Restframes, Schritt pro Frame, Abprall, Unverwundbarkeit, Flanke, getroffene Ziele
+    gleveDashTimer: 0, gleveDashVx: 0, gleveDashVy: 0, gleveAbprallTimer: 0,
+    gleveUnverwundbar: 0, gleveDashTasteGehalten: false, gleveDashTreffer: [],
     tastenGedrueckt: {
         w: false, a: false, s: false, d: false,
         l: false, k: false, ' ': false,
@@ -165,7 +168,9 @@ export const state = {
         phantomSchildRegenTimer: 0, phantomSchildRegenMax: 900,
         splitterRot: 0, splitterWeiss: 0, viperKillCount: 0,
         selectedShipModel: 'phantom', selectedShipColor: 'blue',
-        isDead: false, rotate: 0, hacks: []
+        isDead: false, rotate: 0, hacks: [],
+        gleveDashTimer: 0, gleveDashVx: 0, gleveDashVy: 0, gleveAbprallTimer: 0,
+        gleveUnverwundbar: 0, gleveDashTasteGehalten: false, gleveDashTreffer: []
     },
     network: {
         isOnline: false,

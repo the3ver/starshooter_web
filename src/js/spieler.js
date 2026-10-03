@@ -5,6 +5,45 @@ import * as Audio from './audio.js';
 import * as Bot from './bot.js';
 import * as Hack from './hack.js';
 import { versteckeAlleLaser } from './waffen.js';
+import * as Gleve from './gleve.js';
+
+// Laser-Taste von P1 (bei der Gleve: Dash-Taste)
+function laserTasteP1() {
+  const isDualHumanCoop = state.gameMode === 'coop' && !state.p2IsBot;
+  return isDualHumanCoop ? state.tastenGedrueckt.b : (state.tastenGedrueckt.l || state.tastenGedrueckt.b);
+}
+
+// Laser-Taste von P2 (Online-Host: gehaltene Client-Eingabe, Bot: KI-Entscheidung)
+function laserTasteP2() {
+  if (state.network && state.network.isOnline && state.network.isHost) return Boolean(state.p2 && state.p2.laserInputRequested);
+  if (state.p2IsBot) return state.p2.botFireLaser || false;
+  return state.tastenGedrueckt.ä || state.tastenGedrueckt.numpad1 || state.tastenGedrueckt['.'];
+}
+
+// Aktuelle Steuerrichtung von P1 (Joystick oder Tasten, Hacks angewendet)
+function steuerRichtungP1() {
+  if (state.joystick && state.joystick.active) {
+    const mag = Math.sqrt(state.joystick.x * state.joystick.x + state.joystick.y * state.joystick.y);
+    if (mag <= 0.1) return { dx: 0, dy: 0 };
+    return Hack.hackeBewegung(state, state.joystick.x / mag, state.joystick.y / mag);
+  }
+  const isDualHumanCoop = state.gameMode === 'coop' && !state.p2IsBot;
+  const t = state.tastenGedrueckt;
+  const up = t.w || (!isDualHumanCoop && t.arrowup);
+  const down = t.s || (!isDualHumanCoop && t.arrowdown);
+  const left = t.a || (!isDualHumanCoop && t.arrowleft);
+  const right = t.d || (!isDualHumanCoop && t.arrowright);
+  return Hack.hackeBewegung(state, (right ? 1 : 0) - (left ? 1 : 0), (down ? 1 : 0) - (up ? 1 : 0));
+}
+
+// Aktuelle Steuerrichtung von P2: lokal die Pfeiltasten, sonst die letzte Bewegung
+function steuerRichtungP2() {
+  if (state.gameMode === 'coop' && !state.p2IsBot) {
+    const t = state.tastenGedrueckt;
+    return Hack.hackeBewegung(state.p2, (t.arrowright ? 1 : 0) - (t.arrowleft ? 1 : 0), (t.arrowdown ? 1 : 0) - (t.arrowup ? 1 : 0));
+  }
+  return { dx: state.p2.spielerVx || 0, dy: -(state.p2.spielerVy || 0) };
+}
 
 
 export function aktualisiereUnverwundbarkeit() {
@@ -98,8 +137,13 @@ export function bewegeSpieler() {
   const towedCountP1 = isCoopMode() ? arrays.powerups.filter(p => p.towedBy === 'p1').length : 0;
   const speedMultP1 = Math.max(0.1, 1.0 - 0.10 * towedCountP1);
   const currentSpeed = ((shipModels && shipModels[state.selectedShipModel]?.speed) || config.geschwindigkeit) * speedMultP1;
-  
-  if (state.joystick && state.joystick.active) {
+
+  // Gleve: Dash/Abprall ersetzt in diesem Schritt die normale Steuerung
+  const gleveDashP1 = Gleve.istGleve(state) && Gleve.aktualisiereGleve(state, 'p1', laserTasteP1(), steuerRichtungP1());
+
+  if (gleveDashP1) {
+    baseFlameScale = 2.2;
+  } else if (state.joystick && state.joystick.active) {
     let mag = Math.sqrt(state.joystick.x * state.joystick.x + state.joystick.y * state.joystick.y);
     if (mag > 0.1) {
       const b = Hack.hackeBewegung(state, state.joystick.x / mag, state.joystick.y / mag);
@@ -143,7 +187,12 @@ export function bewegeSpieler() {
       const speedMultP2 = Math.max(0.1, 1.0 - 0.10 * towedCountP2);
       const p2Speed = ((shipModels && shipModels[state.p2.selectedShipModel]?.speed) || config.geschwindigkeit) * speedMultP2;
 
-      if (state.p2IsBot) {
+      const gleveDashP2 = Gleve.istGleve(state.p2) && Gleve.aktualisiereGleve(state.p2, 'p2', laserTasteP2(), steuerRichtungP2());
+
+      if (gleveDashP2) {
+        // Gleve-Dash/Abprall uebernimmt die Bewegung
+        baseFlameScaleP2 = 2.2;
+      } else if (state.p2IsBot) {
         // Bot-KI steuert P2
         const prevBotX = state.p2.x;
         const prevBotY = state.p2.y;
@@ -195,18 +244,29 @@ function begrenzeEnergie(s) {
   if (s.energie > s.maxEnergie) s.energie = s.maxEnergie;
 }
 
+// Ab welcher Energie die Primärwaffe wieder einsatzbereit ist (Gleve: Dash-Kosten)
+function zuendSchwelle(s) {
+  return Gleve.istGleve(s) ? Gleve.dashKosten(s) : s.minZuendEnergie;
+}
+
 export function aktualisiereEnergie() {
-  const isDualHumanCoop = state.gameMode === 'coop' && !state.p2IsBot;
-  const p1LaserKey = isDualHumanCoop ? state.tastenGedrueckt.b : (state.tastenGedrueckt.l || state.tastenGedrueckt.b);
-  steuereLaserZuendung(state, p1LaserKey && !state.isDead);
-  let laserAktiv = state.laserSchiesst && state.energie > 0 && !state.isDead && !Hack.hatHack(state, 'waffenOffline');
-  if (laserAktiv) {
-    if (!state.unbegrenzteEnergie) {
-      state.energie -= 0.8 + Math.min(state.laserStufe, 5) * 0.1;
-    }
-  } else {
-    ladeEnergie(state);
+  let laserAktiv = false;
+  if (Gleve.istGleve(state)) {
+    // Gleve: kein Laser; Antriebs-Energie lädt nur, solange kein Dash läuft (Kosten zieht gleve.js beim Start ab)
+    state.laserSchiesst = false;
+    if (!Gleve.istDashAktiv(state)) ladeEnergie(state);
     versteckeAlleLaser();
+  } else {
+    steuereLaserZuendung(state, laserTasteP1() && !state.isDead);
+    laserAktiv = state.laserSchiesst && state.energie > 0 && !state.isDead && !Hack.hatHack(state, 'waffenOffline');
+    if (laserAktiv) {
+      if (!state.unbegrenzteEnergie) {
+        state.energie -= 0.8 + Math.min(state.laserStufe, 5) * 0.1;
+      }
+    } else {
+      ladeEnergie(state);
+      versteckeAlleLaser();
+    }
   }
   begrenzeEnergie(state);
   if (dom.energieBalken) {
@@ -214,27 +274,29 @@ export function aktualisiereEnergie() {
     if (state.unbegrenzteEnergie) {
       dom.energieBalken.style.backgroundColor = '#f1c40f';
     } else {
-      dom.energieBalken.style.backgroundColor = state.energie < state.minZuendEnergie && !state.laserSchiesst ? '#e67e22' : '#1abc9c';
+      dom.energieBalken.style.backgroundColor = state.energie < zuendSchwelle(state) && !state.laserSchiesst ? '#e67e22' : '#1abc9c';
     }
   }
 
   // --- 9.4 ENERGIE SPIELER 2 (Co-op) ---
   let laserAktivP2 = false;
   if (isCoopMode() && state.p2 && !state.p2.isDead) {
-    const p2LaserKey = (state.network && state.network.isOnline && state.network.isHost)
-      ? Boolean(state.p2 && state.p2.laserInputRequested)
-      : (state.p2IsBot ? (state.p2.botFireLaser || false) : (state.tastenGedrueckt.ä || state.tastenGedrueckt.numpad1 || state.tastenGedrueckt['.']));
-    steuereLaserZuendung(state.p2, p2LaserKey);
-    laserAktivP2 = state.p2.laserSchiesst && state.p2.energie > 0 && !Hack.hatHack(state.p2, 'waffenOffline');
-    if (laserAktivP2) {
-      state.p2.energie -= 0.8 + Math.min(state.p2.laserStufe, 5) * 0.1;
+    if (Gleve.istGleve(state.p2)) {
+      state.p2.laserSchiesst = false;
+      if (!Gleve.istDashAktiv(state.p2)) ladeEnergie(state.p2);
     } else {
-      ladeEnergie(state.p2);
+      steuereLaserZuendung(state.p2, laserTasteP2());
+      laserAktivP2 = state.p2.laserSchiesst && state.p2.energie > 0 && !Hack.hatHack(state.p2, 'waffenOffline');
+      if (laserAktivP2) {
+        state.p2.energie -= 0.8 + Math.min(state.p2.laserStufe, 5) * 0.1;
+      } else {
+        ladeEnergie(state.p2);
+      }
     }
     begrenzeEnergie(state.p2);
     if (dom.energieBalkenP2) {
       dom.energieBalkenP2.style.width = state.p2.energie / state.p2.absMaxEnergie * 100 + '%';
-      dom.energieBalkenP2.style.backgroundColor = state.p2.energie < state.p2.minZuendEnergie && !state.p2.laserSchiesst ? '#e67e22' : '#3498db';
+      dom.energieBalkenP2.style.backgroundColor = state.p2.energie < zuendSchwelle(state.p2) && !state.p2.laserSchiesst ? '#e67e22' : '#3498db';
     }
 
     // P2 Schild Regen (Phantom-NX)

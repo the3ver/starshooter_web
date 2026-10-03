@@ -727,3 +727,58 @@ export function playLightBeamWhoosh() {
     osc.stop(now + 0.9);
 }
 
+// Gleve-Dash: kurzer "Whoosh" (Rausch-Sweep nach oben) mit tiefem Schub-Ton
+export function playDash(level = 1) {
+    recordSound('dash', { level });
+    if (isMuted) return;
+    const ctx = getAudioContext();
+    if (!ctx) return;
+    if (ctx.state === 'suspended') ctx.resume().catch(() => {});
+
+    const now = ctx.currentTime;
+    const duration = 0.22;
+
+    // 1. Luftzug: Bandpass-Rauschen, Frequenz steigt schnell und fällt wieder
+    try {
+        const noiseBuf = getNoiseBuffer(ctx);
+        if (noiseBuf) {
+            const noiseSource = ctx.createBufferSource();
+            noiseSource.buffer = noiseBuf;
+            noiseSource.loop = true;
+
+            const bandpass = ctx.createBiquadFilter();
+            bandpass.type = 'bandpass';
+            bandpass.Q.setValueAtTime(2.5, now);
+            bandpass.frequency.setValueAtTime(500, now);
+            bandpass.frequency.exponentialRampToValueAtTime(3000 + level * 300, now + duration * 0.4);
+            bandpass.frequency.exponentialRampToValueAtTime(700, now + duration);
+
+            const noiseGain = ctx.createGain();
+            noiseGain.gain.setValueAtTime(0.05, now);
+            noiseGain.gain.linearRampToValueAtTime(0.4, now + duration * 0.3);
+            noiseGain.gain.exponentialRampToValueAtTime(0.001, now + duration);
+
+            noiseSource.connect(bandpass);
+            bandpass.connect(noiseGain);
+            noiseGain.connect(masterGain);
+
+            noiseSource.start(now);
+            noiseSource.stop(now + duration);
+        }
+    } catch (e) {}
+
+    // 2. Schub-Ton: tiefer Sägezahn, der kurz nach oben gezogen wird
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.type = 'sawtooth';
+    osc.frequency.setValueAtTime(140, now);
+    osc.frequency.exponentialRampToValueAtTime(420 + level * 40, now + duration * 0.5);
+    osc.frequency.exponentialRampToValueAtTime(90, now + duration);
+    gain.gain.setValueAtTime(0.12, now);
+    gain.gain.exponentialRampToValueAtTime(0.001, now + duration);
+    osc.connect(gain);
+    gain.connect(masterGain);
+    osc.start(now);
+    osc.stop(now + duration);
+}
+

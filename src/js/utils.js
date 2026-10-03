@@ -395,9 +395,14 @@ export function triggerGameOver(finalScoreFromHost = null) {
   updateMobileControlsVisibility();
 }
 
+// Gleve-Dash (+ Nachlauf/Abprall): Schiff ist nicht treffbar, Geschosse und Gegner fliegen durch
+export function istDashUnverwundbar(pState) {
+  return !!pState && (pState.gleveUnverwundbar || 0) > 0;
+}
+
 export function spielerGetroffen(kollisionsObjekt, explodiert = true, targetPlayer = 'p1') {
   if (targetPlayer === 'p1') {
-    if (state.godMode || state.invulnerableTimer > 0 || state.isDead) return;
+    if (state.godMode || state.invulnerableTimer > 0 || state.isDead || istDashUnverwundbar(state)) return;
     
     Audio.playHit('player');
     state.invulnerableTimer = 45;
@@ -461,7 +466,7 @@ export function spielerGetroffen(kollisionsObjekt, explodiert = true, targetPlay
       }
     }
   } else if (targetPlayer === 'p2' && isCoopMode() && state.p2) {
-    if (state.godMode || state.p2.invulnerableTimer > 0 || state.p2.isDead) return;
+    if (state.godMode || state.p2.invulnerableTimer > 0 || state.p2.isDead || istDashUnverwundbar(state.p2)) return;
     
     Audio.playHit('player');
     state.p2.invulnerableTimer = 45;
@@ -551,6 +556,18 @@ export function updateMobileControlsVisibility() {
   }
 }
 
+// Gleve-Dash-Zustand eines Spielers zuruecksetzen (Felder siehe gleve.js)
+function setzeGleveDashZurueck(pState, schiffEl) {
+  pState.gleveDashTimer = 0;
+  pState.gleveDashVx = 0;
+  pState.gleveDashVy = 0;
+  pState.gleveAbprallTimer = 0;
+  pState.gleveUnverwundbar = 0;
+  pState.gleveDashTasteGehalten = false;
+  pState.gleveDashTreffer = [];
+  if (schiffEl) schiffEl.classList.remove('gleve-dash');
+}
+
 export function restartGame() {
   state.gameOverAktiv = false;
   document.getElementById('game-over-screen').style.display = 'none';
@@ -582,6 +599,8 @@ export function restartGame() {
   state.isDead = false;
   state.hacks = [];
   if (state.p2) state.p2.hacks = [];
+  setzeGleveDashZurueck(state, dom.spieler);
+  if (state.p2) setzeGleveDashZurueck(state.p2, dom.spieler2);
   Bot.resetBot();
   updateLebenUI();
   updateMaxEnergieMarker();

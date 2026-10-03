@@ -2056,6 +2056,30 @@
         .hangar-ship-display.schiff-gleve .hangar-flame.flame-right { display: none; }
         .spieler-schiff.schiff-gleve .ship-flame { left: 13.5px !important; }
 
+        /* Gleve-Dash: halbtransparent mit hellem Rand, Nachbilder und Start-Blitz */
+        .spieler-schiff.gleve-dash {
+            opacity: 0.6;
+            filter: brightness(1.6) drop-shadow(0 0 2px #ffffff) drop-shadow(0 0 6px #ffffff);
+        }
+        .gleve-nachbild {
+            position: absolute;
+            width: 30px;
+            height: 30px;
+            clip-path: polygon(50% 20%, 83% 27%, 97% 60%, 63% 73%, 50% 87%, 37% 73%, 3% 60%, 17% 27%);
+            box-shadow: inset 0 0 6px #ffffff;
+            z-index: 5;
+            pointer-events: none;
+        }
+        .gleve-blitz {
+            position: absolute;
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            background: radial-gradient(circle, #ffffff 0%, rgba(255, 255, 255, 0.6) 40%, rgba(255, 255, 255, 0) 70%);
+            z-index: 7;
+            pointer-events: none;
+        }
+
         #hangar-ship-name {
             margin-top: 6px;
             font-size: 10px;

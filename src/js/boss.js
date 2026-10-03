@@ -156,10 +156,10 @@ export function aktualisiereBosse() {
     b.el.style.left = b.x + 'px';
     b.el.style.top = b.y + 'px';
     let bossPadding = b.groesse * 0.15;
-    if (!state.isDead && state.x < b.x + b.groesse - bossPadding && state.x + config.spielerGroesse > b.x + bossPadding && state.y < b.y + b.groesse - bossPadding && state.y + config.spielerGroesse > b.y + bossPadding) {
+    if (!state.isDead && !Utils.istDashUnverwundbar(state) && state.x < b.x + b.groesse - bossPadding && state.x + config.spielerGroesse > b.x + bossPadding && state.y < b.y + b.groesse - bossPadding && state.y + config.spielerGroesse > b.y + bossPadding) {
       Utils.spielerGetroffen(b, false, 'p1');
     }
-    if (isCoopMode() && state.p2 && !state.p2.isDead && state.p2.x < b.x + b.groesse - bossPadding && state.p2.x + config.spielerGroesse > b.x + bossPadding && state.p2.y < b.y + b.groesse - bossPadding && state.p2.y + config.spielerGroesse > b.y + bossPadding) {
+    if (isCoopMode() && state.p2 && !state.p2.isDead && !Utils.istDashUnverwundbar(state.p2) && state.p2.x < b.x + b.groesse - bossPadding && state.p2.x + config.spielerGroesse > b.x + bossPadding && state.p2.y < b.y + b.groesse - bossPadding && state.p2.y + config.spielerGroesse > b.y + bossPadding) {
       Utils.spielerGetroffen(b, false, 'p2');
     }
   }
@@ -175,13 +175,13 @@ export function aktualisiereBosse() {
       arrays.bossLaserArray.splice(i, 1);
       continue;
     }
-    if (!state.isDead && state.x < bl.x + bl.width && state.x + config.spielerGroesse > bl.x && state.y < bl.y + bl.height && state.y + config.spielerGroesse > bl.y) {
+    if (!state.isDead && !Utils.istDashUnverwundbar(state) && state.x < bl.x + bl.width && state.x + config.spielerGroesse > bl.x && state.y < bl.y + bl.height && state.y + config.spielerGroesse > bl.y) {
       Utils.spielerGetroffen(bl, false, 'p1');
       bl.el.remove();
       arrays.bossLaserArray.splice(i, 1);
       continue;
     }
-    if (isCoopMode() && state.p2 && !state.p2.isDead && state.p2.x < bl.x + bl.width && state.p2.x + config.spielerGroesse > bl.x && state.p2.y < bl.y + bl.height && state.p2.y + config.spielerGroesse > bl.y) {
+    if (isCoopMode() && state.p2 && !state.p2.isDead && !Utils.istDashUnverwundbar(state.p2) && state.p2.x < bl.x + bl.width && state.p2.x + config.spielerGroesse > bl.x && state.p2.y < bl.y + bl.height && state.p2.y + config.spielerGroesse > bl.y) {
       Utils.spielerGetroffen(bl, false, 'p2');
       bl.el.remove();
       arrays.bossLaserArray.splice(i, 1);
@@ -265,11 +265,11 @@ export function aktualisiereBossBomben() {
       continue;
     }
 
-    if (!state.isDead && state.x < bb.x + bb.groesse && state.x + config.spielerGroesse > bb.x && state.y < bb.y + bb.groesse && state.y + config.spielerGroesse > bb.y) {
+    if (!state.isDead && !Utils.istDashUnverwundbar(state) && state.x < bb.x + bb.groesse && state.x + config.spielerGroesse > bb.x && state.y < bb.y + bb.groesse && state.y + config.spielerGroesse > bb.y) {
       Utils.spielerGetroffen(bb, false, 'p1');
       bb.hp = 0;
     }
-    if (isCoopMode() && state.p2 && !state.p2.isDead && state.p2.x < bb.x + bb.groesse && state.p2.x + config.spielerGroesse > bb.x && state.p2.y < bb.y + bb.groesse && state.p2.y + config.spielerGroesse > bb.y) {
+    if (isCoopMode() && state.p2 && !state.p2.isDead && !Utils.istDashUnverwundbar(state.p2) && state.p2.x < bb.x + bb.groesse && state.p2.x + config.spielerGroesse > bb.x && state.p2.y < bb.y + bb.groesse && state.p2.y + config.spielerGroesse > bb.y) {
       Utils.spielerGetroffen(bb, false, 'p2');
       bb.hp = 0;
     }
@@ -350,7 +350,7 @@ export function aktualisiereBossRaketen() {
     }
 
     // Kollision mit Spieler
-    if (!state.isDead && state.x < br.x + br.width && state.x + config.spielerGroesse > br.x && state.y < br.y + br.height && state.y + config.spielerGroesse > br.y) {
+    if (!state.isDead && !Utils.istDashUnverwundbar(state) && state.x < br.x + br.width && state.x + config.spielerGroesse > br.x && state.y < br.y + br.height && state.y + config.spielerGroesse > br.y) {
       Utils.spielerGetroffen(br, false, 'p1');
       Audio.playMissileExplosion();
       Utils.erzeugeExplosion(br.x + br.width / 2, br.y + br.height / 2, '#e74c3c', 25);
@@ -358,7 +358,7 @@ export function aktualisiereBossRaketen() {
       arrays.bossRaketenArray.splice(i, 1);
       continue;
     }
-    if (isCoopMode() && state.p2 && !state.p2.isDead && state.p2.x < br.x + br.width && state.p2.x + config.spielerGroesse > br.x && state.p2.y < br.y + br.height && state.p2.y + config.spielerGroesse > br.y) {
+    if (isCoopMode() && state.p2 && !state.p2.isDead && !Utils.istDashUnverwundbar(state.p2) && state.p2.x < br.x + br.width && state.p2.x + config.spielerGroesse > br.x && state.p2.y < br.y + br.height && state.p2.y + config.spielerGroesse > br.y) {
       Utils.spielerGetroffen(br, false, 'p2');
       Audio.playMissileExplosion();
       Utils.erzeugeExplosion(br.x + br.width / 2, br.y + br.height / 2, '#e74c3c', 25);
