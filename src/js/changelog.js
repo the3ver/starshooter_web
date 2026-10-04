@@ -1,6 +1,16 @@
-export const GAME_VERSION = '1.9.0';
+export const GAME_VERSION = '1.10.0';
 
 export const changelogData = {
+  '1.10.0': {
+    version: '1.10.0',
+    intro: 'Hey, es ist jetzt Version 1.10.0 rausgekommen, folgendes wurde aktualisiert:',
+    highlights: [
+      '🗡️ Der Dash der Gleve-MR hat jetzt Ladungen: Von Anfang an kannst du zweimal hintereinander dashen, ab Raketen-Stufe 4 sogar dreimal. Leere Ladungen füllen sich nacheinander wieder auf',
+      '🔗 Jeder Dash-Kill verkürzt die Ladezeit der nächsten Ladung',
+      '🔵 Die Punkte neben dem DASH-Balken zeigen, wie viele Ladungen bereit sind, auf dem Handy steht die Zahl auf dem D-Knopf',
+      '🔄 Für den Online-Modus brauchen beide Spieler Version 1.10.0, sonst bitte die Seite neu laden (Strg+F5)'
+    ]
+  },
   '1.9.0': {
     version: '1.9.0',
     intro: 'Hey, es ist jetzt Version 1.9.0 rausgekommen, folgendes wurde aktualisiert:',
