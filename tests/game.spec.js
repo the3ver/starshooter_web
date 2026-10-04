@@ -5101,6 +5101,9 @@ test.describe('Bot-Partner', () => {
       mod.state.network.isHost = true;
       mod.state.network.isClient = false;
       mod.state.network.connected = true;
+      // P2 bewusst abweichend vorbelegen, sonst waere 'viper' schon aus dem Client-Szenario gesetzt
+      mod.state.p2.selectedShipModel = 'gleve';
+      mod.state.p2.selectedShipColor = 'green';
 
       mod.Network.handleNetworkEvent({
         type: 'client_ready',
@@ -5113,13 +5116,15 @@ test.describe('Bot-Partner', () => {
       const mod = window.__game;
       return {
         p1Model: mod.state.selectedShipModel,
-        p2Model: mod.state.p2.selectedShipModel
+        p2Model: mod.state.p2.selectedShipModel,
+        p2Color: mod.state.p2.selectedShipColor
       };
     });
 
-    // Host: P1=Phantom, P2=Viper
+    // Host: P1=Phantom, P2=Viper in der Farbe des Clients
     expect(hostState.p1Model).toBe('phantom');
     expect(hostState.p2Model).toBe('viper');
+    expect(hostState.p2Color).toBe('red');
   });
 
   test('Online-Multiplayer Bug 3: Partikel auf dem Client animieren, zerfallen und werden aus DOM und Array entfernt', async ({ page }) => {
