@@ -4533,21 +4533,33 @@ test.describe('Bot-Partner', () => {
       mod.state.network.isOnline = true;
       mod.state.network.isHost = true;
       
-      let sentEvents = [];
-      mod.Network.onNetworkEvent((e) => sentEvents.push(e));
+      // Alle gesendeten Events mitschreiben (sendNetworkEvent setzt immer lastSentEvent)
+      const sentEvents = [];
+      let lastSent = null;
+      Object.defineProperty(mod.state.network, 'lastSentEvent', {
+        configurable: true,
+        get: () => lastSent,
+        set: (v) => { lastSent = v; sentEvents.push(v); }
+      });
 
       // Cutszene starten und überspringen
+      localStorage.removeItem('starshooter_skip_cutscene'); // Setup setzt das Flag, sonst laeuft keine Cutszene
       mod.Cutscene.startCutscene();
+      const activeBeforeSkip = mod.Cutscene.isCutsceneActive();
       mod.Cutscene.skipCutscene();
 
       return {
+        activeBeforeSkip,
         cutsceneActive: mod.Cutscene.isCutsceneActive(),
-        gameRunning: mod.state.spielLaeuft
+        gameRunning: mod.state.spielLaeuft,
+        sentTypes: sentEvents.filter(Boolean).map((e) => e.type)
       };
     });
 
+    expect(cutsceneSkippedResult.activeBeforeSkip).toBe(true);
     expect(cutsceneSkippedResult.cutsceneActive).toBe(false);
     expect(cutsceneSkippedResult.gameRunning).toBe(true);
+    expect(cutsceneSkippedResult.sentTypes).toContain('skip_cutscene');
 
     // 2. Schadens-Flash im Online-Modus testen (P2 getroffen -> Host-Bildschirm darf NICHT rot werden)
     const flashCheck = await page.evaluate(() => {
