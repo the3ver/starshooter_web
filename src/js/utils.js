@@ -1542,6 +1542,20 @@ export function updateSchiffHudLabels() {
   setzeHudLabel(document.querySelector('#energie-cd-container-p2 .cooldown-letter'), labelsP2.energie, modelP2 === 'gleve');
   setzeHudLabel(document.querySelector('#raketen-cd-container-p2 .cooldown-letter'), labelsP2.rakete, modelP2 === 'gleve');
 
+  // Dash-Ladungspunkte nur bei der Gleve (Inhalt pflegt Gleve.zeigeDashHud)
+  for (const [id, model] of [['dash-ladungen', modelP1], ['dash-ladungen-p2', modelP2]]) {
+    const el = document.getElementById(id);
+    if (!el) continue;
+    el.style.display = model === 'gleve' ? 'flex' : 'none';
+    if (model !== 'gleve') el.replaceChildren();
+  }
+  const ladungenEl = document.getElementById('btn-rakete-ladungen');
+  if (ladungenEl) {
+    const mobilGleve = lokalesSchiffModell() === 'gleve';
+    ladungenEl.style.display = mobilGleve ? '' : 'none';
+    if (!mobilGleve) ladungenEl.textContent = '';
+  }
+
   // Mobile-Raketen-Button gehört dem lokalen Spieler (Online-Client = P2)
   const mobilLabels = HUD_LABELS[lokalesSchiffModell()] || HUD_LABELS.standard;
   const mobilSpan = document.querySelector('#btn-rakete span');

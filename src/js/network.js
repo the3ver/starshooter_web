@@ -779,6 +779,7 @@ export function disconnectNetwork() {
 function gleveZustand(s) {
     if (!Gleve.istGleve(s)) return {};
     return {
+        gleveDashLadungen: s.gleveDashLadungen === undefined ? Gleve.dashMaxLadungen(s) : s.gleveDashLadungen,
         gleveDashTimer: s.gleveDashTimer || 0,
         gleveAbprallTimer: s.gleveAbprallTimer || 0,
         gleveUnverwundbar: s.gleveUnverwundbar || 0,
@@ -1102,6 +1103,10 @@ export function applyGameStateSnapshot(snapshot) {
                 raketenCdBalken.style.width = pctR + '%';
                 raketenCdBalken.style.backgroundColor = state.raketenCooldown <= 0 ? '#2ecc71' : '#e74c3c';
             }
+            if (Gleve.istGleve(state) && snapshot.p1.gleveDashLadungen !== undefined) {
+                state.gleveDashLadungen = snapshot.p1.gleveDashLadungen;
+                Gleve.zeigeDashHud('p1', state);
+            }
         }
         if (snapshot.p1.bombenCooldown !== undefined) {
             state.bombenCooldown = snapshot.p1.bombenCooldown;
@@ -1157,6 +1162,10 @@ export function applyGameStateSnapshot(snapshot) {
                 let pctR = Math.max(0, 100 - state.p2.raketenCooldown / maxRaketenCd * 100);
                 raketenCdBalkenP2.style.width = pctR + '%';
                 raketenCdBalkenP2.style.backgroundColor = state.p2.raketenCooldown <= 0 ? '#2ecc71' : '#e74c3c';
+            }
+            if (Gleve.istGleve(state.p2) && snapshot.p2.gleveDashLadungen !== undefined) {
+                state.p2.gleveDashLadungen = snapshot.p2.gleveDashLadungen;
+                Gleve.zeigeDashHud('p2', state.p2);
             }
         }
         if (snapshot.p2.bombenCooldown !== undefined) {

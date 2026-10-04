@@ -6,7 +6,7 @@
 // positiv = rechts), gleveSweepRichtung (+1 links->rechts, -1 rechts->links; wechselt bei jedem Start),
 // gleveSweepTreffer (Ziele dieses Sweeps), gleveSweepTakt (Frames bis zum naechsten moeglichen Start).
 
-import { dom, config, arrays, shipModels, shipColors } from './state.js';
+import { state, dom, config, arrays, shipModels, shipColors } from './state.js';
 import * as Utils from './utils.js';
 import * as Audio from './audio.js';
 import * as Hack from './hack.js';
@@ -60,6 +60,47 @@ export function aktualisiereDashLadungen(pState) {
   } else if (pState.gleveDashLadungen < max) {
     // z. B. nach Upgrade auf Stufe 4: Nachladen starten
     pState.raketenCooldown = dashCooldown(pState);
+  }
+}
+
+// HUD der Dash-Ladungen: Balken = Fortschritt der naechsten Ladung (voll/gruen bei vollen Ladungen),
+// Punkte = Ladungen (gefuellt = vorhanden), mobil Ladungszahl und Fuellung am Raketen-Button des lokalen Schiffs.
+export function zeigeDashHud(pKey, pState) {
+  if (!pState || !istGleve(pState)) return;
+  const sfx = pKey === 'p2' ? '-p2' : '';
+  const max = dashMaxLadungen(pState);
+  const ladungen = Math.max(0, Math.min(max, Math.round(pState.gleveDashLadungen === undefined ? max : pState.gleveDashLadungen)));
+  const voll = ladungen >= max;
+  const pct = voll ? 100 : Math.max(0, Math.min(100, 100 - (pState.raketenCooldown || 0) / dashCooldown(pState) * 100));
+
+  const balken = document.getElementById('raketen-cd-balken' + sfx);
+  if (balken) {
+    balken.style.width = pct + '%';
+    balken.style.backgroundColor = voll ? '#2ecc71' : '#e74c3c';
+  }
+  const container = document.getElementById('dash-ladungen' + sfx);
+  if (container) {
+    while (container.children.length < max) {
+      const punkt = document.createElement('div');
+      punkt.className = 'dash-ladung';
+      container.appendChild(punkt);
+    }
+    while (container.children.length > max) container.lastChild.remove();
+    for (let i = 0; i < max; i++) container.children[i].classList.toggle('voll', i < ladungen);
+  }
+
+  const istClient = state.gameMode === 'online' && state.network && state.network.isClient;
+  if ((pKey === 'p2') === !!istClient) {
+    const zahl = document.getElementById('btn-rakete-ladungen');
+    if (zahl) {
+      zahl.style.display = '';
+      zahl.textContent = String(ladungen);
+    }
+    const fuellung = document.getElementById('btn-rakete-cd');
+    if (fuellung) {
+      fuellung.style.height = pct + '%';
+      fuellung.style.backgroundColor = voll ? 'rgba(46, 204, 113, 0.5)' : 'rgba(231, 76, 60, 0.5)';
+    }
   }
 }
 
@@ -362,6 +403,7 @@ export function sageDashVorher(pState, tasteGedrueckt, richtung) {
     return true;
   }
 
+  // Ohne Ladung laut letztem Snapshot kein Dash (kannDashen prueft gleveDashLadungen)
   if (flanke && kannDashen(pState)) {
     starteDash(pState, 'p2', richtung);
     pState.gleveDashStartX = pState.x;
@@ -383,6 +425,7 @@ export function netzEingabe(pState, richtung) {
 // (Dash lokal vorhergesagt, vom Host kommen nur Abprall, Sweep und Unverwundbarkeit).
 export function uebernehmeSnapshot(pState, daten, eigenes) {
   if (!daten || daten.gleveSweepTimer === undefined) return;
+  if (daten.gleveDashLadungen !== undefined) pState.gleveDashLadungen = daten.gleveDashLadungen;
   const sweepTimer = daten.gleveSweepTimer || 0;
   const sweepRichtung = daten.gleveSweepRichtung || 0;
   // Neuer Sweep: Richtung wechselt bei jedem Einsatz

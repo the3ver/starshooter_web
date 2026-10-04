@@ -278,6 +278,75 @@ test('Online: Gleve-Zustand und harmlos-Flag gehen in den Snapshot, Client zeigt
   expect(r.ende).toEqual({ dashKlasse: false, klingen: 0 });
 });
 
+test('Online: Dash-Ladungen gehen in den Snapshot (nur Gleve), Client zeigt Punkte und sagt ohne Ladung keinen Dash voraus', async ({ page }) => {
+  const r = await page.evaluate(async () => {
+    const g = window.__game;
+    const { state } = g;
+    const NK = await import('./js/netzkodierung.js');
+    const Gleve = await import('./js/gleve.js');
+    const { simulationsSchritt } = await import('./js/loop.js');
+    const out = {};
+
+    // Host-Seite: nur Gleve-Schiffe senden gleveDashLadungen, ganzzahlig
+    state.selectedShipModel = 'gleve';
+    state.p2.selectedShipModel = 'viper';
+    state.gleveDashLadungen = 1;
+    const voll = g.Network.serializeGameState();
+    out.p1 = voll.p1.gleveDashLadungen;
+    out.p2OhneGleve = voll.p2.gleveDashLadungen === undefined;
+    const paket = new NK.SnapshotKodierer().kodiere(voll, 0);
+    const dek = new NK.SnapshotDekodierer().dekodiere(JSON.parse(JSON.stringify(paket)));
+    out.dekodiert = dek.p1.gleveDashLadungen;
+
+    // Client-Seite: eigenes Schiff (P2) ist eine Gleve
+    state.selectedShipModel = 'viper';
+    g.config.spielfeldBreite = 600;
+    Object.assign(state.p2, {
+      selectedShipModel: 'gleve', x: 300, y: 400, energie: 50, maxEnergie: 50, laserStufe: 1, raketenStufe: 1, raketenCooldown: 0, isDead: false, hacks: [],
+      gleveDashTimer: 0, gleveAbprallTimer: 0, gleveDashTasteGehalten: false, gleveNetzAbprall: null
+    });
+    g.Utils.updateSchiffHudLabels();
+    const gleveFelder = { gleveDashTimer: 0, gleveAbprallTimer: 0, gleveUnverwundbar: 0, gleveSweepTimer: 0, gleveSweepWinkel: 0, gleveSweepRichtung: 0 };
+    const punkte = () => {
+      const el = document.getElementById('dash-ladungen-p2');
+      return [el.querySelectorAll('.dash-ladung').length, el.querySelectorAll('.dash-ladung.voll').length];
+    };
+    const mitLadungen = (n, cd) => {
+      const snap = window.__snapshot();
+      Object.assign(snap.p2, { raketenCooldown: cd, gleveDashLadungen: n }, gleveFelder);
+      return snap;
+    };
+
+    g.Network.applyGameStateSnapshot(mitLadungen(0, 100));
+    out.ohneLadung = { ladungen: state.p2.gleveDashLadungen, punkte: punkte(), pct: parseFloat(document.getElementById('raketen-cd-balken-p2').style.width), zahl: document.getElementById('btn-rakete-ladungen').textContent };
+    state.tastenGedrueckt.k = true;
+    simulationsSchritt();
+    out.keinDash = { timer: state.p2.gleveDashTimer, y: state.p2.y, x: state.p2.x };
+    state.tastenGedrueckt.k = false;
+    simulationsSchritt();
+
+    g.Network.applyGameStateSnapshot(mitLadungen(1, 100));
+    out.eineLadung = { punkte: punkte(), zahl: document.getElementById('btn-rakete-ladungen').textContent };
+    state.tastenGedrueckt.k = true;
+    simulationsSchritt();
+    out.dash = state.p2.gleveDashTimer;
+    state.tastenGedrueckt.k = false;
+    out.max = Gleve.dashMaxLadungen(state.p2);
+    return out;
+  });
+  expect(r.p1).toBe(1);
+  expect(r.p2OhneGleve).toBe(true);
+  expect(r.dekodiert).toBe(1);
+  expect(r.ohneLadung.ladungen).toBe(0);
+  expect(r.ohneLadung.punkte).toEqual([r.max, 0]);
+  expect(r.ohneLadung.pct).toBeCloseTo(100 - 100 / 180 * 100, 3);
+  expect(r.ohneLadung.zahl).toBe('0');
+  // Ohne Ladung kein vorhergesagter Dash
+  expect(r.keinDash.timer).toBe(0);
+  expect(r.eineLadung).toEqual({ punkte: [2, 1], zahl: '1' });
+  expect(r.dash).toBeGreaterThan(0);
+});
+
 test('Online-Client: eigener Gleve-Dash (Raketen-Taste) wird lokal vorhergesagt, Abprall kommt vom Host', async ({ page }) => {
   const r = await page.evaluate(async () => {
     const g = window.__game;
@@ -288,7 +357,7 @@ test('Online-Client: eigener Gleve-Dash (Raketen-Taste) wird lokal vorhergesagt,
     state.selectedShipModel = 'viper';
     Object.assign(state.p2, {
       selectedShipModel: 'gleve', x: 300, y: 400, energie: 50, maxEnergie: 50, laserStufe: 1, raketenStufe: 1, raketenCooldown: 0, isDead: false, hacks: [],
-      gleveDashTimer: 0, gleveAbprallTimer: 0, gleveDashTasteGehalten: false, gleveNetzAbprall: null
+      gleveDashLadungen: 2, gleveDashTimer: 0, gleveAbprallTimer: 0, gleveDashTasteGehalten: false, gleveNetzAbprall: null
     });
     g.Audio.clearAudioHistory();
 

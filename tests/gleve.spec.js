@@ -459,6 +459,61 @@ test.describe('Gleve-MR Dash-Ladungen', () => {
     expect(r.dauerhaft).toBe(2);
   });
 
+  test('HUD: DASH-Balken zeigt das Nachladen, Punkte zeigen die Ladungen (2, Stufe 4: 3), Viper ohne Punkte', async ({ page }) => {
+    await starteGleve(page);
+    const punkte = (sfx = '') => page.evaluate((id) => {
+      const el = document.getElementById(id);
+      return { gesamt: el.querySelectorAll('.dash-ladung').length, voll: el.querySelectorAll('.dash-ladung.voll').length, sichtbar: getComputedStyle(el).display !== 'none' };
+    }, 'dash-ladungen' + sfx);
+    const r = await page.evaluate(async () => {
+      const { state } = window.__game;
+      const Gleve = await import('./js/gleve.js');
+      const T = window.__gleveTest;
+      const balken = () => document.getElementById('raketen-cd-balken');
+      const lies = () => ({ pct: parseFloat(balken().style.width), farbe: balken().style.backgroundColor });
+      T.leeren();
+      T.schritte(1);
+      const start = lies();
+      state.y = 500;
+      state.tastenGedrueckt.k = true;
+      T.schritte(10);
+      state.tastenGedrueckt.k = false;
+      T.schritte(1);
+      const nachDash = { ...lies(), ladungen: state.gleveDashLadungen };
+      return { start, nachDash, max: Gleve.dashMaxLadungen(state) };
+    });
+    expect(r.start).toEqual({ pct: 100, farbe: 'rgb(46, 204, 113)' });
+    expect(r.nachDash.ladungen).toBe(1);
+    expect(r.nachDash.pct).toBeLessThan(100);
+    expect(r.nachDash.farbe).not.toBe('rgb(46, 204, 113)');
+    expect(await punkte()).toEqual({ gesamt: r.max, voll: 1, sichtbar: true });
+
+    // Voll geladen: alle Punkte gefuellt
+    await page.evaluate(() => {
+      const { state } = window.__game;
+      window.__gleveTest.leeren();
+      window.__gleveTest.schritte(1);
+    });
+    expect(await punkte()).toEqual({ gesamt: 2, voll: 2, sichtbar: true });
+
+    // Stufe 4: drei Punkte, der dritte fehlt bis zum Nachladen
+    await page.evaluate(() => {
+      const { state } = window.__game;
+      state.raketenStufe = 4;
+      window.__gleveTest.schritte(1);
+    });
+    expect(await punkte()).toEqual({ gesamt: 3, voll: 2, sichtbar: true });
+
+    // Viper: keine Punkte
+    await page.evaluate(() => {
+      const { state, Utils } = window.__game;
+      state.selectedShipModel = 'viper';
+      Utils.updateSchiffHudLabels();
+      window.__gleveTest.schritte(1);
+    });
+    expect(await punkte()).toEqual({ gesamt: 0, voll: 0, sichtbar: false });
+  });
+
   test('Max-Ladungen nach Raketen-Stufe: 1-3 -> 2, 4-5 -> 3; Upgrade lädt von selbst nach, Ladungen nie über Max', async ({ page }) => {
     await starteGleve(page);
     const r = await page.evaluate(async () => {
@@ -1168,6 +1223,43 @@ test.describe('Gleve-MR Mobile-Steuerung', () => {
       return { anBeiBeruehrung, ausDanach: state.tastenGedrueckt.l, label: document.querySelector('#btn-rakete span').textContent };
     });
     expect(viper).toEqual({ anBeiBeruehrung: true, ausDanach: false, label: 'R' });
+  });
+
+  test('Raketen-Button zeigt die Anzahl der Dash-Ladungen und den Ladefortschritt, nur bei der Gleve', async ({ page }) => {
+    await page.locator('.hangar-model-btn[data-model="gleve"]').click();
+    await page.tap('#start-text');
+    await page.waitForFunction(() => window.__game.state.spielLaeuft && !window.__game.state.cutsceneAktiv);
+    const r = await page.evaluate(() => {
+      const { state, arrays, Loop, Utils } = window.__game;
+      ['feinde', 'asteroiden', 'feindLaserArray', 'hackProjektilArray', 'bossLaserArray', 'bosses', 'powerups'].forEach(name => {
+        arrays[name].forEach(o => o.el && o.el.remove());
+        arrays[name].length = 0;
+      });
+      state.frameZaehler = 1;
+      state.raketenStufe = 1;
+      state.raketenCooldown = 0;
+      state.gleveDashLadungen = 2;
+      state.gleveDashTasteGehalten = false;
+      state.y = 500;
+      const zahl = document.getElementById('btn-rakete-ladungen');
+      const fuellung = document.getElementById('btn-rakete-cd');
+      const lies = () => ({ text: zahl.textContent, sichtbar: getComputedStyle(zahl).display !== 'none', hoehe: parseFloat(fuellung.style.height) });
+      Loop.simulationsSchritt();
+      const voll = lies();
+      state.tastenGedrueckt.k = true;
+      for (let i = 0; i < 12; i++) Loop.simulationsSchritt();
+      state.tastenGedrueckt.k = false;
+      Loop.simulationsSchritt();
+      const nachDash = lies();
+      state.selectedShipModel = 'viper';
+      Utils.updateSchiffHudLabels();
+      const viper = lies();
+      return { voll, nachDash, viper };
+    });
+    expect(r.voll).toEqual({ text: '2', sichtbar: true, hoehe: 100 });
+    expect(r.nachDash.text).toBe('1');
+    expect(r.nachDash.hoehe).toBeLessThan(100);
+    expect(r.viper).toMatchObject({ text: '', sichtbar: false });
   });
 
   test('Online-Client: Raketen-Button-Beschriftung folgt dem eigenen Schiff (P2)', async ({ page }) => {

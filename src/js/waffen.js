@@ -127,7 +127,9 @@ function feuerRaketenFuerSpieler(pKey, pState) {
   if (pState.raketenStufe >= 4) maxRaketenCd = 120;
   if (istGleve) maxRaketenCd = Gleve.dashCooldown(pState);
 
-  if (pKey === 'p1') {
+  if (istGleve) {
+    Gleve.zeigeDashHud(pKey, pState);
+  } else if (pKey === 'p1') {
     const raketenCdBalken = document.getElementById('raketen-cd-balken');
     if (raketenCdBalken) {
       let pctR = Math.max(0, 100 - pState.raketenCooldown / maxRaketenCd * 100);
