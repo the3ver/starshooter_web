@@ -101,10 +101,12 @@ export const shipModels = {
         loseUpgradesOnHit: false,
         // Kill-Kette: Frames, um die jeder durch einen Dash zerstörte Gegner den Dash-Cooldown verkürzt
         dashKillCooldown: 30,
+        // Energie, die jedes durch einen Sweep zerstörte Feindschiff zurückgibt (Bosse ausgenommen)
+        sweepKillEnergie: 4,
         perks: [
             { icon: '🌀', label: 'LASER-SWEEP ALS HAUPTWAFFE', desc: 'Laser-Taste fegt gehalten pendelnd eine Laserklinge im Bogen vor das Schiff und pariert Geschosse', type: 'buff' },
             { icon: '🗡️', label: 'DASH ALS ZWEITWAFFE', desc: 'Raketen-Taste löst einen Sturmangriff aus, der kleine Gegner durchschneidet', type: 'buff' },
-            { icon: '🔗', label: 'KILL-KETTE', desc: 'Jeder durch einen Dash zerstörte Gegner verkürzt den Dash-Cooldown', type: 'buff' },
+            { icon: '🔗', label: 'KILL-KETTE', desc: 'Dash-Kills verkürzen die Ladezeit des Dashs, Sweep-Kills geben Energie zurück', type: 'buff' },
             { icon: '⚠️', label: 'KURZE REICHWEITE', desc: 'Sweep und Dash reichen nur wenig über das Schiff hinaus', type: 'nerf' },
             { icon: '🚫', label: 'KEIN FERNKAMPF', desc: 'Keine Laser und Raketen, nur Nahkampf', type: 'nerf' }
         ]

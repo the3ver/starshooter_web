@@ -614,8 +614,15 @@ function sweepTreffer(pState, pKey, o, winkelA, winkelB, laenge) {
     if (!imSweep(o, zielBox(z), winkelA, winkelB, laenge)) continue;
     treffer.push(z);
     erzeugeFunken(pState, z);
-    schadeZiel(z, schaden, pKey);
+    if (schadeZiel(z, schaden, pKey)) belohneSweepKill(pState, z);
   }
+}
+
+// Sweep-Kills an Feindschiffen geben Energie zurueck (Bosse ausgenommen), damit der Sweep im Kampf weiterlaeuft
+function belohneSweepKill(pState, z) {
+  if (!z.istFeind || z.istBoss) return;
+  const bonus = (shipModels.gleve && shipModels.gleve.sweepKillEnergie) || 0;
+  pState.energie = Math.min(pState.maxEnergie, (pState.energie || 0) + bonus);
 }
 
 // Parade: Feind-, Hack- und Boss-Geschosse, die der Strahl beruehrt, werden weggeschleudert oder zurueckgeworfen

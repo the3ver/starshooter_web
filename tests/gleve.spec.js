@@ -918,6 +918,43 @@ test.describe('Gleve-MR Laser-Sweep (Laser-Taste)', () => {
   });
 });
 
+test('Gleve-MR: Sweep-Kill an einem Feindschiff gibt Energie zurück, an Asteroiden nicht', async ({ page }) => {
+  await starteGleve(page);
+  const r = await page.evaluate(() => {
+    const { state, arrays, Entities, shipModels } = window.__game;
+    const T = window.__gleveTest;
+    // Ein Sweep (Stufe 1: 30 Schaden, 8 Energie) auf ein Ziel direkt voraus; Energie messen, solange der Sweep noch laeuft
+    const sweepAuf = erzeuge => {
+      T.leeren();
+      const ziel = erzeuge();
+      state.tastenGedrueckt.l = true;
+      T.schritte(10);
+      const energie = state.energie;
+      state.tastenGedrueckt.l = false;
+      return { energie, zerstoert: !arrays.feinde.includes(ziel) && !arrays.asteroiden.includes(ziel) };
+    };
+    const feind = sweepAuf(() => {
+      Entities.erzeugeFeind(185, 340, 'normal', 0, false);
+      const f = arrays.feinde[0];
+      Object.assign(f, { vy: 0, schussTimer: 9999, traegtPowerup: false });
+      return f;
+    });
+    const asteroid = sweepAuf(() => {
+      Entities.erzeugeAsteroid(185, 340, 20, 0, 0, 0, true);
+      const a = arrays.asteroiden[0];
+      a.traegtPowerup = false;
+      return a;
+    });
+    return { feind, asteroid, bonus: shipModels.gleve.sweepKillEnergie, start: 50 };
+  });
+  expect(r.bonus).toBeGreaterThan(0);
+  expect(r.feind.zerstoert).toBe(true);
+  expect(r.asteroid.zerstoert).toBe(true);
+  // Beide Sweeps kosten gleich viel; nur der Feind-Kill gibt den Bonus zurueck
+  expect(r.feind.energie - r.asteroid.energie).toBeCloseTo(r.bonus, 5);
+  expect(r.asteroid.energie).toBeLessThan(r.start);
+});
+
 test.describe('Gleve-MR Bot und Online-Host', () => {
   // Bot (schwer: entscheidet jeden Schritt) fliegt die Gleve als Spieler 2
   async function starteBot(page) {
