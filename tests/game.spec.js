@@ -4035,41 +4035,62 @@ test.describe('Bot-Partner', () => {
   });
 
   test('Bot-Schwierigkeitsgrade (Easy vs Hard) beeinflussen Ausweichradius', async ({ page }) => {
-    // Coop-Modus aktivieren + Bot aktivieren + Hard auswählen
+    // Coop-Modus aktivieren + Bot aktivieren
     await page.click('#gamemode-btn-coop');
     await page.click('.hangar-player-tab[data-player="p2"]');
     await page.click('#btn-p2-bot-toggle');
-    await page.click('.bot-diff-btn[data-diff="hard"]');
 
     // Spiel starten
     await starteSpiel(page);
 
-    // Warten bis Spiel läuft
     await page.waitForFunction(() => {
       const mod = window.__game;
       return mod && mod.state && mod.state.spielLaeuft;
     }, null, { timeout: 5000 });
 
-    // Hard-Bot sollte Asteroid auf 90px Distanz erkennen (dodgeRadius=100)
-    const initialData = await page.evaluate(() => {
-      const mod = window.__game;
-      const s = mod.state;
-      const startX = s.p2.x;
-      const startY = s.p2.y;
-      // Asteroid 90px rechts spawnen
-      mod.Entities.erzeugeAsteroid(startX + 90, startY);
-      return { startX, startY };
+    // Je Stufe gleiche Ausgangslage: ein stehender Feindlaser rechts von P2 im Abstand d.
+    // P1 steht so, dass die Formationsbewegung P2 nicht verschiebt; Bewegung kommt nur vom Ausweichen.
+    const dx = await page.evaluate(async () => {
+      const Bot = await import('./js/bot.js');
+      const { state, config, arrays, Entities } = window.__game;
+      const half = config.spielerGroesse / 2;
+      const messe = (stufe, abstand) => {
+        for (const k of Object.keys(arrays)) if (Array.isArray(arrays[k])) arrays[k].length = 0;
+        document.querySelectorAll('.feind-laser').forEach(el => el.remove());
+        state.frameZaehler = 1;
+        state.p2BotDifficulty = stufe;
+        state.p2.isDead = false;
+        state.p2.x = 400;
+        state.p2.y = config.spielfeldHoehe - 100 - half;
+        const cx = state.p2.x + half;
+        const cy = state.p2.y + half;
+        // Formationsziel von P2 = aktuelle Position (kein Antrieb ohne Gefahr)
+        state.x = cx - 50 - half;
+        state.y = cy - half;
+        // Laser-Mittelpunkt (x + 2, y + 5) genau abstand px rechts von der P2-Mitte
+        Entities.erzeugeFeindLaser(cx + abstand - 2, cy - 5);
+        arrays.feindLaserArray[0].vx = 0;
+        arrays.feindLaserArray[0].vy = 0;
+        Bot.resetBot();
+        const startX = state.p2.x;
+        for (let i = 0; i < 8; i++) Bot.updateBot(); // easy: reactionFrames 8 -> mindestens eine Entscheidung
+        return state.p2.x - startX;
+      };
+      const out = {};
+      for (const abstand of [90, 70]) {
+        for (const stufe of ['easy', 'normal', 'hard']) out[stufe + abstand] = messe(stufe, abstand);
+      }
+      return out;
     });
 
-    await page.waitForTimeout(300);
-
-    const endX = await page.evaluate(() => {
-      const mod = window.__game;
-      return mod.state.p2.x;
-    });
-
-    // Hard-Bot weicht nach links aus
-    expect(endX).toBeLessThan(initialData.startX);
+    // 90 px (zwischen normal 80 und hard 100): nur hard weicht aus (nach links, weg vom Laser)
+    expect(dx.hard90).toBeLessThan(-1);
+    expect(Math.abs(dx.normal90)).toBeLessThan(0.5);
+    expect(Math.abs(dx.easy90)).toBeLessThan(0.5);
+    // 70 px (zwischen easy 60 und normal 80): normal und hard weichen aus, easy nicht
+    expect(dx.hard70).toBeLessThan(-1);
+    expect(dx.normal70).toBeLessThan(-1);
+    expect(Math.abs(dx.easy70)).toBeLessThan(0.5);
   });
 
   test('Bot hält im Idle-Zustand Formation mit Spieler 1', async ({ page }) => {
