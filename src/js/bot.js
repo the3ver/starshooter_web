@@ -123,10 +123,10 @@ function bossMitte(boss) {
   return { x: boss.x + g / 2, y: boss.y + g / 2 };
 }
 
-// Kann der Bot diesen Asteroiden zerstoeren? Magma nur mit dem Gleve-Dash ab Stufe 5
+// Kann der Bot diesen Asteroiden zerstoeren? Magma nur mit dem Gleve-Dash ab Raketen-Stufe 5
 function kannAsteroidZerstoeren(p2, ast) {
   if (!ast.istUnzerstoerbar) return true;
-  return Gleve.istGleve(p2) && (p2.laserStufe || 1) >= 5;
+  return Gleve.istGleve(p2) && Gleve.dashKnacktMagma(p2);
 }
 
 export function findBestTarget(p2, diff) {
@@ -192,8 +192,8 @@ function computeMovement(p2, target, danger, powerup, diff) {
     moveY = (dy / dist) * 1.2;
     const raumLinks = cx;
     const raumRechts = config.spielfeldBreite - cx;
-    // Gleve mit bereitem Sweep pariert Gefahren im Bogen, statt seitlich aus ihm herauszufliegen
-    const pariert = Gleve.istGleve(p2) && (Gleve.istSweepAktiv(p2) || p2.raketenCooldown <= 0) && imSweepBogen(p2, danger.x, danger.y);
+    // Gleve mit bereitem Sweep (laeuft oder genug Energie) pariert Gefahren im Bogen, statt seitlich aus ihm herauszufliegen
+    const pariert = Gleve.istGleve(p2) && (Gleve.istSweepAktiv(p2) || sweepBereit(p2)) && imSweepBogen(p2, danger.x, danger.y);
     // Gefahr fast genau ueber dem Bot: seitlich zur freieren Seite ausweichen statt nur nach unten
     if (!pariert && Math.abs(dx) < 20 && dy > 0) moveX = (raumRechts >= raumLinks ? 1 : -1) * 1.5;
     // Nicht in die Wand ausweichen, sondern zur Mitte hin
@@ -244,19 +244,19 @@ function computeMovement(p2, target, danger, powerup, diff) {
   return { moveX, moveY };
 }
 
-// --- Gleve: Dash auf nahe Feinde, Sweep gegen Geschosse und Gegner im Bogen ---
+// --- Gleve: Dash (Raketen-Taste) auf nahe Feinde, Sweep (Laser-Taste) gegen Geschosse und Gegner im Bogen ---
 
 function boxVon(z) {
   const g = z.groesse || 20;
   return { x: z.x, y: z.y, w: z.width || g, h: z.height || g };
 }
 
-// Wuerde der Dash vom Schiff aus in Richtung (dx, dy) einen Boss oder (unter Stufe 5) Magma streifen?
+// Wuerde der Dash vom Schiff aus in Richtung (dx, dy) einen Boss oder (unter Raketen-Stufe 5) Magma streifen?
 function dashWegBlockiert(p2, dx, dy) {
   const s = config.spielerGroesse;
   const reichweite = Gleve.dashReichweite(p2);
   const hindernisse = [...arrays.bosses];
-  if ((p2.laserStufe || 1) < 5) hindernisse.push(...arrays.asteroiden.filter(a => a.istUnzerstoerbar));
+  if (!Gleve.dashKnacktMagma(p2)) hindernisse.push(...arrays.asteroiden.filter(a => a.istUnzerstoerbar));
   for (let i = 1; i <= Gleve.DASH_FRAMES; i++) {
     const x = p2.x + dx * reichweite * i / Gleve.DASH_FRAMES;
     const y = p2.y + dy * reichweite * i / Gleve.DASH_FRAMES;
@@ -296,7 +296,7 @@ function findeDashZiel(p2) {
   return beste;
 }
 
-// Liegt der Punkt im Sweep-Bogen (45 Grad nach oben, etwas Spielraum) bis zur Sweep-Laenge?
+// Liegt der Punkt im Sweep-Bogen der aktuellen Stufe (halber Winkel links und rechts der Senkrechten) bis zur Sweep-Laenge?
 function imSweepBogen(p2, px, py) {
   const ox = p2.x + config.spielerGroesse / 2;
   const oy = p2.y + 5;
@@ -304,7 +304,12 @@ function imSweepBogen(p2, px, py) {
   const dy = py - oy;
   const dist = Math.hypot(dx, dy);
   if (dist > Gleve.sweepLaenge(p2) || dy > 0) return false;
-  return Math.abs(Math.atan2(dx, -dy) * 180 / Math.PI) <= 25;
+  return Math.abs(Math.atan2(dx, -dy) * 180 / Math.PI) <= Gleve.sweepBogen(p2) / 2;
+}
+
+// Reicht die Energie fuer den naechsten Sweep (Superwaffe: immer)?
+function sweepBereit(p2) {
+  return p2.unbegrenzteEnergie || p2.energie >= Gleve.sweepKosten(p2);
 }
 
 function sweepLohntSich(p2) {
@@ -324,20 +329,19 @@ function sweepLohntSich(p2) {
 }
 
 function updateGleveWaffen(p2) {
-  // Dash: nur mit genug Energie, ohne Waffen-Hack und nicht dauernd
-  p2.botFireLaser = false;
-  const genugEnergie = p2.unbegrenzteEnergie || p2.energie >= Gleve.dashKosten(p2);
-  if (gleveDashSperre <= 0 && genugEnergie && !Gleve.istDashAktiv(p2) && !Hack.hatHack(p2, 'waffenOffline')) {
+  // Dash (Raketen-Taste): ein Schritt Druck (Flanke), nur ohne Cooldown, ohne Waffen-Hack und nicht dauernd
+  p2.botFireRakete = false;
+  if (gleveDashSperre <= 0 && p2.raketenCooldown <= 0 && !Gleve.istDashAktiv(p2) && !Hack.hatHack(p2, 'waffenOffline')) {
     const ziel = findeDashZiel(p2);
     if (ziel) {
       p2.botDashRichtung = ziel;
-      p2.botFireLaser = true;
+      p2.botFireRakete = true;
       gleveDashSperre = GLEVE_DASH_PAUSE;
     }
   }
 
-  // Sweep: wenn Feindgeschosse oder Gegner im Bogen vor dem Schiff sind
-  p2.botFireRakete = p2.raketenCooldown <= 0 && sweepLohntSich(p2);
+  // Sweep (Laser-Taste) halten, solange Feindgeschosse oder Gegner im Bogen sind (sonst Energie sparen)
+  p2.botFireLaser = sweepLohntSich(p2);
 }
 
 function updateBotWeapons(p2, diff, target) {
@@ -386,6 +390,8 @@ export function updateBot() {
 
   const diff = BOT_DIFFICULTY[state.p2BotDifficulty || 'normal'];
   if (gleveDashSperre > 0) gleveDashSperre--;
+  // Gleve-Dash ist eine Flanke: der Druck gilt nur bis zum naechsten Schritt
+  if (Gleve.istGleve(p2)) p2.botFireRakete = false;
 
   // Reaktionszeit: Entscheidung nur alle N Frames aktualisieren
   reactionCounter++;

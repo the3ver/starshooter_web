@@ -7,10 +7,16 @@ import * as Hack from './hack.js';
 import { versteckeAlleLaser } from './waffen.js';
 import * as Gleve from './gleve.js';
 
-// Laser-Taste von P1 (bei der Gleve: Dash-Taste)
+// Laser-Taste von P1 (bei der Gleve: Sweep)
 function laserTasteP1() {
   const isDualHumanCoop = state.gameMode === 'coop' && !state.p2IsBot;
   return isDualHumanCoop ? state.tastenGedrueckt.b : (state.tastenGedrueckt.l || state.tastenGedrueckt.b);
+}
+
+// Raketen-Taste von P1 (bei der Gleve: Dash)
+function raketenTasteP1() {
+  const isDualHumanCoop = state.gameMode === 'coop' && !state.p2IsBot;
+  return isDualHumanCoop ? state.tastenGedrueckt.v : (state.tastenGedrueckt.k || state.tastenGedrueckt.v);
 }
 
 function istOnlineHost() {
@@ -24,15 +30,20 @@ function laserTasteP2() {
   return state.tastenGedrueckt.ä || state.tastenGedrueckt.numpad1 || state.tastenGedrueckt['.'];
 }
 
-// Dash-Taste von P2: online zusaetzlich ein gemerkter kurzer Druck (Druck und Loslassen im selben Host-Schritt)
+// Dash-Taste von P2 = Raketen-Taste (Online-Host: gehaltene Client-Eingabe plus gemerkter kurzer Druck,
+// falls Druck und Loslassen im selben Host-Schritt ankommen; Bot: KI-Entscheidung als Flanke)
 function dashTasteP2() {
-  if (istOnlineHost() && state.p2.netzDashAnfrage) {
-    state.p2.netzDashAnfrage = false;
-    // Jede Anfrage ist ein neuer Druck: ein verpasstes Loslassen nachholen, damit er als Flanke zaehlt
-    state.p2.gleveDashTasteGehalten = false;
-    return true;
+  if (istOnlineHost()) {
+    if (state.p2.netzDashAnfrage) {
+      state.p2.netzDashAnfrage = false;
+      // Jede Anfrage ist ein neuer Druck: ein verpasstes Loslassen nachholen, damit er als Flanke zaehlt
+      state.p2.gleveDashTasteGehalten = false;
+      return true;
+    }
+    return Boolean(state.p2.raketeGehalten);
   }
-  return laserTasteP2();
+  if (state.p2IsBot) return state.p2.botFireRakete || false;
+  return state.tastenGedrueckt.ö || state.tastenGedrueckt.numpad2 || state.tastenGedrueckt[','];
 }
 
 // Aktuelle Steuerrichtung von P1 (Joystick oder Tasten, Hacks angewendet)
@@ -159,7 +170,7 @@ export function bewegeSpieler() {
   const currentSpeed = ((shipModels && shipModels[state.selectedShipModel]?.speed) || config.geschwindigkeit) * speedMultP1;
 
   // Gleve: Dash/Abprall ersetzt in diesem Schritt die normale Steuerung
-  const gleveDashP1 = Gleve.istGleve(state) && Gleve.aktualisiereGleve(state, 'p1', laserTasteP1(), steuerRichtungP1());
+  const gleveDashP1 = Gleve.istGleve(state) && Gleve.aktualisiereGleve(state, 'p1', raketenTasteP1(), steuerRichtungP1());
 
   if (gleveDashP1) {
     baseFlameScale = 2.2;
@@ -264,17 +275,23 @@ function begrenzeEnergie(s) {
   if (s.energie > s.maxEnergie) s.energie = s.maxEnergie;
 }
 
-// Ab welcher Energie die Primärwaffe wieder einsatzbereit ist (Gleve: Dash-Kosten)
+// Ab welcher Energie die Primärwaffe wieder einsatzbereit ist (Gleve: Sweep-Kosten)
 function zuendSchwelle(s) {
-  return Gleve.istGleve(s) ? Gleve.dashKosten(s) : s.minZuendEnergie;
+  return Gleve.istGleve(s) ? Gleve.sweepKosten(s) : s.minZuendEnergie;
+}
+
+// Gleve: kein Laser, die gehaltene Laser-Taste startet im Takt Sweeps (Kosten zieht gleve.js beim Start ab).
+// Wie beim Laser lädt die Energie nicht, solange die Taste gehalten wird oder ein Sweep läuft.
+function steuereGleveSweep(s, pKey, gehalten) {
+  s.laserSchiesst = false;
+  Gleve.steuereSweep(s, pKey, gehalten);
+  if (!gehalten && !Gleve.istSweepAktiv(s)) ladeEnergie(s);
 }
 
 export function aktualisiereEnergie() {
   let laserAktiv = false;
   if (Gleve.istGleve(state)) {
-    // Gleve: kein Laser; Antriebs-Energie lädt nur, solange kein Dash läuft (Kosten zieht gleve.js beim Start ab)
-    state.laserSchiesst = false;
-    if (!Gleve.istDashAktiv(state)) ladeEnergie(state);
+    steuereGleveSweep(state, 'p1', laserTasteP1() && !state.isDead);
     versteckeAlleLaser();
   } else {
     steuereLaserZuendung(state, laserTasteP1() && !state.isDead);
@@ -297,14 +314,12 @@ export function aktualisiereEnergie() {
       dom.energieBalken.style.backgroundColor = state.energie < zuendSchwelle(state) && !state.laserSchiesst ? '#e67e22' : '#1abc9c';
     }
   }
-  Gleve.zeigeDashBereitschaft(state);
 
   // --- 9.4 ENERGIE SPIELER 2 (Co-op) ---
   let laserAktivP2 = false;
   if (isCoopMode() && state.p2 && !state.p2.isDead) {
     if (Gleve.istGleve(state.p2)) {
-      state.p2.laserSchiesst = false;
-      if (!Gleve.istDashAktiv(state.p2)) ladeEnergie(state.p2);
+      steuereGleveSweep(state.p2, 'p2', Boolean(laserTasteP2()));
     } else {
       steuereLaserZuendung(state.p2, laserTasteP2());
       laserAktivP2 = state.p2.laserSchiesst && state.p2.energie > 0 && !Hack.hatHack(state.p2, 'waffenOffline');

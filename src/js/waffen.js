@@ -115,20 +115,16 @@ function feuerLaserFuerSpieler(pKey, pState, isFiring) {
 }
 
 // --- 9.13 RAKETEN ---
-// Gleve: gleiche Taste, gleicher Cooldown-Zaehler und HUD-Balken, aber Laser-Sweep statt Raketen (gleve.js)
+// Gleve: gleicher Cooldown-Zaehler und HUD-Balken, aber fuer den Dash (ausgeloest in spieler.js / gleve.js)
 function feuerRaketenFuerSpieler(pKey, pState) {
-  if (!pState) return;
+  if (!pState || pState.isDead) return;
   const istGleve = Gleve.istGleve(pState);
-  if (pState.isDead) {
-    if (istGleve) Gleve.aktualisiereSweep(pState, pKey);
-    return;
-  }
   if (pState.raketenCooldown > 0) pState.raketenCooldown--;
 
   let maxRaketenCd = 180;
   if (pState.raketenStufe >= 2 && pState.raketenStufe <= 3) maxRaketenCd = 150;
   if (pState.raketenStufe >= 4) maxRaketenCd = 120;
-  if (istGleve) maxRaketenCd = Gleve.sweepCooldown(pState);
+  if (istGleve) maxRaketenCd = Gleve.dashCooldown(pState);
 
   if (pKey === 'p1') {
     const raketenCdBalken = document.getElementById('raketen-cd-balken');
@@ -152,6 +148,12 @@ function feuerRaketenFuerSpieler(pKey, pState) {
     }
   }
 
+  if (istGleve) {
+    // Keine Raketen; ein gemerkter Online-Feuerbefehl darf nicht liegen bleiben
+    if (pKey === 'p2' && state.p2) state.p2.networkFireRakete = false;
+    return;
+  }
+
   const isDualHumanCoop = state.gameMode === 'coop' && !state.p2IsBot;
   // Online-Host: gehaltene Raketentaste des Clients wirkt wie ein true in jedem Schritt
   if (pKey === 'p2' && state.p2 && state.p2.raketeGehalten && state.network && state.network.isOnline && state.network.isHost) {
@@ -162,15 +164,6 @@ function feuerRaketenFuerSpieler(pKey, pState) {
     : ((state.network && state.network.isOnline && state.network.isHost)
         ? Boolean(state.p2 && state.p2.networkFireRakete)
         : (state.p2IsBot ? (state.p2.botFireRakete || false) : (state.tastenGedrueckt.ö || state.tastenGedrueckt.numpad2 || state.tastenGedrueckt[','])));
-
-  if (istGleve) {
-    if (isTriggered && pState.raketenCooldown <= 0 && !Hack.hatHack(pState, 'waffenOffline')) {
-      if (pKey === 'p2' && state.p2) state.p2.networkFireRakete = false;
-      if (Gleve.starteSweep(pState, pKey)) pState.raketenCooldown = maxRaketenCd;
-    }
-    Gleve.aktualisiereSweep(pState, pKey);
-    return;
-  }
 
   if (isTriggered && pState.raketenCooldown <= 0 && !Hack.hatHack(pState, 'waffenOffline')) {
     if (pKey === 'p2' && state.p2) state.p2.networkFireRakete = false;
@@ -349,7 +342,7 @@ function wirfBombeFuerSpieler(pKey, pState) {
 }
 
 export function aktualisiereWaffen(laserAktiv, laserAktivP2) {
-  // Gleve hat statt Laser den Dash (gleve.js): weder Projektil- noch Hitscan-Laser
+  // Gleve hat statt Laser den Sweep (gleve.js): weder Projektil- noch Hitscan-Laser
   if (state.selectedShipModel === 'gleve') laserAktiv = false;
   if (state.p2 && state.p2.selectedShipModel === 'gleve') laserAktivP2 = false;
   const alleZiele = [...arrays.asteroiden, ...arrays.feinde, ...arrays.bosses, ...arrays.bossBombenArray, ...arrays.bossRaketenArray];
@@ -581,6 +574,10 @@ export function aktualisiereWaffen(laserAktiv, laserAktivP2) {
       }
     }
   }
+
+  // Gleve: laufende Sweeps (Treffer, Parade; gestartet in spieler.js)
+  if (Gleve.istGleve(state)) Gleve.aktualisiereSweep(state, 'p1');
+  if (isCoopMode() && state.p2 && Gleve.istGleve(state.p2)) Gleve.aktualisiereSweep(state.p2, 'p2');
 
   // --- 9.13 RAKETEN ---
   feuerRaketenFuerSpieler('p1', state);

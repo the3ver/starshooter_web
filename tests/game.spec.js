@@ -37,7 +37,7 @@ test.beforeEach(async ({ page }) => {
 
   // Standardmäßig als bereits gesehen markieren, damit die Tests direkt interagieren können
   await page.addInitScript(() => {
-    localStorage.setItem('starshooter_last_seen_version', '1.8.1');
+    localStorage.setItem('starshooter_last_seen_version', '1.9.0');
     localStorage.setItem('starshooter_skip_cutscene', 'true');
   });
   await page.goto('/');
@@ -929,10 +929,10 @@ test.describe('Was gibt es Neues Modal (Changelog)', () => {
     await expect(title).toContainText("WAS GIBT'S NEUES");
 
     const intro = page.locator('#whats-new-intro');
-    await expect(intro).toContainText('1.8.1');
+    await expect(intro).toContainText('1.9.0');
 
     const items = page.locator('#whats-new-list li');
-    await expect(items).toHaveCount(3);
+    await expect(items).toHaveCount(4);
 
     // Schließen
     const closeBtn = page.locator('#btn-close-whats-new');
@@ -942,7 +942,7 @@ test.describe('Was gibt es Neues Modal (Changelog)', () => {
 
     // Prüfen, dass localStorage aktualisiert wurde
     const storedVersion = await page.evaluate(() => localStorage.getItem('starshooter_last_seen_version'));
-    expect(storedVersion).toBe('1.8.1');
+    expect(storedVersion).toBe('1.9.0');
 
     // Erneut öffnen über Start-Screen Button
     const openBtn = page.locator('#btn-open-whats-new');
@@ -3098,8 +3098,12 @@ test.describe('2-Spieler-Modus (Co-op)', () => {
     // Nach weiteren 1.5s steigen beide nach oben auf (top < 200)
     await page.waitForTimeout(1600);
 
-    const p1Box = await p1CutsceneShip.boundingBox();
-    const p2Box = await p2CutsceneShip.boundingBox();
+    // Ohne auf die Schiffe zu warten: Unter Last kann die Cutszene schon vorbei und abgeräumt sein
+    // (boundingBox() würde dann bis zum Test-Timeout auf das Element warten)
+    const [p1Box, p2Box] = await page.evaluate(() => ['.ship-player-p1', '.ship-player-p2'].map(sel => {
+      const el = document.querySelector('.cutscene-ship' + sel);
+      return el && el.isConnected ? { y: el.getBoundingClientRect().y } : null;
+    }));
 
     if (p1Box && p2Box) {
       expect(p1Box.y).toBeLessThan(200);

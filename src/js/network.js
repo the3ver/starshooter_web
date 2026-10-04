@@ -452,7 +452,7 @@ export function startOnlineGame() {
     kodierer.erzwingeKeyframe();
     eingabeSender.reset();
     if (state.network.isHost) setzeNetzEingabenZurueck();
-    // HUD-Beschriftungen (Gleve: ANTRIEB/SWEEP) fuer beide Schiffe, Mobile-Button fuer den lokalen Spieler
+    // HUD-Beschriftungen (Gleve: SWEEP/DASH) fuer beide Schiffe, Mobile-Button fuer den lokalen Spieler
     Utils.updateSchiffHudLabels();
     if (dom.spieler) dom.spieler.classList.remove('spieler-blink');
     if (dom.spieler2) dom.spieler2.classList.remove('spieler-blink');
@@ -999,17 +999,17 @@ function uebernehmeHarmlos(obj, daten) {
     Gleve.zeigePariert(obj.el, daten.vx, daten.vy);
 }
 
-// Max-Cooldown fuer den Raketen-HUD-Balken (Gleve: Sweep-Cooldown)
+// Max-Cooldown fuer den Raketen-HUD-Balken (Gleve: Dash-Cooldown)
 function maxRaketenCooldown(s) {
-    if (Gleve.istGleve(s)) return Gleve.sweepCooldown(s);
+    if (Gleve.istGleve(s)) return Gleve.dashCooldown(s);
     if (s.raketenStufe >= 4) return 120;
     if (s.raketenStufe >= 2) return 150;
     return 180;
 }
 
-// Ab welcher Energie die Primaerwaffe bereit ist (Gleve: Dash-Kosten), fuer die Balkenfarbe
+// Ab welcher Energie die Primaerwaffe bereit ist (Gleve: Sweep-Kosten), fuer die Balkenfarbe
 function zuendSchwelle(s) {
-    return Gleve.istGleve(s) ? Gleve.dashKosten(s) : (s.minZuendEnergie || 15);
+    return Gleve.istGleve(s) ? Gleve.sweepKosten(s) : (s.minZuendEnergie || 15);
 }
 
 // Waffenstufen und HUD-Flags eines Spielers aus dem Snapshot uebernehmen (fehlende Stufen bleiben)
@@ -1149,8 +1149,6 @@ export function applyGameStateSnapshot(snapshot) {
             dom.energieBalkenP2.style.width = (state.p2.energie / (state.p2.absMaxEnergie || 100)) * 100 + '%';
             dom.energieBalkenP2.style.backgroundColor = state.p2.energie < zuendSchwelle(state.p2) && !state.p2.laserSchiesst ? '#e67e22' : '#3498db';
         }
-        // Mobile-Dash-Button gehört dem Client (eigenes Schiff = P2)
-        Gleve.zeigeDashBereitschaft(state.p2);
         if (snapshot.p2.raketenCooldown !== undefined) {
             state.p2.raketenCooldown = snapshot.p2.raketenCooldown;
             const raketenCdBalkenP2 = document.getElementById('raketen-cd-balken-p2');
@@ -1745,15 +1743,15 @@ export function applyPlayerInput(input) {
         state.p2.netzRichtung = { dx: input.rx * f, dy: input.ry * f };
     }
 
-    if (input.laser !== undefined) {
-        // Neuer Druck bleibt fuer den Gleve-Dash gemerkt, auch wenn das Loslassen im selben Host-Schritt ankommt
-        if (input.laser && !state.p2.laserInputRequested) state.p2.netzDashAnfrage = true;
-        state.p2.laserInputRequested = Boolean(input.laser);
-    }
+    if (input.laser !== undefined) state.p2.laserInputRequested = Boolean(input.laser);
 
     // Gehaltene Tasten gelten bis zum naechsten Paket (waffen.js feuert damit wie bei
     // einem true in jedem Schritt); ein kurzer Druck bleibt wie bisher bis zum Schuss gemerkt
-    if (input.rakete !== undefined) state.p2.raketeGehalten = Boolean(input.rakete);
+    if (input.rakete !== undefined) {
+        // Neuer Druck bleibt fuer den Gleve-Dash gemerkt, auch wenn das Loslassen im selben Host-Schritt ankommt
+        if (input.rakete && !state.p2.raketeGehalten) state.p2.netzDashAnfrage = true;
+        state.p2.raketeGehalten = Boolean(input.rakete);
+    }
     if (input.bombe !== undefined) state.p2.bombeGehalten = Boolean(input.bombe);
 
     if (input.rakete) {

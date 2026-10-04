@@ -9,7 +9,7 @@ test.beforeEach(async ({ page }) => {
   }));
   await page.route('**/api/turn*', route => route.fulfill({ status: 503, body: '' }));
   await page.addInitScript(() => {
-    localStorage.setItem('starshooter_last_seen_version', '1.8.1');
+    localStorage.setItem('starshooter_last_seen_version', '1.9.0');
     localStorage.setItem('starshooter_skip_cutscene', 'true');
   });
   await page.goto('/');
@@ -271,7 +271,8 @@ test('Online: Gleve-Zustand und harmlos-Flag gehen in den Snapshot, Client zeigt
   expect(r.dekodiert).toEqual([5, -9, 1, true]);
   expect(r.client.dashKlasse).toBe(true);
   expect(r.client.klinge).toBe('rotate(-18deg)');
-  expect(r.client.winkelDanach).toBeCloseTo(-13.5, 5);
+  // Stufe 1: 90-Grad-Bogen in 10 Frames, 9 Grad pro Schritt
+  expect(r.client.winkelDanach).toBeCloseTo(-9, 5);
   expect(r.client.sounds).toEqual(['dash', 'sweep']);
   expect(r.client.pariert).toEqual([true, false, true, true]);
   expect(r.client.farbe).toBe('rgb(230, 126, 34)');
@@ -279,7 +280,7 @@ test('Online: Gleve-Zustand und harmlos-Flag gehen in den Snapshot, Client zeigt
   expect(r.ende).toEqual({ dashKlasse: false, klingen: 0 });
 });
 
-test('Online-Client: eigener Gleve-Dash wird lokal vorhergesagt, Abprall kommt vom Host', async ({ page }) => {
+test('Online-Client: eigener Gleve-Dash (Raketen-Taste) wird lokal vorhergesagt, Abprall kommt vom Host', async ({ page }) => {
   const r = await page.evaluate(async () => {
     const g = window.__game;
     const { state, dom } = g;
@@ -288,21 +289,21 @@ test('Online-Client: eigener Gleve-Dash wird lokal vorhergesagt, Abprall kommt v
     g.config.spielfeldBreite = 600; // wie in startOnlineGame
     state.selectedShipModel = 'viper';
     Object.assign(state.p2, {
-      selectedShipModel: 'gleve', x: 300, y: 400, energie: 50, maxEnergie: 50, laserStufe: 1, isDead: false, hacks: [],
+      selectedShipModel: 'gleve', x: 300, y: 400, energie: 50, maxEnergie: 50, laserStufe: 1, raketenStufe: 1, raketenCooldown: 0, isDead: false, hacks: [],
       gleveDashTimer: 0, gleveAbprallTimer: 0, gleveDashTasteGehalten: false, gleveNetzAbprall: null
     });
     g.Audio.clearAudioHistory();
 
     // Druck mit Richtung rechts: im ersten Schritt steht das Schiff, Paket traegt Start und Richtung
-    state.tastenGedrueckt.l = true;
+    state.tastenGedrueckt.k = true;
     state.tastenGedrueckt.d = true;
     simulationsSchritt();
     const paket = state.network.lastSentInput;
-    out.start = { x: state.p2.x, paket: [paket.x, paket.y, paket.laser, paket.rx, paket.ry], energie: state.p2.energie };
-    state.tastenGedrueckt.l = false;
+    out.start = { x: state.p2.x, paket: [paket.x, paket.y, paket.rakete, paket.laser, paket.rx, paket.ry], energie: state.p2.energie, cd: state.p2.raketenCooldown };
+    state.tastenGedrueckt.k = false;
     state.tastenGedrueckt.d = false;
     simulationsSchritt();
-    out.loslassenPaket = [state.network.lastSentInput.x, state.network.lastSentInput.laser];
+    out.loslassenPaket = [state.network.lastSentInput.x, state.network.lastSentInput.rakete];
     out.klasseWaehrend = dom.spieler2.classList.contains('gleve-dash');
     for (let i = 0; i < 7; i++) simulationsSchritt();
     out.ende = { x: state.p2.x, y: state.p2.y, klasse: dom.spieler2.classList.contains('gleve-dash'), dashSounds: g.Audio.audioHistory.filter(a => a.name === 'dash').length };
@@ -324,8 +325,10 @@ test('Online-Client: eigener Gleve-Dash wird lokal vorhergesagt, Abprall kommt v
     return out;
   });
   expect(r.start.x).toBe(300);
-  expect(r.start.paket).toEqual([300, 400, true, 1, 0]);
-  expect(r.start.energie).toBeCloseTo(25, 5);
+  expect(r.start.paket).toEqual([300, 400, true, false, 1, 0]);
+  // Dash kostet keine Energie, sondern startet den Cooldown (Stufe 1: 180)
+  expect(r.start.energie).toBeCloseTo(50, 5);
+  expect(r.start.cd).toBe(180);
   // Waehrend des Dashs bleibt die gemeldete Position der Startpunkt
   expect(r.loslassenPaket).toEqual([300, false]);
   expect(r.klasseWaehrend).toBe(true);

@@ -192,7 +192,6 @@ export function setupInput() {
   let jCenterX = 0;
   let jCenterY = 0;
   const maxJoystickRadius = 50;
-  let joystickFeuert = false; // hat die aktuelle Joystick-Berührung den Auto-Fire-Laser gesetzt?
 
   // 1. Tap to Pause on Spielfeld & Tap to start on start screen
   spielfeldContainer.addEventListener('touchstart', e => {
@@ -263,9 +262,7 @@ export function setupInput() {
       joystickStick.style.transform = `translate(-50%, -50%)`;
       
       state.joystick.active = true;
-      // Auto-fire laser; die Gleve dasht nur über den eigenen Dash-Button (sonst Dash bei jeder Berührung)
-      joystickFeuert = Utils.lokalesSchiffModell() !== 'gleve';
-      if (joystickFeuert) state.tastenGedrueckt.l = true;
+      state.tastenGedrueckt.l = true; // Auto-fire laser (Gleve: Dauer-Sweep)
     }, { passive: false });
 
     joystickZone.addEventListener('touchmove', e => {
@@ -297,26 +294,8 @@ export function setupInput() {
       state.joystick.active = false;
       state.joystick.x = 0;
       state.joystick.y = 0;
-      if (joystickFeuert) state.tastenGedrueckt.l = false; // Stop auto-fire
-      joystickFeuert = false;
+      state.tastenGedrueckt.l = false; // Stop auto-fire
     });
-  }
-
-  // Dash-Button (nur Gleve): hält die Laser-Taste, die Flankenerkennung in gleve.js löst genau einen Dash aus
-  const btnDash = document.getElementById('btn-dash');
-  if (btnDash) {
-    btnDash.addEventListener('touchstart', (e) => {
-      e.preventDefault();
-      if (state.spielLaeuft && !state.gameOverAktiv && !state.pausiert) {
-        state.tastenGedrueckt.l = true;
-      }
-    }, { passive: false });
-    const loslassen = (e) => {
-      e.preventDefault();
-      state.tastenGedrueckt.l = false;
-    };
-    btnDash.addEventListener('touchend', loslassen);
-    btnDash.addEventListener('touchcancel', loslassen);
   }
 
   // 3. Mobile Buttons

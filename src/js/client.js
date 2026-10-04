@@ -166,12 +166,13 @@ export function clientSchritt() {
     const p2Speed = (shipModels && shipModels[state.p2.selectedShipModel]?.speed) || config.geschwindigkeit;
     const keys = state.tastenGedrueckt;
 
-    // Gleve: Steuerrichtung (fuer Dash und Eingabe-Paket) und lokal vorhergesagter Dash
+    // Gleve: Steuerrichtung (fuer Dash und Eingabe-Paket) und lokal vorhergesagter Dash (Raketen-Taste,
+    // mobil der Raketen-Button)
     let gleveDash = false;
     if (Gleve.istGleve(state.p2)) {
       const richtung = steuerRichtung(keys);
       state.p2.clientSteuerRichtung = richtung;
-      gleveDash = Gleve.sageDashVorher(state.p2, keys.l || keys.b, richtung);
+      gleveDash = Gleve.sageDashVorher(state.p2, keys.k || keys.v, richtung);
     }
 
     if (gleveDash) {

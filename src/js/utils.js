@@ -578,6 +578,7 @@ function setzeGleveDashZurueck(pState, schiffEl) {
   pState.gleveSweepWinkel = 0;
   pState.gleveSweepRichtung = 0;
   pState.gleveSweepTreffer = [];
+  pState.gleveSweepTakt = 0;
   // Online: Dash-Richtung, Client-Vorhersage und Bot-Dash
   pState.gleveDashRichtung = null;
   pState.gleveNetzAbprall = null;
@@ -1515,11 +1516,11 @@ export function updatePlayerShipVisuals() {
   updateSchiffHudLabels();
 }
 
-// HUD-Beschriftungen je Schiff: Gleve nutzt den Energiebalken als Antrieb (Dash)
-// und den Raketen-Cooldown für den Laser-Sweep. Sonst Originaltexte (E / R).
+// HUD-Beschriftungen je Schiff: Gleve nutzt den Energiebalken für den Laser-Sweep
+// und den Raketen-Cooldown für den Dash. Sonst Originaltexte (E / R).
 const HUD_LABELS = {
   standard: { energie: 'E', rakete: 'R', mobilRakete: 'R' },
-  gleve: { energie: 'ANTRIEB', rakete: 'SWEEP', mobilRakete: 'SW' }
+  gleve: { energie: 'SWEEP', rakete: 'DASH', mobilRakete: 'D' }
 };
 
 function setzeHudLabel(el, text, lang) {
@@ -1543,10 +1544,6 @@ export function updateSchiffHudLabels() {
   const mobilLabels = HUD_LABELS[lokalesSchiffModell()] || HUD_LABELS.standard;
   const mobilSpan = document.querySelector('#btn-rakete span');
   if (mobilSpan && mobilSpan.textContent !== mobilLabels.mobilRakete) mobilSpan.textContent = mobilLabels.mobilRakete;
-
-  // Dash-Button nur für eine lokale Gleve (sie feuert nicht automatisch über den Joystick)
-  const btnDash = document.getElementById('btn-dash');
-  if (btnDash) btnDash.style.display = lokalesSchiffModell() === 'gleve' ? '' : 'none';
 }
 
 // Schiff des Spielers an diesem Gerät: Online-Client steuert P2, sonst P1
@@ -1611,7 +1608,7 @@ function updateWerferForShip(spielerEl, pState, prevKey) {
   let showCenter = false;
 
   if (model === 'gleve') {
-    // Gleve hat keine Raketenwerfer (Laser-Sweep statt Raketen): alle Pods aus
+    // Gleve hat keine Raketenwerfer (Dash statt Raketen): alle Pods aus
   } else if (lvl <= 2) {
     if (model === 'phantom') {
       showRight = true;

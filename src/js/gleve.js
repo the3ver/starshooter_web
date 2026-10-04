@@ -1,9 +1,10 @@
-// Gleve-MR: Dash statt Laser, Laser-Sweep statt Raketen. pState ist `state` (P1) oder `state.p2`, pKey 'p1' / 'p2'.
+// Gleve-MR: Laser-Sweep als Hauptwaffe (Laser-Taste, laserStufe, kostet Energie), Dash als Zweitwaffe
+// (Raketen-Taste, raketenStufe, Cooldown ueber raketenCooldown). pState ist `state` (P1) oder `state.p2`, pKey 'p1' / 'p2'.
 // Zustand pro Spieler: gleveDashTimer, gleveDashVx/Vy (Schritt pro Frame, auch fuer den Abprall),
 // gleveAbprallTimer, gleveUnverwundbar, gleveDashTasteGehalten (Flanke), gleveDashTreffer (Ziele dieses Dashs).
 // Sweep: gleveSweepTimer (Restframes), gleveSweepWinkel (aktueller Strahlwinkel in Grad, 0 = senkrecht nach oben,
 // positiv = rechts), gleveSweepRichtung (+1 links->rechts, -1 rechts->links; wechselt bei jedem Start),
-// gleveSweepTreffer (Ziele dieses Sweeps).
+// gleveSweepTreffer (Ziele dieses Sweeps), gleveSweepTakt (Frames bis zum naechsten moeglichen Start).
 
 import { dom, config, arrays, shipModels, shipColors } from './state.js';
 import * as Utils from './utils.js';
@@ -17,18 +18,23 @@ export const ABPRALL_FRAMES = 8;
 export const ABPRALL_NACHLAUF_FRAMES = 30; // Unverwundbar nach dem Abprall
 const ABPRALL_TIEFER = 30;
 
-// Werte pro Stufe (laserStufe 1-5)
+// Werte pro Stufe (raketenStufe 1-5)
 const DASH_REICHWEITE = [100, 110, 120, 135, 150];
-const DASH_KOSTEN = [25, 24, 22, 20, 18];
 const DASH_SCHADEN = [60, 70, 80, 90, 100];
+const DASH_COOLDOWN = [180, 165, 150, 135, 120];
 
-function stufenIndex(pState) {
-  return Math.max(1, Math.min(5, pState.laserStufe || 1)) - 1;
+function dashStufenIndex(pState) {
+  return Math.max(1, Math.min(5, pState.raketenStufe || 1)) - 1;
 }
 
-export function dashReichweite(pState) { return DASH_REICHWEITE[stufenIndex(pState)]; }
-export function dashKosten(pState) { return DASH_KOSTEN[stufenIndex(pState)]; }
-export function dashSchaden(pState) { return DASH_SCHADEN[stufenIndex(pState)]; }
+export function dashReichweite(pState) { return DASH_REICHWEITE[dashStufenIndex(pState)]; }
+export function dashSchaden(pState) { return DASH_SCHADEN[dashStufenIndex(pState)]; }
+export function dashCooldown(pState) { return DASH_COOLDOWN[dashStufenIndex(pState)]; }
+
+// Ab Raketen-Stufe 5 knackt der Dash Magma
+export function dashKnacktMagma(pState) {
+  return (pState.raketenStufe || 1) >= 5;
+}
 
 export function istGleve(pState) {
   return !!pState && pState.selectedShipModel === 'gleve';
@@ -51,7 +57,7 @@ function schiffFarbe(pState) {
 function kannDashen(pState) {
   if (pState.isDead || istDashAktiv(pState)) return false;
   if (Hack.hatHack(pState, 'waffenOffline')) return false;
-  return pState.unbegrenzteEnergie || pState.energie >= dashKosten(pState);
+  return (pState.raketenCooldown || 0) <= 0;
 }
 
 function starteDash(pState, pKey, richtung) {
@@ -66,7 +72,7 @@ function starteDash(pState, pKey, richtung) {
     dx /= laenge;
     dy /= laenge;
   }
-  if (!pState.unbegrenzteEnergie) pState.energie -= dashKosten(pState);
+  pState.raketenCooldown = dashCooldown(pState);
   pState.gleveDashRichtung = { dx, dy };
   const schritt = dashReichweite(pState) / DASH_FRAMES;
   pState.gleveDashVx = dx * schritt;
@@ -75,7 +81,7 @@ function starteDash(pState, pKey, richtung) {
   pState.gleveAbprallTimer = 0;
   pState.gleveDashTreffer = [];
   pState.gleveUnverwundbar = Math.max(pState.gleveUnverwundbar || 0, DASH_FRAMES + DASH_NACHLAUF_FRAMES);
-  Audio.playDash(pState.laserStufe);
+  Audio.playDash(pState.raketenStufe);
   erzeugeStartBlitz(pState);
 }
 
@@ -116,11 +122,11 @@ function schadeZiel(z, schaden, pKey) {
   return false;
 }
 
-// Kill-Kette: Energie fuer jeden durch einen Dash zerstoerten Gegner
+// Kill-Kette: jeder durch einen Dash zerstoerte Gegner verkuerzt den laufenden Dash-Cooldown
 function belohneKill(pState, z) {
   if (!z.istFeind && !z.istBoss) return;
-  const gewinn = (shipModels.gleve && shipModels.gleve.dashKillEnergie) || 0;
-  pState.energie = Math.min(pState.maxEnergie, pState.energie + gewinn);
+  const bonus = (shipModels.gleve && shipModels.gleve.dashKillCooldown) || 0;
+  pState.raketenCooldown = Math.max(0, (pState.raketenCooldown || 0) - bonus);
 }
 
 // Magma-Asteroid knacken wie bei der Bombe (wird zum Powerup-Traeger)
@@ -181,7 +187,7 @@ function dashSchritt(pState, pKey) {
   erzeugeNachbild(pState);
 
   const schaden = dashSchaden(pState);
-  const stufe5 = (pState.laserStufe || 1) >= 5;
+  const stufe5 = dashKnacktMagma(pState);
   const treffer = pState.gleveDashTreffer || (pState.gleveDashTreffer = []);
   let hindernis = null;
 
@@ -230,7 +236,7 @@ function abprallSchritt(pState) {
 }
 
 // Pro Simulationsschritt fuer eine Gleve aufrufen (vor der normalen Bewegung).
-// tasteGedrueckt: Laser-Taste dieses Spielers, richtung: { dx, dy } aus der Steuerung (Hacks bereits angewendet).
+// tasteGedrueckt: Raketen-Taste dieses Spielers, richtung: { dx, dy } aus der Steuerung (Hacks bereits angewendet).
 // Liefert true, wenn Dash/Abprall die Bewegung in diesem Schritt uebernommen hat.
 export function aktualisiereGleve(pState, pKey, tasteGedrueckt, richtung) {
   if ((pState.gleveUnverwundbar || 0) > 0) pState.gleveUnverwundbar--;
@@ -259,17 +265,6 @@ export function aktualisiereGleve(pState, pKey, tasteGedrueckt, richtung) {
   return uebernommen;
 }
 
-// Mobile-Dash-Button des lokalen Spielers: Füllstand = Energie im Verhältnis zu den Dash-Kosten
-export function zeigeDashBereitschaft(pState) {
-  const cd = document.getElementById('btn-dash-cd');
-  if (!cd || !istGleve(pState)) return;
-  const kosten = dashKosten(pState);
-  const bereit = pState.unbegrenzteEnergie || (pState.energie || 0) >= kosten;
-  const pct = bereit ? 100 : Math.max(0, (pState.energie || 0) / kosten * 100);
-  cd.style.height = pct + '%';
-  cd.style.backgroundColor = bereit ? 'rgba(46, 204, 113, 0.5)' : 'rgba(231, 76, 60, 0.5)';
-}
-
 // --- ONLINE-CLIENT ---
 // Der Client steuert sein Schiff selbst und schickt die Position an den Host. Den eigenen Dash sagt er
 // mit derselben Bewegung voraus: Im Schritt des Tastendrucks bleibt das Schiff stehen und das Eingabe-Paket
@@ -279,7 +274,7 @@ export function zeigeDashBereitschaft(pState) {
 
 // Steht das Schiff im naechsten Dash-Schritt in einem Hindernis (Boss, Magma unter Stufe 5)?
 function hindernisAufClient(pState) {
-  const stufe5 = (pState.laserStufe || 1) >= 5;
+  const stufe5 = dashKnacktMagma(pState);
   for (const b of arrays.bosses) {
     if (ueberlappt(pState, b, (b.groesse || 100) * 0.15)) return true;
   }
@@ -356,7 +351,7 @@ export function uebernehmeSnapshot(pState, daten, eigenes) {
   const sweepTimer = daten.gleveSweepTimer || 0;
   const sweepRichtung = daten.gleveSweepRichtung || 0;
   // Neuer Sweep: Richtung wechselt bei jedem Einsatz
-  if (sweepTimer > 0 && sweepRichtung !== (pState.gleveSweepRichtung || 0)) Audio.playSweep(pState.raketenStufe);
+  if (sweepTimer > 0 && sweepRichtung !== (pState.gleveSweepRichtung || 0)) Audio.playSweep(pState.laserStufe);
   pState.gleveSweepTimer = sweepTimer;
   pState.gleveSweepWinkel = daten.gleveSweepWinkel || 0;
   pState.gleveSweepRichtung = sweepRichtung;
@@ -377,7 +372,7 @@ export function uebernehmeSnapshot(pState, daten, eigenes) {
     }
   } else {
     const dash = daten.gleveDashTimer || 0;
-    if (dash > 0 && !istDashAktiv(pState)) Audio.playDash(pState.laserStufe);
+    if (dash > 0 && !istDashAktiv(pState)) Audio.playDash(pState.raketenStufe);
     pState.gleveDashTimer = dash;
     pState.gleveAbprallTimer = abprall;
   }
@@ -394,7 +389,7 @@ export function zeigeGleveZustand(pState, pKey) {
   if (gleve && istSweepAktiv(pState)) {
     zeigeKlinge(pState, pKey);
     // Strahl bis zum naechsten Snapshot weiterdrehen
-    pState.gleveSweepWinkel += (pState.gleveSweepRichtung || 1) * SWEEP_BOGEN / SWEEP_FRAMES;
+    pState.gleveSweepWinkel += (pState.gleveSweepRichtung || 1) * sweepBogen(pState) / SWEEP_FRAMES;
     pState.gleveSweepTimer--;
     if (pState.gleveSweepTimer <= 0) {
       pState.gleveSweepTimer = 0;
@@ -409,23 +404,27 @@ export function zeigeGleveZustand(pState, pKey) {
 // --- LASER-SWEEP ---
 
 export const SWEEP_FRAMES = 10;
-const SWEEP_BOGEN = 45; // Grad, symmetrisch um die Senkrechte
 const SWEEP_UMKEHR_TEMPO = 10; // zurueckgeworfene Geschosse fliegen mit vy 10 nach oben
 const SWEEP_UMKEHR_SCHADEN = 15;
 const SWEEP_PARADE_FARBE = '#e67e22';
 
-// Werte pro Stufe (raketenStufe 1-5)
-const SWEEP_LAENGE = [90, 100, 110, 120, 130];
-const SWEEP_SCHADEN = [25, 30, 30, 35, 35];
-const SWEEP_COOLDOWN = [120, 105, 90, 75, 60];
+// Werte pro Stufe (laserStufe 1-5). Bogen in Grad, symmetrisch um die Senkrechte;
+// Takt = Frames von einem Sweep-Start bis zum naechsten, solange die Taste gehalten wird
+const SWEEP_BOGEN = [90, 105, 120, 135, 150];
+const SWEEP_LAENGE = [100, 110, 120, 130, 140];
+const SWEEP_SCHADEN = [30, 35, 40, 45, 50];
+const SWEEP_TAKT = [20, 19, 18, 17, 16];
+const SWEEP_KOSTEN = [8, 8, 7, 7, 6];
 
 function sweepStufenIndex(pState) {
-  return Math.max(1, Math.min(5, pState.raketenStufe || 1)) - 1;
+  return Math.max(1, Math.min(5, pState.laserStufe || 1)) - 1;
 }
 
+export function sweepBogen(pState) { return SWEEP_BOGEN[sweepStufenIndex(pState)]; }
 export function sweepLaenge(pState) { return SWEEP_LAENGE[sweepStufenIndex(pState)]; }
 export function sweepSchaden(pState) { return SWEEP_SCHADEN[sweepStufenIndex(pState)]; }
-export function sweepCooldown(pState) { return SWEEP_COOLDOWN[sweepStufenIndex(pState)]; }
+export function sweepTakt(pState) { return SWEEP_TAKT[sweepStufenIndex(pState)]; }
+export function sweepKosten(pState) { return SWEEP_KOSTEN[sweepStufenIndex(pState)]; }
 
 export function istSweepAktiv(pState) {
   return (pState.gleveSweepTimer || 0) > 0;
@@ -494,16 +493,28 @@ function kannSweepen(pState) {
   return !Hack.hatHack(pState, 'waffenOffline');
 }
 
-// Startet einen Sweep (Cooldown, Tastenerkennung und HUD-Balken liegen in waffen.js).
-// Liefert true, wenn der Sweep gestartet wurde.
+// Startet einen Sweep (Kosten und Takt regelt steuereSweep). Liefert true, wenn der Sweep gestartet wurde.
 export function starteSweep(pState, pKey) {
   if (!kannSweepen(pState)) return false;
   pState.gleveSweepRichtung = (pState.gleveSweepRichtung || -1) > 0 ? -1 : 1;
-  pState.gleveSweepWinkel = -pState.gleveSweepRichtung * SWEEP_BOGEN / 2;
+  pState.gleveSweepWinkel = -pState.gleveSweepRichtung * sweepBogen(pState) / 2;
   pState.gleveSweepTimer = SWEEP_FRAMES;
   pState.gleveSweepTreffer = [];
-  Audio.playSweep(pState.raketenStufe);
+  Audio.playSweep(pState.laserStufe);
   zeigeKlinge(pState, pKey);
+  return true;
+}
+
+// Pro Simulationsschritt aus spieler.js (Energie-Phase): Takt herunterzaehlen und, solange die Laser-Taste
+// gehalten wird, im Takt pendelnde Sweeps starten (Kosten beim Start, Superwaffe kostenlos).
+// Liefert true, wenn in diesem Schritt ein Sweep gestartet wurde.
+export function steuereSweep(pState, pKey, gehalten) {
+  if ((pState.gleveSweepTakt || 0) > 0) pState.gleveSweepTakt--;
+  if (!gehalten || (pState.gleveSweepTakt || 0) > 0) return false;
+  const kosten = pState.unbegrenzteEnergie ? 0 : sweepKosten(pState);
+  if ((pState.energie || 0) < kosten || !starteSweep(pState, pKey)) return false;
+  pState.energie -= kosten;
+  pState.gleveSweepTakt = sweepTakt(pState);
   return true;
 }
 
@@ -531,7 +542,7 @@ function sweepTreffer(pState, pKey, o, winkelA, winkelB, laenge) {
 
 // Parade: Feind-, Hack- und Boss-Geschosse, die der Strahl beruehrt, werden weggeschleudert oder zurueckgeworfen
 function sweepParade(pState, pKey, o, winkelA, winkelB, laenge) {
-  const stufe = pState.raketenStufe || 1;
+  const stufe = pState.laserStufe || 1;
   const listen = [arrays.feindLaserArray, arrays.hackProjektilArray, arrays.bossLaserArray];
   for (const liste of listen) {
     for (let i = liste.length - 1; i >= 0; i--) {
@@ -604,7 +615,7 @@ function wirfZurueck(p, pKey) {
   });
 }
 
-// Pro Simulationsschritt fuer eine Gleve aufrufen (aus waffen.js, nach dem Start-Check)
+// Pro Simulationsschritt fuer eine Gleve aufrufen (aus waffen.js; gestartet wird in steuereSweep)
 export function aktualisiereSweep(pState, pKey) {
   if (pState.isDead) {
     if (istSweepAktiv(pState)) beendeSweep(pState, pKey);
@@ -614,7 +625,7 @@ export function aktualisiereSweep(pState, pKey) {
 
   const richtung = pState.gleveSweepRichtung || 1;
   const winkelA = pState.gleveSweepWinkel;
-  const winkelB = winkelA + richtung * SWEEP_BOGEN / SWEEP_FRAMES;
+  const winkelB = winkelA + richtung * sweepBogen(pState) / SWEEP_FRAMES;
   const o = sweepUrsprung(pState);
   const laenge = sweepLaenge(pState);
 
@@ -671,12 +682,13 @@ function erzeugeFaecherSpur(pState) {
   const o = sweepUrsprung(pState);
   const laenge = sweepLaenge(pState);
   const farbe = schiffFarbe(pState);
+  const bogen = sweepBogen(pState);
   const el = document.createElement('div');
   el.classList.add('gleve-faecher');
   el.style.width = (laenge * 2) + 'px';
   el.style.height = laenge + 'px';
   el.style.borderRadius = `${laenge}px ${laenge}px 0 0`;
-  el.style.background = `conic-gradient(from ${-SWEEP_BOGEN / 2}deg at 50% 100%, ${farbe}99 0deg, rgba(255, 255, 255, 0.6) ${SWEEP_BOGEN / 2}deg, ${farbe}99 ${SWEEP_BOGEN}deg, transparent ${SWEEP_BOGEN}deg)`;
+  el.style.background = `conic-gradient(from ${-bogen / 2}deg at 50% 100%, ${farbe}99 0deg, rgba(255, 255, 255, 0.6) ${bogen / 2}deg, ${farbe}99 ${bogen}deg, transparent ${bogen}deg)`;
   const x = o.x - laenge;
   const y = o.y - laenge;
   el.style.left = x + 'px';

@@ -9,7 +9,7 @@ test.beforeEach(async ({ page }) => {
   }));
   await page.route('**/api/turn*', route => route.fulfill({ status: 503, body: '' }));
   await page.addInitScript(() => {
-    localStorage.setItem('starshooter_last_seen_version', '1.8.1');
+    localStorage.setItem('starshooter_last_seen_version', '1.9.0');
     localStorage.setItem('starshooter_skip_cutscene', 'true');
   });
   await page.goto('/');
@@ -403,7 +403,7 @@ test('Eingaben: Client sendet nur bei Tastenwechsel sofort, Bewegung jeden 2. Sc
   });
   expect(r).toEqual({
     ruhe90: 3, druck: 1, druckWert: true, halten: 0, loslassen: 1, loslassenWert: false,
-    bewegung20: 10, xGerundet: true, version: 3
+    bewegung20: 10, xGerundet: true, version: 4
   });
 });
 

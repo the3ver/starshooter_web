@@ -1,6 +1,16 @@
-export const GAME_VERSION = '1.8.1';
+export const GAME_VERSION = '1.9.0';
 
 export const changelogData = {
+  '1.9.0': {
+    version: '1.9.0',
+    intro: 'Hey, es ist jetzt Version 1.9.0 rausgekommen, folgendes wurde aktualisiert:',
+    highlights: [
+      '🌀 Die Gleve-MR hat die Waffen getauscht: Der Laser-Sweep ist jetzt die Hauptwaffe auf der Laser-Taste. Gedrückt halten fegt die Klinge pendelnd hin und her, mit jedem Laser-Upgrade wird der Bogen breiter, länger und stärker',
+      '🗡️ Der Dash liegt jetzt auf der Raketen-Taste (mobil auf dem D-Knopf) und kostet keine Energie mehr, sondern hat einen Cooldown. Jeder Dash-Kill verkürzt ihn, Raketen-Upgrades machen ihn weiter und schneller bereit',
+      '🪨 Im Coop treffen abgeprallte Laser vom Magma nur noch den Schützen selbst, nicht mehr den Mitspieler',
+      '🔄 Für den Online-Modus brauchen beide Spieler Version 1.9.0, sonst bitte die Seite neu laden (Strg+F5)'
+    ]
+  },
   '1.8.1': {
     version: '1.8.1',
     intro: 'Hey, es ist jetzt Version 1.8.1 rausgekommen, folgendes wurde aktualisiert:',

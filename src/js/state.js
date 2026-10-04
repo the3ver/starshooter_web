@@ -96,16 +96,16 @@ export const shipModels = {
         name: 'GLEVE-MR REAVER',
         shortName: 'GLEVE-MR',
         speed: 5.0,
-        energyRegen: 0.3,
+        energyRegen: 0.4,
         startShield: 0,
         loseUpgradesOnHit: false,
-        // Kill-Kette: Energie pro durch einen Dash zerstörten Gegner (nicht über energyPerKill, gilt nur für Dash-Kills)
-        dashKillEnergie: 8,
+        // Kill-Kette: Frames, um die jeder durch einen Dash zerstörte Gegner den Dash-Cooldown verkürzt
+        dashKillCooldown: 30,
         perks: [
-            { icon: '🗡️', label: 'DASH STATT LASER', desc: 'Laser-Taste löst einen Sturmangriff aus, der kleine Gegner durchschneidet', type: 'buff' },
-            { icon: '🌀', label: 'LASER-SWEEP STATT RAKETEN', desc: 'Raketen-Taste fegt eine Laserklinge im Bogen vor das Schiff und pariert Geschosse', type: 'buff' },
-            { icon: '🔗', label: 'KILL-KETTE', desc: '+8 Energie für jeden durch einen Dash zerstörten Gegner', type: 'buff' },
-            { icon: '⚠️', label: 'NIEDRIGE REGENERATION', desc: 'Antriebs-Energie lädt langsamer wieder auf', type: 'nerf' },
+            { icon: '🌀', label: 'LASER-SWEEP ALS HAUPTWAFFE', desc: 'Laser-Taste fegt gehalten pendelnd eine Laserklinge im Bogen vor das Schiff und pariert Geschosse', type: 'buff' },
+            { icon: '🗡️', label: 'DASH ALS ZWEITWAFFE', desc: 'Raketen-Taste löst einen Sturmangriff aus, der kleine Gegner durchschneidet', type: 'buff' },
+            { icon: '🔗', label: 'KILL-KETTE', desc: 'Jeder durch einen Dash zerstörte Gegner verkürzt den Dash-Cooldown', type: 'buff' },
+            { icon: '⚠️', label: 'KURZE REICHWEITE', desc: 'Sweep und Dash reichen nur wenig über das Schiff hinaus', type: 'nerf' },
             { icon: '🚫', label: 'KEIN FERNKAMPF', desc: 'Keine Laser und Raketen, nur Nahkampf', type: 'nerf' }
         ]
     }
@@ -124,8 +124,9 @@ export const state = {
     // Gleve-Dash (gleve.js): Restframes, Schritt pro Frame, Abprall, Unverwundbarkeit, Flanke, getroffene Ziele
     gleveDashTimer: 0, gleveDashVx: 0, gleveDashVy: 0, gleveAbprallTimer: 0,
     gleveUnverwundbar: 0, gleveDashTasteGehalten: false, gleveDashTreffer: [],
-    // Gleve-Sweep: Restframes, Strahlwinkel (Grad), Richtung (+1/-1, 0 = noch kein Sweep), getroffene Ziele
-    gleveSweepTimer: 0, gleveSweepWinkel: 0, gleveSweepRichtung: 0, gleveSweepTreffer: [],
+    // Gleve-Sweep: Restframes, Strahlwinkel (Grad), Richtung (+1/-1, 0 = noch kein Sweep), getroffene Ziele,
+    // Frames bis zum naechsten moeglichen Start (Takt)
+    gleveSweepTimer: 0, gleveSweepWinkel: 0, gleveSweepRichtung: 0, gleveSweepTreffer: [], gleveSweepTakt: 0,
     tastenGedrueckt: {
         w: false, a: false, s: false, d: false,
         l: false, k: false, ' ': false,
@@ -173,7 +174,7 @@ export const state = {
         isDead: false, rotate: 0, hacks: [],
         gleveDashTimer: 0, gleveDashVx: 0, gleveDashVy: 0, gleveAbprallTimer: 0,
         gleveUnverwundbar: 0, gleveDashTasteGehalten: false, gleveDashTreffer: [],
-        gleveSweepTimer: 0, gleveSweepWinkel: 0, gleveSweepRichtung: 0, gleveSweepTreffer: []
+        gleveSweepTimer: 0, gleveSweepWinkel: 0, gleveSweepRichtung: 0, gleveSweepTreffer: [], gleveSweepTakt: 0
     },
     network: {
         isOnline: false,
