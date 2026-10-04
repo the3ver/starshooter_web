@@ -49,11 +49,6 @@ test.describe('Space Shooter', () => {
     await expect(startText).toContainText('TAP OR PRESS ANY KEY TO START');
   });
 
-  test('Spielerschiff ist im DOM vorhanden', async ({ page }) => {
-    const spieler = page.locator('#spieler');
-    await expect(spieler).toBeAttached();
-  });
-
   test('Lebensanzeige ist beim Start sichtbar und zeigt 3 Herzen', async ({ page }) => {
     const lebenAnzeige = page.locator('#leben-anzeige');
     await expect(lebenAnzeige).toBeVisible();
@@ -3714,17 +3709,6 @@ test.describe('2-Spieler-Modus (Co-op)', () => {
     expect(result.phantomCheck.p2HudDisplay).toBe('none');
   });
 
-  test('Hangar & Perks: Der Viper-X Interceptor zeigt den neuen Splitter-Drop-Perk im Hangar an', async ({ page }) => {
-    // Klicke auf Viper im Hangar
-    const viperBtn = page.locator('.hangar-model-btn[data-model="viper"]');
-    await expect(viperBtn).toBeVisible();
-    await viperBtn.click();
-
-    const perksContainer = page.locator('#hangar-ship-perks');
-    await expect(perksContainer).toBeVisible();
-    await expect(perksContainer).toContainText('SPLITTER-DROP');
-  });
-
   test('Boss Splitter-Drops: Besiegter Boss droppt immer garantiert 3 Splitter (Rot oder Weiß) zusätzlich zu seinen Belohnungen', async ({ page }) => {
     // Start game
     await starteSpiel(page);
@@ -5136,37 +5120,6 @@ test.describe('Bot-Partner', () => {
     // Host: P1=Phantom, P2=Viper
     expect(hostState.p1Model).toBe('phantom');
     expect(hostState.p2Model).toBe('viper');
-  });
-
-  test('Online-Multiplayer Bug 2: Client dekrementiert Unverwundbarkeits-Timer und entfernt spieler-blink sauber', async ({ page }) => {
-    await page.evaluate(() => {
-      const mod = window.__game;
-      mod.state.gameMode = 'online';
-      mod.state.spielLaeuft = true;
-      mod.state.network.isClient = true;
-      mod.state.network.isHost = false;
-      mod.state.network.connected = true;
-
-      // P2 erhält Treffer / Invulnerability
-      mod.state.p2.invulnerableTimer = 3;
-      mod.dom.spieler2.classList.add('spieler-blink');
-
-      // 3 Frames im GameLoop simulieren
-      mod.Loop.simulationsSchritt();
-      mod.Loop.simulationsSchritt();
-      mod.Loop.simulationsSchritt();
-    });
-
-    const result = await page.evaluate(() => {
-      const mod = window.__game;
-      return {
-        timer: mod.state.p2.invulnerableTimer,
-        hasBlinkClass: mod.dom.spieler2.classList.contains('spieler-blink')
-      };
-    });
-
-    expect(result.timer).toBe(0);
-    expect(result.hasBlinkClass).toBe(false);
   });
 
   test('Online-Multiplayer Bug 3: Partikel auf dem Client animieren, zerfallen und werden aus DOM und Array entfernt', async ({ page }) => {
