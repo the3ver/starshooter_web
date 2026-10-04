@@ -1,5 +1,5 @@
 const { test, expect } = require('@playwright/test');
-const { setzeSpielstand } = require('./helfer');
+const { setzeSpielstand, installiereUhr, haltUhrAn } = require('./helfer');
 
 // Netzkodierung im Online-Modus: Delta-Snapshots, Keyframes, Eingaben und Protokollversion
 
@@ -493,9 +493,11 @@ test('Protokoll: Client verwirft alte Snapshots und Host alte Eingaben (Sitzung 
 });
 
 test('Protokoll: ohne hallo vom Mitspieler endet die Sitzung nach dem Timeout', async ({ page }) => {
-  await page.clock.install();
+  await installiereUhr(page);
   await page.reload();
   await page.waitForFunction(() => window.__game && window.__game.state);
+  // Uhr anhalten: der hallo-Timeout (setTimeout) feuert nur per fastForward, ohne Frame-fuer-Frame-Simulation
+  await haltUhrAn(page);
   await page.evaluate(() => {
     const g = window.__game;
     g.Utils.setGameMode('online');
@@ -504,7 +506,14 @@ test('Protokoll: ohne hallo vom Mitspieler endet die Sitzung nach dem Timeout', 
     g.Network.onPeerJoined('alter_peer');
   });
   expect(await page.evaluate(() => window.__game.state.network.connected)).toBe(true);
-  await page.clock.runFor(10000 + 100); // HALLO_TIMEOUT_MS
+  const status = () => page.evaluate(() => ({
+    online: window.__game.state.network.isOnline,
+    text: document.getElementById('online-status').textContent
+  }));
+  // Kurz vor HALLO_TIMEOUT_MS (10 s) laeuft die Sitzung noch
+  await page.clock.fastForward(10000 - 100);
+  expect((await status()).online).toBe(true);
+  await page.clock.fastForward(200);
   const r = await page.evaluate(() => ({
     online: window.__game.state.network.isOnline,
     text: document.getElementById('online-status').textContent

@@ -78,16 +78,15 @@ test.describe('Hacker-Gegner', () => {
 
   test('Hacker stoppt zwischen y 100 und 200 und feuert Hack-Projektile statt Laser', async ({ page }) => {
     await starteSpiel(page);
-    await page.evaluate(async () => {
-      const { state } = await import('./js/state.js');
+    // Anflug, Stopp und erster Schuss in 180 festen Simulationsschritten (~3 s), synchron ausgewertet
+    const r = await page.evaluate(async () => {
+      const { state, arrays } = await import('./js/state.js');
       const Entities = await import('./js/entities.js');
+      const { simulationsSchritt } = await import('./js/loop.js');
       state.godMode = true;
       state.x = 0; state.y = 560;
       Entities.erzeugeFeind(200, -30, 'hacker', 0);
-    });
-    await page.waitForTimeout(3000);
-    const r = await page.evaluate(async () => {
-      const { arrays } = await import('./js/state.js');
+      for (let i = 0; i < 180; i++) simulationsSchritt();
       const f = arrays.feinde.find(f => f.muster === 'hacker');
       return { y: f.y, phase: f.phase, schuesse: f.hackSchuesse, laser: arrays.feindLaserArray.length };
     });
@@ -134,10 +133,17 @@ test.describe('Hacker-Gegner', () => {
       a.id = 'treffer'; a.phase = 'lauern'; a.lauerTimer = 9999; a.hackTimer = 9999; a.hackGelandet = true;
       b.id = 'timeout'; b.phase = 'lauern'; b.lauerTimer = 1; b.hackTimer = 9999;
     });
-    await page.waitForTimeout(100);
-    const phasen = await page.evaluate(() => window.__game.arrays.feinde.map(f => f.phase));
-    expect(phasen).toEqual(['flucht', 'flucht']);
-    await page.waitForFunction(() => window.__game.arrays.feinde.length === 0);
+    // Feste Simulationsschritte statt Echtzeit: erst Phasenwechsel, dann Flucht aus dem Bild
+    const r = await page.evaluate(() => {
+      const { arrays, Loop } = window.__game;
+      for (let i = 0; i < 6; i++) Loop.simulationsSchritt();
+      const phasen = arrays.feinde.map(f => f.phase);
+      let schritte = 0;
+      while (arrays.feinde.length > 0 && schritte < 600) { Loop.simulationsSchritt(); schritte++; }
+      return { phasen, uebrig: arrays.feinde.length };
+    });
+    expect(r.phasen).toEqual(['flucht', 'flucht']);
+    expect(r.uebrig).toBe(0);
   });
 
   test('Ein Hacker kann nur einen Treffer landen', async ({ page }) => {
@@ -160,16 +166,25 @@ test.describe('Hacker-Gegner', () => {
 
   test('Hack-Effekte stapeln sich und laufen nach 3 s ab (P1 und P2)', async ({ page }) => {
     await starteSpiel(page);
-    const vorher = await page.evaluate(async () => {
+    // Ablauf ueber HACK_DAUER feste Simulationsschritte statt bis zu 3 s Echtzeit
+    const r = await page.evaluate(async () => {
       const { state } = await import('./js/state.js');
       const Hack = await import('./js/hack.js');
+      const { simulationsSchritt } = await import('./js/loop.js');
       Hack.hackeSpieler(state, 'hudGlitch');
       Hack.hackeSpieler(state, 'invertiert');
       Hack.hackeSpieler(state.p2, 'waffenOffline');
-      return state.hacks.map(h => h.typ);
+      const vorher = state.hacks.map(h => h.typ);
+      const p2Vorher = state.p2.hacks.map(h => h.typ);
+      for (let i = 0; i < Hack.HACK_DAUER - 1; i++) simulationsSchritt();
+      const kurzVorEnde = [state.hacks.length, state.p2.hacks.length];
+      simulationsSchritt();
+      return { vorher, p2Vorher, kurzVorEnde, nachher: [state.hacks.length, state.p2.hacks.length] };
     });
-    expect(vorher).toEqual(['hudGlitch', 'invertiert']);
-    await page.waitForFunction(() => window.__game.state.hacks.length === 0 && window.__game.state.p2.hacks.length === 0, null, { timeout: 5000 });
+    expect(r.vorher).toEqual(['hudGlitch', 'invertiert']);
+    expect(r.p2Vorher).toEqual(['waffenOffline']);
+    expect(r.kurzVorEnde).toEqual([2, 1]);
+    expect(r.nachher).toEqual([0, 0]);
   });
 
 
@@ -239,13 +254,22 @@ test.describe('Hacker-Gegner', () => {
 
   test('Effekt hudGlitch: HUD bekommt Glitch-Klasse, solange der Effekt aktiv ist', async ({ page }) => {
     await starteSpiel(page);
-    await page.evaluate(async () => {
+    // Feste Simulationsschritte: Klasse ist bis zum letzten Schritt der Hack-Dauer gesetzt, danach weg
+    const r = await page.evaluate(async () => {
       const { state } = await import('./js/state.js');
       const Hack = await import('./js/hack.js');
+      const { simulationsSchritt } = await import('./js/loop.js');
+      const glitch = () => document.getElementById('ui-container').classList.contains('hud-glitch');
       Hack.hackeSpieler(state, 'hudGlitch');
+      simulationsSchritt();
+      const amAnfang = glitch();
+      for (let i = 1; i < Hack.HACK_DAUER - 1; i++) simulationsSchritt();
+      const kurzVorEnde = glitch();
+      simulationsSchritt();
+      return { amAnfang, kurzVorEnde, nachEnde: glitch() };
     });
-    await expect(page.locator('#ui-container')).toHaveClass(/hud-glitch/);
-    await expect(page.locator('#ui-container')).not.toHaveClass(/hud-glitch/, { timeout: 5000 });
+    expect(r).toEqual({ amAnfang: true, kurzVorEnde: true, nachEnde: false });
+    await expect(page.locator('#ui-container')).not.toHaveClass(/hud-glitch/);
   });
 
 
@@ -264,7 +288,17 @@ test.describe('Hacker-Gegner', () => {
     await expect(label).toContainText('WEAPONS OFFLINE');
     await expect(label.locator('.hack-restzeit')).toHaveCount(1);
     await expect(page.locator('#spieler')).toHaveClass(/spieler-gehackt/);
-    await expect(label).toBeHidden({ timeout: 5000 });
+    // Rest der Hack-Dauer in festen Simulationsschritten statt bis zu 3 s Echtzeit
+    const schritte = await page.evaluate(async () => {
+      const { state } = await import('./js/state.js');
+      const Hack = await import('./js/hack.js');
+      const { simulationsSchritt } = await import('./js/loop.js');
+      let n = 0;
+      while (state.hacks.length > 0 && n <= Hack.HACK_DAUER) { simulationsSchritt(); n++; }
+      return n;
+    });
+    expect(schritte).toBeLessThanOrEqual(180);
+    await expect(label).toBeHidden();
     await expect(page.locator('#spieler')).not.toHaveClass(/spieler-gehackt/);
   });
 
@@ -448,23 +482,32 @@ test.describe('Hacker-Gegner', () => {
 
   test('Hack-Projektil kann durch seitliches Ausweichen verfehlt werden', async ({ page }) => {
     await starteSpiel(page);
-    await page.evaluate(async () => {
-      const { state } = await import('./js/state.js');
+    // Feste Simulationsschritte; Taste D ueber state.tastenGedrueckt (wie der keydown-Handler) gehalten.
+    // Gegenprobe ohne Ausweichen: derselbe Orb trifft.
+    const lauf = (ausweichen) => page.evaluate(async (ausweichen) => {
+      const { state, arrays } = await import('./js/state.js');
       const Entities = await import('./js/entities.js');
+      const Hack = await import('./js/hack.js');
+      const { simulationsSchritt } = await import('./js/loop.js');
+      Hack.entferneHacks(state);
+      arrays.hackProjektilArray.forEach(h => h.el.remove());
+      arrays.hackProjektilArray.length = 0;
       state.godMode = true;
       state.x = 185; state.y = 450;
       Entities.erzeugeHackProjektil(194, 250, 200, 465);
-    });
-    // Spaet ausweichen, wenn der Orb ca. 80 px entfernt ist
-    await page.waitForFunction(() => {
-      const hp = window.__game.arrays.hackProjektilArray[0];
-      return !hp || hp.y > 370;
-    });
-    await page.keyboard.down('KeyD');
-    await page.waitForTimeout(2000);
-    await page.keyboard.up('KeyD');
-    const hacks = await page.evaluate(() => window.__game.state.hacks.length);
-    expect(hacks).toBe(0);
+      // Spaet ausweichen, wenn der Orb ca. 80 px entfernt ist
+      let n = 0;
+      while (arrays.hackProjektilArray[0] && arrays.hackProjektilArray[0].y <= 370 && n < 300) { simulationsSchritt(); n++; }
+      const orbVorAusweichen = !!arrays.hackProjektilArray[0];
+      if (ausweichen) state.tastenGedrueckt.d = true;
+      for (let i = 0; i < 120; i++) simulationsSchritt();
+      state.tastenGedrueckt.d = false;
+      return { orbVorAusweichen, hacks: state.hacks.length };
+    }, ausweichen);
+    const mit = await lauf(true);
+    expect(mit).toEqual({ orbVorAusweichen: true, hacks: 0 });
+    const ohne = await lauf(false);
+    expect(ohne).toEqual({ orbVorAusweichen: true, hacks: 1 });
   });
 
 
@@ -478,12 +521,19 @@ test.describe('Hacker-Gegner', () => {
       // Orb ist bereits unter dem Spieler und fliegt nach unten
       Entities.erzeugeHackProjektil(194, 300, 194, 600);
     });
-    await page.waitForTimeout(1200);
-    const vy = await page.evaluate(() => {
-      const hp = window.__game.arrays.hackProjektilArray[0];
-      return hp ? hp.vy : 3;
+    // 72 feste Simulationsschritte (~1,2 s); vy wird in jedem Schritt geprueft, solange der Orb existiert
+    const r = await page.evaluate(() => {
+      const { arrays, Loop } = window.__game;
+      const vys = [];
+      for (let i = 0; i < 72; i++) {
+        Loop.simulationsSchritt();
+        const hp = arrays.hackProjektilArray[0];
+        if (hp) vys.push(hp.vy);
+      }
+      return { schritteMitOrb: vys.length, minVy: Math.min(...vys) };
     });
-    expect(vy).toBeGreaterThan(0);
+    expect(r.schritteMitOrb).toBeGreaterThan(0);
+    expect(r.minVy).toBeGreaterThan(0);
   });
 
   async function bossKampf(page, level, enrage) {

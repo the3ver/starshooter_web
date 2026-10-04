@@ -1,5 +1,5 @@
 const { test, expect } = require('@playwright/test');
-const { setzeSpielstand } = require('./helfer');
+const { setzeSpielstand, installiereUhr, haltUhrAn } = require('./helfer');
 
 const TRYSTERO_URL = 'https://cdn.jsdelivr.net/npm/@trystero-p2p/torrent/+esm';
 const ICE_SERVERS = [
@@ -51,13 +51,17 @@ async function routen(page, { turnStatus = 503, turnTor = null, modulTor = null 
   });
 }
 
+// mitClock: Fake-Uhr angehalten, Seitenzeit vergeht nur per page.clock.fastForward.
+// Die Wartezeit-Anzeige rechnet mit Date.now() und einem 1-s-Intervall; fastForward springt die Uhr
+// und feuert das faellige Intervall einmal, ohne jeden Frame des Spiel-Loops einzeln zu simulieren.
 async function starte(page, { mitClock = false } = {}) {
-  if (mitClock) await page.clock.install();
+  if (mitClock) await installiereUhr(page);
   await page.goto('/');
   await page.waitForFunction(() => window.__game && window.__game.state, null, { polling: 50 });
   await page.evaluate(async () => {
     window.__protokoll = (await import('./js/netzkodierung.js')).PROTOKOLL_VERSION;
   });
+  if (mitClock) await haltUhrAn(page);
 }
 
 const phase = page => page.evaluate(() => window.__game.state.network.verbindungsPhase);
@@ -143,15 +147,15 @@ test('Host: Wartezeit zaehlt hoch, nur der Netzwerk-Hinweis erscheint nach 45 s'
   await page.evaluate(() => { window.__game.Network.hostRoom('ABCDE'); });
   await warteAufPhase(page, 3);
 
-  await page.clock.runFor(12000);
+  await page.clock.fastForward(12000);
   expect(await statusText(page)).toContain('(0:12)');
-  await page.clock.runFor(10000);
+  await page.clock.fastForward(10000);
   expect(await statusText(page)).toContain('(0:22)');
   const nach22 = await statusText(page);
   expect(nach22).not.toContain('Raum-Code prüfen');
   expect(nach22).not.toContain('Manche Netzwerke');
 
-  await page.clock.runFor(25000);
+  await page.clock.fastForward(25000);
   const nach47 = await statusText(page);
   expect(nach47).toContain('(0:47)');
   expect(nach47).toContain('Manche Netzwerke blockieren direkte Verbindungen. Ggf. anderes Netz versuchen');
@@ -164,18 +168,18 @@ test('Client: Hinweis zum Raum-Code nach 20 s, Netzwerk-Hinweis nach 45 s', asyn
   await page.evaluate(() => { window.__game.Network.joinOnlineRoom('FGHJK'); });
   await warteAufPhase(page, 3);
 
-  await page.clock.runFor(19000);
+  await page.clock.fastForward(19000);
   let text = await statusText(page);
   expect(text).toContain('(0:19)');
   expect(text).not.toContain('Raum-Code prüfen');
 
-  await page.clock.runFor(1000);
+  await page.clock.fastForward(1000);
   text = await statusText(page);
   expect(text).toContain('(0:20)');
   expect(text).toContain('Raum-Code prüfen, der Host muss den Raum geöffnet haben');
   expect(text).not.toContain('Manche Netzwerke');
 
-  await page.clock.runFor(25000);
+  await page.clock.fastForward(25000);
   text = await statusText(page);
   expect(text).toContain('(0:45)');
   expect(text).toContain('Manche Netzwerke blockieren direkte Verbindungen. Ggf. anderes Netz versuchen');
@@ -244,12 +248,12 @@ test('Schritt 3 bis 5: Timer laufen nach Raum verlassen und nach Schritt 5 nicht
   await starte(page, { mitClock: true });
   await page.evaluate(() => { window.__game.Network.hostRoom('ABCDE'); });
   await warteAufPhase(page, 3);
-  await page.clock.runFor(3000);
+  await page.clock.fastForward(3000);
   expect(await statusText(page)).toContain('(0:03)');
 
   await page.evaluate(() => window.__game.Network.leaveOnlineRoom());
   expect(await phase(page)).toBe(0);
-  await page.clock.runFor(5000);
+  await page.clock.fastForward(5000);
   // Ein noch laufender Ticker wuerde den Status wieder einblenden
   expect(await page.evaluate(() => document.getElementById('online-status').textContent)).toBe('RAUM VERLASSEN');
 
@@ -260,7 +264,7 @@ test('Schritt 3 bis 5: Timer laufen nach Raum verlassen und nach Schritt 5 nicht
   await page.evaluate(HALLO_OK);
   expect(await phase(page)).toBe(5);
   const text5 = await statusText(page);
-  await page.clock.runFor(5000);
+  await page.clock.fastForward(5000);
   expect(await statusText(page)).toBe(text5);
 });
 

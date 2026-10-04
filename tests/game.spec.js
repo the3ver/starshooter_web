@@ -1,5 +1,5 @@
 const { test, expect } = require('@playwright/test');
-const { setzeSpielstand } = require('./helfer');
+const { setzeSpielstand, starteSpiel, installiereUhr, haltUhrAn, spuleVor, spuleBis } = require('./helfer');
 
 test.beforeEach(async ({ page }) => {
   // Standardmäßig API-Requests mocken, damit Tests die Live-DB nicht verändern
@@ -99,10 +99,12 @@ test.describe('Space Shooter', () => {
 
   test('Bombe besitzt Level-spezifische Aura (Lvl 1)', async ({ page }) => {
     // Spiel starten
-    await page.keyboard.down('KeyW');
-    await page.waitForTimeout(50);
-    await page.keyboard.up('KeyW');
-    await page.waitForTimeout(50);
+    await starteSpiel(page, 'KeyW');
+
+    // Schiff weit unter das Bomben-Ziel (Spielfeldmitte, y 285) setzen: vom Startpunkt (y 285) aus
+    // detoniert die Bombe nach ~10 Frames, und bei 36 s Cooldown kommt keine zweite, falls die
+    // Locator-Abfrage diese Frames verpasst
+    await page.evaluate(() => { window.__game.state.y = 500; });
 
     // Bombe abfeuern mit Leertaste
     await page.keyboard.down('Space');
@@ -113,9 +115,7 @@ test.describe('Space Shooter', () => {
 
   test('Stufe 5 Jericho-Bombe teilt sich in 4 Mini-Bomben auf', async ({ page }) => {
     // Spiel starten und Bombenstufe 5 setzen
-    await page.keyboard.down('KeyW');
-    await page.waitForTimeout(50);
-    await page.keyboard.up('KeyW');
+    await starteSpiel(page, 'KeyW');
 
     await page.evaluate(async () => {
       const stateMod = await import('./js/state.js');
@@ -139,9 +139,7 @@ test.describe('Space Shooter', () => {
     page.on('pageerror', err => pageErrors.push(err.message));
 
     // Spiel starten
-    await page.keyboard.down('KeyW');
-    await page.waitForTimeout(50);
-    await page.keyboard.up('KeyW');
+    await starteSpiel(page, 'KeyW');
 
     // Feindlaser und Stufe 4 Bombe erzeugen
     await page.evaluate(async () => {
@@ -171,9 +169,7 @@ test.describe('Space Shooter', () => {
 
   test('Cheatcodes idkf1 bis idkf5 setzen alle Waffenstufen (1 bis 5), resetten Cooldowns und zeigen Overlay', async ({ page }) => {
     // Spiel starten
-    await page.keyboard.down('KeyW');
-    await page.waitForTimeout(50);
-    await page.keyboard.up('KeyW');
+    await starteSpiel(page, 'KeyW');
 
     for (let lvl = 1; lvl <= 5; lvl++) {
       // Cooldowns künstlich hochsetzen
@@ -185,10 +181,8 @@ test.describe('Space Shooter', () => {
       });
 
       const cheat = `idkf${lvl}`;
-      for (const char of cheat) {
-        await page.keyboard.press(char);
-        await page.waitForTimeout(20);
-      }
+      // Auswertung erfolgt synchron im keydown-Handler, Pausen zwischen den Zeichen sind unnötig
+      await page.keyboard.type(cheat);
 
       const stufen = await page.evaluate(async () => {
         const stateMod = await import('./js/state.js');
@@ -220,16 +214,12 @@ test.describe('Space Shooter', () => {
 
   test('Cheatcodes idkfl1 bis idkfl9 springen direkt in das entsprechende Level und aktualisieren das UI', async ({ page }) => {
     // Spiel starten
-    await page.keyboard.down('KeyW');
-    await page.waitForTimeout(50);
-    await page.keyboard.up('KeyW');
+    await starteSpiel(page, 'KeyW');
 
     for (const lvl of [1, 3, 5, 9]) {
       const cheat = `idkfl${lvl}`;
-      for (const char of cheat) {
-        await page.keyboard.press(char);
-        await page.waitForTimeout(20);
-      }
+      // Auswertung erfolgt synchron im keydown-Handler, Pausen zwischen den Zeichen sind unnötig
+      await page.keyboard.type(cheat);
 
       const stateInfo = await page.evaluate(async () => {
         const stateMod = await import('./js/state.js');
@@ -253,9 +243,7 @@ test.describe('Space Shooter', () => {
 
   test('Highscore-Eingabefeld wird bei Game Over automatisch fokussiert', async ({ page }) => {
     // Spiel starten
-    await page.keyboard.down('KeyW');
-    await page.waitForTimeout(50);
-    await page.keyboard.up('KeyW');
+    await starteSpiel(page, 'KeyW');
 
     // GameOver über State & spielerGetroffen simulieren
     await page.evaluate(async () => {
@@ -282,9 +270,7 @@ test.describe('Space Shooter', () => {
   });
 
   test('Highscore-Tabelle speichert und zeigt den verwendeten Schiffstyp hinter jedem Highscore an', async ({ page }) => {
-    await page.keyboard.down('KeyW');
-    await page.waitForTimeout(50);
-    await page.keyboard.up('KeyW');
+    await starteSpiel(page, 'KeyW');
 
     await page.evaluate(async () => {
       const utilsMod = await import('./js/utils.js');
@@ -312,9 +298,7 @@ test.describe('Space Shooter', () => {
 
   test('Ab Stufe 2 besitzen Raketen ein Heavy-Warhead-Design mit Canards', async ({ page }) => {
     // Spiel starten und Raketenstufe 2 setzen
-    await page.keyboard.down('KeyW');
-    await page.waitForTimeout(50);
-    await page.keyboard.up('KeyW');
+    await starteSpiel(page, 'KeyW');
 
     await page.evaluate(async () => {
       const stateMod = await import('./js/state.js');
@@ -333,9 +317,7 @@ test.describe('Space Shooter', () => {
 
   test('Ab Stufe 3 ist eine Rakete zielsuchend (Homing) gegen Feinde', async ({ page }) => {
     // Spiel starten und Raketenstufe 3 setzen
-    await page.keyboard.down('KeyW');
-    await page.waitForTimeout(50);
-    await page.keyboard.up('KeyW');
+    await starteSpiel(page, 'KeyW');
 
     await page.evaluate(async () => {
       const stateMod = await import('./js/state.js');
@@ -365,9 +347,7 @@ test.describe('Space Shooter', () => {
 
   test('Auf Stufe 5 sind 2 von 3 Raketen zielsuchend (Dual-Homing Flanken)', async ({ page }) => {
     // Spiel starten und Raketenstufe 5 setzen
-    await page.keyboard.down('KeyW');
-    await page.waitForTimeout(50);
-    await page.keyboard.up('KeyW');
+    await starteSpiel(page, 'KeyW');
 
     await page.evaluate(async () => {
       const stateMod = await import('./js/state.js');
@@ -386,9 +366,7 @@ test.describe('Space Shooter', () => {
 
   test('Auf Laser-Stufe 4 feuert das Schiff 4 parallele, gebündelte Laser ohne diagonale Streuung (vx = 0)', async ({ page }) => {
     // Spiel starten und Laserstufe 4 setzen
-    await page.keyboard.down('KeyW');
-    await page.waitForTimeout(50);
-    await page.keyboard.up('KeyW');
+    await starteSpiel(page, 'KeyW');
 
     await page.evaluate(async () => {
       const stateMod = await import('./js/state.js');
@@ -456,9 +434,7 @@ test.describe('Space Shooter', () => {
 
   test('Spielerschiff bleibt innerhalb der 4 Spielfeldbegrenzungen (oben, unten, links, rechts)', async ({ page }) => {
     // Spiel starten
-    await page.keyboard.down('KeyW');
-    await page.waitForTimeout(50);
-    await page.keyboard.up('KeyW');
+    await starteSpiel(page, 'KeyW');
 
     // Extrem nach rechts und unten setzen / steuern
     await page.evaluate(async () => {
@@ -615,9 +591,7 @@ test.describe('Space Shooter', () => {
     await phantomBtn.click();
 
     // Spiel starten
-    await page.keyboard.down('KeyW');
-    await page.waitForTimeout(50);
-    await page.keyboard.up('KeyW');
+    await starteSpiel(page, 'KeyW');
 
     // Schild auf 0 setzen (Treffer simulieren) und 50% Regeneration setzen
     await page.evaluate(async () => {
@@ -667,9 +641,7 @@ test.describe('Space Shooter', () => {
     await phantomBtn.click();
 
     // Spiel starten mit W-Taste
-    await page.keyboard.down('KeyW');
-    await page.waitForTimeout(50);
-    await page.keyboard.up('KeyW');
+    await starteSpiel(page, 'KeyW');
 
     // Prüfen, ob Schildstufe 1 aktiv ist
     const phantomSchild = await page.evaluate(async () => {
@@ -689,9 +661,7 @@ test.describe('Space Shooter', () => {
     const viperBtn = page.locator('.hangar-model-btn[data-model="viper"]');
     await viperBtn.click();
 
-    await page.keyboard.down('KeyW');
-    await page.waitForTimeout(50);
-    await page.keyboard.up('KeyW');
+    await starteSpiel(page, 'KeyW');
 
     const viperSchild = await page.evaluate(async () => {
       const stateMod = await import('./js/state.js');
@@ -1000,9 +970,7 @@ test.describe('Mobile UI Positionierung - Tablet (iPad)', () => {
 test.describe('Raketenwerfer am Schiff', () => {
   test('Zeigt auf Stufe 1 bei Viper-X nur den linken Werfer, bei Phantom-NX nur den rechten Werfer', async ({ page }) => {
     // Spiel starten mit Viper-X (Standard)
-    await page.keyboard.down('KeyW');
-    await page.waitForTimeout(50);
-    await page.keyboard.up('KeyW');
+    await starteSpiel(page, 'KeyW');
 
     const werferLinks = page.locator('#spieler .werfer-links');
     const werferRechts = page.locator('#spieler .werfer-rechts');
@@ -1026,9 +994,7 @@ test.describe('Raketenwerfer am Schiff', () => {
   });
 
   test('Auf Stufe 3 und 4 erscheinen beide seitlichen Werfer, auf Stufe 5 der dritte mittlere Werfer', async ({ page }) => {
-    await page.keyboard.down('KeyW');
-    await page.waitForTimeout(50);
-    await page.keyboard.up('KeyW');
+    await starteSpiel(page, 'KeyW');
 
     const werferLinks = page.locator('#spieler .werfer-links');
     const werferRechts = page.locator('#spieler .werfer-rechts');
@@ -1072,9 +1038,7 @@ test.describe('Raketenwerfer am Schiff', () => {
   });
 
   test('Raketen starten geradeaus direkt aus den aktiven Werfern (Viper links, Phantom rechts)', async ({ page }) => {
-    await page.keyboard.down('KeyW');
-    await page.waitForTimeout(50);
-    await page.keyboard.up('KeyW');
+    await starteSpiel(page, 'KeyW');
 
     // 1. Viper-X: Feuern auf Stufe 1 -> Rakete startet links vom Schiff und fliegt geradeaus (kein schräger Auswurf)
     await page.keyboard.down('KeyK');
@@ -1142,9 +1106,7 @@ test.describe('Raketenwerfer am Schiff', () => {
   });
 
   test('Beim Downgrade löst sich der verlorene Werfer mit Wegschleuder-Animation', async ({ page }) => {
-    await page.keyboard.down('KeyW');
-    await page.waitForTimeout(50);
-    await page.keyboard.up('KeyW');
+    await starteSpiel(page, 'KeyW');
 
     // Auf Stufe 5 setzen
     await page.evaluate(async () => {
@@ -1169,9 +1131,7 @@ test.describe('Raketenwerfer am Schiff', () => {
 
 test.describe('Late-Game Difficulty & Gegner-Mechaniken', () => {
   test('Gegner-Schussrate skaliert mit Level und feuert ab Level 3 2er-Salven (Burst)', async ({ page }) => {
-    await page.keyboard.down('KeyW');
-    await page.waitForTimeout(50);
-    await page.keyboard.up('KeyW');
+    await starteSpiel(page, 'KeyW');
 
     // 1. Schussintervall auf Level 1 vs Level 5 prüfen
     const timers = await page.evaluate(async () => {
@@ -1218,9 +1178,7 @@ test.describe('Late-Game Difficulty & Gegner-Mechaniken', () => {
   });
 
   test('Schild-Gegner besitzen ab Level 3 einen schützenden Energieschild, der erst zerstört werden muss', async ({ page }) => {
-    await page.keyboard.down('KeyW');
-    await page.waitForTimeout(50);
-    await page.keyboard.up('KeyW');
+    await starteSpiel(page, 'KeyW');
 
     // Feind mit Schild spawnen
     await page.evaluate(async () => {
@@ -1272,9 +1230,7 @@ test.describe('Late-Game Difficulty & Gegner-Mechaniken', () => {
   });
 
   test('Boss kann eine zerstörbare Boss-Bombe abwerfen, die vor der Detonation abgeschossen werden kann', async ({ page }) => {
-    await page.keyboard.down('KeyW');
-    await page.waitForTimeout(50);
-    await page.keyboard.up('KeyW');
+    await starteSpiel(page, 'KeyW');
 
     // Boss-Bombe erzeugen
     await page.evaluate(async () => {
@@ -1318,9 +1274,7 @@ test.describe('Late-Game Difficulty & Gegner-Mechaniken', () => {
   });
 
   test('Boss feuert seitlich startende, zielsuchende Raketen ab, die vom Spieler im Flug abgeschossen werden können', async ({ page }) => {
-    await page.keyboard.down('KeyW');
-    await page.waitForTimeout(50);
-    await page.keyboard.up('KeyW');
+    await starteSpiel(page, 'KeyW');
 
     // 1. Boss-Rakete seitlich ausklinken
     await page.evaluate(async () => {
@@ -1387,9 +1341,7 @@ test.describe('Late-Game Difficulty & Gegner-Mechaniken', () => {
   });
 
   test('Unverwundbarkeitsdauer nach Treffer ist halbiert (45 Frames / ca. 0.75s)', async ({ page }) => {
-    await page.keyboard.down('KeyW');
-    await page.waitForTimeout(50);
-    await page.keyboard.up('KeyW');
+    await starteSpiel(page, 'KeyW');
 
     // Treffer simulieren
     const timerVal = await page.evaluate(async () => {
@@ -1424,9 +1376,7 @@ test.describe('Late-Game Difficulty & Gegner-Mechaniken', () => {
   });
 
   test('Sound-Trigger: Laser- und Autolaser-Schüsse lösen playLaser bzw. playAutolaser aus', async ({ page }) => {
-    await page.keyboard.down('KeyW');
-    await page.waitForTimeout(50);
-    await page.keyboard.up('KeyW');
+    await starteSpiel(page, 'KeyW');
 
     // Laserstufe 3 und Energie setzen, History leeren
     await page.evaluate(async () => {
@@ -1483,9 +1433,7 @@ test.describe('Late-Game Difficulty & Gegner-Mechaniken', () => {
   });
 
   test('Sound-Trigger: Raketen- und Bomben-Abwurf lösen playMissile bzw. playBomb aus', async ({ page }) => {
-    await page.keyboard.down('KeyW');
-    await page.waitForTimeout(50);
-    await page.keyboard.up('KeyW');
+    await starteSpiel(page, 'KeyW');
 
     // Raketen feuern
     await page.evaluate(async () => {
@@ -1529,9 +1477,7 @@ test.describe('Late-Game Difficulty & Gegner-Mechaniken', () => {
   });
 
   test('Sound-Trigger: Zerstörung, Treffer und Magma-Abpraller lösen playExplosion bzw. playHit aus', async ({ page }) => {
-    await page.keyboard.down('KeyW');
-    await page.waitForTimeout(50);
-    await page.keyboard.up('KeyW');
+    await starteSpiel(page, 'KeyW');
 
     // 1. Ziel-Zerstörung testen
     await page.evaluate(async () => {
@@ -1577,9 +1523,7 @@ test.describe('Late-Game Difficulty & Gegner-Mechaniken', () => {
   });
 
   test('Sound-Trigger: Powerup-Einsammeln und Schild-Regeneration lösen playPowerup bzw. playShieldRegen aus', async ({ page }) => {
-    await page.keyboard.down('KeyW');
-    await page.waitForTimeout(50);
-    await page.keyboard.up('KeyW');
+    await starteSpiel(page, 'KeyW');
 
     // 1. Powerup einsammeln testen
     await page.evaluate(async () => {
@@ -1624,9 +1568,7 @@ test.describe('Late-Game Difficulty & Gegner-Mechaniken', () => {
   });
 
   test('Sound-Trigger: Boss Warning und Game Over lösen playBossAlert bzw. playGameOver aus', async ({ page }) => {
-    await page.keyboard.down('KeyW');
-    await page.waitForTimeout(50);
-    await page.keyboard.up('KeyW');
+    await starteSpiel(page, 'KeyW');
 
     // 1. Boss Warning Alert Sound testen
     await page.evaluate(async () => {
@@ -1670,9 +1612,7 @@ test.describe('Late-Game Difficulty & Gegner-Mechaniken', () => {
   });
 
   test('Sound-Trigger: Gegner- und Boss-Laser lösen playEnemyLaser bzw. playBossLaser aus', async ({ page }) => {
-    await page.keyboard.down('KeyW');
-    await page.waitForTimeout(50);
-    await page.keyboard.up('KeyW');
+    await starteSpiel(page, 'KeyW');
 
     // 1. Feind-Laser feuern
     await page.evaluate(async () => {
@@ -1706,9 +1646,7 @@ test.describe('Late-Game Difficulty & Gegner-Mechaniken', () => {
   });
 
   test('Sound-Trigger: Boss-Bomben und Boss-Raketen lösen playBossBombLaunch bzw. playBossRocketLaunch aus', async ({ page }) => {
-    await page.keyboard.down('KeyW');
-    await page.waitForTimeout(50);
-    await page.keyboard.up('KeyW');
+    await starteSpiel(page, 'KeyW');
 
     // 1. Boss-Bombe spawnen
     await page.evaluate(async () => {
@@ -1742,9 +1680,7 @@ test.describe('Late-Game Difficulty & Gegner-Mechaniken', () => {
   });
 
   test('Sound-Synthesizer: playMissile erzeugt ein realistisches Silvester-Raketen-Zischen mit Rauschfilter', async ({ page }) => {
-    await page.keyboard.down('KeyW');
-    await page.waitForTimeout(50);
-    await page.keyboard.up('KeyW');
+    await starteSpiel(page, 'KeyW');
 
     const result = await page.evaluate(async () => {
       const audioMod = await import('./js/audio.js');
@@ -1773,9 +1709,7 @@ test.describe('Late-Game Difficulty & Gegner-Mechaniken', () => {
   });
 
   test('Sound-Trigger: Raketen-Detonation löst playMissileExplosion aus', async ({ page }) => {
-    await page.keyboard.down('KeyW');
-    await page.waitForTimeout(50);
-    await page.keyboard.up('KeyW');
+    await starteSpiel(page, 'KeyW');
 
     // 1. Spieler-Rakete spawnen und Ziel in Zündnähe platzieren
     await page.evaluate(async () => {
@@ -1817,9 +1751,7 @@ test.describe('Late-Game Difficulty & Gegner-Mechaniken', () => {
   });
 
   test('Sound-Trigger: Fliegende Bomben (Spieler & Boss) erzeugen ein beschleunigendes Piepsen (playBombBeep)', async ({ page }) => {
-    await page.keyboard.down('KeyW');
-    await page.waitForTimeout(50);
-    await page.keyboard.up('KeyW');
+    await starteSpiel(page, 'KeyW');
 
     // 1. Boss-Bombe spawnen und fliegen lassen
     await page.evaluate(async () => {
@@ -1842,9 +1774,7 @@ test.describe('Late-Game Difficulty & Gegner-Mechaniken', () => {
   });
 
   test('Sound-Trigger: Boss-Raketen erzeugen im Flug periodisch Triebwerksgeräusche (playBossRocketFlight)', async ({ page }) => {
-    await page.keyboard.down('KeyW');
-    await page.waitForTimeout(50);
-    await page.keyboard.up('KeyW');
+    await starteSpiel(page, 'KeyW');
 
     // Boss-Rakete spawnen und fliegen lassen
     await page.evaluate(async () => {
@@ -1884,9 +1814,7 @@ test.describe('Story Intro-Cutszene', () => {
     await blueBtn.click();
 
     // Starten via Tastendruck
-    await page.keyboard.down('w');
-    await page.waitForTimeout(50);
-    await page.keyboard.up('w');
+    await starteSpiel(page);
 
     // Startbildschirm ist weg
     const startScreen = page.locator('#start-screen');
@@ -1933,15 +1861,24 @@ test.describe('Story Intro-Cutszene', () => {
     expect(newX).toBeGreaterThan(initialX);
   });
 
-  test('Alien-Sprechblasen erscheinen mit unleserlichen Glyphen im Vordergrund und lösen Audio aus', async ({ page }) => {
-    // Spiel starten
+  // Startet die Cutszene bei angehaltener Fake-Uhr: Taste halten, bis ein (vorgespulter) Frame sie verarbeitet
+  async function starteCutszeneMitUhr(page) {
+    await installiereUhr(page);
+    await page.goto('/');
+    await page.waitForFunction(() => window.__game && window.__game.state);
+    await haltUhrAn(page);
     await page.keyboard.down('w');
-    await page.waitForTimeout(50);
+    await spuleBis(page, () => page.evaluate(() => window.__game.state.cutsceneAktiv), 1000, 50);
     await page.keyboard.up('w');
+  }
 
-    // Warten auf die erste Alien-Sprechblase
+  test('Alien-Sprechblasen erscheinen mit unleserlichen Glyphen im Vordergrund und lösen Audio aus', async ({ page }) => {
+    await starteCutszeneMitUhr(page);
+
+    // Warten auf die erste Alien-Sprechblase (Seitenzeit, ~2,2 s)
     const bubble = page.locator('.alien-speech-bubble');
-    await expect(bubble.first()).toBeVisible({ timeout: 4000 });
+    await spuleBis(page, () => bubble.first().isVisible(), 4000);
+    await expect(bubble.first()).toBeVisible();
 
     // Prüfen, dass unleserliche Glyphen enthalten sind
     const alienText = page.locator('.alien-speech-bubble .alien-text');
@@ -1957,26 +1894,27 @@ test.describe('Story Intro-Cutszene', () => {
     expect(hasAlienChatter).toBe(true);
   });
 
-  test('Überraschungsangriff aus dem Verborgenen zerstört alle Begleitschiffe bis auf das Spielerschiff', async ({ page }) => {
-    // Starten
-    await page.keyboard.down('w');
-    await page.waitForTimeout(50);
-    await page.keyboard.up('w');
+  // Frueher zwei Tests mit gleicher Vorbedingung und gleichem Ablauf (Angriff, dann Lichtstrahl) mit
+  // zusammen ~28 s Echtzeit. Jetzt eine Cutszene mit Fake-Uhr; die Zeitfenster gelten in Seitenzeit ab Start.
+  test('Überraschungsangriff zerstört alle Begleitschiffe bis auf das Spielerschiff, danach Lichtstrahl und nahtloser Übergang ins Spiel', async ({ page }) => {
+    await starteCutszeneMitUhr(page);
 
-    // Beschleunigen bzw. Warten auf das Ende der Angriffsphase
-    // Alle Begleitschiffe sollen nach der Angriffsphase zerstört sein
     const destroyer = page.locator('.cutscene-ship.ship-destroyer');
     const freighter = page.locator('.cutscene-ship.ship-freighter');
     const hospitalShip = page.locator('.cutscene-ship.ship-hospital');
     const escorts = page.locator('.cutscene-ship.ship-escort');
     const playerShip = page.locator('.cutscene-ship.ship-player');
 
-    // Während der Zerstörungsphase entstehen Feuerbälle, Schockwellen & Trümmerteile
+    // --- Überraschungsangriff ---
+    // Während der Zerstörungsphase entstehen Feuerbälle (leben 600 ms, Schrittweite 250 ms)
     const fireball = page.locator('.cutscene-fireball');
-    await expect(fireball.first()).toBeAttached({ timeout: 11000 });
+    let zeit = await spuleBis(page, async () => (await fireball.count()) > 0, 11000);
+    await expect(fireball.first()).toBeAttached();
 
-    // Nach Abschluss der Zerstörungsphase (~12 Sekunden in Echtzeit)
-    await expect(destroyer).toBeHidden({ timeout: 14000 });
+    // Nach Abschluss der Zerstörungsphase (bis 14 s) sind alle Begleitschiffe weg
+    zeit += await spuleBis(page, async () => (await destroyer.isHidden()) && (await freighter.isHidden()) &&
+      (await hospitalShip.isHidden()) && (await escorts.count()) === 0, 14000 - zeit);
+    await expect(destroyer).toBeHidden();
     await expect(freighter).toBeHidden();
     await expect(hospitalShip).toBeHidden();
     await expect(escorts).toHaveCount(0);
@@ -1984,48 +1922,38 @@ test.describe('Story Intro-Cutszene', () => {
     // Spielerschiff ist weiterhin vorhanden
     await expect(playerShip).toBeAttached();
 
-    // Audio-History prüfen
     const history = await page.evaluate(async () => {
       const audioMod = await import('./js/audio.js');
       return audioMod.audioHistory;
     });
-    const hasArtillery = history.some(h => h.name === 'incomingArtillery');
-    const hasExplosion = history.some(h => h.name === 'explosion');
-    expect(hasArtillery).toBe(true);
-    expect(hasExplosion).toBe(true);
-  });
+    expect(history.some(h => h.name === 'incomingArtillery')).toBe(true);
+    expect(history.some(h => h.name === 'explosion')).toBe(true);
 
-  test('Lichtstrahl erscheint, Schiff dreht nach oben und geht nahtlos ins eigentliche Spiel über', async ({ page }) => {
-    // Starten
-    await page.keyboard.down('w');
-    await page.waitForTimeout(50);
-    await page.keyboard.up('w');
-
-    // Warten auf den Lichtstrahl (~12.5s)
+    // --- Lichtstrahl und Übergang ins Spiel ---
+    // Lichtstrahl erscheint (~12,2 s, spätestens 14,5 s)
     const lightBeam = page.locator('#cutscene-light-beam.cutscene-beam-active');
-    await expect(lightBeam).toBeVisible({ timeout: 14500 });
+    zeit += await spuleBis(page, () => lightBeam.isVisible(), 14500 - zeit);
+    await expect(lightBeam).toBeVisible();
 
-    // Warten auf Abschluss der Cutszene und Übergang ins Spiel (~15s)
+    // Abschluss der Cutszene und Übergang ins Spiel (~14,4 s, spätestens 17,5 s)
     const cutsceneContainer = page.locator('#cutscene-container');
-    await expect(cutsceneContainer).toBeHidden({ timeout: 17500 });
+    zeit += await spuleBis(page, () => cutsceneContainer.isHidden(), 17500 - zeit);
+    await expect(cutsceneContainer).toBeHidden();
 
     // Spiel ist nun aktiv (spielLaeuft = true, cutsceneAktiv = false)
     const gameState = await page.evaluate(async () => {
       const stateMod = await import('./js/state.js');
       return {
         spielLaeuft: stateMod.state.spielLaeuft,
-        cutsceneAktiv: stateMod.state.cutsceneAktiv,
-        y: stateMod.state.y
+        cutsceneAktiv: stateMod.state.cutsceneAktiv
       };
     });
     expect(gameState.spielLaeuft).toBe(true);
     expect(gameState.cutsceneAktiv).toBe(false);
 
     // In-game Spielerschiff ist nun sichtbar
-    const inGameSpieler = page.locator('#spieler');
-    await expect(inGameSpieler).toBeVisible();
+    await expect(page.locator('#spieler')).toBeVisible();
 
-    // Audio-History prüfen
     const hasLightWhoosh = await page.evaluate(async () => {
       const audioMod = await import('./js/audio.js');
       return audioMod.audioHistory.some(h => h.name === 'lightBeamWhoosh');
@@ -2035,9 +1963,7 @@ test.describe('Story Intro-Cutszene', () => {
 
   test('Cutszene kann jederzeit per ESC-Taste oder Skip-Button sofort übersprungen werden', async ({ page }) => {
     // 1. Test per ESC-Taste
-    await page.keyboard.down('w');
-    await page.waitForTimeout(50);
-    await page.keyboard.up('w');
+    await starteSpiel(page);
 
     const cutsceneContainer = page.locator('#cutscene-container');
     await expect(cutsceneContainer).toBeVisible();
@@ -2063,9 +1989,7 @@ test.describe('Story Intro-Cutszene', () => {
     await expect(startScreen).toBeVisible();
 
     // Erneut Cutszene starten
-    await page.keyboard.down('w');
-    await page.waitForTimeout(50);
-    await page.keyboard.up('w');
+    await starteSpiel(page);
 
     await expect(cutsceneContainer).toBeVisible();
 
@@ -2084,9 +2008,7 @@ test.describe('Story Intro-Cutszene', () => {
 
   test('Neustart nach Bosskampf entfernt alle Boss-Raketen, Boss-Bomben und Artefakte vollständig', async ({ page }) => {
     // Spiel starten und künstlich Boss-Rakete & Boss-Bombe erzeugen
-    await page.keyboard.down('w');
-    await page.waitForTimeout(50);
-    await page.keyboard.up('w');
+    await starteSpiel(page);
 
     await page.evaluate(async () => {
       const entitiesMod = await import('./js/entities.js');
@@ -2228,9 +2150,7 @@ test.describe('2-Spieler-Modus (Co-op)', () => {
     await page.locator('#gamemode-btn-coop').click();
 
     // Spiel starten (per Tastendruck)
-    await page.keyboard.down('w');
-    await page.waitForTimeout(50);
-    await page.keyboard.up('w');
+    await starteSpiel(page);
 
     const spieler1 = page.locator('#spieler');
     const spieler2 = page.locator('#spieler-2');
@@ -2288,9 +2208,7 @@ test.describe('2-Spieler-Modus (Co-op)', () => {
     // 2-Spieler Modus aktivieren und Spiel starten
     await page.locator('#gamemode-btn-coop').click();
 
-    await page.keyboard.down('w');
-    await page.waitForTimeout(50);
-    await page.keyboard.up('w');
+    await starteSpiel(page);
 
     // 1. LASER TEST: P1 feuert mit 'b', P2 mit 'ä'
     await page.keyboard.down('b');
@@ -2397,9 +2315,7 @@ test.describe('2-Spieler-Modus (Co-op)', () => {
     // 2-Spieler Modus aktivieren und Spiel starten
     await page.locator('#gamemode-btn-coop').click();
 
-    await page.keyboard.down('w');
-    await page.waitForTimeout(50);
-    await page.keyboard.up('w');
+    await starteSpiel(page);
 
     // 1. Spawne P1-Powerup direkt auf P2 Position (x=370, y=285)
     await page.evaluate(async () => {
@@ -2548,9 +2464,7 @@ test.describe('2-Spieler-Modus (Co-op)', () => {
     // 2-Spieler Modus aktivieren und Spiel starten
     await page.locator('#gamemode-btn-coop').click();
 
-    await page.keyboard.down('w');
-    await page.waitForTimeout(50);
-    await page.keyboard.up('w');
+    await starteSpiel(page);
 
     // 1. Zerstöre Spieler 1 (3 Treffer)
     await page.evaluate(async () => {
@@ -2643,9 +2557,7 @@ test.describe('2-Spieler-Modus (Co-op)', () => {
 
   test('Spieler 2 Energiebalken: #energie-container-p2 und #energie-balken-p2 sind im 2-Spieler Modus sichtbar und korrekt gestylt', async ({ page }) => {
     await page.locator('#gamemode-btn-coop').click();
-    await page.keyboard.down('w');
-    await page.waitForTimeout(50);
-    await page.keyboard.up('w');
+    await starteSpiel(page);
 
     const energieContainerP2 = page.locator('#energie-container-p2');
     const energieBalkenP2 = page.locator('#energie-balken-p2');
@@ -2663,9 +2575,7 @@ test.describe('2-Spieler-Modus (Co-op)', () => {
 
   test('Spieler 2 Schild: #spieler-2 zeigt bei aktiver Schildstufe (1, 2, 3) visuelle Schild-Aura ::after an', async ({ page }) => {
     await page.locator('#gamemode-btn-coop').click();
-    await page.keyboard.down('w');
-    await page.waitForTimeout(50);
-    await page.keyboard.up('w');
+    await starteSpiel(page);
 
     // Schild Stufe 1 prüfen
     await page.evaluate(async () => {
@@ -2709,9 +2619,7 @@ test.describe('2-Spieler-Modus (Co-op)', () => {
 
   test('Boss-Zielerfassung im Co-op: Wenn Spieler 1 stirbt, verfolgt und visiert Boss Typ 2 (Jäger) Spieler 2 an', async ({ page }) => {
     await page.locator('#gamemode-btn-coop').click();
-    await page.keyboard.down('w');
-    await page.waitForTimeout(50);
-    await page.keyboard.up('w');
+    await starteSpiel(page);
 
     // Setze Level 2 (Boss Typ 2 - Jäger) und spawne den Boss
     await page.evaluate(async () => {
@@ -2754,9 +2662,7 @@ test.describe('2-Spieler-Modus (Co-op)', () => {
 
   test('Tastensteuerung Spieler 2: Taste L feuert im Co-op Modus nur die Bombe und NICHT den Laser', async ({ page }) => {
     await page.locator('#gamemode-btn-coop').click();
-    await page.keyboard.down('w');
-    await page.waitForTimeout(50);
-    await page.keyboard.up('w');
+    await starteSpiel(page);
 
     // Cooldowns und Arrays leeren
     await page.evaluate(async () => {
@@ -2790,9 +2696,7 @@ test.describe('2-Spieler-Modus (Co-op)', () => {
 
   test('HUD Layout im Co-op Modus: Punkte- und Levelanzeige sind zentriert und überdecken nicht das P2-HUD', async ({ page }) => {
     await page.locator('#gamemode-btn-coop').click();
-    await page.keyboard.down('w');
-    await page.waitForTimeout(50);
-    await page.keyboard.up('w');
+    await starteSpiel(page);
 
     const scoreBox = await page.locator('#score-anzeige').boundingBox();
     const levelBox = await page.locator('#level-anzeige').boundingBox();
@@ -2809,9 +2713,7 @@ test.describe('2-Spieler-Modus (Co-op)', () => {
 
   test('Dedicated Loot bei alleinigem Überleben: Wenn ein Spieler tot ist, spawnen nur Powerups für den lebenden Spieler', async ({ page }) => {
     await page.locator('#gamemode-btn-coop').click();
-    await page.keyboard.down('w');
-    await page.waitForTimeout(50);
-    await page.keyboard.up('w');
+    await starteSpiel(page);
 
     // Fall 1: Spieler 1 ist tot, Spieler 2 lebt
     const p2OnlyOwners = await page.evaluate(async () => {
@@ -2889,9 +2791,7 @@ test.describe('2-Spieler-Modus (Co-op)', () => {
 
   test('Game Over im Co-op Modus: Highscore-Eingabe qualifiziert sich für Co-op Bestenliste und speichert Schiffe beider Spieler', async ({ page }) => {
     await page.locator('#gamemode-btn-coop').click();
-    await page.keyboard.down('w');
-    await page.waitForTimeout(50);
-    await page.keyboard.up('w');
+    await starteSpiel(page);
 
     // Setze Schiffe und Score
     await page.evaluate(async () => {
@@ -2932,9 +2832,7 @@ test.describe('2-Spieler-Modus (Co-op)', () => {
 
   test('Highscore-Tabs: Game-Over Screen erlaubt Umschalten zwischen Solo- und Co-op-Bestenliste', async ({ page }) => {
     await page.locator('#gamemode-btn-coop').click();
-    await page.keyboard.down('w');
-    await page.waitForTimeout(50);
-    await page.keyboard.up('w');
+    await starteSpiel(page);
 
     await page.evaluate(async () => {
       localStorage.removeItem('spaceShooterHighscores');
@@ -2969,10 +2867,14 @@ test.describe('2-Spieler-Modus (Co-op)', () => {
     await expect(page.locator('#highscore-body .hs-coop-badges')).toBeVisible();
   });
 
-  test('Co-op Cutszene: Im 2-Spieler-Modus erscheinen beide Spielerschiffe (P1 und P2) im Konvoi', async ({ page }) => {
-    await page.evaluate(() => {
+  // Frueher zwei Tests mit gleicher Vorbedingung (Co-op, Cutszene an) und gleichem Ablauf, einer davon
+  // mit ~14 s Echtzeit. Jetzt eine Cutszene mit angehaltener Fake-Uhr.
+  test('Co-op Cutszene: Beide Spielerschiffe (P1 und P2) erscheinen im Konvoi, überleben den Angriff und steigen gemeinsam im Lichtstrahl auf', async ({ page }) => {
+    await page.addInitScript(() => {
       localStorage.removeItem('starshooter_skip_cutscene');
     });
+    await installiereUhr(page);
+    await page.goto('/');
 
     await page.locator('#gamemode-btn-coop').click();
 
@@ -2982,62 +2884,37 @@ test.describe('2-Spieler-Modus (Co-op)', () => {
     await page.locator('#hangar-player-tabs button[data-player="p2"]').click();
     await page.locator('.hangar-model-btn[data-model="phantom"]').click();
 
-    // Start
+    // Ab hier vergeht Seitenzeit nur per Vorspulen
+    await haltUhrAn(page);
     await page.keyboard.down('w');
-    await page.waitForTimeout(50);
+    const startZeit = await spuleBis(page, () => page.evaluate(() => window.__game.state.cutsceneAktiv), 1000, 50);
     await page.keyboard.up('w');
 
     await expect(page.locator('#cutscene-container')).toBeVisible();
 
     const p1CutsceneShip = page.locator('.cutscene-ship.ship-player-p1');
     const p2CutsceneShip = page.locator('.cutscene-ship.ship-player-p2');
-
     await expect(p1CutsceneShip).toBeVisible();
     await expect(p2CutsceneShip).toBeVisible();
-  });
 
-  test('Co-op Cutszene: Beide Spielerschiffe überleben den Angriff und steigen gemeinsam im Lichtstrahl auf', async ({ page }) => {
-    await page.evaluate(() => {
-      localStorage.removeItem('starshooter_skip_cutscene');
-    });
-
-    await page.locator('#gamemode-btn-coop').click();
-
-    // Start
-    await page.keyboard.down('w');
-    await page.waitForTimeout(50);
-    await page.keyboard.up('w');
-
-    await expect(page.locator('#cutscene-container')).toBeVisible();
-
-    // Schneller Vorlauf bis kurz nach Beginn der Lichtstrahl-Phase (~12.5s)
-    await page.waitForTimeout(12600);
-
-    const p1CutsceneShip = page.locator('.cutscene-ship.ship-player-p1');
-    const p2CutsceneShip = page.locator('.cutscene-ship.ship-player-p2');
+    // Vorlauf bis kurz nach Beginn der Lichtstrahl-Phase (12,2 s)
+    await spuleVor(page, 12600 - startZeit);
 
     // Beide Schiffe müssen überlebt haben
     await expect(p1CutsceneShip).toBeAttached();
     await expect(p2CutsceneShip).toBeAttached();
 
     // Lichtstrahl aktiv
-    const lightBeam = page.locator('#cutscene-light-beam');
-    await expect(lightBeam).toBeVisible();
+    await expect(page.locator('#cutscene-light-beam')).toBeVisible();
 
-    // Nach weiteren 1.5s steigen beide nach oben auf (top < 200)
-    await page.waitForTimeout(1600);
+    // style.top statt getBoundingClientRect: die CSS-Transition folgt nicht der Fake-Uhr
+    const hoehen = () => page.evaluate(() => ['.ship-player-p1', '.ship-player-p2']
+      .map(sel => parseFloat(document.querySelector('.cutscene-ship' + sel).style.top)));
+    for (const y of await hoehen()) expect(y).toBeGreaterThanOrEqual(200);
 
-    // Ohne auf die Schiffe zu warten: Unter Last kann die Cutszene schon vorbei und abgeräumt sein
-    // (boundingBox() würde dann bis zum Test-Timeout auf das Element warten)
-    const [p1Box, p2Box] = await page.evaluate(() => ['.ship-player-p1', '.ship-player-p2'].map(sel => {
-      const el = document.querySelector('.cutscene-ship' + sel);
-      return el && el.isConnected ? { y: el.getBoundingClientRect().y } : null;
-    }));
-
-    if (p1Box && p2Box) {
-      expect(p1Box.y).toBeLessThan(200);
-      expect(p2Box.y).toBeLessThan(200);
-    }
+    // Nach weiteren 1 s (Aufstieg ab 13,5 s, Cutszenen-Ende 14,4 s) steigen beide nach oben auf (top < 200)
+    await spuleVor(page, 1000);
+    for (const y of await hoehen()) expect(y).toBeLessThan(200);
   });
 
   test('Spieler 2 Raketenwerfer-Visuals: Zeigt je nach Schiffsmodell und Level die korrekten Werfer-Pods auf Spieler 2 an', async ({ page }) => {
@@ -3048,9 +2925,7 @@ test.describe('2-Spieler-Modus (Co-op)', () => {
     await page.locator('.hangar-model-btn[data-model="viper"]').click();
 
     // Start
-    await page.keyboard.down('w');
-    await page.waitForTimeout(50);
-    await page.keyboard.up('w');
+    await starteSpiel(page);
 
     const p2Links = page.locator('#spieler-2 .werfer-links');
     const p2Rechts = page.locator('#spieler-2 .werfer-rechts');
@@ -3101,9 +2976,7 @@ test.describe('2-Spieler-Modus (Co-op)', () => {
 
   test('Boss-Raketen Ausrichtung: Raketen fliegen vorwärts mit der Spitze in Flugrichtung auf den Spieler zu', async ({ page }) => {
     // Spiel starten
-    await page.keyboard.down('w');
-    await page.waitForTimeout(50);
-    await page.keyboard.up('w');
+    await starteSpiel(page);
 
     const result = await page.evaluate(async () => {
       const { arrays, state } = await import('./js/state.js');
@@ -3141,9 +3014,7 @@ test.describe('2-Spieler-Modus (Co-op)', () => {
     await page.locator('#gamemode-btn-coop').click();
 
     // Start
-    await page.keyboard.down('w');
-    await page.waitForTimeout(50);
-    await page.keyboard.up('w');
+    await starteSpiel(page);
 
     const testResult = await page.evaluate(async () => {
       const { arrays, state, config } = await import('./js/state.js');
@@ -3291,9 +3162,7 @@ test.describe('2-Spieler-Modus (Co-op)', () => {
     await page.locator('#gamemode-btn-coop').click();
 
     // Start
-    await page.keyboard.down('w');
-    await page.waitForTimeout(50);
-    await page.keyboard.up('w');
+    await starteSpiel(page);
 
     const result = await page.evaluate(async () => {
       const { arrays, state } = await import('./js/state.js');
@@ -3336,9 +3205,7 @@ test.describe('2-Spieler-Modus (Co-op)', () => {
     await page.locator('#gamemode-btn-coop').click();
 
     // Start
-    await page.keyboard.down('w');
-    await page.waitForTimeout(50);
-    await page.keyboard.up('w');
+    await starteSpiel(page);
 
     const testSpeeds = await page.evaluate(async () => {
       const { arrays, state, config } = await import('./js/state.js');
@@ -3400,9 +3267,7 @@ test.describe('2-Spieler-Modus (Co-op)', () => {
     await page.locator('#gamemode-btn-coop').click();
 
     // Start
-    await page.keyboard.down('w');
-    await page.waitForTimeout(50);
-    await page.keyboard.up('w');
+    await starteSpiel(page);
 
     const result = await page.evaluate(async () => {
       const { arrays, state } = await import('./js/state.js');
@@ -3466,9 +3331,7 @@ test.describe('2-Spieler-Modus (Co-op)', () => {
     await page.locator('#gamemode-btn-coop').click();
 
     // Start
-    await page.keyboard.down('w');
-    await page.waitForTimeout(50);
-    await page.keyboard.up('w');
+    await starteSpiel(page);
 
     const result = await page.evaluate(async () => {
       const { arrays, state } = await import('./js/state.js');
@@ -3516,9 +3379,7 @@ test.describe('2-Spieler-Modus (Co-op)', () => {
 
   test('Viper Splitter-Drop: Jeder 10. vom Viper zerstörte Feind droppt einen Splitter (Rot oder Weiß), während Phantom keine Splitter erzeugt', async ({ page }) => {
     // Start game
-    await page.keyboard.down('w');
-    await page.waitForTimeout(50);
-    await page.keyboard.up('w');
+    await starteSpiel(page);
 
     const result = await page.evaluate(async () => {
       const { arrays, state } = await import('./js/state.js');
@@ -3604,9 +3465,7 @@ test.describe('2-Spieler-Modus (Co-op)', () => {
 
   test('Viper Roter Splitter: Einsammeln von 10 roten Splittern gewährt +1 Leben und setzt den Zähler zurück', async ({ page }) => {
     // Start game
-    await page.keyboard.down('w');
-    await page.waitForTimeout(50);
-    await page.keyboard.up('w');
+    await starteSpiel(page);
 
     const result = await page.evaluate(async () => {
       const { arrays, state, dom } = await import('./js/state.js');
@@ -3658,9 +3517,7 @@ test.describe('2-Spieler-Modus (Co-op)', () => {
 
   test('Viper Weißer Splitter: Einsammeln von 10 weißen Splittern aktiviert die Super-Waffe und setzt den Zähler zurück', async ({ page }) => {
     // Start game
-    await page.keyboard.down('w');
-    await page.waitForTimeout(50);
-    await page.keyboard.up('w');
+    await starteSpiel(page);
 
     const result = await page.evaluate(async () => {
       const { arrays, state, dom } = await import('./js/state.js');
@@ -3723,9 +3580,7 @@ test.describe('2-Spieler-Modus (Co-op)', () => {
     await page.locator('#gamemode-btn-coop').click();
 
     // Start
-    await page.keyboard.down('w');
-    await page.waitForTimeout(50);
-    await page.keyboard.up('w');
+    await starteSpiel(page);
 
     const result = await page.evaluate(async () => {
       const { arrays, state, dom } = await import('./js/state.js');
@@ -3814,9 +3669,7 @@ test.describe('2-Spieler-Modus (Co-op)', () => {
 
   test('Boss Splitter-Drops: Besiegter Boss droppt immer garantiert 3 Splitter (Rot oder Weiß) zusätzlich zu seinen Belohnungen', async ({ page }) => {
     // Start game
-    await page.keyboard.down('w');
-    await page.waitForTimeout(50);
-    await page.keyboard.up('w');
+    await starteSpiel(page);
 
     const result = await page.evaluate(async () => {
       const { arrays, state } = await import('./js/state.js');
@@ -3958,10 +3811,8 @@ test.describe('Bot-Partner', () => {
   });
 
   test('Bot bewegt sich auf einen Feind zu', async ({ page }) => {
-    // What's New Overlay schließen
-    const btnClose = page.locator('#btn-close-whats-new');
-    await btnClose.click({ timeout: 3000 }).catch(() => {});
-    await page.waitForTimeout(200);
+    // Das What's-New-Overlay erscheint nicht (setzeSpielstand im beforeEach)
+    await expect(page.locator('#whats-new-overlay')).toBeHidden();
 
     // Coop-Modus aktivieren + Bot aktivieren
     await page.click('#gamemode-btn-coop');
@@ -3969,9 +3820,7 @@ test.describe('Bot-Partner', () => {
     await page.click('#btn-p2-bot-toggle');
 
     // Spiel starten
-    await page.keyboard.down('w');
-    await page.waitForTimeout(50);
-    await page.keyboard.up('w');
+    await starteSpiel(page);
 
     // Warten bis Cutscene vorbei und Spiel läuft
     await page.waitForFunction(() => {
@@ -3982,28 +3831,16 @@ test.describe('Bot-Partner', () => {
       return spieler && spieler.style.display !== 'none';
     }, null, { timeout: 5000 });
 
-    // P2 Startposition erfassen und Feind direkt über P2 spawnen
-    const startPos = await page.evaluate(() => {
+    // P2 Startposition erfassen, Feind links von P2 spawnen und 30 feste Simulationsschritte (~0,5 s)
+    // synchron ausführen, damit der Bot reagiert (unabhängig von Wanduhr und Bildrate)
+    const { startPos, endPos } = await page.evaluate(() => {
       const mod = window.__game;
-      const s = mod ? mod.state : null;
-      if (!s || !s.p2) return null;
-
-      // Feind links von P2 spawnen, damit Bot sich dorthin bewegen muss
+      const s = mod.state;
       const feindX = s.p2.x - 100;
-      if (mod && mod.Entities) {
-        mod.Entities.erzeugeFeind(feindX, 50, 'stop_and_go', 0);
-      }
-      return { x: s.p2.x, y: s.p2.y, feindX: feindX };
-    });
-
-    // Einige Frames warten, damit der Bot reagiert
-    await page.waitForTimeout(500);
-
-    // Prüfen, dass P2 sich in Richtung des Feindes bewegt hat
-    const endPos = await page.evaluate(() => {
-      const mod = window.__game;
-      if (!mod || !mod.state || !mod.state.p2) return null;
-      return { x: mod.state.p2.x, y: mod.state.p2.y };
+      const startPos = { x: s.p2.x, y: s.p2.y, feindX };
+      mod.Entities.erzeugeFeind(feindX, 50, 'stop_and_go', 0);
+      for (let i = 0; i < 30; i++) mod.Loop.simulationsSchritt();
+      return { startPos, endPos: { x: s.p2.x, y: s.p2.y } };
     });
 
     expect(startPos).toBeTruthy();
@@ -4019,9 +3856,7 @@ test.describe('Bot-Partner', () => {
     await page.click('#btn-p2-bot-toggle');
 
     // Spiel starten
-    await page.keyboard.down('w');
-    await page.waitForTimeout(50);
-    await page.keyboard.up('w');
+    await starteSpiel(page);
 
     // Warten bis Spiel läuft
     await page.waitForFunction(() => {
@@ -4029,20 +3864,12 @@ test.describe('Bot-Partner', () => {
       return mod && mod.state && mod.state.spielLaeuft;
     }, null, { timeout: 5000 });
 
-    // Feind direkt über P2 spawnen
-    await page.evaluate(() => {
-      const mod = window.__game;
-      const s = mod.state;
-      // Feind genau in P2-Korridor platzieren
-      mod.Entities.erzeugeFeind(s.p2.x, 50, 'stop_and_go', 0);
-    });
-
-    // Kurz warten, damit der Bot reagiert und schießt
-    await page.waitForTimeout(300);
-
+    // Feind genau in den P2-Korridor setzen, dann 18 feste Simulationsschritte (~0,3 s)
     const laserFired = await page.evaluate(() => {
       const mod = window.__game;
       const s = mod.state;
+      mod.Entities.erzeugeFeind(s.p2.x, 50, 'stop_and_go', 0);
+      for (let i = 0; i < 18; i++) mod.Loop.simulationsSchritt();
       return s.p2.laserSchiesst || s.p2.botFireLaser || (s.p2.energie < s.p2.maxEnergie);
     });
 
@@ -4056,9 +3883,7 @@ test.describe('Bot-Partner', () => {
     await page.click('#btn-p2-bot-toggle');
 
     // Spiel starten
-    await page.keyboard.down('w');
-    await page.waitForTimeout(50);
-    await page.keyboard.up('w');
+    await starteSpiel(page);
 
     // Warten bis Spiel läuft
     await page.waitForFunction(() => {
@@ -4093,9 +3918,7 @@ test.describe('Bot-Partner', () => {
     await page.click('#btn-p2-bot-toggle');
 
     // Spiel starten
-    await page.keyboard.down('w');
-    await page.waitForTimeout(50);
-    await page.keyboard.up('w');
+    await starteSpiel(page);
 
     // Warten bis Spiel läuft
     await page.waitForFunction(() => {
@@ -4114,18 +3937,12 @@ test.describe('Bot-Partner', () => {
       const s = mod.state;
       const startX = s.p2.x;
       const startY = s.p2.y;
-      // Powerup 80px rechts von P2 platzieren
+      // Powerup 80px rechts von P2 platzieren, dann 24 feste Simulationsschritte (~0,4 s)
       mod.Entities.erzeugePowerup(startX + 80, startY - 20, 'schild');
-      return { startX, startY };
+      for (let i = 0; i < 24; i++) mod.Loop.simulationsSchritt();
+      return { startX, startY, endX: s.p2.x };
     });
-
-    // Kurz warten, damit der Bot sich zum Powerup bewegt
-    await page.waitForTimeout(400);
-
-    const endX = await page.evaluate(() => {
-      const mod = window.__game;
-      return mod.state.p2.x;
-    });
+    const endX = initialData.endX;
 
     // P2 sollte sich nach rechts bewegt haben (Richtung Powerup)
     expect(endX).toBeGreaterThan(initialData.startX);
@@ -4138,9 +3955,7 @@ test.describe('Bot-Partner', () => {
     await page.click('#btn-p2-bot-toggle');
 
     // Spiel starten
-    await page.keyboard.down('w');
-    await page.waitForTimeout(50);
-    await page.keyboard.up('w');
+    await starteSpiel(page);
 
     // Warten bis Spiel läuft
     await page.waitForFunction(() => {
@@ -4155,10 +3970,10 @@ test.describe('Bot-Partner', () => {
       mod.Entities.erzeugeFeind(mod.state.p2.x, mod.state.p2.y - 80, 'stop_and_go', 0);
     });
 
-    await page.waitForTimeout(300);
-
+    // 18 feste Simulationsschritte (~0,3 s) und Auswertung in einem synchronen Block
     const raketeFired = await page.evaluate(() => {
       const mod = window.__game;
+      for (let i = 0; i < 18; i++) mod.Loop.simulationsSchritt();
       return mod.state.p2.raketenCooldown > 0 || mod.arrays.raketenArray.some(r => r.pKey === 'p2');
     });
     expect(raketeFired).toBe(true);
@@ -4172,10 +3987,9 @@ test.describe('Bot-Partner', () => {
       mod.Entities.erzeugeFeind(300, 100, 'stop_and_go', 0);
     });
 
-    await page.waitForTimeout(300);
-
     const bombeFired = await page.evaluate(() => {
       const mod = window.__game;
+      for (let i = 0; i < 18; i++) mod.Loop.simulationsSchritt();
       return mod.state.p2.bombenCooldown > 0 || mod.arrays.bombenArray.some(b => b.pKey === 'p2');
     });
     expect(bombeFired).toBe(true);
@@ -4189,9 +4003,7 @@ test.describe('Bot-Partner', () => {
     await page.click('.bot-diff-btn[data-diff="hard"]');
 
     // Spiel starten
-    await page.keyboard.down('w');
-    await page.waitForTimeout(50);
-    await page.keyboard.up('w');
+    await starteSpiel(page);
 
     // Warten bis Spiel läuft
     await page.waitForFunction(() => {
@@ -4228,9 +4040,7 @@ test.describe('Bot-Partner', () => {
     await page.click('#btn-p2-bot-toggle');
 
     // Spiel starten
-    await page.keyboard.down('w');
-    await page.waitForTimeout(50);
-    await page.keyboard.up('w');
+    await starteSpiel(page);
 
     // Warten bis Spiel läuft
     await page.waitForFunction(() => {
@@ -4254,16 +4064,12 @@ test.describe('Bot-Partner', () => {
       mod.state.p2.x = 400;
       mod.state.p2.y = 300;
 
-      return { p2StartX: mod.state.p2.x };
+      // 24 feste Simulationsschritte (~0,4 s), damit der Bot sich in Richtung P1-Formation bewegt
+      const p2StartX = mod.state.p2.x;
+      for (let i = 0; i < 24; i++) mod.Loop.simulationsSchritt();
+      return { p2StartX, endX: mod.state.p2.x };
     });
-
-    // Kurz warten, damit der Bot sich in Richtung P1-Formation bewegt
-    await page.waitForTimeout(400);
-
-    const endX = await page.evaluate(() => {
-      const mod = window.__game;
-      return mod.state.p2.x;
-    });
+    const endX = initialData.endX;
 
     // P2 sollte sich nach links (Richtung P1-Formation bei x=150) bewegt haben
     expect(endX).toBeLessThan(initialData.p2StartX);
@@ -4276,9 +4082,7 @@ test.describe('Bot-Partner', () => {
     await page.click('#btn-p2-bot-toggle');
 
     // Runde 1 starten
-    await page.keyboard.down('w');
-    await page.waitForTimeout(50);
-    await page.keyboard.up('w');
+    await starteSpiel(page);
 
     // Warten bis Spiel läuft
     await page.waitForFunction(() => {
@@ -4304,9 +4108,7 @@ test.describe('Bot-Partner', () => {
     await btnRestart.click();
 
     // Runde 2 starten
-    await page.keyboard.down('w');
-    await page.waitForTimeout(50);
-    await page.keyboard.up('w');
+    await starteSpiel(page);
 
     // Warten bis Spiel 2 läuft
     await page.waitForFunction(() => {
@@ -4335,9 +4137,7 @@ test.describe('Bot-Partner', () => {
     await page.click('#btn-p2-bot-toggle');
 
     // Spiel starten
-    await page.keyboard.down('w');
-    await page.waitForTimeout(50);
-    await page.keyboard.up('w');
+    await starteSpiel(page);
 
     // Warten bis Spiel läuft
     await page.waitForFunction(() => {
@@ -4345,17 +4145,15 @@ test.describe('Bot-Partner', () => {
       return mod && mod.state && mod.state.spielLaeuft;
     }, null, { timeout: 5000 });
 
-    // Boss 1 oben spawnen (y=60)
-    await page.evaluate(() => {
+    // Boss 1 oben spawnen (y=60) und 60 feste Simulationsschritte (~1 s) laufen lassen
+    // (ohne Baseline-Taktik würde der Bot nach oben zu y=180 fliegen)
+    const botY = await page.evaluate(() => {
       const mod = window.__game;
       mod.state.p2.y = 480; // P2 startet im unteren Bereich
       mod.Entities.erzeugeBoss();
+      for (let i = 0; i < 60; i++) mod.Loop.simulationsSchritt();
+      return mod.state.p2.y;
     });
-
-    // 1000ms laufen lassen (ohne Baseline-Taktik würde der Bot nach oben zu y=180 fliegen)
-    await page.waitForTimeout(1000);
-
-    const botY = await page.evaluate(() => window.__game.state.p2.y);
 
     // Der Bot soll im unteren Viertel des Spielfeldes bleiben (y >= 450 auf 600px Spielfeld)
     expect(botY).toBeGreaterThanOrEqual(450);
@@ -5119,9 +4917,7 @@ test.describe('Bot-Partner', () => {
     await saveBtn.click();
 
     // Warten bis der POST-Request gesendet und erfasst wurde
-    await page.waitForTimeout(500);
-
-    expect(capturedRequest).not.toBeNull();
+    await expect.poll(() => capturedRequest).not.toBeNull();
     expect(capturedRequest.mode).toBe('single');
     expect(capturedRequest.name).toBe('MAX');
     expect(capturedRequest.score).toBe(12500);
