@@ -1701,23 +1701,48 @@ test.describe('Late-Game Difficulty & Gegner-Mechaniken', () => {
       audioMod.clearAudioHistory();
       audioMod.initAudio();
 
+      // Fabrikmethoden des AudioContext beobachten, um die erzeugten Knoten zu sammeln
+      const proto = (window.BaseAudioContext || window.AudioContext).prototype;
+      const filters = [];
+      const sources = [];
+      const origFilter = proto.createBiquadFilter;
+      const origSource = proto.createBufferSource;
+      proto.createBiquadFilter = function (...args) {
+        const node = origFilter.apply(this, args);
+        filters.push(node);
+        return node;
+      };
+      proto.createBufferSource = function (...args) {
+        const node = origSource.apply(this, args);
+        sources.push(node);
+        return node;
+      };
+
       // playMissile direkt aufrufen und prüfen, dass keine Exception fliegt
       let threwError = false;
       try {
         audioMod.playMissile();
       } catch (err) {
         threwError = true;
+      } finally {
+        proto.createBiquadFilter = origFilter;
+        proto.createBufferSource = origSource;
       }
 
       return {
         threwError,
         history: audioMod.audioHistory,
-        hasNoiseBuffer: !!audioMod.getNoiseBuffer(audioMod.getAudioContext())
+        hasNoiseBuffer: !!audioMod.getNoiseBuffer(audioMod.getAudioContext()),
+        filterTypes: filters.map(f => f.type),
+        loopingNoiseSources: sources.filter(s => s.buffer != null && s.loop === true).length
       };
     });
 
     expect(result.threwError).toBe(false);
     expect(result.hasNoiseBuffer).toBe(true);
+    // Rausch-Zischen: Bandpass-Filter und geloopte BufferSource mit Noise-Buffer wurden erzeugt
+    expect(result.filterTypes).toContain('bandpass');
+    expect(result.loopingNoiseSources).toBeGreaterThanOrEqual(1);
     const missileEvent = result.history.find(h => h.name === 'missile');
     expect(missileEvent).toBeDefined();
   });
