@@ -581,6 +581,7 @@ export function aktualisiereWaffen(laserAktiv, laserAktivP2) {
   // Gleve: laufende Sweeps (Treffer, Parade; gestartet in spieler.js)
   if (Gleve.istGleve(state)) Gleve.aktualisiereSweep(state, 'p1');
   if (isCoopMode() && state.p2 && Gleve.istGleve(state.p2)) Gleve.aktualisiereSweep(state.p2, 'p2');
+  Gleve.aktualisiereWellen();
 
   // --- 9.13 RAKETEN ---
   feuerRaketenFuerSpieler('p1', state);

@@ -35,7 +35,7 @@ test.beforeEach(async ({ page }) => {
       p2: { x: 350, y: 400, rotate: 0, leben: 3, energie: 50, maxEnergie: 50, isDead: false },
       score: 0, level: 1, bossAktiv: false,
       feinde: [], asteroiden: [], bosses: [], laser: [], raketen: [], bomben: [],
-      hackProjektile: [], feindLaser: [], bossLaser: [], bossRaketen: [], bossBomben: [], powerups: []
+      hackProjektile: [], feindLaser: [], bossLaser: [], bossRaketen: [], bossBomben: [], powerups: [], gleveWellen: []
     }, extra || {});
   });
 });
@@ -276,6 +276,36 @@ test('Online: Gleve-Zustand und harmlos-Flag gehen in den Snapshot, Client zeigt
   expect(r.client.farbe).toBe('rgb(230, 126, 34)');
   expect(r.soundsNachZweitem).toBe(2);
   expect(r.ende).toEqual({ dashKlasse: false, klingen: 0 });
+});
+
+test('Online: Klingenwellen gehen in den Snapshot, Client zeigt .gleve-welle und entfernt sie wieder', async ({ page }) => {
+  const r = await page.evaluate(async () => {
+    const g = window.__game;
+    const { arrays } = g;
+    const NK = await import('./js/netzkodierung.js');
+    const out = {};
+    arrays.gleveWellen.push({ id: 'gw_1', x: 165.04, y: 298.3, breite: 70, hoehe: 14, owner: 'p1', schritte: 0, treffer: [], el: null });
+    const voll = g.Network.serializeGameState();
+    out.voll = voll.gleveWellen;
+    const paket = new NK.SnapshotKodierer().kodiere(voll, 0);
+    const dek = new NK.SnapshotDekodierer().dekodiere(JSON.parse(JSON.stringify(paket)));
+    out.dekodiert = dek.gleveWellen;
+    arrays.gleveWellen.length = 0;
+
+    g.Network.applyGameStateSnapshot(window.__snapshot({ gleveWellen: out.dekodiert }));
+    const el = document.querySelector('.gleve-welle');
+    out.client = { anzahl: arrays.gleveWellen.length, dom: document.querySelectorAll('.gleve-welle').length, left: el && el.style.left, top: el && el.style.top, breite: el && el.style.width };
+    g.Network.applyGameStateSnapshot(window.__snapshot({ gleveWellen: [{ id: 'gw_1', x: 165, y: 290, breite: 70, owner: 'p1' }] }));
+    out.bewegt = [document.querySelectorAll('.gleve-welle').length, document.querySelector('.gleve-welle').style.top];
+    g.Network.applyGameStateSnapshot(window.__snapshot());
+    out.weg = [arrays.gleveWellen.length, document.querySelectorAll('.gleve-welle').length];
+    return out;
+  });
+  expect(r.voll).toEqual([{ id: 'gw_1', x: 165.04, y: 298.3, breite: 70, owner: 'p1' }]);
+  expect(r.dekodiert).toEqual([{ id: 'gw_1', x: 165, y: 298.3, breite: 70, owner: 'p1' }]);
+  expect(r.client).toEqual({ anzahl: 1, dom: 1, left: '165px', top: '298.3px', breite: '70px' });
+  expect(r.bewegt).toEqual([1, '290px']);
+  expect(r.weg).toEqual([0, 0]);
 });
 
 test('Online: Dash-Ladungen gehen in den Snapshot (nur Gleve), Client zeigt Punkte und sagt ohne Ladung keinen Dash voraus', async ({ page }) => {

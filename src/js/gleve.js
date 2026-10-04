@@ -724,8 +724,94 @@ export function aktualisiereSweep(pState, pKey) {
     pState.gleveSweepTreffer = [];
     entferneKlinge(pKey);
     erzeugeFaecherSpur(pState);
+    starteWelle(pState, pKey, o, laenge);
   } else {
     zeigeKlinge(pState, pKey);
+  }
+}
+
+// --- KLINGENWELLE ---
+// Am Ende jedes Sweeps fliegt eine Sichel nach oben und trifft Ziele jenseits der Sweep-Reichweite.
+
+export const WELLE_TEMPO = 8; // px pro Schritt nach oben
+export const WELLE_SCHRITTE = 15; // Lebensdauer: 15 * 8 = 120 px
+export const WELLE_MIN_BREITE = 50;
+export const WELLE_HOEHE = 14;
+const WELLE_SCHADEN_ANTEIL = 0.5;
+
+// Sehne des Sweep-Bogens auf halber Laenge, mind. WELLE_MIN_BREITE
+export function welleBreite(pState) {
+  const sehne = sweepLaenge(pState) * Math.sin(sweepBogen(pState) / 2 * Math.PI / 180);
+  return Math.round(Math.max(WELLE_MIN_BREITE, sehne));
+}
+
+function starteWelle(pState, pKey, o, laenge) {
+  const breite = welleBreite(pState);
+  const w = {
+    id: Entities.neueId('gw'),
+    x: o.x - breite / 2,
+    y: o.y - laenge - WELLE_HOEHE / 2,
+    breite,
+    hoehe: WELLE_HOEHE,
+    owner: pKey,
+    startY: o.y - laenge - WELLE_HOEHE / 2,
+    schritte: 0,
+    schaden: sweepSchaden(pState) * WELLE_SCHADEN_ANTEIL,
+    treffer: [],
+    el: null
+  };
+  w.el = erzeugeWellenElement(w, pState);
+  arrays.gleveWellen.push(w);
+}
+
+// Darstellung (Host und Client): weisse Sichel mit Glow in Schiffsfarbe
+export function erzeugeWellenElement(w, pState) {
+  const farbe = schiffFarbe(pState);
+  const el = document.createElement('div');
+  el.classList.add('gleve-welle');
+  el.style.width = w.breite + 'px';
+  el.style.height = w.hoehe + 'px';
+  el.style.boxShadow = `0 -2px 6px #ffffff, 0 -3px 12px ${farbe}`;
+  el.style.borderTopColor = '#ffffff';
+  el.style.filter = `drop-shadow(0 0 4px ${farbe})`;
+  dom.spielfeld.appendChild(el);
+  w.el = el;
+  zeigeWelle(w);
+  return el;
+}
+
+// Position und Verblassen (Deckkraft aus der zurueckgelegten Strecke, damit der Client nichts extra braucht)
+export function zeigeWelle(w) {
+  if (!w.el) return;
+  const strecke = Math.max(0, (w.startY === undefined ? w.y : w.startY) - w.y);
+  w.el.style.left = w.x + 'px';
+  w.el.style.top = w.y + 'px';
+  w.el.style.opacity = String(Math.max(0.2, 1 - 0.8 * strecke / (WELLE_TEMPO * WELLE_SCHRITTE)));
+}
+
+// Pro Simulationsschritt (Host/lokal, aus waffen.js): Wellen bewegen, Ziele einmal treffen, am Ende entfernen.
+export function aktualisiereWellen() {
+  for (let i = arrays.gleveWellen.length - 1; i >= 0; i--) {
+    const w = arrays.gleveWellen[i];
+    const pState = w.owner === 'p2' ? state.p2 : state;
+    w.y -= WELLE_TEMPO;
+    w.schritte++;
+    const box = { x1: w.x, y1: w.y, x2: w.x + w.breite, y2: w.y + w.hoehe };
+    const ziele = [...arrays.feinde, ...arrays.asteroiden, ...arrays.bosses, ...arrays.bossRaketenArray, ...arrays.bossBombenArray];
+    for (const z of ziele) {
+      if (z.istUnzerstoerbar || w.treffer.includes(z) || (z.immune || 0) > 0) continue;
+      const b = zielBox(z);
+      if (b.x2 < box.x1 || b.x1 > box.x2 || b.y2 < box.y1 || b.y1 > box.y2) continue;
+      w.treffer.push(z);
+      erzeugeFunken(pState, z);
+      if (schadeZiel(z, w.schaden, w.owner)) belohneSweepKill(pState, z);
+    }
+    if (w.schritte >= WELLE_SCHRITTE) {
+      if (w.el) w.el.remove();
+      arrays.gleveWellen.splice(i, 1);
+    } else {
+      zeigeWelle(w);
+    }
   }
 }
 

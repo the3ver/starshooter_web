@@ -2124,6 +2124,15 @@
             z-index: 4;
             pointer-events: none;
         }
+        /* Klingenwelle: Sichel nach oben am Ende jedes Sweeps */
+        .gleve-welle {
+            position: absolute;
+            box-sizing: border-box;
+            border-top: 4px solid #ffffff;
+            border-radius: 50% 50% 0 0 / 100% 100% 0 0;
+            z-index: 6;
+            pointer-events: none;
+        }
         /* Parierte Geschosse */
         .gleve-pariert {
             filter: brightness(1.3);

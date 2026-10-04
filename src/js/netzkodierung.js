@@ -12,14 +12,14 @@
 //   Delta eines Objekts: geaenderte Felder, '_d' = entfernte Felder, '_r' = Wert ersetzt.
 //   Fehlt 'i', bleiben die Ids wie im letzten Paket; fehlt eine Liste, ist sie unveraendert.
 
-export const PROTOKOLL_VERSION = 5;
+export const PROTOKOLL_VERSION = 6;
 export const KEYFRAME_INTERVALL = 30;   // jedes 30. Paket ist ein Keyframe (~1 s)
 export const DR_TOLERANZ = 0.5;         // px, ab dieser Abweichung wird x/y mitgesendet
 
 // Id-Praefix je Liste (siehe Entities.neueId); andere Ids gehen als Text
 const LISTEN_PRAEFIX = {
     feinde: 'f', asteroiden: 'a', bosses: 'boss', laser: 'l', raketen: 'r', bomben: 'b',
-    hackProjektile: 'hp', feindLaser: 'fl', bossLaser: 'bl', bossRaketen: 'br', bossBomben: 'bb', powerups: 'pu'
+    hackProjektile: 'hp', feindLaser: 'fl', bossLaser: 'bl', bossRaketen: 'br', bossBomben: 'bb', powerups: 'pu', gleveWellen: 'gw'
 };
 export const LISTEN = Object.keys(LISTEN_PRAEFIX);
 

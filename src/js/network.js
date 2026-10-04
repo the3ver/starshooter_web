@@ -918,6 +918,13 @@ export function serializeGameState() {
             stufe: b.stufe || 1,
             isMini: b.isMini || false
         })),
+        gleveWellen: arrays.gleveWellen.map(w => ({
+            id: w.id,
+            x: w.x,
+            y: w.y,
+            breite: w.breite,
+            owner: w.owner
+        })),
         hackProjektile: arrays.hackProjektilArray.map(hp => ({
             id: hp.id,
             x: hp.x,
@@ -1506,6 +1513,17 @@ export function applyGameStateSnapshot(snapshot) {
         obj.el.style.left = bData.x + 'px';
         obj.el.style.top = bData.y + 'px';
         obj.el.style.transform = `rotate(${obj.rot}deg)`;
+    });
+
+    // Klingenwellen der Gleve (keine Extrapolation, kommen mit jedem Snapshot)
+    synchronisiereListe(arrays.gleveWellen, snapshot.gleveWellen, wData => {
+        const w = { id: wData.id, x: wData.x, y: wData.y, startY: wData.y, breite: wData.breite, hoehe: Gleve.WELLE_HOEHE, owner: wData.owner, el: null };
+        w.el = Gleve.erzeugeWellenElement(w, wData.owner === 'p2' ? state.p2 : state);
+        return w;
+    }, (obj, wData) => {
+        obj.x = wData.x;
+        obj.y = wData.y;
+        Gleve.zeigeWelle(obj);
     });
 
     // 11. Replicate Enemy Lasers

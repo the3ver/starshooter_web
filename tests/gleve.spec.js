@@ -86,7 +86,7 @@ async function starteGleve(page, { coop = false } = {}) {
       leeren() {
         const { state, arrays } = window.__game;
         ['feinde', 'asteroiden', 'feindLaserArray', 'hackProjektilArray', 'bossLaserArray', 'bossBombenArray',
-          'bossRaketenArray', 'bosses', 'powerups', 'laserArray', 'raketenArray'].forEach(name => {
+          'bossRaketenArray', 'bosses', 'powerups', 'laserArray', 'raketenArray', 'gleveWellen'].forEach(name => {
           arrays[name].forEach(o => o.el && o.el.remove());
           arrays[name].length = 0;
         });
@@ -570,6 +570,63 @@ test.describe('Gleve-MR Dash-Ladungen', () => {
 });
 
 test.describe('Gleve-MR Laser-Sweep (Laser-Taste)', () => {
+  test('Klingenwelle: ein Sweep sendet genau eine Welle, die Ziele jenseits der Reichweite einmal mit halbem Schaden trifft; Magma heil, Welle verschwindet, Neustart raeumt auf', async ({ page }) => {
+    await starteGleve(page);
+    const r = await page.evaluate(() => {
+      const { state, arrays, Entities, Utils } = window.__game;
+      const T = window.__gleveTest;
+      T.leeren();
+      // Ursprung (200, 405), Laenge 100: Spitze bei y = 305; Welle 70 px breit (x 165-235), startet bei y = 298
+      const feind = (x, y) => {
+        Entities.erzeugeFeind(x, y, 'normal', 0, false);
+        const f = arrays.feinde[arrays.feinde.length - 1];
+        Object.assign(f, { vy: 0, schussTimer: 9999, traegtPowerup: false });
+        return f;
+      };
+      const oben = feind(185, 220); // ca. 60 px ueber der Sweep-Reichweite
+      const seitlich = feind(330, 220);
+      Entities.erzeugeAsteroid(185, 230, 30, 0, 0, 0, true);
+      const magma = arrays.asteroiden[arrays.asteroiden.length - 1];
+      Object.assign(magma, { istUnzerstoerbar: true, istMagma: true, traegtPowerup: false, vRot: 0 });
+      const hp0 = [oben.hp, seitlich.hp, magma.hp];
+      const out = {};
+      state.tastenGedrueckt.l = true;
+      T.schritte(10);
+      state.tastenGedrueckt.l = false;
+      out.wellen = arrays.gleveWellen.length;
+      out.dom = document.querySelectorAll('.gleve-welle').length;
+      out.breite = arrays.gleveWellen[0] && arrays.gleveWellen[0].breite;
+      out.owner = arrays.gleveWellen[0] && arrays.gleveWellen[0].owner;
+      T.schritte(12);
+      out.nachFlug = [hp0[0] - oben.hp, hp0[1] - seitlich.hp, hp0[2] - magma.hp];
+      T.schritte(8);
+      out.endeWellen = arrays.gleveWellen.length;
+      out.endeDom = document.querySelectorAll('.gleve-welle').length;
+      out.endeSchaden = hp0[0] - oben.hp;
+      out.magmaDa = arrays.asteroiden.includes(magma);
+      // Neustart entfernt Wellen
+      state.tastenGedrueckt.l = true;
+      T.schritte(10);
+      state.tastenGedrueckt.l = false;
+      out.vorNeustart = arrays.gleveWellen.length;
+      Utils.restartGame();
+      out.nachNeustart = [arrays.gleveWellen.length, document.querySelectorAll('.gleve-welle').length];
+      return out;
+    });
+    expect(r.wellen).toBe(1);
+    expect(r.dom).toBe(1);
+    expect(r.owner).toBe('p1');
+    expect(r.breite).toBeGreaterThanOrEqual(50);
+    // Feind oben: genau einmal halber Sweep-Schaden (15); seitlich und Magma nichts
+    expect(r.nachFlug).toEqual([15, 0, 0]);
+    expect(r.endeSchaden).toBe(15);
+    expect(r.magmaDa).toBe(true);
+    expect(r.endeWellen).toBe(0);
+    expect(r.endeDom).toBe(0);
+    expect(r.vorNeustart).toBe(1);
+    expect(r.nachNeustart).toEqual([0, 0]);
+  });
+
   test('Sweep trifft Ziele im Bogen genau einmal, nicht seitlich, dahinter oder zu weit weg; Magma bleibt heil', async ({ page }) => {
     await starteGleve(page);
     const r = await page.evaluate(() => {
@@ -623,8 +680,9 @@ test.describe('Gleve-MR Laser-Sweep (Laser-Taste)', () => {
     expect(r.feind.da).toBe(true);
     expect(r.feind.schild).toBe(0);
     expect(r.feind.hp).toBe(20);
-    // im Bogen: genau einmal 30 Schaden; seitlich, dahinter, zu weit, Magma: nichts
-    expect(r.hp).toEqual([30, 0, 0, 0, 0]);
+    // im Bogen: genau einmal 30 Schaden; seitlich, dahinter, Magma: nichts;
+    // zu weit fuer den Sweep: nur die Klingenwelle trifft (halber Schaden, einmal)
+    expect(r.hp).toEqual([30, 0, 0, 15, 0]);
     expect(r.magma.da).toBe(true);
     expect(r.magma.unzerstoerbar).toBe(true);
     // Klinge rotiert um den Schiffsbug (nach 5 von 10 Frames senkrecht)
@@ -833,8 +891,8 @@ test.describe('Gleve-MR Laser-Sweep (Laser-Taste)', () => {
       const T = window.__gleveTest;
       T.leeren();
       state.laserStufe = 5;
-      // Ziel weit oberhalb der Sweep-Länge (140 px), direkt über dem Schiff
-      Entities.erzeugeAsteroid(185, 150, 30, 0, 0, 0, true);
+      // Ziel weit oberhalb der Sweep-Länge (140 px) und der Klingenwelle (+120 px), direkt über dem Schiff
+      Entities.erzeugeAsteroid(185, 100, 30, 0, 0, 0, true);
       const ziel = arrays.asteroiden[0];
       ziel.vRot = 0;
       const hpVorher = ziel.hp;
