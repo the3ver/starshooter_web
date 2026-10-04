@@ -571,9 +571,11 @@ export function aktualisiereWaffen(laserAktiv, laserAktivP2) {
         l.el.style.boxShadow = `0 0 10px #e67e22`;
       }
     } else if (l.isDeflected) {
-      // Kollision mit Spieler, falls abgelenkt
-      if (!Utils.istDashUnverwundbar(state) && l.x < state.x + config.spielerGroesse && l.x + l.width > state.x && l.y < state.y + config.spielerGroesse && l.y + l.height > state.y) {
-        Utils.spielerGetroffen(l, false);
+      // Kollision mit Spieler, falls abgelenkt: nur der Schuetze selbst, kein Friendly Fire im Coop
+      const schuetze = l.owner === 'p2' ? state.p2 : state;
+      const trifftSchuetzen = (l.owner !== 'p2' || isCoopMode()) && schuetze && !schuetze.isDead;
+      if (trifftSchuetzen && !Utils.istDashUnverwundbar(schuetze) && l.x < schuetze.x + config.spielerGroesse && l.x + l.width > schuetze.x && l.y < schuetze.y + config.spielerGroesse && l.y + l.height > schuetze.y) {
+        Utils.spielerGetroffen(l, false, l.owner === 'p2' ? 'p2' : 'p1');
         l.el.remove();
         arrays.laserArray.splice(i, 1);
       }
