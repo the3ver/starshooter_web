@@ -73,3 +73,4 @@ Das Projekt ist in modular gegliederte ES-Module strukturiert:
 - **README-Screenshot:** `docs/gameplay.png` wird nur mit `npm run screenshot` (`playwright.screenshot.config.js`, `tests/screenshot.spec.js`) neu erzeugt; `npm test` und CI ignorieren diese Datei.
 
 
+- **Balancing-Messstand:** `npm run balancing` (`balancing/messstand.spec.js`, `playwright.balancing.config.js`, nicht in `npm test`/CI) misst deterministisch (geseedetes `Math.random`, synchrone `simulationsSchritt()`-Schleifen) je Schiff als Bot-P2 (hard) Schritte bis Sieg und Treffer am Bot in Welle/Boss 1/Boss 2 (5 Seeds, Ergebnisse in `balancing/ergebnisse/*.json`, git-ignoriert); die Zahlen spiegeln auch die Bot-Qualitaet pro Schiff wider, nicht nur die Schiffsstaerke.
