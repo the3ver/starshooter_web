@@ -1,6 +1,15 @@
-export const GAME_VERSION = '1.8.0';
+export const GAME_VERSION = '1.8.1';
 
 export const changelogData = {
+  '1.8.1': {
+    version: '1.8.1',
+    intro: 'Hey, es ist jetzt Version 1.8.1 rausgekommen, folgendes wurde aktualisiert:',
+    highlights: [
+      '🎯 Der Bot-Partner nimmt jetzt zuerst Gegnerschiffe ins Visier und verschwendet keine Schüsse mehr auf Magma-Asteroiden, die er gar nicht zerstören kann',
+      '🛡️ Gegen den Jäger-Boss lässt sich der Bot nicht mehr an den Rand drängen, sondern weicht den Schüssen seitlich aus',
+      '🙌 Danke an Noah, der jetzt auch als Tester mit dabei ist'
+    ]
+  },
   '1.8.0': {
     version: '1.8.0',
     intro: 'Hey, es ist jetzt Version 1.8.0 rausgekommen, folgendes wurde aktualisiert:',

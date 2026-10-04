@@ -39,7 +39,7 @@ test.beforeEach(async ({ page }) => {
     body: FAKE_TRYSTERO
   }));
   await page.addInitScript(() => {
-    localStorage.setItem('starshooter_last_seen_version', '1.8.0');
+    localStorage.setItem('starshooter_last_seen_version', '1.8.1');
     localStorage.setItem('starshooter_skip_cutscene', 'true');
   });
   await page.goto('/');
