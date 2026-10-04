@@ -1,6 +1,17 @@
-export const GAME_VERSION = '1.10.0';
+export const GAME_VERSION = '1.11.0';
 
 export const changelogData = {
+  '1.11.0': {
+    version: '1.11.0',
+    intro: 'Hey, es ist jetzt Version 1.11.0 rausgekommen, folgendes wurde aktualisiert:',
+    highlights: [
+      '🌊 Jeder Laser-Sweep der Gleve-MR schickt jetzt eine Klingenwelle hinterher, die weiter entfernte Gegner mit halbem Schaden trifft. So musst du nicht mehr so nah ran',
+      '⚡ Feindschiffe, die du mit dem Sweep zerstörst, geben dir Energie zurück',
+      '🗡️ Dash-Combo: Am Ende eines Dashs fegt die Gleve sofort mit einem Sweep nach',
+      '🤖 Der Bot-Partner greift mit der Gleve jetzt auch Bosse richtig an',
+      '🔄 Für den Online-Modus brauchen beide Spieler Version 1.11.0, sonst bitte die Seite neu laden (Strg+F5)'
+    ]
+  },
   '1.10.0': {
     version: '1.10.0',
     intro: 'Hey, es ist jetzt Version 1.10.0 rausgekommen, folgendes wurde aktualisiert:',
