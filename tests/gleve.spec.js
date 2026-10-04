@@ -10,29 +10,21 @@ test.beforeEach(async ({ page }) => {
   await page.goto('/');
 });
 
-test('Gleve-MR: im Hangar wählbar, Werte, Manta-SVG, keine Werfer-Pods, HUD SWEEP/DASH', async ({ page }) => {
+test('Gleve-MR: im Hangar wählbar, Perks, Manta-SVG, keine Werfer-Pods, HUD SWEEP/DASH', async ({ page }) => {
   const gleveBtn = page.locator('.hangar-model-btn[data-model="gleve"]');
   await expect(gleveBtn).toBeVisible();
   await gleveBtn.click();
   await expect(gleveBtn).toHaveClass(/active/);
-  await expect(page.locator('#hangar-ship-name')).toContainText('GLEVE-MR REAVER');
-  await expect(page.locator('#hangar-ship-perks .hangar-perk-badge')).toHaveCount(5);
-  await expect(page.locator('#hangar-ship-perks')).toContainText('LASER-SWEEP ALS HAUPTWAFFE');
-  await expect(page.locator('#hangar-ship-perks')).toContainText('DASH ALS ZWEITWAFFE');
 
+  // Name und Perks kommen aus dem Schiffsmodell; Balancing-Werte prueft das Verhalten in den Dash-/Sweep-Tests
   const werte = await page.evaluate(async () => {
     const { state, shipModels } = await import('./js/state.js');
-    return { model: state.selectedShipModel, gleve: shipModels.gleve };
+    return { model: state.selectedShipModel, name: shipModels.gleve.name, perks: shipModels.gleve.perks.map(p => p.label) };
   });
   expect(werte.model).toBe('gleve');
-  expect(werte.gleve).toBeTruthy();
-  expect(werte.gleve.speed).toBe(5.0);
-  expect(werte.gleve.energyRegen).toBe(0.4);
-  expect(werte.gleve.dashKillCooldown).toBe(30);
-  expect(werte.gleve.dashKillEnergie).toBeUndefined();
-  expect(werte.gleve.startShield).toBe(0);
-  expect(werte.gleve.loseUpgradesOnHit).toBe(false);
-  expect(werte.gleve.shieldRegen).toBeFalsy();
+  await expect(page.locator('#hangar-ship-name')).toContainText(werte.name);
+  await expect(page.locator('#hangar-ship-perks .hangar-perk-badge')).toHaveCount(werte.perks.length);
+  await expect(page.locator('#hangar-ship-perks .perk-label')).toHaveText(werte.perks);
 
   // Spiel starten
   await page.keyboard.down('KeyW');
