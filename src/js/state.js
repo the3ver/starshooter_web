@@ -116,6 +116,7 @@ export const state = {
     energie: 50, minZuendEnergie: 15, energieTimer: 0, laserSchiesst: false,
     laserDurchschlag: false, durchschlagTimer: 0, schildStufe: 0, laserStufe: 1,
     autolaserAktiv: false, autolaserTimer: 0, raketenStufe: 1, raketenCooldown: 0,
+    gleveDashLadungen: 2,
     bombenStufe: 1, bombenCooldown: 0, frameZaehler: 0, spielLaeuft: false, cutsceneAktiv: false,
     feindSpawnZeit: 1200, bossKampfAktiv: false,
     splitterRot: 0, splitterWeiss: 0, viperKillCount: 0,
@@ -172,7 +173,7 @@ export const state = {
         splitterRot: 0, splitterWeiss: 0, viperKillCount: 0,
         selectedShipModel: 'phantom', selectedShipColor: 'blue',
         isDead: false, rotate: 0, hacks: [],
-        gleveDashTimer: 0, gleveDashVx: 0, gleveDashVy: 0, gleveAbprallTimer: 0,
+        gleveDashTimer: 0, gleveDashVx: 0, gleveDashVy: 0, gleveAbprallTimer: 0, gleveDashLadungen: 2,
         gleveUnverwundbar: 0, gleveDashTasteGehalten: false, gleveDashTreffer: [],
         gleveSweepTimer: 0, gleveSweepWinkel: 0, gleveSweepRichtung: 0, gleveSweepTreffer: [], gleveSweepTakt: 0
     },

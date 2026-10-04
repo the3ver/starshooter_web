@@ -7,6 +7,7 @@ import * as Entities from './entities.js';
 import * as Changelog from './changelog.js';
 import * as Network from './network.js';
 import * as Cutscene from './cutscene.js';
+import * as Gleve from './gleve.js';
 
 export { state, dom, config, arrays, shipModels, Utils, Entities, Audio, Network, Cutscene };
 
@@ -198,6 +199,8 @@ document.addEventListener('DOMContentLoaded', () => {
                     state.p2.selectedShipModel = model;
                 }
             }
+            Gleve.setzeDashLadungenVoll(state);
+            if (state.p2) Gleve.setzeDashLadungenVoll(state.p2);
             Utils.updatePlayerShipVisuals();
             if (state.network && state.network.isOnline && state.network.isClient && state.network.connected) {
                 Network.sendNetworkEvent({

@@ -119,7 +119,8 @@ function feuerLaserFuerSpieler(pKey, pState, isFiring) {
 function feuerRaketenFuerSpieler(pKey, pState) {
   if (!pState || pState.isDead) return;
   const istGleve = Gleve.istGleve(pState);
-  if (pState.raketenCooldown > 0) pState.raketenCooldown--;
+  if (istGleve) Gleve.aktualisiereDashLadungen(pState);
+  else if (pState.raketenCooldown > 0) pState.raketenCooldown--;
 
   let maxRaketenCd = 180;
   if (pState.raketenStufe >= 2 && pState.raketenStufe <= 3) maxRaketenCd = 150;

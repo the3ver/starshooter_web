@@ -331,7 +331,7 @@ function sweepLohntSich(p2) {
 function updateGleveWaffen(p2) {
   // Dash (Raketen-Taste): ein Schritt Druck (Flanke), nur ohne Cooldown, ohne Waffen-Hack und nicht dauernd
   p2.botFireRakete = false;
-  if (gleveDashSperre <= 0 && p2.raketenCooldown <= 0 && !Gleve.istDashAktiv(p2) && !Hack.hatHack(p2, 'waffenOffline')) {
+  if (gleveDashSperre <= 0 && (p2.gleveDashLadungen || 0) >= 1 && !Gleve.istDashAktiv(p2) && !Hack.hatHack(p2, 'waffenOffline')) {
     const ziel = findeDashZiel(p2);
     if (ziel) {
       p2.botDashRichtung = ziel;

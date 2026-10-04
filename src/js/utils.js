@@ -6,6 +6,7 @@ import * as Loop from './loop.js';
 import * as Audio from './audio.js';
 import * as Bot from './bot.js';
 import * as Network from './network.js';
+import * as Gleve from './gleve.js';
 
 
 export function addScore(punkte) {
@@ -574,6 +575,7 @@ function setzeGleveDashZurueck(pState, schiffEl) {
   pState.gleveUnverwundbar = 0;
   pState.gleveDashTasteGehalten = false;
   pState.gleveDashTreffer = [];
+  Gleve.setzeDashLadungenVoll(pState);
   pState.gleveSweepTimer = 0;
   pState.gleveSweepWinkel = 0;
   pState.gleveSweepRichtung = 0;

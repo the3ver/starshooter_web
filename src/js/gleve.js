@@ -30,6 +30,38 @@ function dashStufenIndex(pState) {
 export function dashReichweite(pState) { return DASH_REICHWEITE[dashStufenIndex(pState)]; }
 export function dashSchaden(pState) { return DASH_SCHADEN[dashStufenIndex(pState)]; }
 export function dashCooldown(pState) { return DASH_COOLDOWN[dashStufenIndex(pState)]; }
+// Dash-Ladungen: Stufe 1-3 -> 2, Stufe 4-5 -> 3. raketenCooldown ist die Ladezeit der naechsten Ladung.
+export function dashMaxLadungen(pState) { return (pState.raketenStufe || 1) >= 4 ? 3 : 2; }
+
+// Ladungen voll, kein laufendes Nachladen (Spielstart, Neustart, Schiffswechsel)
+export function setzeDashLadungenVoll(pState) {
+  pState.gleveDashLadungen = dashMaxLadungen(pState);
+  pState.raketenCooldown = 0;
+}
+
+// Eine Ladung ist fertig geladen: +1, danach weiter nachladen, bis voll
+function schliesseNachladenAb(pState) {
+  const max = dashMaxLadungen(pState);
+  pState.gleveDashLadungen = Math.min(max, (pState.gleveDashLadungen || 0) + 1);
+  pState.raketenCooldown = pState.gleveDashLadungen < max ? dashCooldown(pState) : 0;
+}
+
+// Pro Schritt (waffen.js): Nachladen der Dash-Ladungen
+export function aktualisiereDashLadungen(pState) {
+  const max = dashMaxLadungen(pState);
+  if (pState.gleveDashLadungen === undefined) pState.gleveDashLadungen = max;
+  if (pState.gleveDashLadungen > max) pState.gleveDashLadungen = max;
+  if (pState.raketenCooldown > 0) {
+    pState.raketenCooldown--;
+    if (pState.raketenCooldown <= 0) {
+      if (pState.gleveDashLadungen < max) schliesseNachladenAb(pState);
+      else pState.raketenCooldown = 0;
+    }
+  } else if (pState.gleveDashLadungen < max) {
+    // z. B. nach Upgrade auf Stufe 4: Nachladen starten
+    pState.raketenCooldown = dashCooldown(pState);
+  }
+}
 
 // Ab Raketen-Stufe 5 knackt der Dash Magma
 export function dashKnacktMagma(pState) {
@@ -57,7 +89,7 @@ function schiffFarbe(pState) {
 function kannDashen(pState) {
   if (pState.isDead || istDashAktiv(pState)) return false;
   if (Hack.hatHack(pState, 'waffenOffline')) return false;
-  return (pState.raketenCooldown || 0) <= 0;
+  return (pState.gleveDashLadungen || 0) >= 1;
 }
 
 function starteDash(pState, pKey, richtung) {
@@ -72,7 +104,8 @@ function starteDash(pState, pKey, richtung) {
     dx /= laenge;
     dy /= laenge;
   }
-  pState.raketenCooldown = dashCooldown(pState);
+  pState.gleveDashLadungen = Math.max(0, (pState.gleveDashLadungen || 0) - 1);
+  if ((pState.raketenCooldown || 0) <= 0) pState.raketenCooldown = dashCooldown(pState);
   pState.gleveDashRichtung = { dx, dy };
   const schritt = dashReichweite(pState) / DASH_FRAMES;
   pState.gleveDashVx = dx * schritt;
@@ -122,11 +155,13 @@ function schadeZiel(z, schaden, pKey) {
   return false;
 }
 
-// Kill-Kette: jeder durch einen Dash zerstoerte Gegner verkuerzt den laufenden Dash-Cooldown
+// Kill-Kette: jeder durch einen Dash zerstoerte Gegner verkuerzt das laufende Nachladen
 function belohneKill(pState, z) {
   if (!z.istFeind && !z.istBoss) return;
   const bonus = (shipModels.gleve && shipModels.gleve.dashKillCooldown) || 0;
-  pState.raketenCooldown = Math.max(0, (pState.raketenCooldown || 0) - bonus);
+  if ((pState.raketenCooldown || 0) <= 0) return; // nichts am Laden
+  pState.raketenCooldown = Math.max(0, pState.raketenCooldown - bonus);
+  if (pState.raketenCooldown <= 0) schliesseNachladenAb(pState);
 }
 
 // Magma-Asteroid knacken wie bei der Bombe (wird zum Powerup-Traeger)

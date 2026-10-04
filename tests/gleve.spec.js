@@ -109,6 +109,7 @@ async function starteGleve(page, { coop = false } = {}) {
           s.gleveDashTasteGehalten = false;
           s.raketenStufe = 1;
           s.raketenCooldown = 0;
+          s.gleveDashLadungen = 2;
           s.gleveSweepTimer = 0;
           s.gleveSweepRichtung = 0;
           s.gleveSweepTreffer = [];
@@ -162,7 +163,7 @@ test.describe('Gleve-MR Dash (Raketen-Taste)', () => {
     expect(r.dashSounds).toBe(1);
   });
 
-  test('Nur ein Dash pro Tastendruck, Cooldown und Reichweite nach Raketen-Stufe, waffenOffline blockiert, keine Raketen', async ({ page }) => {
+  test('Nur ein Dash pro Tastendruck, Ladungen und Reichweite nach Raketen-Stufe, waffenOffline blockiert, keine Raketen', async ({ page }) => {
     await starteGleve(page);
     const r = await page.evaluate(async () => {
       const { state, arrays, Audio } = window.__game;
@@ -172,30 +173,37 @@ test.describe('Gleve-MR Dash (Raketen-Taste)', () => {
       // Taste 30 Schritte gehalten: nur ein Dash nach oben
       state.tastenGedrueckt.k = true;
       T.schritte(30);
-      const gehalten = state.y;
-      // Loslassen und erneut druecken, Cooldown laeuft noch: kein Dash
+      const gehalten = { y: state.y, ladungen: state.gleveDashLadungen };
+      // Loslassen und erneut druecken: zweite Ladung, zweiter Dash
       state.tastenGedrueckt.k = false;
       T.schritte(1);
       state.tastenGedrueckt.k = true;
       T.schritte(10);
-      const imCooldown = { y: state.y, cd: state.raketenCooldown };
+      const zweiter = { y: state.y, ladungen: state.gleveDashLadungen, cd: state.raketenCooldown };
       state.tastenGedrueckt.k = false;
       T.schritte(1);
-      // Cooldown abgelaufen: zweiter Dash
-      state.raketenCooldown = 0;
+      // Keine Ladung mehr: kein Dash
       state.tastenGedrueckt.k = true;
       T.schritte(10);
-      const zweiter = state.y;
+      const ohneLadung = { y: state.y, ladungen: state.gleveDashLadungen };
+      state.tastenGedrueckt.k = false;
+      T.schritte(1);
+      // Wieder eine Ladung: Dash
+      state.gleveDashLadungen = 1;
+      state.tastenGedrueckt.k = true;
+      T.schritte(10);
+      const dritter = state.y;
       state.tastenGedrueckt.k = false;
       T.schritte(1);
 
       // waffenOffline-Hack blockiert den Dash
       state.y = 400;
       state.raketenCooldown = 0;
+      state.gleveDashLadungen = 2;
       Hack.hackeSpieler(state, 'waffenOffline');
       state.tastenGedrueckt.k = true;
       T.schritte(10);
-      const gehackt = { y: state.y, cd: state.raketenCooldown };
+      const gehackt = { y: state.y, cd: state.raketenCooldown, ladungen: state.gleveDashLadungen };
       state.tastenGedrueckt.k = false;
       state.hacks = [];
       T.schritte(1);
@@ -205,6 +213,7 @@ test.describe('Gleve-MR Dash (Raketen-Taste)', () => {
       for (let s = 1; s <= 5; s++) {
         state.raketenStufe = s;
         state.raketenCooldown = 0;
+        state.gleveDashLadungen = 2;
         state.y = 500;
         state.tastenGedrueckt.k = true;
         T.schritte(8);
@@ -213,19 +222,26 @@ test.describe('Gleve-MR Dash (Raketen-Taste)', () => {
         T.schritte(1);
       }
       return {
-        gehalten, imCooldown, zweiter, gehackt, stufen,
+        gehalten, zweiter, ohneLadung, dritter, gehackt, stufen,
         energie: state.energie,
         lasers: arrays.laserArray.length,
         raketen: arrays.raketenArray.length,
         raketenSounds: Audio.audioHistory.filter(a => a.name === 'missile').length
       };
     });
-    expect(r.gehalten).toBeCloseTo(300, 5);
-    expect(r.imCooldown.y).toBeCloseTo(300, 5);
-    expect(r.imCooldown.cd).toBe(139);
-    expect(r.zweiter).toBeCloseTo(200, 5);
+    // Gehaltene Taste: nur ein Dash, eine Ladung verbraucht
+    expect(r.gehalten.y).toBeCloseTo(300, 5);
+    expect(r.gehalten.ladungen).toBe(1);
+    // Zweiter Druck nutzt die zweite Ladung; das laufende Nachladen wird nicht neu gestartet
+    expect(r.zweiter.y).toBeCloseTo(200, 5);
+    expect(r.zweiter.ladungen).toBe(0);
+    expect(r.zweiter.cd).toBe(139);
+    expect(r.ohneLadung.y).toBeCloseTo(200, 5);
+    expect(r.ohneLadung.ladungen).toBe(0);
+    expect(r.dritter).toBeCloseTo(100, 5);
     expect(r.gehackt.y).toBeCloseTo(400, 5);
     expect(r.gehackt.cd).toBe(0);
+    expect(r.gehackt.ladungen).toBe(2);
     expect(r.stufen).toEqual([
       { weg: 100, cd: 172 }, { weg: 110, cd: 157 }, { weg: 120, cd: 142 }, { weg: 135, cd: 127 }, { weg: 150, cd: 112 }
     ]);
@@ -236,7 +252,7 @@ test.describe('Gleve-MR Dash (Raketen-Taste)', () => {
     expect(r.raketenSounds).toBe(0);
   });
 
-  test('Normale Feinde auf der Strecke werden zerstört, Kill-Kette verkürzt den Cooldown um 30 Frames pro Kill', async ({ page }) => {
+  test('Normale Feinde auf der Strecke werden zerstört, Kill-Kette verkürzt das Nachladen um 30 Frames pro Kill', async ({ page }) => {
     await starteGleve(page);
     const r = await page.evaluate(() => {
       const { state, arrays, Entities } = window.__game;
@@ -250,13 +266,14 @@ test.describe('Gleve-MR Dash (Raketen-Taste)', () => {
       state.tastenGedrueckt.k = true;
       T.schritte(8);
       state.tastenGedrueckt.k = false;
-      return { feinde: arrays.feinde.length, energie: state.energie, cd: state.raketenCooldown, leben: state.leben, punkte: state.score - scoreVorher, y: state.y };
+      return { feinde: arrays.feinde.length, energie: state.energie, cd: state.raketenCooldown, ladungen: state.gleveDashLadungen, leben: state.leben, punkte: state.score - scoreVorher, y: state.y };
     });
     expect(r.feinde).toBe(0);
     expect(r.leben).toBe(3);
     expect(r.punkte).toBeGreaterThanOrEqual(200);
-    // 180 (Dash) - 2 * 30 (Kill-Kette) - 8 Schritte
+    // 180 (Nachladen) - 2 * 30 (Kill-Kette) - 8 Schritte
     expect(r.cd).toBe(112);
+    expect(r.ladungen).toBe(1);
     expect(r.energie).toBe(50);
     expect(r.y).toBeCloseTo(300, 5);
   });
@@ -389,6 +406,111 @@ test.describe('Gleve-MR Dash (Raketen-Taste)', () => {
     expect(r.cdP1).toBe(0);
     expect(r.p1y).toBeCloseTo(400, 5);
     expect(r.balkenP2).toBeCloseTo(100 - 172 / 180 * 100, 3);
+  });
+});
+
+test.describe('Gleve-MR Dash-Ladungen', () => {
+  test('Start mit 2 Ladungen: zwei Dashs direkt hintereinander, der dritte nicht; Nachladen je dashCooldown Schritte', async ({ page }) => {
+    await starteGleve(page);
+    const r = await page.evaluate(async () => {
+      const { state } = window.__game;
+      const Gleve = await import('./js/gleve.js');
+      const T = window.__gleveTest;
+      // Ein Dash pro Druck: Taste druecken, Dash-Dauer abwarten, loslassen (11 Schritte)
+      const dashe = () => {
+        state.tastenGedrueckt.k = true;
+        T.schritte(10);
+        state.tastenGedrueckt.k = false;
+        T.schritte(1);
+      };
+      const dashCd = Gleve.dashCooldown(state);
+      T.leeren();
+      const start = { ladungen: state.gleveDashLadungen, max: Gleve.dashMaxLadungen(state), cd: state.raketenCooldown };
+      state.y = 500;
+      dashe();
+      const nachEins = { ladungen: state.gleveDashLadungen, y: state.y };
+      dashe();
+      const nachZwei = { ladungen: state.gleveDashLadungen, y: state.y };
+      dashe();
+      const nachDrei = { ladungen: state.gleveDashLadungen, y: state.y };
+      // Das Nachladen laeuft seit dem ersten Dash (33 Schritte vergangen)
+      T.schritte(dashCd - 33 - 1);
+      const vorEins = state.gleveDashLadungen;
+      T.schritte(1);
+      const nachEinsGeladen = state.gleveDashLadungen;
+      T.schritte(dashCd - 1);
+      const vorVoll = state.gleveDashLadungen;
+      T.schritte(1);
+      const voll = { ladungen: state.gleveDashLadungen, cd: state.raketenCooldown };
+      T.schritte(dashCd * 2);
+      const dauerhaft = state.gleveDashLadungen;
+      return { start, nachEins, nachZwei, nachDrei, vorEins, nachEinsGeladen, vorVoll, voll, dauerhaft };
+    });
+    expect(r.start).toEqual({ ladungen: 2, max: 2, cd: 0 });
+    expect(r.nachEins.ladungen).toBe(1);
+    expect(r.nachEins.y).toBeLessThan(500);
+    expect(r.nachZwei.ladungen).toBe(0);
+    expect(r.nachZwei.y).toBeLessThan(r.nachEins.y);
+    expect(r.nachDrei).toEqual(r.nachZwei);
+    expect(r.vorEins).toBe(0);
+    expect(r.nachEinsGeladen).toBe(1);
+    expect(r.vorVoll).toBe(1);
+    expect(r.voll).toEqual({ ladungen: 2, cd: 0 });
+    expect(r.dauerhaft).toBe(2);
+  });
+
+  test('Max-Ladungen nach Raketen-Stufe: 1-3 -> 2, 4-5 -> 3; Upgrade lädt von selbst nach, Ladungen nie über Max', async ({ page }) => {
+    await starteGleve(page);
+    const r = await page.evaluate(async () => {
+      const { state } = window.__game;
+      const Gleve = await import('./js/gleve.js');
+      const T = window.__gleveTest;
+      T.leeren();
+      const max = [1, 2, 3, 4, 5].map(s => { state.raketenStufe = s; return Gleve.dashMaxLadungen(state); });
+      // Upgrade auf Stufe 4: 2 von 3 Ladungen, Nachladen startet und fuellt auf 3
+      state.raketenStufe = 4;
+      T.schritte(1);
+      const nachUpgrade = { ladungen: state.gleveDashLadungen, cd: state.raketenCooldown };
+      T.schritte(Gleve.dashCooldown(state));
+      const aufgeladen = { ladungen: state.gleveDashLadungen, cd: state.raketenCooldown };
+      T.schritte(Gleve.dashCooldown(state) * 3);
+      const nieUeberMax = state.gleveDashLadungen;
+      // Zu viele Ladungen werden geklemmt
+      state.gleveDashLadungen = 9;
+      T.schritte(1);
+      const geklemmt = state.gleveDashLadungen;
+      return { max, nachUpgrade, aufgeladen, nieUeberMax, geklemmt };
+    });
+    expect(r.max).toEqual([2, 2, 2, 3, 3]);
+    expect(r.nachUpgrade.ladungen).toBe(2);
+    expect(r.nachUpgrade.cd).toBeGreaterThan(100);
+    expect(r.aufgeladen).toEqual({ ladungen: 3, cd: 0 });
+    expect(r.nieUeberMax).toBe(3);
+    expect(r.geklemmt).toBe(3);
+  });
+
+  test('Kill-Kette verkürzt das Nachladen; erreicht es 0, kommt die Ladung sofort und es wird weitergeladen', async ({ page }) => {
+    await starteGleve(page);
+    const r = await page.evaluate(() => {
+      const { state, arrays, Entities } = window.__game;
+      const T = window.__gleveTest;
+      T.leeren();
+      // Eine Ladung ist bereits unterwegs (40 Frames Rest): der Dash-Kill (-30) verkuerzt, zweiter Kill beendet es
+      state.gleveDashLadungen = 1;
+      state.raketenCooldown = 40;
+      Entities.erzeugeFeind(185, 350, 'normal', 0, false);
+      Entities.erzeugeFeind(185, 315, 'normal', 0, false);
+      arrays.feinde.forEach(f => { f.schussTimer = 9999; f.traegtPowerup = false; });
+      state.tastenGedrueckt.k = true;
+      T.schritte(8);
+      state.tastenGedrueckt.k = false;
+      return { feinde: arrays.feinde.length, ladungen: state.gleveDashLadungen, cd: state.raketenCooldown };
+    });
+    expect(r.feinde).toBe(0);
+    // Dash 1 -> 0 Ladungen; Kill 1: 40 -> 10; Kill 2: Nachladen fertig, +1 Ladung, neues Nachladen (180), davon bis Schrittende abgezogen
+    expect(r.ladungen).toBe(1);
+    expect(r.cd).toBeGreaterThan(100);
+    expect(r.cd).toBeLessThan(180);
   });
 });
 
@@ -763,7 +885,7 @@ test.describe('Gleve-MR Bot und Online-Host', () => {
     });
   }
 
-  test('Bot dasht gezielt auf einen nahen Feind, aber nicht ohne Ziel, im Cooldown oder in einen Boss', async ({ page }) => {
+  test('Bot dasht gezielt auf einen nahen Feind, aber nicht ohne Ziel, ohne Ladung oder in einen Boss', async ({ page }) => {
     await starteBot(page);
     const r = await page.evaluate(() => {
       const { state, arrays, Entities, Audio } = window.__game;
@@ -793,13 +915,14 @@ test.describe('Gleve-MR Bot und Online-Host', () => {
       T.schritte(60);
       out.nahDanach = dashs();
 
-      // Dash-Cooldown laeuft: kein Dash
+      // Keine Dash-Ladung: kein Dash
       T.botLeeren();
       state.p2.energie = 0;
+      state.p2.gleveDashLadungen = 0;
       state.p2.raketenCooldown = 999;
       feind(440, 330);
       T.schritte(12);
-      out.imCooldown = { dashs: dashs(), feinde: arrays.feinde.length };
+      out.ohneLadung = { dashs: dashs(), feinde: arrays.feinde.length };
 
       // Feind hinter einem Boss: kein Dash in den Boss
       T.botLeeren();
@@ -822,7 +945,7 @@ test.describe('Gleve-MR Bot und Online-Host', () => {
     // Der Dash-Druck ist eine Flanke und bleibt nicht stehen
     expect(r.nah.druck).toBe(false);
     expect(r.nahDanach).toBe(1);
-    expect(r.imCooldown).toEqual({ dashs: 0, feinde: 1 });
+    expect(r.ohneLadung).toEqual({ dashs: 0, feinde: 1 });
     expect(r.boss.dashs).toBe(0);
     expect(r.boss.bossHp).toBe(r.boss.maxHp);
   });
