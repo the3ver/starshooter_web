@@ -1,4 +1,5 @@
 const { test, expect } = require('@playwright/test');
+const { setzeSpielstand } = require('./helfer');
 
 test.beforeEach(async ({ page }) => {
   // Standardmäßig API-Requests mocken, damit Tests die Live-DB nicht verändern
@@ -36,10 +37,7 @@ test.beforeEach(async ({ page }) => {
   }));
 
   // Standardmäßig als bereits gesehen markieren, damit die Tests direkt interagieren können
-  await page.addInitScript(() => {
-    localStorage.setItem('starshooter_last_seen_version', '1.9.0');
-    localStorage.setItem('starshooter_skip_cutscene', 'true');
-  });
+  await setzeSpielstand(page);
   await page.goto('/');
 });
 
@@ -613,7 +611,6 @@ test.describe('Space Shooter', () => {
 
   test('Schiff-Eigenschaften: Phantom-NX regeneriert Schild Stufe 1 nach Treffer und zeigt Uhr-Ladeanimation (O1)', async ({ page }) => {
     // 1. Phantom-NX wählen
-    await page.goto('/');
     const phantomBtn = page.locator('.hangar-model-btn[data-model="phantom"]');
     await phantomBtn.click();
 
@@ -711,7 +708,6 @@ test.describe('Space Shooter', () => {
 
   test('Schiff-Eigenschaften: Phantom-NX verliert bei Treffern keine Upgrades, Viper-X verliert Upgrades', async ({ page }) => {
     // 1. Test mit Phantom-NX: Verliert KEINE Upgrades bei Treffer
-    await page.goto('/');
     const phantomBtn = page.locator('.hangar-model-btn[data-model="phantom"]');
     await phantomBtn.click();
 
@@ -782,7 +778,6 @@ test.describe('Space Shooter', () => {
 
   test('Schiff-Eigenschaften: Viper-X regeneriert Laser-Energie 25% schneller als Phantom-NX', async ({ page }) => {
     // 1. Viper-X wählen
-    await page.goto('/');
     const viperBtn = page.locator('.hangar-model-btn[data-model="viper"]');
     await viperBtn.click();
 
@@ -833,7 +828,6 @@ test.describe('Space Shooter', () => {
 
   test('Schiff-Eigenschaften: Viper-X erhaelt bei Zerstoerung kleiner Gegner Energie zurueck (+5 Energie)', async ({ page }) => {
     // 1. Viper-X wählen (Standard)
-    await page.goto('/');
     const viperBtn = page.locator('.hangar-model-btn[data-model="viper"]');
     await viperBtn.click();
 
@@ -861,8 +855,6 @@ test.describe('Space Shooter', () => {
   });
 
   test('Hangar: Zeigt beim Umschalten dynamisch die Perk-Badges der Schiffe an', async ({ page }) => {
-    await page.goto('/');
-
     const perksContainer = page.locator('#hangar-ship-perks');
     await expect(perksContainer).toBeVisible();
 
@@ -929,10 +921,16 @@ test.describe('Was gibt es Neues Modal (Changelog)', () => {
     await expect(title).toContainText("WAS GIBT'S NEUES");
 
     const intro = page.locator('#whats-new-intro');
-    await expect(intro).toContainText('1.9.0');
+    // Erwartete Werte aus dem Spielcode, damit der Test bei einem Release nicht angepasst werden muss
+    const { version, anzahl } = await page.evaluate(async () => {
+      const { GAME_VERSION, changelogData } = await import('./js/changelog.js');
+      return { version: GAME_VERSION, anzahl: changelogData[GAME_VERSION] ? changelogData[GAME_VERSION].highlights.length : 0 };
+    });
+    expect(anzahl).toBeGreaterThan(0); // jede Release-Version braucht einen Changelog-Eintrag
+    await expect(intro).toContainText(version);
 
     const items = page.locator('#whats-new-list li');
-    await expect(items).toHaveCount(4);
+    await expect(items).toHaveCount(anzahl);
 
     // Schließen
     const closeBtn = page.locator('#btn-close-whats-new');
@@ -942,7 +940,7 @@ test.describe('Was gibt es Neues Modal (Changelog)', () => {
 
     // Prüfen, dass localStorage aktualisiert wurde
     const storedVersion = await page.evaluate(() => localStorage.getItem('starshooter_last_seen_version'));
-    expect(storedVersion).toBe('1.9.0');
+    expect(storedVersion).toBe(version);
 
     // Erneut öffnen über Start-Screen Button
     const openBtn = page.locator('#btn-open-whats-new');
@@ -955,7 +953,6 @@ test.describe('Mobile UI Positionierung - Handy (Pixel)', () => {
   test.use({ hasTouch: true, isMobile: true, viewport: { width: 412, height: 915 } });
 
   test('Buttons sind relativ zum Spielfeld korrekt platziert und ragen nicht unschön rein', async ({ page }) => {
-    await page.goto('/');
     // Echten Tap auf Start-Text ausführen
     await page.tap('#start-text');
     
@@ -982,7 +979,6 @@ test.describe('Mobile UI Positionierung - Tablet (iPad)', () => {
   test.use({ hasTouch: true, isMobile: true, viewport: { width: 1024, height: 1366 } });
 
   test('Buttons kleben nicht am rechten Bildschirmrand, sondern am Spielfeld', async ({ page }) => {
-    await page.goto('/');
     await page.tap('#start-text');
     
     await expect(page.locator('#mobile-controls')).toBeVisible();
@@ -2130,12 +2126,6 @@ test.describe('Story Intro-Cutszene', () => {
 });
 
 test.describe('2-Spieler-Modus (Co-op)', () => {
-  test.beforeEach(async ({ page }) => {
-    await page.goto('http://localhost:8080');
-    await page.evaluate(() => localStorage.clear());
-    await page.reload();
-  });
-
   test('Modus-Auswahl auf Startscreen schaltet zwischen 1-Spieler (400px) und 2-Spieler Co-op (600px) um', async ({ page }) => {
     const btnSingle = page.locator('#gamemode-btn-single');
     const btnCoop = page.locator('#gamemode-btn-coop');
@@ -2242,12 +2232,6 @@ test.describe('2-Spieler-Modus (Co-op)', () => {
     await page.waitForTimeout(50);
     await page.keyboard.up('w');
 
-    // Skip Cutscene
-    const skipBtn = page.locator('#cutscene-skip-btn');
-    if (await skipBtn.isVisible()) {
-      await skipBtn.click();
-    }
-
     const spieler1 = page.locator('#spieler');
     const spieler2 = page.locator('#spieler-2');
     await expect(spieler1).toBeVisible();
@@ -2307,11 +2291,6 @@ test.describe('2-Spieler-Modus (Co-op)', () => {
     await page.keyboard.down('w');
     await page.waitForTimeout(50);
     await page.keyboard.up('w');
-
-    const skipBtn = page.locator('#cutscene-skip-btn');
-    if (await skipBtn.isVisible()) {
-      await skipBtn.click();
-    }
 
     // 1. LASER TEST: P1 feuert mit 'b', P2 mit 'ä'
     await page.keyboard.down('b');
@@ -2421,11 +2400,6 @@ test.describe('2-Spieler-Modus (Co-op)', () => {
     await page.keyboard.down('w');
     await page.waitForTimeout(50);
     await page.keyboard.up('w');
-
-    const skipBtn = page.locator('#cutscene-skip-btn');
-    if (await skipBtn.isVisible()) {
-      await skipBtn.click();
-    }
 
     // 1. Spawne P1-Powerup direkt auf P2 Position (x=370, y=285)
     await page.evaluate(async () => {
@@ -2578,11 +2552,6 @@ test.describe('2-Spieler-Modus (Co-op)', () => {
     await page.waitForTimeout(50);
     await page.keyboard.up('w');
 
-    const skipBtn = page.locator('#cutscene-skip-btn');
-    if (await skipBtn.isVisible()) {
-      await skipBtn.click();
-    }
-
     // 1. Zerstöre Spieler 1 (3 Treffer)
     await page.evaluate(async () => {
       const Utils = await import('./js/utils.js');
@@ -2678,11 +2647,6 @@ test.describe('2-Spieler-Modus (Co-op)', () => {
     await page.waitForTimeout(50);
     await page.keyboard.up('w');
 
-    const skipBtn = page.locator('#cutscene-skip-btn');
-    if (await skipBtn.isVisible()) {
-      await skipBtn.click();
-    }
-
     const energieContainerP2 = page.locator('#energie-container-p2');
     const energieBalkenP2 = page.locator('#energie-balken-p2');
     await expect(energieContainerP2).toBeVisible();
@@ -2702,11 +2666,6 @@ test.describe('2-Spieler-Modus (Co-op)', () => {
     await page.keyboard.down('w');
     await page.waitForTimeout(50);
     await page.keyboard.up('w');
-
-    const skipBtn = page.locator('#cutscene-skip-btn');
-    if (await skipBtn.isVisible()) {
-      await skipBtn.click();
-    }
 
     // Schild Stufe 1 prüfen
     await page.evaluate(async () => {
@@ -2754,11 +2713,6 @@ test.describe('2-Spieler-Modus (Co-op)', () => {
     await page.waitForTimeout(50);
     await page.keyboard.up('w');
 
-    const skipBtn = page.locator('#cutscene-skip-btn');
-    if (await skipBtn.isVisible()) {
-      await skipBtn.click();
-    }
-
     // Setze Level 2 (Boss Typ 2 - Jäger) und spawne den Boss
     await page.evaluate(async () => {
       const { state, arrays } = await import('./js/state.js');
@@ -2804,11 +2758,6 @@ test.describe('2-Spieler-Modus (Co-op)', () => {
     await page.waitForTimeout(50);
     await page.keyboard.up('w');
 
-    const skipBtn = page.locator('#cutscene-skip-btn');
-    if (await skipBtn.isVisible()) {
-      await skipBtn.click();
-    }
-
     // Cooldowns und Arrays leeren
     await page.evaluate(async () => {
       const { state, arrays } = await import('./js/state.js');
@@ -2845,11 +2794,6 @@ test.describe('2-Spieler-Modus (Co-op)', () => {
     await page.waitForTimeout(50);
     await page.keyboard.up('w');
 
-    const skipBtn = page.locator('#cutscene-skip-btn');
-    if (await skipBtn.isVisible()) {
-      await skipBtn.click();
-    }
-
     const scoreBox = await page.locator('#score-anzeige').boundingBox();
     const levelBox = await page.locator('#level-anzeige').boundingBox();
     const uiP2Box = await page.locator('#ui-container-p2').boundingBox();
@@ -2868,11 +2812,6 @@ test.describe('2-Spieler-Modus (Co-op)', () => {
     await page.keyboard.down('w');
     await page.waitForTimeout(50);
     await page.keyboard.up('w');
-
-    const skipBtn = page.locator('#cutscene-skip-btn');
-    if (await skipBtn.isVisible()) {
-      await skipBtn.click();
-    }
 
     // Fall 1: Spieler 1 ist tot, Spieler 2 lebt
     const p2OnlyOwners = await page.evaluate(async () => {
@@ -2954,11 +2893,6 @@ test.describe('2-Spieler-Modus (Co-op)', () => {
     await page.waitForTimeout(50);
     await page.keyboard.up('w');
 
-    const skipBtn = page.locator('#cutscene-skip-btn');
-    if (await skipBtn.isVisible()) {
-      await skipBtn.click();
-    }
-
     // Setze Schiffe und Score
     await page.evaluate(async () => {
       localStorage.removeItem('spaceShooterHighscores');
@@ -3001,11 +2935,6 @@ test.describe('2-Spieler-Modus (Co-op)', () => {
     await page.keyboard.down('w');
     await page.waitForTimeout(50);
     await page.keyboard.up('w');
-
-    const skipBtn = page.locator('#cutscene-skip-btn');
-    if (await skipBtn.isVisible()) {
-      await skipBtn.click();
-    }
 
     await page.evaluate(async () => {
       localStorage.removeItem('spaceShooterHighscores');
@@ -3123,11 +3052,6 @@ test.describe('2-Spieler-Modus (Co-op)', () => {
     await page.waitForTimeout(50);
     await page.keyboard.up('w');
 
-    const skipBtn = page.locator('#cutscene-skip-btn');
-    if (await skipBtn.isVisible()) {
-      await skipBtn.click();
-    }
-
     const p2Links = page.locator('#spieler-2 .werfer-links');
     const p2Rechts = page.locator('#spieler-2 .werfer-rechts');
     const p2Center = page.locator('#spieler-2 .werfer-center');
@@ -3221,11 +3145,6 @@ test.describe('2-Spieler-Modus (Co-op)', () => {
     await page.waitForTimeout(50);
     await page.keyboard.up('w');
 
-    const skipBtn = page.locator('#cutscene-skip-btn');
-    if (await skipBtn.isVisible()) {
-      await skipBtn.click();
-    }
-
     const testResult = await page.evaluate(async () => {
       const { arrays, state, config } = await import('./js/state.js');
       const { erzeugeFeind } = await import('./js/entities.js');
@@ -3289,11 +3208,6 @@ test.describe('2-Spieler-Modus (Co-op)', () => {
 
   test('Raketen Balancing Co-op: Raketen haben im Co-op höhere Maxgeschwindigkeit, größeren Homing-Suchbereich und stärkere Lenkrate als im Solo-Modus', async ({ page }) => {
     await page.locator('#gamemode-btn-coop').click();
-
-    const skipBtn = page.locator('#cutscene-skip-btn');
-    if (await skipBtn.isVisible()) {
-      await skipBtn.click();
-    }
 
     const result = await page.evaluate(async () => {
       const { state, config } = await import('./js/state.js');
@@ -3381,11 +3295,6 @@ test.describe('2-Spieler-Modus (Co-op)', () => {
     await page.waitForTimeout(50);
     await page.keyboard.up('w');
 
-    const skipBtn = page.locator('#cutscene-skip-btn');
-    if (await skipBtn.isVisible()) {
-      await skipBtn.click();
-    }
-
     const result = await page.evaluate(async () => {
       const { arrays, state } = await import('./js/state.js');
       const { erzeugePowerup } = await import('./js/entities.js');
@@ -3430,11 +3339,6 @@ test.describe('2-Spieler-Modus (Co-op)', () => {
     await page.keyboard.down('w');
     await page.waitForTimeout(50);
     await page.keyboard.up('w');
-
-    const skipBtn = page.locator('#cutscene-skip-btn');
-    if (await skipBtn.isVisible()) {
-      await skipBtn.click();
-    }
 
     const testSpeeds = await page.evaluate(async () => {
       const { arrays, state, config } = await import('./js/state.js');
@@ -3499,11 +3403,6 @@ test.describe('2-Spieler-Modus (Co-op)', () => {
     await page.keyboard.down('w');
     await page.waitForTimeout(50);
     await page.keyboard.up('w');
-
-    const skipBtn = page.locator('#cutscene-skip-btn');
-    if (await skipBtn.isVisible()) {
-      await skipBtn.click();
-    }
 
     const result = await page.evaluate(async () => {
       const { arrays, state } = await import('./js/state.js');
@@ -3571,11 +3470,6 @@ test.describe('2-Spieler-Modus (Co-op)', () => {
     await page.waitForTimeout(50);
     await page.keyboard.up('w');
 
-    const skipBtn = page.locator('#cutscene-skip-btn');
-    if (await skipBtn.isVisible()) {
-      await skipBtn.click();
-    }
-
     const result = await page.evaluate(async () => {
       const { arrays, state } = await import('./js/state.js');
       const { erzeugePowerup } = await import('./js/entities.js');
@@ -3625,11 +3519,6 @@ test.describe('2-Spieler-Modus (Co-op)', () => {
     await page.keyboard.down('w');
     await page.waitForTimeout(50);
     await page.keyboard.up('w');
-
-    const skipBtn = page.locator('#cutscene-skip-btn');
-    if (await skipBtn.isVisible()) {
-      await skipBtn.click();
-    }
 
     const result = await page.evaluate(async () => {
       const { arrays, state } = await import('./js/state.js');
@@ -3719,11 +3608,6 @@ test.describe('2-Spieler-Modus (Co-op)', () => {
     await page.waitForTimeout(50);
     await page.keyboard.up('w');
 
-    const skipBtn = page.locator('#cutscene-skip-btn');
-    if (await skipBtn.isVisible()) {
-      await skipBtn.click();
-    }
-
     const result = await page.evaluate(async () => {
       const { arrays, state, dom } = await import('./js/state.js');
       const { erzeugePowerup } = await import('./js/entities.js');
@@ -3777,11 +3661,6 @@ test.describe('2-Spieler-Modus (Co-op)', () => {
     await page.keyboard.down('w');
     await page.waitForTimeout(50);
     await page.keyboard.up('w');
-
-    const skipBtn = page.locator('#cutscene-skip-btn');
-    if (await skipBtn.isVisible()) {
-      await skipBtn.click();
-    }
 
     const result = await page.evaluate(async () => {
       const { arrays, state, dom } = await import('./js/state.js');
@@ -3847,11 +3726,6 @@ test.describe('2-Spieler-Modus (Co-op)', () => {
     await page.keyboard.down('w');
     await page.waitForTimeout(50);
     await page.keyboard.up('w');
-
-    const skipBtn = page.locator('#cutscene-skip-btn');
-    if (await skipBtn.isVisible()) {
-      await skipBtn.click();
-    }
 
     const result = await page.evaluate(async () => {
       const { arrays, state, dom } = await import('./js/state.js');
@@ -3944,11 +3818,6 @@ test.describe('2-Spieler-Modus (Co-op)', () => {
     await page.waitForTimeout(50);
     await page.keyboard.up('w');
 
-    const skipBtn = page.locator('#cutscene-skip-btn');
-    if (await skipBtn.isVisible()) {
-      await skipBtn.click();
-    }
-
     const result = await page.evaluate(async () => {
       const { arrays, state } = await import('./js/state.js');
       const { erzeugeBoss } = await import('./js/entities.js');
@@ -3983,8 +3852,6 @@ test.describe('2-Spieler-Modus (Co-op)', () => {
   });
 
   test('Splitter-Optik: Splitter werden als spitze, ungleichseitige Dreiecke ohne Buchstaben gerendert', async ({ page }) => {
-    await page.goto('/');
-
     const result = await page.evaluate(async () => {
       const { arrays } = await import('./js/state.js');
       const { erzeugePowerup } = await import('./js/entities.js');

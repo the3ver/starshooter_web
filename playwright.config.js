@@ -2,6 +2,9 @@ const { defineConfig, devices } = require('@playwright/test');
 
 module.exports = defineConfig({
   testDir: './tests',
+  // Der README-Screenshot ist kein Test und soll docs/gameplay.png nicht bei jedem Lauf ueberschreiben:
+  // nur ueber 'npm run screenshot' (playwright.screenshot.config.js)
+  testIgnore: ['**/screenshot.spec.js'],
   fullyParallel: true,
   forbidOnly: !!process.env.CI,
   retries: process.env.CI ? 2 : 1,

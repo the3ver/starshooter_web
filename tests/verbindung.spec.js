@@ -1,4 +1,5 @@
 const { test, expect } = require('@playwright/test');
+const { setzeSpielstand } = require('./helfer');
 
 const TRYSTERO_URL = 'https://cdn.jsdelivr.net/npm/@trystero-p2p/torrent/+esm';
 const ICE_SERVERS = [
@@ -72,10 +73,7 @@ test.beforeEach(async ({ page }) => {
     status: 200, contentType: 'application/json',
     body: JSON.stringify({ success: true, mode: 'single', highscores: [] })
   }));
-  await page.addInitScript(() => {
-    localStorage.setItem('starshooter_last_seen_version', '1.9.0');
-    localStorage.setItem('starshooter_skip_cutscene', 'true');
-  });
+  await setzeSpielstand(page);
 });
 
 test('Host: Phasen 1 bis 5 erscheinen der Reihe nach, Raum-Code bleibt in Schritt 3 sichtbar', async ({ page }) => {
@@ -194,10 +192,7 @@ test('TURN-Detail: "ohne TURN" bei 503, "TURN verfügbar" bei 200', async ({ pag
 
   const seite2 = await page.context().newPage();
   await routen(seite2, { turnStatus: 200 });
-  await seite2.addInitScript(() => {
-    localStorage.setItem('starshooter_last_seen_version', '1.9.0');
-    localStorage.setItem('starshooter_skip_cutscene', 'true');
-  });
+  await setzeSpielstand(seite2);
   await seite2.route('**/api/highscores*', route => route.fulfill({
     status: 200, contentType: 'application/json',
     body: JSON.stringify({ success: true, mode: 'single', highscores: [] })
@@ -225,10 +220,7 @@ test('Fehler in Schritt 4 nennt den Schritt, Versionsabweichung behaelt ihre Mel
   // Client: Host verlaesst den Raum waehrend Schritt 4
   const client = await page.context().newPage();
   await routen(client);
-  await client.addInitScript(() => {
-    localStorage.setItem('starshooter_last_seen_version', '1.9.0');
-    localStorage.setItem('starshooter_skip_cutscene', 'true');
-  });
+  await setzeSpielstand(client);
   await client.route('**/api/highscores*', route => route.fulfill({
     status: 200, contentType: 'application/json',
     body: JSON.stringify({ success: true, mode: 'single', highscores: [] })

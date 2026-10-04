@@ -6,7 +6,8 @@
   "scripts": {
     "dev": "http-server src -p 8080 -c-1",
     "start": "http-server src -p 8080 -c-1",
-    "test": "playwright test"
+    "test": "playwright test",
+    "screenshot": "playwright test -c playwright.screenshot.config.js"
   },
   "repository": {
     "type": "git",

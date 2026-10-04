@@ -1,4 +1,5 @@
 const { test, expect } = require('@playwright/test');
+const { setzeSpielstand } = require('./helfer');
 
 test.beforeEach(async ({ page }) => {
   await page.route('**/api/highscores*', route => route.fulfill({
@@ -9,10 +10,7 @@ test.beforeEach(async ({ page }) => {
     status: 503, contentType: 'application/json',
     body: JSON.stringify({ success: false, error: 'TURN nicht konfiguriert' })
   }));
-  await page.addInitScript(() => {
-    localStorage.setItem('starshooter_last_seen_version', '1.9.0');
-    localStorage.setItem('starshooter_skip_cutscene', 'true');
-  });
+  await setzeSpielstand(page);
   await page.goto('/');
   await page.waitForFunction(() => window.__game && window.__game.state);
 });

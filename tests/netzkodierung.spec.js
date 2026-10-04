@@ -1,4 +1,5 @@
 const { test, expect } = require('@playwright/test');
+const { setzeSpielstand } = require('./helfer');
 
 // Netzkodierung im Online-Modus: Delta-Snapshots, Keyframes, Eingaben und Protokollversion
 
@@ -8,10 +9,7 @@ test.beforeEach(async ({ page }) => {
     body: JSON.stringify({ success: true, mode: 'single', highscores: [] })
   }));
   await page.route('**/api/turn*', route => route.fulfill({ status: 503, body: '' }));
-  await page.addInitScript(() => {
-    localStorage.setItem('starshooter_last_seen_version', '1.9.0');
-    localStorage.setItem('starshooter_skip_cutscene', 'true');
-  });
+  await setzeSpielstand(page);
   await page.goto('/');
   await page.waitForFunction(() => window.__game && window.__game.state);
 });
@@ -397,13 +395,14 @@ test('Eingaben: Client sendet nur bei Tastenwechsel sofort, Bewegung jeden 2. Sc
     keys.d = true;
     out.bewegung20 = zaehle(20);
     out.xGerundet = state.network.lastSentInput.x === Math.round(state.network.lastSentInput.x * 10) / 10;
-    out.version = state.network.lastSentInput.v;
+    const { PROTOKOLL_VERSION } = await import('./js/netzkodierung.js');
+    out.versionPasst = state.network.lastSentInput.v === PROTOKOLL_VERSION;
     keys.d = false;
     return out;
   });
   expect(r).toEqual({
     ruhe90: 3, druck: 1, druckWert: true, halten: 0, loslassen: 1, loslassenWert: false,
-    bewegung20: 10, xGerundet: true, version: 4
+    bewegung20: 10, xGerundet: true, versionPasst: true
   });
 });
 

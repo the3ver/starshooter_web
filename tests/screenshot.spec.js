@@ -1,10 +1,9 @@
-const { test, expect } = require('@playwright/test');
+const { test } = require('@playwright/test');
+const path = require('path');
+const { setzeSpielstand } = require('./helfer');
 
 test('Generiere Gameplay-Screenshot fuer README.md', async ({ page }) => {
-  await page.addInitScript(() => {
-    localStorage.setItem('starshooter_last_seen_version', '1.9.0');
-    localStorage.setItem('starshooter_skip_cutscene', 'true');
-  });
+  await setzeSpielstand(page);
 
   await page.goto('/');
 
@@ -55,7 +54,7 @@ test('Generiere Gameplay-Screenshot fuer README.md', async ({ page }) => {
 
   await page.waitForTimeout(300);
 
-  // Screenshot vom Spielfeld aufnehmen
+  // Screenshot vom Spielfeld aufnehmen (Pfad unabhaengig vom Arbeitsverzeichnis)
   const spielfeld = page.locator('#spielfeld');
-  await spielfeld.screenshot({ path: 'docs/gameplay.png' });
+  await spielfeld.screenshot({ path: path.join(__dirname, '..', 'docs', 'gameplay.png') });
 });

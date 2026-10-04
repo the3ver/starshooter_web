@@ -69,5 +69,7 @@ Das Projekt ist in modular gegliederte ES-Module strukturiert:
 ## Projektspezifische Agent-Hinweise
 - **Agent Bridge:** Wenn der Sandboxed-Modus aktiv ist und `run_command` aufgrund von Berechtigungen fehlschlägt, MUSS die Kommunikation über die Agent Bridge (`.agents/cmd_request.json` und `.agents/cmd_response.json`) erfolgen. Schreibe den Befehl als JSON (`{"id": <increment>, "command": "..."}`) in die Request-Datei, warte kurz (z.B. per `schedule`) und lese das Ergebnis aus der Response-Datei.
 - **Versionsanzeige:** Bei Änderungen an Spiel-Logik/UI sowohl `package.json` als auch die Versionsanzeige in `index.html` anpassen.
+- **Testhelfer (`tests/helfer.js`):** `setzeSpielstand(page, { skipCutscene })` setzt per `addInitScript` `starshooter_last_seen_version` (aktuelle `GAME_VERSION`, gelesen aus `src/js/changelog.js`) und standardmäßig `starshooter_skip_cutscene`. Neue Specs nutzen ihn statt eigener Versions-Literale; Versions-, Changelog- und Protokollwerte in Tests aus dem Spielcode lesen (`GAME_VERSION`, `changelogData`, `PROTOKOLL_VERSION`). Bei einem Release müssen die Tests deshalb nicht mehr angepasst werden (nur ein `changelogData`-Eintrag für die neue Version ist Pflicht).
+- **README-Screenshot:** `docs/gameplay.png` wird nur mit `npm run screenshot` (`playwright.screenshot.config.js`, `tests/screenshot.spec.js`) neu erzeugt; `npm test` und CI ignorieren diese Datei.
 
 

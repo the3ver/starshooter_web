@@ -1,4 +1,5 @@
 const { test, expect } = require('@playwright/test');
+const { setzeSpielstand } = require('./helfer');
 
 test.beforeEach(async ({ page }) => {
   await page.route('**/api/highscores*', async route => {
@@ -8,10 +9,7 @@ test.beforeEach(async ({ page }) => {
       body: JSON.stringify({ success: true, mode: 'single', highscores: [] })
     });
   });
-  await page.addInitScript(() => {
-    localStorage.setItem('starshooter_last_seen_version', '1.9.0');
-    localStorage.setItem('starshooter_skip_cutscene', 'true');
-  });
+  await setzeSpielstand(page);
   await page.goto('/');
 });
 

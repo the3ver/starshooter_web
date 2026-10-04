@@ -1,4 +1,5 @@
 const { test, expect } = require('@playwright/test');
+const { setzeSpielstand } = require('./helfer');
 
 // Online-Client (Spieler 2): Snapshot-Anwendung und clientSchritt in einer Seite simulieren
 
@@ -8,10 +9,7 @@ test.beforeEach(async ({ page }) => {
     body: JSON.stringify({ success: true, mode: 'single', highscores: [] })
   }));
   await page.route('**/api/turn*', route => route.fulfill({ status: 503, body: '' }));
-  await page.addInitScript(() => {
-    localStorage.setItem('starshooter_last_seen_version', '1.9.0');
-    localStorage.setItem('starshooter_skip_cutscene', 'true');
-  });
+  await setzeSpielstand(page);
   await page.goto('/');
   await page.waitForFunction(() => window.__game && window.__game.state);
   // Client-Modus herstellen, ohne echte Verbindung (sendNetworkInput ist dann ein No-Op)
