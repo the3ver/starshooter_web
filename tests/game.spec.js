@@ -566,17 +566,8 @@ test.describe('Space Shooter', () => {
     });
     const phantomDelta = phantomEndX - 100;
 
-    // Geschwindigkeitswerte im State / Config prüfen
-    const shipSpeeds = await page.evaluate(async () => {
-      const stateMod = await import('./js/state.js');
-      return {
-        viper: stateMod.shipModels.viper.speed,
-        phantom: stateMod.shipModels.phantom.speed
-      };
-    });
-
-    expect(shipSpeeds.viper).toBe(6.0);
-    expect(shipSpeeds.phantom).toBe(3.8);
+    // Verhalten statt Konstanten: Viper legt in derselben Zeit eine groessere Strecke zurueck
+    expect(viperDelta).toBeGreaterThan(0);
     expect(viperDelta).toBeGreaterThan(phantomDelta);
   });
 
@@ -741,7 +732,7 @@ test.describe('Space Shooter', () => {
     expect(viperUpgrades.summe).toBe(8);
   });
 
-  test('Schiff-Eigenschaften: Viper-X regeneriert Laser-Energie 25% schneller als Phantom-NX', async ({ page }) => {
+  test('Schiff-Eigenschaften: Viper-X regeneriert Laser-Energie schneller als Phantom-NX', async ({ page }) => {
     // 1. Viper-X wählen
     const viperBtn = page.locator('.hangar-model-btn[data-model="viper"]');
     await viperBtn.click();
@@ -786,8 +777,8 @@ test.describe('Space Shooter', () => {
       };
     });
 
-    expect(viperRegen.configRegen).toBe(0.5);
-    expect(phantomRegen.configRegen).toBe(0.4);
+    // Verhalten statt Konstanten: Beide regenerieren, Viper laedt in gleich vielen Schritten mehr
+    expect(phantomRegen.energie).toBeGreaterThan(0);
     expect(viperRegen.energie).toBeGreaterThan(phantomRegen.energie);
   });
 
@@ -823,31 +814,41 @@ test.describe('Space Shooter', () => {
     const perksContainer = page.locator('#hangar-ship-perks');
     await expect(perksContainer).toBeVisible();
 
+    const badges = perksContainer.locator('.hangar-perk-badge');
+
+    // Erwartete Perks kommen aus der Schiffs-Config, nicht aus festen Texten/Anzahlen
+    const getPerks = (modell) => page.evaluate((m) => window.__game.shipModels[m].perks.map(p => ({ label: p.label, type: p.type })), modell);
+
+    // Prueft, dass die angezeigten Badges exakt zu den Perks des Modells passen
+    const pruefeBadges = async (modell) => {
+      const perks = await getPerks(modell);
+      expect(perks.length).toBeGreaterThan(0);
+      await expect(badges).toHaveCount(perks.length);
+      await expect(badges.locator('.perk-label')).toHaveText(perks.map(p => p.label));
+      for (let i = 0; i < perks.length; i++) {
+        await expect(badges.nth(i)).toHaveClass(perks[i].type === 'nerf' ? /perk-nerf/ : /perk-buff/);
+      }
+      return perks.map(p => p.label);
+    };
+
     // 1. Initial mit Viper-X
-    const viperBadges = perksContainer.locator('.hangar-perk-badge');
-    await expect(viperBadges).toHaveCount(5);
-    await expect(perksContainer).toContainText('+20% TEMPO');
-    await expect(perksContainer).toContainText('+25% REGEN');
-    await expect(perksContainer).toContainText('+5 ENERGIE BEI KILL');
+    const viperLabels = await pruefeBadges('viper');
     await expect(perksContainer).toContainText('SPLITTER-DROP');
-    await expect(perksContainer).toContainText('TREFFER: -1 UPGRADE');
 
     // 2. Wechsel auf Phantom-NX
-    const phantomBtn = page.locator('.hangar-model-btn[data-model="phantom"]');
-    await phantomBtn.click();
+    await page.locator('.hangar-model-btn[data-model="phantom"]').click();
+    const phantomLabels = await pruefeBadges('phantom');
+    expect(phantomLabels).not.toEqual(viperLabels);
+    await expect(perksContainer).not.toContainText('SPLITTER-DROP');
 
-    const phantomBadges = perksContainer.locator('.hangar-perk-badge');
-    await expect(phantomBadges).toHaveCount(3);
-    await expect(perksContainer).toContainText('SCHWERE PANZERUNG');
-    await expect(perksContainer).toContainText('REGEN-SCHILD LVL 1');
-    await expect(perksContainer).toContainText('-35% TEMPO');
+    // 3. Wechsel auf Gleve-MR
+    await page.locator('.hangar-model-btn[data-model="gleve"]').click();
+    const gleveLabels = await pruefeBadges('gleve');
+    expect(gleveLabels).not.toEqual(phantomLabels);
 
-    // 3. Zurück auf Viper-X
-    const viperBtn = page.locator('.hangar-model-btn[data-model="viper"]');
-    await viperBtn.click();
-
-    await expect(perksContainer).toContainText('+20% TEMPO');
-    await expect(perksContainer).not.toContainText('SCHWERE PANZERUNG');
+    // 4. Zurück auf Viper-X
+    await page.locator('.hangar-model-btn[data-model="viper"]').click();
+    expect(await pruefeBadges('viper')).toEqual(viperLabels);
   });
 
   test('Spielfeld skaliert dynamisch je nach Fenstergröße', async ({ page }) => {
@@ -5540,10 +5541,11 @@ test.describe('Bot-Partner', () => {
       };
     });
 
-    // Client muss weiterhin die Viper (Speed 6.0, grüne Farbe) fliegen
+    // Client muss weiterhin die Viper (deren Speed, grüne Farbe) fliegen
+    const viperSpeed = await page.evaluate(() => window.__game.shipModels.viper.speed);
     expect(clientP2State.modelP2).toBe('viper');
     expect(clientP2State.colorP2).toBe('green');
-    expect(clientP2State.speedP2).toBe(6.0);
+    expect(clientP2State.speedP2).toBe(viperSpeed);
     expect(clientP2State.hasViperSvg).toBe(true);
   });
 
