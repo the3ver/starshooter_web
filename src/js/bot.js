@@ -13,6 +13,9 @@ const BOT_DIFFICULTY = {
 let reactionCounter = 0;
 let lastDecision = { moveX: 0, moveY: 0 };
 
+// Abstand zum Spielfeldrand, den der Bot beim Zielen und Ausweichen einhaelt
+const RAND_ABSTAND = 50;
+
 // Gleve-Bot: Mindestabstand zwischen zwei Dashs (Schritte), damit er nicht dauernd dasht
 const GLEVE_DASH_PAUSE = 40;
 let gleveDashSperre = 0;
@@ -114,25 +117,35 @@ function findNearestPowerup(p2, diff) {
   return nearest;
 }
 
-function findBestTarget(p2, diff) {
+// Boss-Mitte: Bosse sind quadratisch mit Kantenlaenge groesse
+function bossMitte(boss) {
+  const g = boss.groesse || 100;
+  return { x: boss.x + g / 2, y: boss.y + g / 2 };
+}
+
+// Kann der Bot diesen Asteroiden zerstoeren? Magma nur mit dem Gleve-Dash ab Stufe 5
+function kannAsteroidZerstoeren(p2, ast) {
+  if (!ast.istUnzerstoerbar) return true;
+  return Gleve.istGleve(p2) && (p2.laserStufe || 1) >= 5;
+}
+
+export function findBestTarget(p2, diff) {
   const halfSize = config.spielerGroesse / 2;
   const cx = p2.x + halfSize;
   let bestTarget = null;
   let bestDSq = Infinity;
 
-  // Bosse haben höchste Priorität
+  // Bosse und Feindschiffe: naechstes Ziel ueber dem Bot
   for (const boss of arrays.bosses) {
     if (boss.hp <= 0) continue;
-    const bx = boss.x + (boss.breite || 60) / 2;
-    const by = boss.y + (boss.hoehe || 60) / 2;
-    const dSq = distanceSq(cx, p2.y, bx, by);
-    if (by < p2.y && dSq < bestDSq) { // Nur Ziele über dem Bot
-      bestTarget = { x: bx, y: by, dSq, isBoss: true };
+    const m = bossMitte(boss);
+    const dSq = distanceSq(cx, p2.y, m.x, m.y);
+    if (m.y < p2.y && dSq < bestDSq) { // Nur Ziele über dem Bot
+      bestTarget = { x: m.x, y: m.y, dSq, isBoss: true };
       bestDSq = dSq;
     }
   }
 
-  // Feinde
   for (const feind of arrays.feinde) {
     const fx = feind.x + 15;
     const fy = feind.y + 15;
@@ -142,9 +155,11 @@ function findBestTarget(p2, diff) {
       bestDSq = dSq;
     }
   }
+  if (bestTarget) return bestTarget;
 
-  // Asteroiden (niedrigste Priorität)
+  // Asteroiden nur ohne Gegnerschiff, und nur solche, die der Bot zerstoeren kann
   for (const ast of arrays.asteroiden) {
+    if (!kannAsteroidZerstoeren(p2, ast)) continue;
     const ax = ast.x + (ast.groesse || 30) / 2;
     const ay = ast.y + (ast.groesse || 30) / 2;
     const dSq = distanceSq(cx, p2.y, ax, ay);
@@ -175,6 +190,15 @@ function computeMovement(p2, target, danger, powerup, diff) {
     // Weg von der Gefahr bewegen
     moveX = (dx / dist) * 1.5;
     moveY = (dy / dist) * 1.2;
+    const raumLinks = cx;
+    const raumRechts = config.spielfeldBreite - cx;
+    // Gleve mit bereitem Sweep pariert Gefahren im Bogen, statt seitlich aus ihm herauszufliegen
+    const pariert = Gleve.istGleve(p2) && (Gleve.istSweepAktiv(p2) || p2.raketenCooldown <= 0) && imSweepBogen(p2, danger.x, danger.y);
+    // Gefahr fast genau ueber dem Bot: seitlich zur freieren Seite ausweichen statt nur nach unten
+    if (!pariert && Math.abs(dx) < 20 && dy > 0) moveX = (raumRechts >= raumLinks ? 1 : -1) * 1.5;
+    // Nicht in die Wand ausweichen, sondern zur Mitte hin
+    if ((moveX < 0 && raumLinks < RAND_ABSTAND) || (moveX > 0 && raumRechts < RAND_ABSTAND)) moveX = -moveX;
+    if (moveY > 0 && cy > config.spielfeldHoehe - RAND_ABSTAND) moveY = 0;
     return { moveX, moveY };
   }
 
@@ -190,7 +214,9 @@ function computeMovement(p2, target, danger, powerup, diff) {
 
   // Priorität 3: Auf Ziel ausrichten (horizontal) und aus der Distanz (unteres Viertel) beschießen
   if (target) {
-    const dx = target.x - cx;
+    // Nicht bis an den Rand jagen (der Jaeger-Boss folgt dem Bot sonst bis in die Ecke)
+    const zielX = Math.max(RAND_ABSTAND, Math.min(config.spielfeldBreite - RAND_ABSTAND, target.x));
+    const dx = zielX - cx;
     if (Math.abs(dx) > diff.aimCorridor / 2) {
       moveX = dx > 0 ? 0.8 : -0.8;
     }
@@ -250,7 +276,10 @@ function findeDashZiel(p2) {
   const reichweite = Gleve.dashReichweite(p2);
   let beste = null;
   let besteDSq = Infinity;
-  for (const f of arrays.feinde) {
+  // Feindschiffe zuerst, Asteroiden nur ohne Feind
+  const kandidaten = arrays.feinde.length > 0 ? arrays.feinde
+    : arrays.asteroiden.filter(a => !a.traegtPowerup && kannAsteroidZerstoeren(p2, a));
+  for (const f of kandidaten) {
     const b = boxVon(f);
     const fx = b.x + b.w / 2;
     const fy = b.y + b.h / 2;
