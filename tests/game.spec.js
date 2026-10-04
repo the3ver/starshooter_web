@@ -2596,25 +2596,49 @@ test.describe('2-Spieler-Modus (Co-op)', () => {
     expect(shieldAfter1.borderRadius).toBe('50%');
     expect(shieldAfter1.boxShadow).toContain('52, 152, 219'); // #3498db
 
-    // Schild Stufe 2 prüfen
-    await page.evaluate(async () => {
+    // Treffer ueber den echten Spielcode: Stufe 3 -> 2, Klasse muss vom Spiel gesetzt werden
+    const treffer = () => page.evaluate(async () => {
       const { state, dom } = await import('./js/state.js');
-      state.p2.schildStufe = 2;
-      dom.spieler2.className = 'spieler-schiff schild-aktiv-2';
-    });
-
-    await page.waitForTimeout(350);
-
-    let shieldAfter2 = await page.evaluate(() => {
-      const el = document.getElementById('spieler-2');
-      const afterStyle = window.getComputedStyle(el, '::after');
+      const Utils = await import('./js/utils.js');
+      const lebenVorher = state.p2.leben;
+      state.p2.invulnerableTimer = 0;
+      Utils.spielerGetroffen({ x: 0, y: 0 }, false, 'p2');
       return {
-        className: el.className,
-        boxShadow: afterStyle.boxShadow
+        stufe: state.p2.schildStufe,
+        leben: state.p2.leben,
+        lebenVorher,
+        klassen: Array.from(dom.spieler2.classList).filter(k => k.startsWith('schild-aktiv-'))
       };
     });
 
-    expect(shieldAfter2.boxShadow).toContain('46, 204, 113'); // #2ecc71
+    await page.evaluate(async () => {
+      const { state, dom } = await import('./js/state.js');
+      state.p2.schildStufe = 3;
+      dom.spieler2.className = 'spieler-schiff schild-aktiv-3';
+    });
+
+    const nachTreffer1 = await treffer();
+    expect(nachTreffer1.stufe).toBe(2);
+    expect(nachTreffer1.klassen).toEqual(['schild-aktiv-2']);
+    expect(nachTreffer1.leben).toBe(nachTreffer1.lebenVorher);
+
+    await page.waitForTimeout(350);
+
+    const shieldAfter2 = await page.evaluate(() => {
+      const el = document.getElementById('spieler-2');
+      return window.getComputedStyle(el, '::after').boxShadow;
+    });
+    expect(shieldAfter2).toContain('46, 204, 113'); // #2ecc71
+
+    const nachTreffer2 = await treffer();
+    expect(nachTreffer2.stufe).toBe(1);
+    expect(nachTreffer2.klassen).toEqual(['schild-aktiv-1']);
+    expect(nachTreffer2.leben).toBe(nachTreffer2.lebenVorher);
+
+    const nachTreffer3 = await treffer();
+    expect(nachTreffer3.stufe).toBe(0);
+    expect(nachTreffer3.klassen).toEqual([]);
+    expect(nachTreffer3.leben).toBe(nachTreffer3.lebenVorher);
   });
 
   test('Boss-Zielerfassung im Co-op: Wenn Spieler 1 stirbt, verfolgt und visiert Boss Typ 2 (Jäger) Spieler 2 an', async ({ page }) => {
