@@ -1232,45 +1232,64 @@ test.describe('Late-Game Difficulty & Gegner-Mechaniken', () => {
   test('Boss kann eine zerstörbare Boss-Bombe abwerfen, die vor der Detonation abgeschossen werden kann', async ({ page }) => {
     await starteSpiel(page, 'KeyW');
 
-    // Boss-Bombe erzeugen
-    await page.evaluate(async () => {
-      const stateMod = await import('./js/state.js');
-      const entitiesMod = await import('./js/entities.js');
+    // Aufbau und feste Simulationsschritte in einem synchronen Block (kein Echtzeit-Warten).
+    // Der Spieler haelt den Laser, bis die Bombe weg ist. Die Bombe hat mehr HP als ein
+    // Schuss Schaden macht und ihr Timer (180) laeuft erst nach deutlich mehr Schritten ab.
+    const r = await page.evaluate(() => {
+      const { state, arrays, config, Entities, Loop } = window.__game;
 
-      stateMod.arrays.bossBombenArray.forEach(b => b.el.remove());
-      stateMod.arrays.bossBombenArray.length = 0;
+      for (const liste of Object.values(arrays)) {
+        for (const e of liste) if (e && e.el && e.el.remove) e.el.remove();
+        liste.length = 0;
+      }
+      document.querySelectorAll('.boss-shockwave').forEach(el => el.remove());
 
-      // Erzeuge Boss-Bombe bei (185, 100)
-      entitiesMod.erzeugeBossBombe(185, 100);
+      state.frameZaehler = 1; // keine Spawns
+      state.unbegrenzteEnergie = true;
+      state.energie = state.maxEnergie;
+      state.laserStufe = 2;
+      state.spielerSchussCooldown = 0;
+      state.x = 185;
+      state.y = 400;
+      state.tastenGedrueckt.l = true;
+
+      Entities.erzeugeBossBombe(185, 100);
+      const bombe = arrays.bossBombenArray[0];
+      const startHp = bombe.hp;
+      const timerStart = bombe.timer;
+      const lebenVorher = state.leben;
+      const scoreVorher = state.score;
+
+      const hpVerlauf = new Set();
+      let schritte = 0;
+      let shockwaves = 0;
+      while (arrays.bossBombenArray.includes(bombe) && schritte < 150) {
+        Loop.simulationsSchritt();
+        schritte++;
+        hpVerlauf.add(bombe.hp);
+        shockwaves += document.querySelectorAll('.boss-shockwave').length;
+      }
+      state.tastenGedrueckt.l = false;
+
+      return {
+        startHp, timerStart, schritte, hpStufen: hpVerlauf.size,
+        timerRest: bombe.timer, bombeNochDa: arrays.bossBombenArray.includes(bombe),
+        scoreDiff: state.score - scoreVorher, lebenDiff: state.leben - lebenVorher,
+        shockwaves, bombeY: bombe.y, maxY: config.spielfeldHoehe - 60
+      };
     });
 
-    const bombeEl = page.locator('.boss-bombe');
-    await expect(bombeEl).toBeVisible();
-
-    // Laserschuss auf die Boss-Bombe abfeuern
-    await page.evaluate(async () => {
-      const stateMod = await import('./js/state.js');
-      stateMod.state.x = 185;
-      stateMod.state.y = 250;
-      stateMod.state.energie = 50;
-      stateMod.state.laserStufe = 2;
-      stateMod.state.spielerSchussCooldown = 0;
-    });
-
-    await page.keyboard.down('KeyL');
-    await page.waitForTimeout(100);
-    await page.keyboard.up('KeyL');
-
-    // Warten bis Laser die Bombe zerstört
-    await page.waitForTimeout(300);
-
-    // Bombe sollte zerstört und entfernt sein
-    await expect(bombeEl).toBeHidden();
-    const bombenCount = await page.evaluate(async () => {
-      const stateMod = await import('./js/state.js');
-      return stateMod.arrays.bossBombenArray.length;
-    });
-    expect(bombenCount).toBe(0);
+    // Bombe wurde abgeschossen (nicht detoniert, nicht abgelaufen)
+    expect(r.bombeNochDa).toBe(false);
+    expect(r.schritte).toBeLessThan(r.timerStart);
+    expect(r.timerRest).toBeGreaterThan(0);
+    expect(r.bombeY).toBeLessThan(r.maxY);
+    // Mehrere Treffer noetig: HP sank schrittweise
+    expect(r.hpStufen).toBeGreaterThan(2);
+    // Abschuss-Belohnung statt Detonation
+    expect(r.scoreDiff).toBe(150);
+    expect(r.shockwaves).toBe(0);
+    expect(r.lebenDiff).toBe(0);
   });
 
   test('Boss feuert seitlich startende, zielsuchende Raketen ab, die vom Spieler im Flug abgeschossen werden können', async ({ page }) => {
