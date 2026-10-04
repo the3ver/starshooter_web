@@ -300,7 +300,17 @@ function dashSchritt(pState, pKey) {
     pState.x = altX;
     pState.y = altY;
     starteAbprall(pState, hindernis);
+  } else if (pState.gleveDashTimer === 0) {
+    starteComboSweep(pState, pKey);
   }
+}
+
+// Dash-Combo: Endet der Dash regulaer, folgt sofort ein Sweep (normale Energiekosten, ohne auf den Takt zu warten)
+function starteComboSweep(pState, pKey) {
+  const kosten = pState.unbegrenzteEnergie ? 0 : sweepKosten(pState);
+  if ((pState.energie || 0) < kosten || !starteSweep(pState, pKey)) return;
+  pState.energie -= kosten;
+  pState.gleveSweepTakt = sweepTakt(pState);
 }
 
 function abprallSchritt(pState) {

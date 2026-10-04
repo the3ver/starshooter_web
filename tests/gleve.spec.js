@@ -155,7 +155,8 @@ test.describe('Gleve-MR Dash (Raketen-Taste)', () => {
     expect(r.klasseDanach).toBe(false);
     expect(r.ende.x).toBeCloseTo(185 + 100 / Math.SQRT2, 1);
     expect(r.ende.y).toBeCloseTo(400 - 100 / Math.SQRT2, 1);
-    expect(r.ende.energie).toBe(50);
+    // Der Dash selbst ist kostenlos (nachStart), am Ende folgt der Combo-Sweep (Stufe 1: 8 Energie)
+    expect(r.ende.energie).toBe(42);
     expect(r.ende.cd).toBe(172);
     // HUD-Raketenbalken zeigt den Dash-Cooldown
     expect(r.balken).toBeCloseTo(100 - 172 / 180 * 100, 3);
@@ -245,7 +246,6 @@ test.describe('Gleve-MR Dash (Raketen-Taste)', () => {
     expect(r.stufen).toEqual([
       { weg: 100, cd: 172 }, { weg: 110, cd: 157 }, { weg: 120, cd: 142 }, { weg: 135, cd: 127 }, { weg: 150, cd: 112 }
     ]);
-    expect(r.energie).toBe(50);
     // Die Gleve feuert weder Laser-Projektile noch Raketen
     expect(r.lasers).toBe(0);
     expect(r.raketen).toBe(0);
@@ -274,7 +274,7 @@ test.describe('Gleve-MR Dash (Raketen-Taste)', () => {
     // 180 (Nachladen) - 2 * 30 (Kill-Kette) - 8 Schritte
     expect(r.cd).toBe(112);
     expect(r.ladungen).toBe(1);
-    expect(r.energie).toBe(50);
+    expect(r.energie).toBe(42); // nur der Combo-Sweep kostet Energie
     expect(r.y).toBeCloseTo(300, 5);
   });
 
@@ -401,12 +401,42 @@ test.describe('Gleve-MR Dash (Raketen-Taste)', () => {
     });
     expect(r.x).toBeCloseTo(300, 5);
     expect(r.y).toBeCloseTo(400, 5);
-    expect(r.energie).toBe(50);
+    expect(r.energie).toBe(42); // nur der Combo-Sweep kostet Energie
     expect(r.cdP2).toBe(172);
     expect(r.cdP1).toBe(0);
     expect(r.p1y).toBeCloseTo(400, 5);
     expect(r.balkenP2).toBeCloseTo(100 - 172 / 180 * 100, 3);
   });
+});
+
+test('Gleve-MR Dash-Combo: am Ende eines regulären Dashs folgt sofort ein Sweep (normale Kosten), ohne Energie nicht', async ({ page }) => {
+  await starteGleve(page);
+  const r = await page.evaluate(() => {
+    const { state, arrays, Entities } = window.__game;
+    const T = window.__gleveTest;
+    // Dash nach oben (Stufe 1: 100 px, 8 Schritte) endet bei y 300; der Feind liegt danach in Sweep-, aber nicht in Dash-Reichweite
+    const dashAufFeind = energie => {
+      T.leeren();
+      state.energie = energie;
+      Entities.erzeugeFeind(185, 230, 'normal', 0, false);
+      const feind = arrays.feinde[0];
+      Object.assign(feind, { vy: 0, schussTimer: 9999, traegtPowerup: false });
+      state.tastenGedrueckt.k = true;
+      T.schritte(8);
+      state.tastenGedrueckt.k = false;
+      const nachDash = { y: state.y, sweep: state.gleveSweepTimer, energie: state.energie };
+      T.schritte(10);
+      return { nachDash, feindDa: arrays.feinde.includes(feind) };
+    };
+    return { voll: dashAufFeind(50), leer: dashAufFeind(5) };
+  });
+  expect(r.voll.nachDash.y).toBeCloseTo(300, 5);
+  expect(r.voll.nachDash.sweep).toBeGreaterThan(0);
+  expect(r.voll.nachDash.energie).toBe(42);
+  expect(r.voll.feindDa).toBe(false);
+  // Zu wenig Energie fuer einen Sweep: kein Combo-Sweep, der Feind bleibt
+  expect(r.leer.nachDash.sweep).toBe(0);
+  expect(r.leer.feindDa).toBe(true);
 });
 
 test.describe('Gleve-MR Dash-Ladungen', () => {
