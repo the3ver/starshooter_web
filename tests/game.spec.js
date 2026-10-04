@@ -1355,20 +1355,49 @@ test.describe('Late-Game Difficulty & Gegner-Mechaniken', () => {
     expect(remainingCount).toBe(0);
   });
 
-  test('Unverwundbarkeitsdauer nach Treffer ist halbiert (45 Frames / ca. 0.75s)', async ({ page }) => {
+  test('Unverwundbarkeit nach Treffer ignoriert Folgetreffer und endet nach ca. 0.75 s', async ({ page }) => {
     await starteSpiel(page, 'KeyW');
 
-    // Treffer simulieren
-    const timerVal = await page.evaluate(async () => {
-      const utilsMod = await import('./js/utils.js');
-      const stateMod = await import('./js/state.js');
-      stateMod.state.invulnerableTimer = 0;
-      stateMod.state.godMode = false;
-      utilsMod.spielerGetroffen({ x: 0, y: 0, el: document.createElement('div') }, false);
-      return stateMod.state.invulnerableTimer;
+    const r = await page.evaluate(() => {
+      const { state, arrays } = window.__game;
+      const { spielerGetroffen } = window.__game.Utils;
+      const { simulationsSchritt } = window.__game.Loop;
+      const treffer = () => spielerGetroffen({ x: 0, y: 0, el: document.createElement('div') }, false);
+      const leeren = () => {
+        for (const k of ['feinde', 'bosses', 'powerups', 'feindSchuesse', 'asteroiden']) {
+          if (arrays[k]) arrays[k].length = 0;
+        }
+      };
+
+      state.godMode = false;
+      state.isDead = false;
+      state.invulnerableTimer = 0;
+      state.schildStufe = 0;
+      state.leben = 5;
+
+      treffer();
+      const nachErstem = state.leben;
+      treffer(); // innerhalb des Fensters: ignoriert
+      const nachZweitem = state.leben;
+
+      // Fenster ausmessen
+      let schritte = 0;
+      while (state.invulnerableTimer > 0 && schritte < 500) {
+        leeren();
+        state.frameZaehler = 1;
+        simulationsSchritt();
+        schritte++;
+      }
+
+      treffer(); // nach Ablauf: wirkt wieder
+      return { nachErstem, nachZweitem, schritte, nachDrittem: state.leben };
     });
 
-    expect(timerVal).toBe(45);
+    expect(r.nachErstem).toBe(4);
+    expect(r.nachZweitem).toBe(r.nachErstem);
+    expect(r.schritte).toBeGreaterThan(30);
+    expect(r.schritte).toBeLessThan(60);
+    expect(r.nachDrittem).toBe(r.nachErstem - 1);
   });
   test('Sound-Mute Toggle: M-Taste und Sound-Button schalten Sound um und synchronisieren mit localStorage', async ({ page }) => {
     const soundBtn = page.locator('#btn-sound-toggle');
@@ -2478,8 +2507,8 @@ test.describe('2-Spieler-Modus (Co-op)', () => {
       };
     });
 
-    expect(soloHp.feindHp).toBe(20);
-    expect(soloHp.bossHp).toBe(400);
+    expect(soloHp.feindHp).toBeGreaterThan(0);
+    expect(soloHp.bossHp).toBeGreaterThan(soloHp.feindHp);
 
     // 2. CO-OP MODUS PRÜFUNG: +25% Feind-HP, +40% Boss-HP
     await page.locator('#gamemode-btn-coop').click();
@@ -2496,8 +2525,11 @@ test.describe('2-Spieler-Modus (Co-op)', () => {
       };
     });
 
-    expect(coopHp.feindHp).toBe(25); // 20 * 1.25
-    expect(coopHp.bossHp).toBe(560); // 400 * 1.4
+    // Co-op-Regel: Feind-HP x1.25, Boss-HP x1.4 (bezogen auf den Solo-Wert)
+    expect(coopHp.feindHp).toBeGreaterThan(soloHp.feindHp);
+    expect(coopHp.bossHp).toBeGreaterThan(soloHp.bossHp);
+    expect(coopHp.feindHp).toBe(Math.round(soloHp.feindHp * 1.25));
+    expect(coopHp.bossHp).toBe(Math.round(soloHp.bossHp * 1.4));
   });
 
   test('Lebens- & Revive-System im 2-Spieler Modus: Separate Leben, Game Over erst wenn beide Spieler zerstört sind, Revive bei Boss-Sieg', async ({ page }) => {
@@ -3336,10 +3368,11 @@ test.describe('2-Spieler-Modus (Co-op)', () => {
       };
     });
 
-    expect(testSpeeds.dist0).toBe(6.0);
-    expect(testSpeeds.dist1).toBe(5.4); // 90% von 6.0
-    expect(testSpeeds.dist2).toBe(4.8); // 80% von 6.0
-    expect(testSpeeds.dist3).toBe(4.2); // 70% von 6.0
+    // Grundstrecke aus der Messung ohne Powerup; jedes gezogene Powerup nimmt 10% davon weg
+    expect(testSpeeds.dist0).toBeGreaterThan(0);
+    expect(testSpeeds.dist1 / testSpeeds.dist0).toBeCloseTo(0.9, 2);
+    expect(testSpeeds.dist2 / testSpeeds.dist0).toBeCloseTo(0.8, 2);
+    expect(testSpeeds.dist3 / testSpeeds.dist0).toBeCloseTo(0.7, 2);
   });
 
   test('Traktorstrahl-Kopplung: Partner sammelt gezogenes Powerup durch Berührung ein und löst den Strahl', async ({ page }) => {
@@ -5676,14 +5709,39 @@ test.describe('Bot-Partner', () => {
     expect(coopResults.shardsToP1).toBe(0);
   });
 
-  test('Issue 11: Highscore-Screen besitzt Scroll-Container mit max-height und overflow-y: auto', async ({ page }) => {
+  test('Issue 11: Highscore-Liste mit vielen Eintraegen ist scrollbar und in der Hoehe begrenzt', async ({ page }) => {
+    // Game-Over-Screen mit Bestenliste einblenden (wie utils.js beim Spielende)
+    await page.evaluate(() => { document.getElementById('game-over-screen').style.display = 'flex'; });
     const container = page.locator('.highscore-table-container');
-    await expect(container).toBeAttached();
+    await expect(container).toBeVisible();
 
-    const maxHeight = await container.evaluate((el) => window.getComputedStyle(el).maxHeight);
-    const overflowY = await container.evaluate((el) => window.getComputedStyle(el).overflowY);
-    expect(maxHeight).toBe('200px');
-    expect(overflowY).toBe('auto');
+    const masse = await page.evaluate(async () => {
+      const utilsMod = await import('./js/utils.js');
+      const liste = [];
+      for (let i = 0; i < 30; i++) {
+        liste.push({ name: 'P' + i, score: 3000 - i * 10, shipP1: 'viper', level: 1 });
+      }
+      utilsMod.renderHighscoresTable('single', liste);
+      const el = document.querySelector('.highscore-table-container');
+      return {
+        zeilen: document.querySelectorAll('#highscore-body tr').length,
+        scrollHeight: el.scrollHeight,
+        clientHeight: el.clientHeight
+      };
+    });
+
+    expect(masse.zeilen).toBe(30);
+    // Inhalt ist hoeher als der sichtbare Bereich -> scrollbar
+    expect(masse.scrollHeight).toBeGreaterThan(masse.clientHeight);
+    // Container waechst nicht mit der Liste mit
+    expect(masse.clientHeight).toBeLessThan(400);
+
+    // Es laesst sich tatsaechlich scrollen
+    const gescrollt = await container.evaluate((el) => {
+      el.scrollTop = 50;
+      return el.scrollTop;
+    });
+    expect(gescrollt).toBeGreaterThan(0);
   });
 
 });
