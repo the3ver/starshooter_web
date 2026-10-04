@@ -3078,84 +3078,99 @@ test.describe('2-Spieler-Modus (Co-op)', () => {
   });
 
   test('Raketen Balancing Co-op: Raketen haben im Co-op höhere Maxgeschwindigkeit, größeren Homing-Suchbereich und stärkere Lenkrate als im Solo-Modus', async ({ page }) => {
+    // Echtes Spielverhalten (waffen.js, Raketen-Phase 3) wird per simulationsSchritt() ausgefuehrt,
+    // einmal im Co-op- und einmal im Solo-Modus mit identischen Startbedingungen.
     await page.locator('#gamemode-btn-coop').click();
+    await starteSpiel(page);
 
-    const result = await page.evaluate(async () => {
-      const { state, config } = await import('./js/state.js');
+    const messeModus = (modus) => page.evaluate((modus) => {
+      const { state, arrays, config, Utils, Entities, Loop } = window.__game;
+      Utils.setGameMode(modus);
 
-      // Simuliere Phase-3-Physik direkt für Co-op und Solo,
-      // ohne gameLoop aufzurufen (vermeidet Detonation und DOM-Abhängigkeiten)
-      function simulatePhase3(isCoop) {
-        // Exakt dieselbe Logik wie in loop.js Phase 3
-        const rMaxVy = isCoop ? 15 : 13;
-        const rAccel = isCoop ? 0.5 : 0.45;
-        const homingYRange = isCoop ? 200 : 140;
-        const maxTurn = isCoop ? 0.26 : 0.22;
-
-        // Rakete startet in Phase 3 mit 4px/Frame vy, Feind weit rechts
-        let r = { x: 50, y: 500, vx: 0, vy: 4.0 };
-        const targetX = 500, targetY = 100;
-
-        let maxVy = 0;
-        let maxTurnObserved = 0;
-
-        for (let f = 0; f < 40; f++) {
-          // Beschleunigung
-          r.vy = Math.min(rMaxVy, r.vy + rAccel);
-          r.vx *= 0.92;
-
-          // Homing: Feind liegt bei zcx=500+10=510, zcy=100+10=110 → zcy < r.y + homingYRange?
-          const zcx = targetX + 10;
-          const zcy = targetY + 10;
-          if (zcy < r.y + homingYRange) {
-            const targetAngle = Math.atan2(zcy - (r.y + 8), zcx - (r.x + 3));
-            const currentAngle = Math.atan2(-r.vy, r.vx || 0.0001);
-            let diff = targetAngle - currentAngle;
-            while (diff < -Math.PI) diff += Math.PI * 2;
-            while (diff > Math.PI) diff -= Math.PI * 2;
-            const vxBefore = r.vx;
-            const newAngle = currentAngle + Math.sign(diff) * Math.min(Math.abs(diff), maxTurn);
-            const currentSpeed = Math.hypot(r.vx, r.vy) || r.vy;
-            r.vx = Math.cos(newAngle) * currentSpeed;
-            r.vy = -Math.sin(newAngle) * currentSpeed;
-            const dvx = Math.abs(r.vx - vxBefore);
-            if (dvx > maxTurnObserved) maxTurnObserved = dvx;
-          }
-
-          r.x += r.vx;
-          r.y -= r.vy;
-
-          if (r.vy > maxVy) maxVy = r.vy;
+      function leereFeld() {
+        for (const key of Object.keys(arrays)) {
+          const arr = arrays[key];
+          if (!Array.isArray(arr)) continue;
+          arr.forEach(e => { if (e && e.el && e.el.remove) e.el.remove(); });
+          arr.length = 0;
         }
-        return { maxVy, maxTurnObserved, finalVx: r.vx, rMaxVy, rAccel, homingYRange, maxTurn };
+      }
+      function schritt() {
+        state.frameZaehler = 1; // verhindert zeitgesteuerte Spawns
+        Loop.simulationsSchritt();
+      }
+      // Rakete direkt vor Phase 3 (age 18), gleiche Felder wie feuerRaketenFuerSpieler
+      function erzeugeRakete(x, y, homing) {
+        const el = document.createElement('div');
+        el.className = 'raketen-projektil';
+        document.getElementById('spielfeld').appendChild(el);
+        const r = { id: 'test-rakete', el, x, y, vx: 0, vy: 1, schaden: 30, radius: 80, homing, owner: 'p1', age: 18, detoniert: false };
+        arrays.raketenArray.push(r);
+        return r;
+      }
+      function erzeugeZiel(zcx, zcy) {
+        Entities.erzeugeFeind(0, 0, 'normal');
+        const f = arrays.feinde[arrays.feinde.length - 1];
+        f.vx = 0; f.vy = 0; f.speed = 0; f.schussTimer = 100000;
+        f.x = zcx - (f.groesse || 20) / 2;
+        f.y = zcy - (f.groesse || 20) / 2;
+        f.basisX = f.x; // Feind-Bewegung pendelt um basisX
+        return f;
+      }
+      const winkel = (r) => Math.atan2(-r.vy, r.vx || 0.0001);
+
+      // (a) Maximale Geschwindigkeit: Rakete ohne Ziel von unten nach oben fliegen lassen
+      leereFeld();
+      const rA = erzeugeRakete(config.spielfeldBreite / 2, config.spielfeldHoehe - 10, false);
+      let maxVy = 0;
+      let imFeld = true;
+      for (let i = 0; i < 40; i++) {
+        schritt();
+        if (!arrays.raketenArray.includes(rA)) { imFeld = false; break; }
+        maxVy = Math.max(maxVy, rA.vy);
       }
 
-      const coop = simulatePhase3(true);
-      const solo = simulatePhase3(false);
+      // (b) Homing-Suchbereich: Ziel 170 px unterhalb der Rakete (zwischen 140 und 200), seitlich versetzt
+      leereFeld();
+      const rB = erzeugeRakete(100, 300, true);
+      const zielB = erzeugeZiel(rB.x + 3 + 100, rB.y + 170);
+      schritt();
+      const homingErfasst = rB.vx > 0.1;
+      const zielBGeblieben = arrays.feinde.includes(zielB);
 
-      return { coop, solo };
-    });
+      // (c) Lenkrate: Ziel weit oben rechts, Winkelaenderung eines Schritts (durch maxTurn begrenzt)
+      leereFeld();
+      const rC = erzeugeRakete(100, 500, true);
+      erzeugeZiel(rC.x + 3 + 300, 400);
+      const winkelVor = winkel(rC);
+      schritt();
+      const lenkwinkel = Math.abs(winkel(rC) - winkelVor);
 
-    // Co-op Konfiguration muss höher sein als Solo
-    expect(result.coop.rMaxVy).toBeGreaterThan(result.solo.rMaxVy); // 15 > 13
-    expect(result.coop.rAccel).toBeGreaterThan(result.solo.rAccel); // 0.5 > 0.45
-    expect(result.coop.homingYRange).toBeGreaterThan(result.solo.homingYRange); // 200 > 140
-    expect(result.coop.maxTurn).toBeGreaterThan(result.solo.maxTurn); // 0.26 > 0.22
+      leereFeld();
+      return { maxVy, imFeld, homingErfasst, zielBGeblieben, lenkwinkel };
+    }, modus);
 
-    // Konkrete Zielwerte (Co-op)
-    expect(result.coop.rMaxVy).toBe(15);
-    expect(result.coop.homingYRange).toBe(200);
-    expect(result.coop.maxTurn).toBeCloseTo(0.26, 2);
+    const coop = await messeModus('coop');
+    const solo = await messeModus('single');
 
-    // Solo bleibt unverändert
-    expect(result.solo.rMaxVy).toBe(13);
-    expect(result.solo.homingYRange).toBe(140);
-    expect(result.solo.maxTurn).toBeCloseTo(0.22, 2);
+    // Testaufbau gueltig: Raketen blieben im Feld, Ziele existierten noch
+    expect(coop.imFeld).toBe(true);
+    expect(solo.imFeld).toBe(true);
+    expect(coop.zielBGeblieben).toBe(true);
+    expect(solo.zielBGeblieben).toBe(true);
 
-    // Im Co-op dreht die Rakete stärker (größere vx-Änderung durch maxTurn 0.26 statt 0.22)
-    expect(result.coop.maxTurnObserved).toBeGreaterThan(result.solo.maxTurnObserved);
-    // Im Co-op erreicht die Rakete eine höhere Maxgeschwindigkeit
-    expect(result.coop.maxVy).toBeGreaterThan(result.solo.maxVy);
+    // (a) Maximale Fluggeschwindigkeit: Co-op 15, Solo 13
+    expect(coop.maxVy).toBeCloseTo(15, 5);
+    expect(solo.maxVy).toBeCloseTo(13, 5);
+
+    // (b) Homing-Suchbereich: Ziel 170 px unterhalb wird nur im Co-op (200) erfasst, nicht im Solo (140)
+    expect(coop.homingErfasst).toBe(true);
+    expect(solo.homingErfasst).toBe(false);
+
+    // (c) Lenkrate pro Schritt: Co-op 0.26 rad, Solo 0.22 rad
+    expect(coop.lenkwinkel).toBeGreaterThan(solo.lenkwinkel);
+    expect(coop.lenkwinkel).toBeCloseTo(0.26, 2);
+    expect(solo.lenkwinkel).toBeCloseTo(0.22, 2);
   });
 
   test('Traktorstrahl-Kopplung im 2-Spieler Modus: Spieler koppelt bis zu 3 Powerups für den Partner an', async ({ page }) => {
