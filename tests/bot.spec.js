@@ -118,3 +118,45 @@ test('Bot laesst sich vom Jaeger-Boss (Typ 2) nicht an den Rand draengen und wei
   expect(r.minX).toBeGreaterThan(30);
   expect(r.treffer).toBeLessThanOrEqual(2);
 });
+
+test('Bot-Gleve fliegt in Sweep-Reichweite unter den Boss und dasht gegen ihn: Boss verliert deutlich HP', async ({ page }) => {
+  await starteBotSpiel(page);
+  const r = await page.evaluate(() => {
+    const { state, arrays, Entities, Loop } = window.__game;
+    const T = window.__botTest;
+    T.leeren();
+    state.level = 1;
+    state.invulnerableTimer = 1e9; // P1 steht nur als Zuschauer weit weg
+    state.x = 560;
+    state.y = 560;
+    const p2 = state.p2;
+    p2.selectedShipModel = 'gleve';
+    p2.x = 285;
+    p2.y = 500;
+    p2.schildStufe = 0;
+    p2.leben = 3;
+    Entities.erzeugeBoss();
+    const b = arrays.bosses[0];
+    Object.assign(b, { phase: 'kampf', y: 20, schussTimer: 1e9, bombenTimer: 1e9, raketenTimer: 1e9, hackTimer: 1e9 });
+
+    let dashs = 0;
+    let vorherDash = false;
+    for (let i = 0; i < 600; i++) {
+      state.frameZaehler = 1; // keine Spawns
+      state.x = 560;
+      state.y = 560;
+      b.schussTimer = 1e9;
+      Loop.simulationsSchritt();
+      const dash = (p2.gleveDashTimer || 0) > 0;
+      if (dash && !vorherDash && b.hp > 0) dashs++;
+      vorherDash = dash;
+      p2.leben = 3;
+      p2.schildStufe = 0;
+      p2.isDead = false;
+      if (b.hp <= 0) break;
+    }
+    return { hpAnteil: arrays.bosses.length ? b.hp / b.maxHp : 0, dashs };
+  });
+  expect(r.hpAnteil).toBeLessThan(0.8);
+  expect(r.dashs).toBeGreaterThanOrEqual(1);
+});

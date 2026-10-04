@@ -141,7 +141,7 @@ export function findBestTarget(p2, diff) {
     const m = bossMitte(boss);
     const dSq = distanceSq(cx, p2.y, m.x, m.y);
     if (m.y < p2.y && dSq < bestDSq) { // Nur Ziele über dem Bot
-      bestTarget = { x: m.x, y: m.y, dSq, isBoss: true };
+      bestTarget = { x: m.x, y: m.y, dSq, isBoss: true, unten: boss.y + (boss.groesse || 100) };
       bestDSq = dSq;
     }
   }
@@ -224,6 +224,11 @@ function computeMovement(p2, target, danger, powerup, diff) {
     // Die Gleve (Nahkampf) haelt sich knapp ausserhalb der Dash-Reichweite unter normalen Feinden.
     let idealY = target.isBoss ? baselineY : Math.max(baselineY, target.y + 250);
     if (Gleve.istGleve(p2) && !target.isBoss) idealY = Math.min(baselineY, target.y + Gleve.dashReichweite(p2) * 0.8);
+    // Gegen Bosse geht die Gleve in Sweep-Reichweite unter die Boss-Unterkante (mit Abstand zum Koerper, Kollision schadet)
+    if (Gleve.istGleve(p2) && target.isBoss) {
+      const bossUnten = target.unten;
+      idealY = Math.min(baselineY, bossUnten + 0.6 * Gleve.sweepLaenge(p2));
+    }
     const dy = idealY - cy;
     if (Math.abs(dy) > 15) {
       moveY = dy > 0 ? 0.5 : -0.5;
@@ -266,6 +271,26 @@ function dashWegBlockiert(p2, dx, dy) {
     }
   }
   return false;
+}
+
+// Boss in Dash-Reichweite oberhalb des Schiffs: Dash-Richtung auf seine Unterkante (der Dash prallt ab und macht Schaden)
+function findeBossDashZiel(p2) {
+  const s = config.spielerGroesse;
+  const cx = p2.x + s / 2;
+  const cy = p2.y + s / 2;
+  const reichweite = Gleve.dashReichweite(p2);
+  for (const boss of arrays.bosses) {
+    if (boss.hp <= 0 || boss.phase !== 'kampf') continue;
+    const b = boxVon(boss);
+    const pad = b.w * 0.15;
+    const zx = Math.max(b.x + pad, Math.min(b.x + b.w - pad, cx));
+    const zy = b.y + b.h - pad;
+    if (zy >= cy) continue;
+    const d = Math.hypot(zx - cx, zy - cy);
+    if (d > reichweite || d < 1) continue;
+    return { dx: (zx - cx) / d, dy: (zy - cy) / d };
+  }
+  return null;
 }
 
 // Naechster normaler Feind in Dash-Reichweite mit freiem Weg; liefert die Dash-Richtung oder null
@@ -332,7 +357,9 @@ function updateGleveWaffen(p2) {
   // Dash (Raketen-Taste): ein Schritt Druck (Flanke), nur ohne Cooldown, ohne Waffen-Hack und nicht dauernd
   p2.botFireRakete = false;
   if (gleveDashSperre <= 0 && (p2.gleveDashLadungen || 0) >= 1 && !Gleve.istDashAktiv(p2) && !Hack.hatHack(p2, 'waffenOffline')) {
-    const ziel = findeDashZiel(p2);
+    let ziel = findeDashZiel(p2);
+    // Bosse: nur mit mindestens 2 Ladungen (eine bleibt als Reserve)
+    if (!ziel && arrays.feinde.length === 0 && (p2.gleveDashLadungen || 0) >= 2) ziel = findeBossDashZiel(p2);
     if (ziel) {
       p2.botDashRichtung = ziel;
       p2.botFireRakete = true;
