@@ -1,6 +1,15 @@
-export const GAME_VERSION = '1.13.0';
+export const GAME_VERSION = '1.14.0';
 
 export const changelogData = {
+  '1.14.0': {
+    version: '1.14.0',
+    intro: 'Hey, es ist jetzt Version 1.14.0 rausgekommen, folgendes wurde aktualisiert:',
+    highlights: [
+      '⚡ Spectre-SR: Jede Granate löst jetzt zusätzlich einen EMP-Ring um dein Schiff aus. Er zerstört feindliche Geschosse – auch die zielsuchenden Boss-Raketen – und betäubt Gegner in der Nähe kurz',
+      '💥 Granaten-Taste gedrückt halten legt eine Spur aus Haftminen. Berührt ein Gegner eine Mine, klebt sie an ihm und explodiert kurz darauf',
+      '🔄 Für den Online-Modus brauchen beide Spieler Version 1.14.0, sonst bitte die Seite neu laden (Strg+F5)'
+    ]
+  },
   '1.13.0': {
     version: '1.13.0',
     intro: 'Hey, es ist jetzt Version 1.13.0 rausgekommen, folgendes wurde aktualisiert:',
