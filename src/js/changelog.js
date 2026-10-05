@@ -1,6 +1,16 @@
-export const GAME_VERSION = '1.11.1';
+export const GAME_VERSION = '1.12.0';
 
 export const changelogData = {
+  '1.12.0': {
+    version: '1.12.0',
+    intro: 'Hey, es ist jetzt Version 1.12.0 rausgekommen, folgendes wurde aktualisiert:',
+    highlights: [
+      '🌀 Die Viper-X kann ausweichen: Doppeltipp links oder rechts (auf dem Handy seitlich wischen) und sie rollt blitzschnell zur Seite, kurz unverwundbar',
+      '⚡ Knapp vorbei ist auch getroffen: Jedes Geschoss, das haarscharf an der Viper vorbeifliegt, lädt den Overdrive. Ist er voll, feuert sie 5 Sekunden doppelt so schnell und durchschlagend',
+      '🔥 Kill-Kombo statt Upgrade-Verlust: Schnelle Abschüsse hintereinander bringen bis zu dreifache Punkte und mehr Feuerkraft. Ein Treffer kostet nur die Kombo, keine Waffen-Upgrades mehr',
+      '🔄 Für den Online-Modus brauchen beide Spieler Version 1.12.0, sonst bitte die Seite neu laden (Strg+F5)'
+    ]
+  },
   '1.11.1': {
     version: '1.11.1',
     intro: 'Hey, es ist jetzt Version 1.11.1 rausgekommen, folgendes wurde aktualisiert:',
