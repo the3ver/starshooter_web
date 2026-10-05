@@ -1,6 +1,13 @@
-export const GAME_VERSION = '1.14.0';
+export const GAME_VERSION = '1.14.1';
 
 export const changelogData = {
+  '1.14.1': {
+    version: '1.14.1',
+    intro: 'Hey, es ist jetzt Version 1.14.1 rausgekommen, folgendes wurde aktualisiert:',
+    highlights: [
+      '💥 Die Haftminen der Spectre-SR zerstören jetzt auch Boss-Raketen und Boss-Bomben: Fliegt eine hinein, geht die Mine sofort hoch und räumt alles in der Nähe weg'
+    ]
+  },
   '1.14.0': {
     version: '1.14.0',
     intro: 'Hey, es ist jetzt Version 1.14.0 rausgekommen, folgendes wurde aktualisiert:',
