@@ -782,9 +782,10 @@ export function playDash(level = 1) {
     osc.stop(now + duration);
 }
 
-// Sniper-Schuss (Fadenkreuz-Laser): trockener, tiefer Knall mit kurzem hellem Zischen; hoehere Stufen klingen kraeftiger
-export function playSniperSchuss(level = 1) {
-    recordSound('sniperSchuss', { level });
+// Sniper-Schuss (Fadenkreuz-Laser): trockener, tiefer Knall mit kurzem hellem Zischen; hoehere Stufen klingen kraeftiger,
+// `ladung` (0-1) macht ihn laenger, lauter und tiefer
+export function playSniperSchuss(level = 1, ladung = 0) {
+    recordSound('sniperSchuss', { level, ladung });
     if (isMuted) return;
     const ctx = getAudioContext();
     if (!ctx) return;
@@ -795,13 +796,37 @@ export function playSniperSchuss(level = 1) {
     const gain = ctx.createGain();
     osc.type = 'square';
     osc.frequency.setValueAtTime(1400 + level * 120, now);
-    osc.frequency.exponentialRampToValueAtTime(60, now + 0.16);
-    gain.gain.setValueAtTime(0.12 + level * 0.02, now);
-    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.16);
+    osc.frequency.exponentialRampToValueAtTime(60 - ladung * 25, now + 0.16 + ladung * 0.2);
+    gain.gain.setValueAtTime(0.12 + level * 0.02 + ladung * 0.08, now);
+    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.16 + ladung * 0.2);
     osc.connect(gain);
     gain.connect(masterGain);
     osc.start(now);
-    osc.stop(now + 0.16);
+    osc.stop(now + 0.16 + ladung * 0.2);
+}
+
+// Sniper: Ladung voll (einmal pro Ladevorgang), zwei helle steigende Toene
+export function playSniperVoll() {
+    recordSound('sniperVoll');
+    if (isMuted) return;
+    const ctx = getAudioContext();
+    if (!ctx) return;
+    if (ctx.state === 'suspended') ctx.resume().catch(() => {});
+
+    const now = ctx.currentTime;
+    [880, 1320].forEach((freq, i) => {
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(freq, now + i * 0.07);
+        gain.gain.setValueAtTime(0.001, now + i * 0.07);
+        gain.gain.exponentialRampToValueAtTime(0.14, now + i * 0.07 + 0.01);
+        gain.gain.exponentialRampToValueAtTime(0.001, now + i * 0.07 + 0.14);
+        osc.connect(gain);
+        gain.connect(masterGain);
+        osc.start(now + i * 0.07);
+        osc.stop(now + i * 0.07 + 0.15);
+    });
 }
 
 // Viper-Ausweichrolle: kurzes, leichtes Wusch (Rauschen steigt und faellt) mit schnellem Sinus-Glissando

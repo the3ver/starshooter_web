@@ -276,6 +276,7 @@ export function setupInput() {
       
       state.joystick.active = true;
       state.tastenGedrueckt.l = true; // Auto-fire laser (Gleve: Dauer-Sweep)
+      state.joystick.feuert = true; // Autofeuer, nicht die echte Taste (Sniper: Normalschuesse statt Laden)
     }, { passive: false });
 
     joystickZone.addEventListener('touchmove', e => {
@@ -308,6 +309,7 @@ export function setupInput() {
       state.joystick.x = 0;
       state.joystick.y = 0;
       state.tastenGedrueckt.l = false; // Stop auto-fire
+      state.joystick.feuert = false;
     });
   }
 
@@ -323,6 +325,21 @@ export function setupInput() {
     });
   }
   
+  // Sniper: Halten laedt, Loslassen feuert (wie die Laser-Taste; der Joystick feuert dagegen Normalschuesse)
+  const btnLaden = document.getElementById('btn-laden');
+  if (btnLaden) {
+    btnLaden.addEventListener('touchstart', (e) => {
+      e.preventDefault();
+      if (state.spielLaeuft && !state.gameOverAktiv && !state.pausiert) state.sniperLadeKnopf = true;
+    });
+    const ladenEnde = (e) => {
+      e.preventDefault();
+      state.sniperLadeKnopf = false;
+    };
+    btnLaden.addEventListener('touchend', ladenEnde);
+    btnLaden.addEventListener('touchcancel', ladenEnde);
+  }
+
   const btnBombe = document.getElementById('btn-bombe');
   if (btnBombe) {
     btnBombe.addEventListener('touchstart', (e) => {

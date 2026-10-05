@@ -1631,6 +1631,14 @@ export function updateSchiffHudLabels() {
     if (!mobilGleve) ladungenEl.textContent = '';
   }
 
+  // Mobil-Knopf zum Aufladen nur beim Sniper (lokales Schiff)
+  const ladenBtn = document.getElementById('btn-laden');
+  if (ladenBtn) {
+    const zeigen = lokalesSchiffModell() === 'sniper';
+    ladenBtn.style.display = zeigen ? 'flex' : 'none';
+    if (!zeigen) state.sniperLadeKnopf = false;
+  }
+
   // Mobile-Raketen-Button gehört dem lokalen Spieler (Online-Client = P2)
   const mobilLabels = HUD_LABELS[lokalesSchiffModell()] || HUD_LABELS.standard;
   const mobilSpan = document.querySelector('#btn-rakete span');

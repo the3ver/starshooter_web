@@ -2252,6 +2252,27 @@
             z-index: 6;
             pointer-events: none;
         }
+        .sniper-ladering {
+            position: absolute;
+            left: 50%;
+            top: 50%;
+            box-sizing: border-box;
+            transform: translate(-50%, -50%);
+            border: 2px solid currentColor;
+            border-radius: 50%;
+            display: none;
+            pointer-events: none;
+        }
+        .sniper-ladering.voll {
+            color: #ffeb3b;
+            border-color: #ffeb3b;
+            box-shadow: 0 0 10px #ffeb3b, 0 0 18px #ff9800, inset 0 0 8px #ffeb3b;
+            animation: sniper-voll-puls 0.25s infinite alternate;
+        }
+        @keyframes sniper-voll-puls {
+            from { filter: brightness(1); }
+            to { filter: brightness(1.8); }
+        }
         .sniper-strich {
             position: absolute;
             background: currentColor;
@@ -2844,6 +2865,10 @@
             border-color: #e74c3c;
         }
         #btn-rakete:active { background-color: rgba(231, 76, 60, 0.4); }
+        #btn-laden {
+            border-color: #f1c40f;
+        }
+        #btn-laden:active { background-color: rgba(241, 196, 15, 0.4); }
         
         #btn-bombe {
             border-color: #f39c12;

@@ -1,9 +1,10 @@
 // Spectre-SR (Model-ID `sniper`): Fadenkreuz-Laser mit Aufladen und Betaeubungsgranate (siehe AGENTS.md, Abschnitt Sniper).
-// Stand S2: Fadenkreuz (Grundposition, Auto-Zielen ab Laser-Stufe 4) und Sofort-Schuss auf den Trefferkreis.
+// Stand S3: Fadenkreuz (Grundposition, Auto-Zielen ab Laser-Stufe 4), Sofort-Schuss auf den Trefferkreis und Aufladen
+// (Druck startet Laden, Loslassen feuert).
 // pState ist `state` (P1) oder `state.p2`, pKey 'p1' / 'p2'.
 // Zustand pro Spieler: sniperZielX/sniperZielY (Fadenkreuz-Mitte im Spielfeld, null = noch nicht gesetzt),
-// sniperCooldown (Schritte bis zum naechsten Schuss), sniperGehalten (Laser-Taste im Schritt davor; Grundlage fuer
-// das spaetere Flanken-/Lade-Modell).
+// sniperCooldown (Schritte bis zum naechsten Schuss), sniperGehalten (Laser-Taste im Schritt davor = Ladevorgang laeuft),
+// sniperLadung (Ladeschritte 0-90), sniperVoll (Voll-Ton fuer diesen Ladevorgang schon gespielt).
 
 import { state, dom, config, arrays, shipColors } from './state.js';
 import * as Utils from './utils.js';
@@ -15,6 +16,12 @@ export const FADENKREUZ_ABSTAND = 220; // px ueber der Schiffsoberkante
 export const SCHUSS_ENERGIE = 6;
 const AUTOZIEL_REICHWEITE = 320;
 const STRAHL_SCHRITTE = 8;
+export const LADEN_AB = 10; // Haltedauer in Schritten, ab der aus dem Normalschuss ein Ladeschuss wird
+export const LADUNG_VOLL = 90; // Schritte bis zur vollen Ladung (1,5 s)
+export const LADE_ENERGIE = 19; // zusaetzliche Energie fuer das Laden von Schritt 10 bis 90 (gleichmaessig)
+const LADE_KOSTEN = LADE_ENERGIE / (LADUNG_VOLL - LADEN_AB);
+export const MAX_SCHADENSFAKTOR = 4;
+export const MAX_RADIUSFAKTOR = 1.5;
 
 // Werte pro Laser-Stufe 1-5
 const RADIUS = [6, 14, 22, 22, 30];
@@ -34,6 +41,16 @@ export function trefferRadius(pState) { return RADIUS[stufenIndex(pState)]; }
 export function schussSchaden(pState) { return SCHADEN[stufenIndex(pState)]; }
 export function schussAbstand(pState) { return SCHUSS_ABSTAND[stufenIndex(pState)]; }
 export function autoZielTempo(pState) { return AUTOZIEL_TEMPO[stufenIndex(pState)]; }
+
+// Ladeanteil 0-1 (unter 10 Schritten Haltedauer = Normalschuss, also 0)
+function ladeAnteil(ladung) {
+  return ladung < LADEN_AB ? 0 : Math.min(1, ladung / LADUNG_VOLL);
+}
+export function schadensFaktor(ladung) { return 1 + (MAX_SCHADENSFAKTOR - 1) * ladeAnteil(ladung); }
+export function radiusFaktor(ladung) { return 1 + (MAX_RADIUSFAKTOR - 1) * ladeAnteil(ladung); }
+export function istVoll(ladung) { return ladung >= LADUNG_VOLL; }
+// Laedt der Spieler gerade (Taste gehalten)? Dann gibt es keine Energie-Regeneration.
+export function laedt(pState) { return !!pState && istSniper(pState) && !!pState.sniperGehalten; }
 
 function schiffFarbe(pState) {
   const c = shipColors[pState.selectedShipColor];
@@ -154,10 +171,32 @@ function holeFadenkreuz(pKey) {
   return el;
 }
 
+function zeigeLadering(el, pState) {
+  let ring = el.querySelector('.sniper-ladering');
+  if (!ring) {
+    ring = document.createElement('div');
+    ring.classList.add('sniper-ladering');
+    el.appendChild(ring);
+  }
+  const ladung = pState.sniperLadung || 0;
+  const sichtbar = !!pState.sniperGehalten && ladung >= LADEN_AB;
+  ring.style.display = sichtbar ? 'block' : 'none';
+  ring.classList.toggle('voll', sichtbar && istVoll(ladung));
+  if (!sichtbar) return;
+  // Der Ring zeigt den aktuellen Trefferkreis: waechst von Radius x1 auf x1,5; Deckkraft und Randstaerke steigen mit der Ladung
+  const d = trefferRadius(pState) * 2 * radiusFaktor(ladung);
+  const anteil = ladeAnteil(ladung);
+  ring.style.width = d + 'px';
+  ring.style.height = d + 'px';
+  ring.style.opacity = 0.45 + 0.55 * anteil;
+  ring.style.borderWidth = (1.5 + 2.5 * anteil) + 'px';
+}
+
 function zeigeFadenkreuz(pState, pKey) {
   const el = holeFadenkreuz(pKey);
   const r = trefferRadius(pState);
   const farbe = schiffFarbe(pState);
+  zeigeLadering(el, pState);
   el.style.width = (r * 2) + 'px';
   el.style.height = (r * 2) + 'px';
   el.style.left = (pState.sniperZielX - r) + 'px';
@@ -174,8 +213,9 @@ function entferneFadenkreuz(pKey) {
   }
 }
 
-function erzeugeStrahl(pState) {
+function erzeugeStrahl(pState, anteil = 0) {
   const n = schiffsNase(pState);
+  const breite = 3 + 9 * anteil;
   const dx = pState.sniperZielX - n.x;
   const dy = pState.sniperZielY - n.y;
   const dist = Math.hypot(dx, dy);
@@ -184,9 +224,10 @@ function erzeugeStrahl(pState) {
   el.classList.add('sniper-strahl');
   el.style.height = dist + 'px';
   el.style.top = (n.y - dist) + 'px';
-  el.style.left = (n.x - 1.5) + 'px';
+  el.style.width = breite + 'px';
+  el.style.left = (n.x - breite / 2) + 'px';
   el.style.transform = `rotate(${Math.atan2(dx, -dy) * 180 / Math.PI}deg)`;
-  el.style.boxShadow = `0 0 4px #ffffff, 0 0 8px ${farbe}, 0 0 14px ${farbe}`;
+  el.style.boxShadow = `0 0 ${4 + 6 * anteil}px #ffffff, 0 0 ${8 + 10 * anteil}px ${farbe}, 0 0 ${14 + 18 * anteil}px ${farbe}`;
   dom.spielfeld.appendChild(el);
   strahlen.push({ el, rest: STRAHL_SCHRITTE });
 }
@@ -204,20 +245,24 @@ function aktualisiereStrahlen() {
   }
 }
 
-function erzeugeEinschlag(pState, cx, cy) {
-  Utils.erzeugeExplosion(cx, cy, '#ffffff', 6);
-  Utils.erzeugeExplosion(cx, cy, schiffFarbe(pState), 4);
+function erzeugeEinschlag(pState, cx, cy, anteil = 0) {
+  Utils.erzeugeExplosion(cx, cy, '#ffffff', 6 + Math.round(8 * anteil));
+  Utils.erzeugeExplosion(cx, cy, schiffFarbe(pState), 4 + Math.round(6 * anteil));
 }
 
 // --- SCHUSS ---
 
 // Trifft Ziele im Kreis um das Fadenkreuz: Stufe 1-2 nur das naechste (Mitte am naechsten am Fadenkreuz), ab Stufe 3 alle.
+// `ladung` (Schritte, 0 = Normalschuss) skaliert Schaden (x1 bis x4) und Radius (x1 bis x1,5); der voll geladene Schuss
+// trifft unabhaengig von der Stufe alle Ziele im Kreis und ignoriert Schilde (Schild weg, Schaden auf die HP).
 // Gibt die Anzahl der getroffenen Ziele zurueck.
-export function feuereSchuss(pState, pKey) {
+export function feuereSchuss(pState, pKey, ladung = 0) {
   const cx = pState.sniperZielX;
   const cy = pState.sniperZielY;
-  let ziele = zieleImKreis(cx, cy, trefferRadius(pState));
-  if ((pState.laserStufe || 1) < 3 && ziele.length > 1) {
+  const voll = istVoll(ladung);
+  const anteil = ladeAnteil(ladung);
+  let ziele = zieleImKreis(cx, cy, trefferRadius(pState) * radiusFaktor(ladung));
+  if (!voll && (pState.laserStufe || 1) < 3 && ziele.length > 1) {
     let bestes = ziele[0];
     let besteDist = Infinity;
     for (const z of ziele) {
@@ -230,43 +275,101 @@ export function feuereSchuss(pState, pKey) {
     }
     ziele = [bestes];
   }
-  const schaden = schussSchaden(pState);
+  const schaden = schussSchaden(pState) * schadensFaktor(ladung);
   for (const z of ziele) {
     const m = zielMitte(z);
-    erzeugeEinschlag(pState, m.x, m.y);
+    erzeugeEinschlag(pState, m.x, m.y, anteil);
+    if (voll && (z.schildHp || 0) > 0) {
+      z.schildHp = 0;
+      if (z.schildEl) {
+        z.schildEl.remove();
+        z.schildEl = null;
+      }
+    }
     schadeZiel(z, schaden, pKey);
   }
-  if (!ziele.length) erzeugeEinschlag(pState, cx, cy);
-  erzeugeStrahl(pState);
-  Audio.playSniperSchuss(pState.laserStufe || 1);
+  if (!ziele.length) erzeugeEinschlag(pState, cx, cy, anteil);
+  erzeugeStrahl(pState, anteil);
+  Audio.playSniperSchuss(pState.laserStufe || 1, anteil);
   return ziele.length;
 }
 
-// Pro Schritt aus spieler.js (Energie-Phase, nach der Bewegung): Fadenkreuz pflegen und bei gehaltener Laser-Taste
-// im Schussabstand schiessen. `gehalten` ist die Laser-Taste (Bot/Online liefern sie ebenfalls). Die Ausloesung haengt
-// nur an `gehalten` und `sniperGehalten` (Vorschritt), damit ein Flanken-/Halte-Modell leicht ergaenzt werden kann.
-export function aktualisiereSniper(pState, pKey, gehalten) {
+function setzeLadungZurueck(pState) {
+  pState.sniperLadung = 0;
+  pState.sniperVoll = false;
+}
+
+// Einen Ladeschritt (Taste gehalten): die ersten 10 Schritte kosten nichts, danach 19/80 Energie pro Schritt.
+// Reicht die Energie nicht (es muss immer noch der Schuss mit 6 Energie moeglich bleiben), bleibt die Ladung stehen.
+function lade(pState) {
+  if ((pState.sniperLadung || 0) >= LADUNG_VOLL) return;
+  if (pState.sniperLadung >= LADEN_AB && !pState.unbegrenzteEnergie) {
+    if (pState.energie - LADE_KOSTEN < SCHUSS_ENERGIE) return;
+    pState.energie -= LADE_KOSTEN;
+  }
+  pState.sniperLadung++;
+  if (istVoll(pState.sniperLadung) && !pState.sniperVoll) {
+    pState.sniperVoll = true;
+    Audio.playSniperVoll();
+  }
+}
+
+// Schuss mit Schussabstand-Sperre und Energiepruefung; false = kein Schuss (Ladung verfaellt)
+function versuche(pState, pKey, ladung) {
+  if ((pState.sniperCooldown || 0) > 0) return false;
+  if (!pState.unbegrenzteEnergie && pState.energie < SCHUSS_ENERGIE) return false;
+  if (!pState.unbegrenzteEnergie) pState.energie -= SCHUSS_ENERGIE;
+  pState.sniperCooldown = schussAbstand(pState);
+  feuereSchuss(pState, pKey, ladung);
+  return true;
+}
+
+// Pro Schritt aus spieler.js (Energie-Phase, nach der Bewegung): Fadenkreuz pflegen und Schuss ausloesen.
+// `gehalten` ist die Laser-Taste (Bot/Online liefern sie ebenfalls). Auswahl des Modells:
+// - normal: Druck startet das Laden, Loslassen feuert (Haltedauer unter 10 Schritten = Normalschuss, sonst Ladeschuss).
+//   Wird in der Schussabstand-Sperre losgelassen, faellt der Schuss (samt Ladung) automatisch, sobald die Sperre abläuft.
+// - `auto` (Joystick-Autofeuer am Handy): Dauerfeuer aus Normalschuessen im Schussabstand, kein Laden.
+// Gibt zurueck, ob in diesem Schritt geschossen wurde.
+export function aktualisiereSniper(pState, pKey, gehalten, auto = false) {
   if (!istSniper(pState)) return false;
   aktualisiereStrahlen();
   if (pState.isDead || !state.spielLaeuft) {
     entferneFadenkreuz(pKey);
     pState.sniperGehalten = false;
+    pState.sniperGepuffert = null;
+    setzeLadungZurueck(pState);
     return false;
   }
   aktualisiereFadenkreuz(pState);
-  zeigeFadenkreuz(pState, pKey);
 
   if (pState.sniperCooldown > 0) pState.sniperCooldown--;
   let geschossen = false;
-  const kannSchiessen = gehalten && !Hack.hatHack(pState, 'waffenOffline');
-  if (kannSchiessen && (pState.sniperCooldown || 0) <= 0
-      && (pState.unbegrenzteEnergie || pState.energie >= SCHUSS_ENERGIE)) {
-    if (!pState.unbegrenzteEnergie) pState.energie -= SCHUSS_ENERGIE;
-    pState.sniperCooldown = schussAbstand(pState);
-    feuereSchuss(pState, pKey);
-    geschossen = true;
+  const kannSchiessen = !Hack.hatHack(pState, 'waffenOffline');
+  // In der Sperre losgelassener Schuss: faellt, sobald die Sperre abgelaufen ist
+  if (pState.sniperGepuffert != null && pState.sniperCooldown <= 0) {
+    if (kannSchiessen) geschossen = versuche(pState, pKey, pState.sniperGepuffert);
+    pState.sniperGepuffert = null;
   }
-  pState.sniperGehalten = !!gehalten;
+  if (auto) {
+    setzeLadungZurueck(pState);
+    pState.sniperGehalten = false;
+    if (gehalten && kannSchiessen) geschossen = versuche(pState, pKey, 0);
+  } else {
+    const haelt = !!gehalten && kannSchiessen;
+    if (haelt) {
+      if (!pState.sniperGehalten) setzeLadungZurueck(pState); // Druck
+      lade(pState);
+    } else if (pState.sniperGehalten && kannSchiessen) {
+      // Loslassen: sofort feuern oder bis zum Ende der Sperre vormerken
+      if (pState.sniperCooldown > 0) pState.sniperGepuffert = pState.sniperLadung || 0;
+      else geschossen = versuche(pState, pKey, pState.sniperLadung || 0);
+      setzeLadungZurueck(pState);
+    } else {
+      setzeLadungZurueck(pState);
+    }
+    pState.sniperGehalten = haelt;
+  }
+  zeigeFadenkreuz(pState, pKey);
   return geschossen;
 }
 
@@ -277,6 +380,9 @@ export function setzeZurueck(pState) {
   pState.sniperZielY = null;
   pState.sniperCooldown = 0;
   pState.sniperGehalten = false;
+  pState.sniperGepuffert = null;
+  pState.sniperLadung = 0;
+  pState.sniperVoll = false;
   entferneFadenkreuz(pState === state ? 'p1' : 'p2');
   return true;
 }

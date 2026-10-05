@@ -153,8 +153,9 @@ export const state = {
     viperOverdriveLeiste: 0, viperOverdriveTimer: 0,
     // Viper-Kill-Kombo: Kills in Folge und Restschritte des Kombo-Fensters
     viperKombo: 0, viperKomboTimer: 0,
-    // Sniper-Fadenkreuz (sniper.js): Mitte im Spielfeld (null = noch nicht gesetzt), Schussabstand, Laser-Taste im Vorschritt
-    sniperZielX: null, sniperZielY: null, sniperCooldown: 0, sniperGehalten: false,
+    // Sniper-Fadenkreuz (sniper.js): Mitte im Spielfeld (null = noch nicht gesetzt), Schussabstand, Ladevorgang laeuft (Taste
+    // im Vorschritt gehalten), Ladeschritte 0-90, Voll-Ton schon gespielt
+    sniperZielX: null, sniperZielY: null, sniperCooldown: 0, sniperGehalten: false, sniperLadung: 0, sniperVoll: false,
     tastenGedrueckt: {
         w: false, a: false, s: false, d: false,
         l: false, k: false, ' ': false,
@@ -168,7 +169,8 @@ export const state = {
     spielerSchussCooldown: 0, finalerScore: 0, cheatUsed: false, typedCheatKeys: '',
     godMode: false, pausiert: false, pauseVon: null, pauseEndeZeit: 0,unbegrenzteEnergie: false, invulnerableTimer: 0,
     phantomSchildRegenTimer: 0, phantomSchildRegenMax: 900,
-    joystick: { x: 0, y: 0, active: false },
+    joystick: { x: 0, y: 0, active: false, feuert: false }, // feuert: Autofeuer-Beruehrung (setzt Taste L)
+    sniperLadeKnopf: false, // Mobile-Knopf #btn-laden (Sniper) gehalten
     gameMode: 'single', // 'single' | 'coop' | 'online'
     p2IsBot: false,
     p2BotDifficulty: 'normal', // 'easy' | 'normal' | 'hard'
@@ -207,7 +209,7 @@ export const state = {
         viperLinksGehalten: false, viperRechtsGehalten: false, viperTapRichtung: 0, viperTapAlter: 999, viperJoyRuhe: 0, viperJoyVorher: 0,
         viperOverdriveLeiste: 0, viperOverdriveTimer: 0,
         viperKombo: 0, viperKomboTimer: 0,
-        sniperZielX: null, sniperZielY: null, sniperCooldown: 0, sniperGehalten: false
+        sniperZielX: null, sniperZielY: null, sniperCooldown: 0, sniperGehalten: false, sniperLadung: 0, sniperVoll: false
     },
     network: {
         isOnline: false,

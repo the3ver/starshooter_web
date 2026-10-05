@@ -331,18 +331,23 @@ function steuereGleveSweep(s, pKey, gehalten) {
   if (!gehalten && !Gleve.istSweepAktiv(s)) ladeEnergie(s);
 }
 
-// Sniper: kein Laser, die gehaltene Laser-Taste loest Fadenkreuz-Schuesse im Schussabstand aus (sniper.js).
-// Energie regeneriert normal (keine Sonderregeln).
-function steuereSniper(s, pKey, gehalten) {
+// Sniper: kein Laser; die Laser-Taste laedt (Druck) und feuert beim Loslassen (sniper.js). `auto`: Joystick-Autofeuer
+// (Normalschuesse im Schussabstand, kein Laden). Waehrend des Ladens regeneriert die Energie nicht.
+function steuereSniper(s, pKey, gehalten, auto = false) {
   s.laserSchiesst = false;
-  Sniper.aktualisiereSniper(s, pKey, gehalten);
-  ladeEnergie(s);
+  Sniper.aktualisiereSniper(s, pKey, gehalten, auto);
+  if (!Sniper.laedt(s)) ladeEnergie(s);
+}
+
+// Joystick-Autofeuer von P1 (Handy): Taste L kommt vom Joystick und nicht von der Tastatur, B oder dem Lade-Knopf
+function sniperAutofeuerP1() {
+  return Boolean(state.joystick && state.joystick.feuert) && !state.sniperLadeKnopf && !state.tastenGedrueckt.b;
 }
 
 export function aktualisiereEnergie() {
   let laserAktiv = false;
   if (Sniper.istSniper(state)) {
-    steuereSniper(state, 'p1', Boolean(laserTasteP1()) && !state.isDead);
+    steuereSniper(state, 'p1', Boolean(laserTasteP1() || state.sniperLadeKnopf) && !state.isDead, sniperAutofeuerP1());
     versteckeAlleLaser();
   } else if (Gleve.istGleve(state)) {
     steuereGleveSweep(state, 'p1', laserTasteP1() && !state.isDead);
