@@ -27,6 +27,15 @@ export const NEAR_MISS_ABSTAND = 18;
 export const NEAR_MISS_LADUNG = 10;
 export const OVERDRIVE_DAUER = 300;
 
+// Kill-Kombo (V3, ersetzt den Upgrade-Verlust): Jeder Kill des Spielers (Utils.zerstoereZiel) binnen KOMBO_FENSTER
+// Schritten nach dem letzten Kill erhoeht viperKombo um 1; laeuft das Fenster ab, faellt sie auf 0, jeder Treffer
+// am Schiff (auch vom Schild abgefangen) setzt sie auf 0. Punkte aus Kills x (1 + 0.1 * Kombo), hoechstens x3;
+// Projektil-Laser-Cooldown ab Kombo 5 -> 5, ab Kombo 10 -> 4 (Overdrive = 3 bleibt das Minimum).
+export const KOMBO_FENSTER = 120;
+export const KOMBO_SCHRITT = 0.1;
+export const KOMBO_MAX_FAKTOR = 3;
+export const KOMBO_SOUND_STUFEN = [5, 10, 20];
+
 export function istViper(pState) {
   return !!pState && pState.selectedShipModel === 'viper';
 }
@@ -37,6 +46,42 @@ export function istRolleAktiv(pState) {
 
 export function istOverdrive(pState) {
   return !!pState && pState.selectedShipModel === 'viper' && (pState.viperOverdriveTimer || 0) > 0;
+}
+
+// Punkte-Multiplikator fuer Kills dieses Spielers (nur Viper; 1 + 0.1 * Kombo, max 3)
+export function komboFaktor(pState) {
+  if (!istViper(pState)) return 1;
+  return Math.min(KOMBO_MAX_FAKTOR, 1 + KOMBO_SCHRITT * (pState.viperKombo || 0));
+}
+
+// Projektil-Laser-Cooldown in Schritten: normal 6, Kombo >= 5 -> 5, >= 10 -> 4, Overdrive 3 (Minimum)
+export function schussCooldown(pState) {
+  if (istOverdrive(pState)) return 3;
+  const kombo = istViper(pState) ? (pState.viperKombo || 0) : 0;
+  return kombo >= 10 ? 4 : kombo >= 5 ? 5 : 6;
+}
+
+// Ein Kill dieses Spielers (nach der Punktevergabe): Kombo +1, Fenster neu starten, Sound bei 5/10/20
+export function registriereKill(pState) {
+  if (!istViper(pState)) return;
+  pState.viperKombo = (pState.viperKombo || 0) + 1;
+  pState.viperKomboTimer = KOMBO_FENSTER;
+  const stufe = KOMBO_SOUND_STUFEN.indexOf(pState.viperKombo) + 1;
+  if (stufe > 0) Audio.playKombo(stufe);
+}
+
+export function setzeKomboZurueck(pState) {
+  if (!pState) return;
+  pState.viperKombo = 0;
+  pState.viperKomboTimer = 0;
+}
+
+// Fenster herunterzaehlen (nur Host/Solo/Bot; der Online-Client uebernimmt den Stand aus dem Snapshot)
+function tickKombo(p) {
+  if ((p.viperKomboTimer || 0) > 0) {
+    p.viperKomboTimer--;
+    if (p.viperKomboTimer <= 0) p.viperKombo = 0;
+  }
 }
 
 function schiffElement(pKey) {
@@ -114,12 +159,14 @@ export function aktualisiereViper(pState, pKey, eingabe, anfrage = 0) {
   if ((pState.viperRolleCooldown || 0) > 0) pState.viperRolleCooldown--;
   pState.viperNetzStart = null;
   tickOverdrive(pState);
+  if (!(state.network && state.network.isOnline && !state.network.isHost)) tickKombo(pState);
 
   const el = schiffElement(pKey);
   if (pState.isDead) {
     pState.viperRolleTimer = 0;
     pState.viperOverdriveTimer = 0;
     pState.viperOverdriveLeiste = 0;
+    setzeKomboZurueck(pState);
     if (el) {
       el.classList.remove('viper-rolle');
       el.classList.remove('viper-overdrive');
@@ -223,6 +270,15 @@ export function netzEingabe(pState) {
 
 export function uebernehmeSnapshot(pState, daten, eigenes) {
   if (!daten || daten.viperRolleTimer === undefined) return;
+  // Kombo: Host ist massgeblich; Sound fuer das eigene Schiff beim Erreichen von 5/10/20
+  const kombo = daten.viperKombo || 0;
+  if (eigenes) {
+    const stufe = KOMBO_SOUND_STUFEN.filter(s => kombo >= s).length;
+    const alt = KOMBO_SOUND_STUFEN.filter(s => (pState.viperKombo || 0) >= s).length;
+    if (stufe > alt) Audio.playKombo(stufe);
+  }
+  pState.viperKombo = kombo;
+  pState.viperKomboTimer = daten.viperKomboTimer || 0;
   // Overdrive: Host ist massgeblich; Sounds nur fuer das eigene Schiff, bei Aenderung
   const leiste = daten.viperOverdriveLeiste || 0;
   const odTimer = daten.viperOverdriveTimer || 0;
@@ -278,6 +334,7 @@ export function zeigeRollenHud(pKey, pState, sichtbar = true) {
   const bereit = zeigen && cd <= 0 && !istRolleAktiv(pState);
   const fuell = zeigen ? Math.round((1 - cd / ROLLE_COOLDOWN) * 100) : 0;
   zeigeOverdriveHud(pKey, pState, zeigen);
+  zeigeKomboHud(pKey, pState, zeigen);
   const signatur = `${zeigen}|${bereit}|${fuell}`;
   if (hudZustand[pKey] === signatur) return;
   hudZustand[pKey] = signatur;
@@ -285,6 +342,25 @@ export function zeigeRollenHud(pKey, pState, sichtbar = true) {
   el.classList.toggle('bereit', bereit);
   const balken = el.firstElementChild;
   if (balken) balken.style.width = Math.max(0, Math.min(100, fuell)) + '%';
+}
+
+const komboHudWert = { p1: 0, p2: 0 };
+
+// Kombo-Anzeige unter dem Score ("KOMBO 7 · x1.7"), ausgeblendet bei 0; kurzer Puls bei Erhoehung
+function zeigeKomboHud(pKey, pState, zeigen) {
+  const el = document.getElementById(pKey === 'p2' ? 'viper-kombo-hud-p2' : 'viper-kombo-hud');
+  if (!el) return;
+  const kombo = zeigen && pState ? Math.max(0, Math.round(pState.viperKombo || 0)) : 0;
+  if (kombo === komboHudWert[pKey]) return;
+  const stieg = kombo > komboHudWert[pKey];
+  komboHudWert[pKey] = kombo;
+  el.style.display = kombo > 0 ? 'block' : 'none';
+  if (kombo > 0) el.textContent = 'KOMBO ' + kombo + ' · x' + Math.min(KOMBO_MAX_FAKTOR, 1 + KOMBO_SCHRITT * kombo).toFixed(1);
+  el.classList.remove('puls');
+  if (stieg) {
+    void el.offsetWidth; // Animation neu starten
+    el.classList.add('puls');
+  }
 }
 
 const odHudZustand = { p1: '', p2: '' };
@@ -307,6 +383,7 @@ function zeigeOverdriveHud(pKey, pState, zeigen) {
 export function setzeZurueck(pState, schiffEl) {
   pState.viperOverdriveLeiste = 0;
   pState.viperOverdriveTimer = 0;
+  setzeKomboZurueck(pState);
   if (schiffEl) schiffEl.classList.remove('viper-overdrive');
   pState.viperRolleTimer = 0;
   pState.viperRolleRichtung = 0;

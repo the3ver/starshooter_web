@@ -853,6 +853,30 @@ export function playNearMiss() {
     osc.stop(now + duration);
 }
 
+// Viper-Kill-Kombo erreicht 5/10/20: kurzer Doppelton, hoeher je Stufe (stufe 1..3)
+export function playKombo(stufe = 1) {
+    recordSound('kombo', { stufe });
+    if (isMuted) return;
+    const ctx = getAudioContext();
+    if (!ctx) return;
+    if (ctx.state === 'suspended') ctx.resume().catch(() => {});
+    const now = ctx.currentTime;
+    const basis = 520 * Math.pow(1.26, Math.max(1, stufe) - 1);
+    [[basis, 0], [basis * 1.5, 0.06]].forEach(([freq, versatz]) => {
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc.type = 'square';
+        osc.frequency.setValueAtTime(freq, now + versatz);
+        gain.gain.setValueAtTime(0.001, now + versatz);
+        gain.gain.linearRampToValueAtTime(0.05, now + versatz + 0.01);
+        gain.gain.exponentialRampToValueAtTime(0.001, now + versatz + 0.1);
+        osc.connect(gain);
+        gain.connect(masterGain);
+        osc.start(now + versatz);
+        osc.stop(now + versatz + 0.12);
+    });
+}
+
 // Viper-Overdrive startet: aufsteigender Dreiklang
 export function playOverdrive() {
     recordSound('overdrive');

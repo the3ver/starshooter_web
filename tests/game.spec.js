@@ -662,7 +662,7 @@ test.describe('Space Shooter', () => {
     expect(viperSchild.hasShieldClass).toBe(false);
   });
 
-  test('Schiff-Eigenschaften: Phantom-NX verliert bei Treffern keine Upgrades, Viper-X verliert Upgrades', async ({ page }) => {
+  test('Schiff-Eigenschaften: Phantom-NX und Viper-X verlieren bei Treffern keine Upgrades (Viper: Kombo statt Verlust)', async ({ page }) => {
     // 1. Test mit Phantom-NX: Verliert KEINE Upgrades bei Treffer
     const phantomBtn = page.locator('.hangar-model-btn[data-model="phantom"]');
     await phantomBtn.click();
@@ -697,7 +697,7 @@ test.describe('Space Shooter', () => {
     expect(phantomUpgrades.raketen).toBe(3);
     expect(phantomUpgrades.bomben).toBe(3);
 
-    // 2. Test mit Viper-X: Verliert 1 Upgrade bei Treffer
+    // 2. Test mit Viper-X: Verliert seit V3 ebenfalls kein Upgrade (stattdessen faellt die Kill-Kombo, siehe viper.spec.js)
     await page.goto('/');
     const viperBtn = page.locator('.hangar-model-btn[data-model="viper"]');
     await viperBtn.click();
@@ -727,9 +727,9 @@ test.describe('Space Shooter', () => {
       };
     });
 
-    // Leben wurde reduziert (3 -> 2) und Summe der Waffenstufen sank von 9 auf 8
+    // Leben wurde reduziert (3 -> 2), die Summe der Waffenstufen bleibt 9
     expect(viperUpgrades.leben).toBe(2);
-    expect(viperUpgrades.summe).toBe(8);
+    expect(viperUpgrades.summe).toBe(9);
   });
 
   test('Schiff-Eigenschaften: Viper-X regeneriert Laser-Energie schneller als Phantom-NX', async ({ page }) => {

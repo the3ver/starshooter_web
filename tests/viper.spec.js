@@ -59,7 +59,15 @@ async function starteSpiel(page, { coop = false, p1 = 'viper', p2 = 'viper' } = 
           s.viperTapAlter = 999;
           s.viperJoyRuhe = 0;
           s.viperJoyVorher = 0;
+          s.viperKombo = 0;
+          s.viperKomboTimer = 0;
+          s.viperOverdriveLeiste = 0;
+          s.viperOverdriveTimer = 0;
+          s.laserStufe = 1;
+          s.spielerSchussCooldown = 0;
+          s.energie = s.maxEnergie;
         }
+        state.score = 0;
         state.x = 150;
         state.y = 400;
         state.p2.x = 250;
@@ -1073,5 +1081,292 @@ test.describe('Viper-X Near-Miss und Overdrive: Online', () => {
       return [state.p2.viperOverdriveLeiste, g.Network.serializeGameState().p2.viperOverdriveLeiste];
     });
     expect(r).toEqual([10, 10]);
+  });
+});
+
+// Kill-Kombo (V3): Kills binnen 120 Schritten steigern viperKombo (Punkte x(1+0.1*Kombo), max x3; Feuerrate ab 5/10),
+// ein Treffer setzt sie auf 0 und die Viper verliert keine Waffen-Upgrades mehr.
+test.describe('Viper-X Kill-Kombo', () => {
+  // Hilfen im Seitenkontext: killFeind(killer) zerstoert einen Dummy-Feind ueber Utils.zerstoereZiel
+  async function bereit(page, opts) {
+    await starteSpiel(page, opts);
+    await page.evaluate(() => {
+      const T = window.__viperTest;
+      T.killFeind = (killer = 'p1') => {
+        const { arrays, Utils } = window.__game;
+        const el = document.createElement('div');
+        document.getElementById('spielfeld').appendChild(el);
+        const feind = { el, x: 20, y: 20, groesse: 30, istFeind: true, muster: 'normal', hp: 0 };
+        arrays.feinde.push(feind);
+        Utils.zerstoereZiel(feind, killer);
+      };
+      T.leeren();
+    });
+  }
+
+  test('3 Kills im Fenster -> Kombo 3; Fenster laeuft ab -> 0; der erste Kill zaehlt als 1', async ({ page }) => {
+    await bereit(page);
+    const r = await page.evaluate(() => {
+      const T = window.__viperTest;
+      const { state } = window.__game;
+      const out = {};
+      T.killFeind();
+      out.erster = state.viperKombo;
+      T.schritte(100); T.killFeind();
+      T.schritte(100); T.killFeind();
+      out.drei = [state.viperKombo, state.viperKomboTimer];
+      T.schritte(119);
+      out.nochDa = state.viperKombo;
+      T.schritte(2);
+      out.abgelaufen = [state.viperKombo, state.viperKomboTimer];
+      return out;
+    });
+    expect(r.erster).toBe(1);
+    expect(r.drei).toEqual([3, 120]);
+    expect(r.nochDa).toBe(3);
+    expect(r.abgelaufen).toEqual([0, 0]);
+  });
+
+  test('Treffer setzt die Kombo auf 0 (auch ein vom Schild abgefangener), Waffenstufen bleiben unveraendert', async ({ page }) => {
+    await bereit(page);
+    const r = await page.evaluate(() => {
+      const T = window.__viperTest;
+      const { state, Utils } = window.__game;
+      const dummy = { istFeind: false, el: { dataset: {} }, x: 0, y: 0 };
+      const out = {};
+      state.laserStufe = 4; state.raketenStufe = 3; state.bombenStufe = 2;
+      state.viperKombo = 8; state.viperKomboTimer = 90;
+      Utils.spielerGetroffen(dummy, false, 'p1');
+      out.treffer = { kombo: state.viperKombo, timer: state.viperKomboTimer, leben: state.leben,
+        stufen: [state.laserStufe, state.raketenStufe, state.bombenStufe] };
+      // Schild faengt den Treffer ab, die Kombo faellt trotzdem
+      state.invulnerableTimer = 0;
+      state.schildStufe = 1;
+      state.viperKombo = 6; state.viperKomboTimer = 50;
+      Utils.spielerGetroffen(dummy, false, 'p1');
+      out.schild = { kombo: state.viperKombo, leben: state.leben, schild: state.schildStufe };
+      // Unverwundbar (kein Treffer) laesst die Kombo stehen
+      state.viperKombo = 4;
+      Utils.spielerGetroffen(dummy, false, 'p1');
+      out.ohneTreffer = state.viperKombo;
+      return out;
+    });
+    expect(r.treffer).toEqual({ kombo: 0, timer: 0, leben: 2, stufen: [4, 3, 2] });
+    expect(r.schild).toEqual({ kombo: 0, leben: 2, schild: 0 });
+    expect(r.ohneTreffer).toBe(4);
+  });
+
+  test('Viper hat loseUpgradesOnHit aus; Perk-Liste nennt Kombo statt Upgrade-Verlust', async ({ page }) => {
+    await page.waitForFunction(() => window.__game && window.__game.shipModels);
+    const r = await page.evaluate(() => {
+      const v = window.__game.shipModels.viper;
+      return { lose: v.loseUpgradesOnHit, labels: v.perks.map(p => p.label) };
+    });
+    expect(r.lose).toBe(false);
+    expect(r.labels).toContain('KILL-KOMBO');
+    expect(r.labels).toContain('TREFFER: KOMBO WEG');
+    expect(r.labels).not.toContain('TREFFER: -1 UPGRADE');
+  });
+
+  test('Punkte eines Kills bei Kombo 10 = Grundpunkte x 2.0, ab Kombo 20 bei x3 gedeckelt', async ({ page }) => {
+    await bereit(page);
+    const r = await page.evaluate(() => {
+      const T = window.__viperTest;
+      const { state } = window.__game;
+      const delta = (kombo) => {
+        state.viperKombo = kombo; state.viperKomboTimer = 120;
+        const s0 = state.score;
+        T.killFeind();
+        return state.score - s0;
+      };
+      return { k0: delta(0), k5: delta(5), k10: delta(10), k20: delta(20), k50: delta(50), danach: state.viperKombo };
+    });
+    expect(r.k0).toBe(100);
+    expect(r.k5).toBe(150);
+    expect(r.k10).toBe(200);
+    expect(r.k20).toBe(300);
+    expect(r.k50).toBe(300);
+    expect(r.danach).toBe(51);
+  });
+
+  test('Feuerrate: Kombo 5 -> Cooldown 5, Kombo 10 -> 4, Overdrive bleibt bei 3, ohne Kombo 6', async ({ page }) => {
+    await bereit(page);
+    const r = await page.evaluate(() => {
+      const T = window.__viperTest;
+      const { state } = window.__game;
+      const cd = (kombo, overdrive = 0) => {
+        state.viperKombo = kombo; state.viperKomboTimer = 120; state.viperOverdriveTimer = overdrive;
+        state.spielerSchussCooldown = 0; state.energie = state.maxEnergie;
+        state.tastenGedrueckt.l = true;
+        T.schritte(1);
+        state.tastenGedrueckt.l = false;
+        T.schritte(1);
+        return state.spielerSchussCooldown;
+      };
+      // nach dem Schuss-Schritt zaehlt der Folgeschritt 1 herunter: Wert = Cooldown - 1
+      return { k0: cd(0), k4: cd(4), k5: cd(5), k9: cd(9), k10: cd(10), k25: cd(25), od: cd(10, 100) };
+    });
+    expect(r.k0).toBe(5);
+    expect(r.k4).toBe(5);
+    expect(r.k5).toBe(4);
+    expect(r.k9).toBe(4);
+    expect(r.k10).toBe(3);
+    expect(r.k25).toBe(3);
+    expect(r.od).toBe(2);
+  });
+
+  test('Sound bei Kombo 5, 10 und 20 (genau dort), sonst keiner', async ({ page }) => {
+    await bereit(page);
+    const r = await page.evaluate(() => {
+      const T = window.__viperTest;
+      const { Audio } = window.__game;
+      const stufen = [];
+      for (let i = 1; i <= 21; i++) {
+        Audio.clearAudioHistory();
+        T.killFeind();
+        const h = Audio.audioHistory.filter(a => a.name === 'kombo');
+        if (h.length) stufen.push([i, h[0].details.stufe]);
+      }
+      return stufen;
+    });
+    expect(r).toEqual([[5, 1], [10, 2], [20, 3]]);
+  });
+
+  test('Phantom hat keine Kombo: Kills aendern nichts, Punkte ohne Faktor, Cooldown 6', async ({ page }) => {
+    await bereit(page, { p1: 'phantom' });
+    const r = await page.evaluate(() => {
+      const T = window.__viperTest;
+      const { state } = window.__game;
+      const s0 = state.score;
+      state.viperKombo = 10; // kuenstlich gesetzt: ohne Viper wirkungslos
+      T.killFeind();
+      const punkte = state.score - s0;
+      state.tastenGedrueckt.l = true;
+      T.schritte(1);
+      return { punkte, kombo: state.viperKombo, cooldown: state.spielerSchussCooldown,
+        hud: document.getElementById('viper-kombo-hud').style.display };
+    });
+    expect(r.punkte).toBe(100);
+    expect(r.kombo).toBe(10);
+    expect(r.cooldown).toBe(6);
+    expect(r.hud).toBe('none');
+  });
+
+  test('Coop: Kills von P2 erhoehen nur die Kombo von P2, Treffer an P1 laesst P2 unberuehrt', async ({ page }) => {
+    await bereit(page, { coop: true });
+    const r = await page.evaluate(() => {
+      const T = window.__viperTest;
+      const { state, Utils } = window.__game;
+      T.killFeind('p2'); T.killFeind('p2'); T.killFeind('p1');
+      const nachKills = { p1: state.viperKombo, p2: state.p2.viperKombo };
+      // P2-Kill mit Kombo 10 zaehlt x2, P1-Kill (Kombo 1) x1.1
+      state.p2.viperKombo = 10;
+      const s0 = state.score;
+      T.killFeind('p2');
+      const p2Punkte = state.score - s0;
+      const s1 = state.score;
+      T.killFeind('p1');
+      const p1Punkte = state.score - s1;
+      Utils.spielerGetroffen({ istFeind: false, el: { dataset: {} }, x: 0, y: 0 }, false, 'p1');
+      return { nachKills, p2Punkte, p1Punkte, nachTreffer: { p1: state.viperKombo, p2: state.p2.viperKombo } };
+    });
+    expect(r.nachKills).toEqual({ p1: 1, p2: 2 });
+    expect(r.p2Punkte).toBe(200);
+    expect(r.p1Punkte).toBe(110);
+    expect(r.nachTreffer).toEqual({ p1: 0, p2: 11 });
+  });
+
+  test('HUD: "KOMBO 7 · x1.7" nur bei Kombo > 0, Puls bei Erhoehung, P2 analog, x3.0 gedeckelt', async ({ page }) => {
+    await bereit(page, { coop: true });
+    const r = await page.evaluate(() => {
+      const T = window.__viperTest;
+      const { state } = window.__game;
+      const h1 = document.getElementById('viper-kombo-hud');
+      const h2 = document.getElementById('viper-kombo-hud-p2');
+      const lies = (h) => ({ anzeige: h.style.display, text: h.textContent, puls: h.classList.contains('puls') });
+      const out = {};
+      T.schritte(1);
+      out.null = [lies(h1).anzeige, lies(h2).anzeige];
+      state.viperKombo = 7; state.viperKomboTimer = 100;
+      state.p2.viperKombo = 25; state.p2.viperKomboTimer = 100;
+      T.schritte(1);
+      out.p1 = lies(h1);
+      out.p2 = lies(h2);
+      state.viperKombo = 8;
+      T.schritte(1);
+      out.p1Hoch = lies(h1);
+      state.viperKomboTimer = 1;
+      T.schritte(2);
+      out.p1Weg = lies(h1);
+      return out;
+    });
+    expect(r.null).toEqual(['none', 'none']);
+    expect(r.p1.anzeige).toBe('block');
+    expect(r.p1.text).toBe('KOMBO 7 · x1.7');
+    expect(r.p2.text).toBe('KOMBO 25 · x3.0');
+    expect(r.p1Hoch.text).toBe('KOMBO 8 · x1.8');
+    expect(r.p1Hoch.puls).toBe(true);
+    expect(r.p1Weg.anzeige).toBe('none');
+  });
+
+  test('Online: Snapshot traegt Kombo und Timer beider Viper (ganzzahlig, nur Viper), der Client zeigt sie und tickt nicht selbst', async ({ page }) => {
+    await page.waitForFunction(() => window.__game && window.__game.state);
+    await page.evaluate(() => {
+      const { state, arrays, Utils } = window.__game;
+      Utils.setGameMode('online');
+      state.spielLaeuft = true; state.pausiert = false; state.cutsceneAktiv = false; state.gameOverAktiv = false;
+      state.bossWarningAktiv = false;
+      state.selectedShipModel = 'viper'; state.p2.selectedShipModel = 'viper';
+      state.network.isOnline = true; state.network.isHost = true; state.network.isClient = false; state.network.connected = true;
+      state.frameZaehler = 1;
+      ['feinde', 'asteroiden', 'bosses', 'powerups', 'laserArray', 'raketenArray', 'bombenArray',
+        'feindLaserArray', 'hackProjektilArray', 'bossLaserArray', 'bossRaketenArray', 'bossBombenArray'].forEach(n => {
+        arrays[n].forEach(o => { if (o.el) o.el.remove(); });
+        arrays[n].length = 0;
+      });
+      Object.keys(state.tastenGedrueckt).forEach(k => { state.tastenGedrueckt[k] = false; });
+    });
+    const r = await page.evaluate(async () => {
+      const g = window.__game;
+      const { state } = g;
+      const NK = await import('./js/netzkodierung.js');
+      const out = {};
+      state.viperKombo = 7; state.viperKomboTimer = 80.4;
+      state.p2.viperKombo = 5; state.p2.viperKomboTimer = 30;
+      const voll = JSON.parse(JSON.stringify(g.Network.serializeGameState()));
+      out.roh = [voll.p1.viperKombo, voll.p1.viperKomboTimer, voll.p2.viperKombo, voll.p2.viperKomboTimer];
+      state.p2.selectedShipModel = 'phantom';
+      out.phantomFelder = 'viperKombo' in g.Network.serializeGameState().p2;
+      state.p2.selectedShipModel = 'viper';
+      const kodierer = new NK.SnapshotKodierer();
+      const dekodierer = new NK.SnapshotDekodierer();
+      const rekon = dekodierer.dekodiere(JSON.parse(JSON.stringify(kodierer.kodiere(voll, 0))));
+      out.draht = [rekon.p1.viperKombo, rekon.p1.viperKomboTimer, rekon.p2.viperKombo, rekon.p2.viperKomboTimer];
+
+      // Client: Host-P1 Kombo 7, eigenes Schiff (P2) springt von 4 auf 5 -> Sound
+      state.network.isHost = false; state.network.isClient = true;
+      state.viperKombo = 0; state.viperKomboTimer = 0;
+      state.p2.viperKombo = 4; state.p2.viperKomboTimer = 10;
+      g.Audio.clearAudioHistory();
+      g.Network.applyGameStateSnapshot(rekon);
+      g.Loop.simulationsSchritt();
+      out.client = [state.viperKombo, state.p2.viperKombo, document.getElementById('viper-kombo-hud').textContent,
+        document.getElementById('viper-kombo-hud-p2').style.display];
+      out.sounds = g.Audio.audioHistory.filter(a => a.name === 'kombo').length;
+      // Der Client zaehlt das Fenster nicht selbst herunter und verwirft die Kombo nicht
+      state.p2.viperKomboTimer = 1;
+      for (let i = 0; i < 5; i++) g.Loop.simulationsSchritt();
+      out.keinTick = [state.p2.viperKombo, state.p2.viperKomboTimer];
+      return out;
+    });
+    expect(r.roh).toEqual([7, 80.4, 5, 30]);
+    expect(r.phantomFelder).toBe(false);
+    expect(r.draht).toEqual([7, 80, 5, 30]);
+    expect(r.client[0]).toBe(7);
+    expect(r.client[1]).toBe(5);
+    expect(r.client[2]).toBe('KOMBO 7 · x1.7');
+    expect(r.client[3]).toBe('block');
+    expect(r.sounds).toBe(1);
+    expect(r.keinTick).toEqual([5, 1]);
   });
 });

@@ -794,7 +794,9 @@ function viperZustand(s) {
         viperRolleRichtung: s.viperRolleRichtung || 0,
         viperRolleCooldown: s.viperRolleCooldown || 0,
         viperOverdriveLeiste: s.viperOverdriveLeiste || 0,
-        viperOverdriveTimer: s.viperOverdriveTimer || 0
+        viperOverdriveTimer: s.viperOverdriveTimer || 0,
+        viperKombo: s.viperKombo || 0,
+        viperKomboTimer: s.viperKomboTimer || 0
     };
 }
 

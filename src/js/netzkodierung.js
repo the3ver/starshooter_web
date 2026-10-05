@@ -12,7 +12,7 @@
 //   Delta eines Objekts: geaenderte Felder, '_d' = entfernte Felder, '_r' = Wert ersetzt.
 //   Fehlt 'i', bleiben die Ids wie im letzten Paket; fehlt eine Liste, ist sie unveraendert.
 
-export const PROTOKOLL_VERSION = 8;
+export const PROTOKOLL_VERSION = 9;
 export const KEYFRAME_INTERVALL = 30;   // jedes 30. Paket ist ein Keyframe (~1 s)
 export const DR_TOLERANZ = 0.5;         // px, ab dieser Abweichung wird x/y mitgesendet
 
@@ -45,7 +45,9 @@ export const RUNDUNG = {
     // Viper-Rolle: Restschritte, Richtung und Cooldown ganzzahlig
     viperRolleTimer: runde0, viperRolleRichtung: runde0, viperRolleCooldown: runde0,
     // Viper-Overdrive: Leiste (0..100) und Restschritte ganzzahlig
-    viperOverdriveLeiste: runde0, viperOverdriveTimer: runde0
+    viperOverdriveLeiste: runde0, viperOverdriveTimer: runde0,
+    // Viper-Kill-Kombo: Kills und Restschritte des Fensters ganzzahlig
+    viperKombo: runde0, viperKomboTimer: runde0
 };
 
 function rundungsErsetzer(schluessel, wert) {

@@ -735,6 +735,37 @@
             z-index: 20;
         }
 
+        /* Viper-Kill-Kombo: unter Score und Level, im Coop unter dem HUD des jeweiligen Spielers (P1 links, P2 rechts) */
+        .viper-kombo-hud {
+            position: absolute;
+            top: 62px;
+            right: 15px;
+            color: #ff9800;
+            font: bold 13px 'Courier New', Courier, monospace;
+            letter-spacing: 1px;
+            text-shadow: 0 0 4px #ff9800;
+            white-space: nowrap;
+            z-index: 20;
+            pointer-events: none;
+        }
+        #spielfeld.mode-coop .viper-kombo-hud {
+            right: auto;
+            left: 12px;
+            top: 152px;
+        }
+        #spielfeld.mode-coop .viper-kombo-hud-p2 {
+            left: auto;
+            right: 12px;
+            top: 165px;
+        }
+        .viper-kombo-hud.puls {
+            animation: viper-kombo-puls 0.25s ease-out;
+        }
+        @keyframes viper-kombo-puls {
+            0% { transform: scale(1.5); }
+            100% { transform: scale(1); }
+        }
+
         #level-anzeige {
             position: absolute;
             top: 40px;

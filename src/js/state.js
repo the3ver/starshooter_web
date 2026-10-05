@@ -68,13 +68,14 @@ export const shipModels = {
         energyRegen: 0.5,
         startShield: 0,
         energyPerKill: 5,
-        loseUpgradesOnHit: true,
+        loseUpgradesOnHit: false,
         perks: [
             { icon: '⚡', label: '+20% TEMPO', desc: 'Höchste Wendigkeit & Fluggeschwindigkeit', type: 'buff' },
             { icon: '🔋', label: '+25% REGEN', desc: 'Laser lädt deutlich schneller wieder auf', type: 'buff' },
             { icon: '💥', label: '+5 ENERGIE BEI KILL', desc: 'Stellt für jeden zerstörten Feind 5 Laser-Energie wieder her', type: 'buff' },
             { icon: '💎', label: 'SPLITTER-DROP', desc: 'Jeder 10. zerstörte Feind hinterlässt einen Roten (10=Leben) oder Weißen (10=Super-Waffe) Splitter', type: 'buff' },
-            { icon: '⚠️', label: 'TREFFER: -1 UPGRADE', desc: 'Verliert bei Treffern ohne Schild ein Waffen-Upgrade', type: 'nerf' }
+            { icon: '🔥', label: 'KILL-KOMBO', desc: 'Kills in schneller Folge steigern Punkte (bis x3) und Feuerrate', type: 'buff' },
+            { icon: '⚠️', label: 'TREFFER: KOMBO WEG', desc: 'Jeder Treffer setzt die Kombo zurück', type: 'nerf' }
         ]
     },
     phantom: {
@@ -135,6 +136,8 @@ export const state = {
     viperLinksGehalten: false, viperRechtsGehalten: false, viperTapRichtung: 0, viperTapAlter: 999, viperJoyRuhe: 0, viperJoyVorher: 0,
     // Viper-Overdrive: Leiste 0..100 (je Near-Miss +10), Rest-Schritte des Overdrives
     viperOverdriveLeiste: 0, viperOverdriveTimer: 0,
+    // Viper-Kill-Kombo: Kills in Folge und Restschritte des Kombo-Fensters
+    viperKombo: 0, viperKomboTimer: 0,
     tastenGedrueckt: {
         w: false, a: false, s: false, d: false,
         l: false, k: false, ' ': false,
@@ -185,7 +188,8 @@ export const state = {
         gleveSweepTimer: 0, gleveSweepWinkel: 0, gleveSweepRichtung: 0, gleveSweepTreffer: [], gleveSweepTakt: 0,
         viperRolleTimer: 0, viperRolleRichtung: 0, viperRolleCooldown: 0,
         viperLinksGehalten: false, viperRechtsGehalten: false, viperTapRichtung: 0, viperTapAlter: 999, viperJoyRuhe: 0, viperJoyVorher: 0,
-        viperOverdriveLeiste: 0, viperOverdriveTimer: 0
+        viperOverdriveLeiste: 0, viperOverdriveTimer: 0,
+        viperKombo: 0, viperKomboTimer: 0
     },
     network: {
         isOnline: false,

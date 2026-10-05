@@ -21,7 +21,7 @@ function feuerLaserFuerSpieler(pKey, pState, isFiring) {
   if (!pState || pState.isDead) return;
   if (pState.spielerSchussCooldown > 0) pState.spielerSchussCooldown--;
   if (isFiring && pState.spielerSchussCooldown <= 0) {
-    pState.spielerSchussCooldown = Viper.istOverdrive(pState) ? 3 : 6; // Schussrate (Viper-Overdrive: doppelt)
+    pState.spielerSchussCooldown = Viper.schussCooldown(pState); // Schussrate (Viper: Overdrive doppelt, Kombo schneller)
     Audio.playLaser(pState.laserStufe);
 
     // Schaden pro Projektil (skaliert umgekehrt zur Projektilanzahl, damit Gesamt-DPS kontrolliert wächst)

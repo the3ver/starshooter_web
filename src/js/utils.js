@@ -10,8 +10,9 @@ import * as Gleve from './gleve.js';
 import * as Viper from './viper.js';
 
 
-export function addScore(punkte) {
-  state.score += punkte;
+// faktor: Punkte-Multiplikator (Viper-Kombo), Ergebnis gerundet
+export function addScore(punkte, faktor = 1) {
+  state.score += Math.round(punkte * faktor);
   dom.scoreAnzeige.innerText = state.score.toString().padStart(5, '0');
 }
 // Setzt HTML und entfernt verlorene Symbole (.pu-anim-lost) nach der Animation
@@ -200,10 +201,14 @@ export function zerstoereZiel(ziel, killer = 'p1') {
   let bIndex = arrays.bosses.indexOf(ziel);
   if (fIndex === -1 && aIndex === -1 && bIndex === -1) return;
 
+  // Viper-Kill-Kombo: Punkte dieses Kills zaehlen mit dem Faktor VOR dem Kill, danach waechst die Kombo
+  const komboZustand = (killer === 'p2' && state.p2) ? state.p2 : state;
+  const komboFaktor = Viper.komboFaktor(komboZustand);
+
   // Boss Logik beim Zerstören
   if (ziel.istBoss) {
     Audio.playExplosion('boss');
-    addScore(1000 * state.level);
+    addScore(1000 * state.level, komboFaktor);
     erzeugeExplosion(ziel.x + ziel.groesse / 2, ziel.y + ziel.groesse / 2, '#f1c40f', 50);
     if (state.gameMode === 'online') {
       Network.sendNetworkEvent({
@@ -276,7 +281,7 @@ export function zerstoereZiel(ziel, killer = 'p1') {
     state.frameZaehler = 0; // Setzt Level-Timer zurück
   } else {
     Audio.playExplosion(ziel.groesse >= 35 ? 'medium' : 'small');
-    addScore(ziel.istFeind ? (ziel.muster === 'hacker' ? 200 : 100) : ziel.traegtPowerup ? 50 : ziel.groesse >= 35 ? 20 : 10);
+    addScore(ziel.istFeind ? (ziel.muster === 'hacker' ? 200 : 100) : ziel.traegtPowerup ? 50 : ziel.groesse >= 35 ? 20 : 10, komboFaktor);
     if (ziel.istFeind) {
       const killerShipModel = killer === 'p2' ? (state.p2 && state.p2.selectedShipModel) : state.selectedShipModel;
       const currentShip = shipModels && shipModels[killerShipModel || 'viper'];
@@ -321,6 +326,7 @@ export function zerstoereZiel(ziel, killer = 'p1') {
       erzeugeExplosion(ziel.x + ziel.groesse / 2, ziel.y + ziel.groesse / 2, farbe, 20); // Extra split particles
     }
   }
+  Viper.registriereKill(komboZustand);
   ziel.el.remove();
   if (fIndex > -1) arrays.feinde.splice(fIndex, 1);
   if (aIndex > -1) arrays.asteroiden.splice(aIndex, 1);
@@ -421,6 +427,7 @@ export function spielerGetroffen(kollisionsObjekt, explodiert = true, targetPlay
     if (state.godMode || state.invulnerableTimer > 0 || state.isDead || istDashUnverwundbar(state)) return;
     
     Audio.playHit('player');
+    Viper.setzeKomboZurueck(state);
     state.invulnerableTimer = 45;
     if (dom.spieler) dom.spieler.classList.add('spieler-blink');
 
@@ -485,6 +492,7 @@ export function spielerGetroffen(kollisionsObjekt, explodiert = true, targetPlay
     if (state.godMode || state.p2.invulnerableTimer > 0 || state.p2.isDead || istDashUnverwundbar(state.p2)) return;
     
     Audio.playHit('player');
+    Viper.setzeKomboZurueck(state.p2);
     state.p2.invulnerableTimer = 45;
     if (dom.spieler2) dom.spieler2.classList.add('spieler-blink');
 
