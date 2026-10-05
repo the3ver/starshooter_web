@@ -336,6 +336,8 @@ function entferneGleveEffekte() {
   if (dom.spieler2) dom.spieler2.classList.remove('gleve-dash');
   if (dom.spieler) dom.spieler.classList.remove('viper-rolle');
   if (dom.spieler2) dom.spieler2.classList.remove('viper-rolle');
+  if (dom.spieler) dom.spieler.classList.remove('viper-overdrive');
+  if (dom.spieler2) dom.spieler2.classList.remove('viper-overdrive');
 }
 
 export function triggerGameOver(finalScoreFromHost = null) {

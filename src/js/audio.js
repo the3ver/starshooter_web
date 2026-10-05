@@ -831,6 +831,51 @@ export function playRolle() {
     osc.stop(now + duration);
 }
 
+// Viper Near-Miss: sehr kurzes, leises Zisch-Ticken
+export function playNearMiss() {
+    recordSound('nearMiss');
+    if (isMuted) return;
+    const ctx = getAudioContext();
+    if (!ctx) return;
+    if (ctx.state === 'suspended') ctx.resume().catch(() => {});
+    const now = ctx.currentTime;
+    const duration = 0.06;
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.type = 'sine';
+    osc.frequency.setValueAtTime(1500, now);
+    osc.frequency.exponentialRampToValueAtTime(2400, now + duration);
+    gain.gain.setValueAtTime(0.035, now);
+    gain.gain.exponentialRampToValueAtTime(0.001, now + duration);
+    osc.connect(gain);
+    gain.connect(masterGain);
+    osc.start(now);
+    osc.stop(now + duration);
+}
+
+// Viper-Overdrive startet: aufsteigender Dreiklang
+export function playOverdrive() {
+    recordSound('overdrive');
+    if (isMuted) return;
+    const ctx = getAudioContext();
+    if (!ctx) return;
+    if (ctx.state === 'suspended') ctx.resume().catch(() => {});
+    const now = ctx.currentTime;
+    [[440, 0], [660, 0.07], [880, 0.14]].forEach(([freq, versatz]) => {
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc.type = 'triangle';
+        osc.frequency.setValueAtTime(freq, now + versatz);
+        gain.gain.setValueAtTime(0.001, now + versatz);
+        gain.gain.linearRampToValueAtTime(0.12, now + versatz + 0.02);
+        gain.gain.exponentialRampToValueAtTime(0.001, now + versatz + 0.3);
+        osc.connect(gain);
+        gain.connect(masterGain);
+        osc.start(now + versatz);
+        osc.stop(now + versatz + 0.32);
+    });
+}
+
 // Gleve-Laser-Sweep: heller, singender Klingen-Ton mit kurzem Zisch-Rauschen
 export function playSweep(level = 1) {
     recordSound('sweep', { level });

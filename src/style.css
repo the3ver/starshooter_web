@@ -2153,6 +2153,39 @@
         .viper-rolle-hud.bereit .viper-rolle-fuell {
             background-color: #2ecc71;
         }
+        /* Viper-Overdrive: Leiste neben dem Rollenbalken, Schiff glueht waehrend des Overdrives, Near-Miss-Plus */
+        .viper-overdrive-hud {
+            width: 22px;
+            height: 5px;
+            border-radius: 3px;
+            box-sizing: border-box;
+            border: 1px solid #00b8d4;
+            background-color: #1a252f;
+            overflow: hidden;
+        }
+        .viper-overdrive-fuell {
+            height: 100%;
+            width: 0;
+            background-color: #00b8d4;
+        }
+        .viper-overdrive-hud.aktiv {
+            border-color: #ffd54a;
+            box-shadow: 0 0 5px #ffd54a;
+        }
+        .viper-overdrive-hud.aktiv .viper-overdrive-fuell {
+            background-color: #ffd54a;
+        }
+        .spieler-schiff.viper-overdrive > svg {
+            filter: drop-shadow(0 0 5px #ffd54a) drop-shadow(0 0 10px #ff9800);
+        }
+        .viper-nearmiss-plus {
+            position: absolute;
+            font: bold 12px monospace;
+            color: #00e5ff;
+            text-shadow: 0 0 4px #00e5ff;
+            z-index: 8;
+            pointer-events: none;
+        }
         .gleve-blitz {
             position: absolute;
             width: 40px;

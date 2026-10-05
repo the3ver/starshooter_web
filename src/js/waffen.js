@@ -6,6 +6,7 @@ import * as Audio from './audio.js';
 import * as Network from './network.js';
 import * as Hack from './hack.js';
 import * as Gleve from './gleve.js';
+import * as Viper from './viper.js';
 
 
 export function versteckeAlleLaser() {
@@ -20,7 +21,7 @@ function feuerLaserFuerSpieler(pKey, pState, isFiring) {
   if (!pState || pState.isDead) return;
   if (pState.spielerSchussCooldown > 0) pState.spielerSchussCooldown--;
   if (isFiring && pState.spielerSchussCooldown <= 0) {
-    pState.spielerSchussCooldown = 6; // Schussrate
+    pState.spielerSchussCooldown = Viper.istOverdrive(pState) ? 3 : 6; // Schussrate (Viper-Overdrive: doppelt)
     Audio.playLaser(pState.laserStufe);
 
     // Schaden pro Projektil (skaliert umgekehrt zur Projektilanzahl, damit Gesamt-DPS kontrolliert wächst)
@@ -108,7 +109,7 @@ function feuerLaserFuerSpieler(pKey, pState, isFiring) {
         height: 20,
         schaden: grundSchaden,
         owner: pKey,
-        durchschlag: pState.laserDurchschlag
+        durchschlag: pState.laserDurchschlag || Viper.istOverdrive(pState)
       });
     });
   }
@@ -548,7 +549,8 @@ export function aktualisiereWaffen(laserAktiv, laserAktivP2) {
           }, 50);
           if (getroffenZiel.hp <= 0) Utils.zerstoereZiel(getroffenZiel, l.owner || 'p1');
         }
-        if (!state.laserDurchschlag) {
+        // Durchschlag: Flag des Projektils (Powerup oder Viper-Overdrive), sonst wie bisher das globale Powerup (z. B. Gleve-Rueckwurf)
+        if (!l.durchschlag && !state.laserDurchschlag) {
           l.el.remove();
           arrays.laserArray.splice(i, 1);
         }

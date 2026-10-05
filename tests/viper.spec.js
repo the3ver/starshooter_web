@@ -695,3 +695,383 @@ test.describe('Viper-X Ausweichrolle: Online', () => {
     expect(host.zweite).toBe(0);
   });
 });
+
+// --- Near-Miss + Overdrive ---
+// Ein feindliches Geschoss, das dem Schiff auf <= 18 px nahe kommt, ohne zu treffen, und sich dann entfernt,
+// laedt die Overdrive-Leiste um 10. Bei 100 startet der Overdrive fuer 300 Schritte (doppelte Feuerrate, Durchschlag).
+
+// Feindlichen Laser (kein Zielen, gerade nach unten) mit linker Kante x ueber dem Schiff erzeugen
+async function nearMissBahn(page, { x, liste = 'feindLaserArray', harmlos = false, ys = [300], schritte = 60 }) {
+  return page.evaluate(({ x, liste, harmlos, ys, schritte }) => {
+    const { state, arrays } = window.__game;
+    const T = window.__viperTest;
+    T.leeren();
+    state.viperOverdriveLeiste = 0;
+    state.viperOverdriveTimer = 0;
+    state.x = 150;
+    state.y = 400;
+    ys.forEach((y, i) => {
+      const el = document.createElement('div');
+      el.classList.add('feind-laser');
+      document.getElementById('spielfeld').appendChild(el);
+      arrays[liste].push({ id: 'nm' + i, el, x, y, vx: 0, vy: 5, width: 4, height: 15, harmlos: harmlos || undefined });
+    });
+    const leben = state.leben;
+    T.schritte(schritte);
+    return {
+      leiste: state.viperOverdriveLeiste,
+      timer: state.viperOverdriveTimer,
+      leben: state.leben,
+      verloren: leben - state.leben,
+      ticks: window.__game.Audio.audioHistory.filter(a => a.name === 'nearMiss').length,
+      plus: document.querySelectorAll('.viper-nearmiss-plus').length
+    };
+  }, { x, liste, harmlos, ys, schritte });
+}
+
+test.describe('Viper-X Near-Miss und Overdrive', () => {
+  test('Geschoss 10 px neben dem Schiff: +10, nur einmal; 30 px daneben: 0; Treffer: 0; harmlos: 0', async ({ page }) => {
+    await starteSpiel(page);
+    // Schiff x 150..180; Laser-Kante bei 190 = 10 px Abstand
+    const nah = await nearMissBahn(page, { x: 190 });
+    expect(nah.leiste).toBe(10);
+    expect(nah.ticks).toBe(1);
+    expect(nah.verloren).toBe(0);
+    // weitere Schritte zaehlen dasselbe Geschoss nicht noch einmal (ist laengst aus dem Feld, Leiste bleibt)
+    const ueberlappt = await page.evaluate(() => { window.__viperTest.schritte(30); return window.__game.state.viperOverdriveLeiste; });
+    expect(ueberlappt).toBe(10);
+    // Linke Seite: Laser rechts der Kante 150: Mitte 142 -> Abstand 150 - (142 + 4) = 4
+    expect((await nearMissBahn(page, { x: 142 })).leiste).toBe(10);
+    // 30 px daneben
+    const fern = await nearMissBahn(page, { x: 210 });
+    expect(fern.leiste).toBe(0);
+    expect(fern.ticks).toBe(0);
+    // genau 18 px zaehlt, 19 px nicht
+    expect((await nearMissBahn(page, { x: 198 })).leiste).toBe(10);
+    expect((await nearMissBahn(page, { x: 199 })).leiste).toBe(0);
+    // Treffer zaehlt nicht
+    const treffer = await nearMissBahn(page, { x: 165 });
+    expect(treffer.leiste).toBe(0);
+    expect(treffer.verloren).toBe(1);
+    // harmlos (von der Gleve weggeschleudert) zaehlt nicht
+    expect((await nearMissBahn(page, { x: 190, harmlos: true })).leiste).toBe(0);
+    // Boss-Laser zaehlt wie Feind-Laser
+    expect((await nearMissBahn(page, { x: 190, liste: 'bossLaserArray' })).leiste).toBe(10);
+    // Zwei Geschosse nacheinander: +20
+    expect((await nearMissBahn(page, { x: 190, ys: [300, 330] })).leiste).toBe(20);
+  });
+
+  test('waehrend der Ausweichrolle zaehlt ein Near-Miss ebenfalls; mehrere Geschosse mit Hack-Projektil und Rakete', async ({ page }) => {
+    await starteSpiel(page);
+    const r = await page.evaluate(() => {
+      const { state, arrays } = window.__game;
+      const T = window.__viperTest;
+      T.leeren();
+      state.viperOverdriveLeiste = 0;
+      state.viperOverdriveTimer = 0;
+      // Rolle laeuft (Richtung 0: das Schiff bleibt stehen), unverwundbar
+      state.viperRolleTimer = 200;
+      state.viperRolleRichtung = 0;
+      const neu = (liste, extra) => {
+        const el = document.createElement('div');
+        document.getElementById('spielfeld').appendChild(el);
+        arrays[liste].push({ id: 'x' + liste, el, x: 190, y: 300, vx: 0, vy: 5, width: 4, height: 15, ...extra });
+      };
+      neu('feindLaserArray', {});
+      neu('hackProjektilArray', { y: 280, lenkZeit: 0, width: 6, height: 6 });
+      neu('bossRaketenArray', { y: 260, hp: 5, width: 10, height: 20, speed: 5, turnRate: 0 });
+      T.schritte(40);
+      return state.viperOverdriveLeiste;
+    });
+    expect(r).toBe(30);
+  });
+
+  test('10 Near-Misses starten den Overdrive fuer 300 Schritte, die Leiste leert sich, danach aus', async ({ page }) => {
+    await starteSpiel(page);
+    const r = await page.evaluate(() => {
+      const { state, arrays } = window.__game;
+      const T = window.__viperTest;
+      const out = {};
+      T.leeren();
+      state.viperOverdriveLeiste = 0;
+      state.viperOverdriveTimer = 0;
+      for (let i = 0; i < 10; i++) {
+        const el = document.createElement('div');
+        document.getElementById('spielfeld').appendChild(el);
+        arrays.feindLaserArray.push({ id: 'od' + i, el, x: 190, y: 100 + i * 20, vx: 0, vy: 5, width: 4, height: 15 });
+      }
+      T.schritte(100);
+      const klasse = () => document.getElementById('spieler').classList.contains('viper-overdrive');
+      out.start = [state.viperOverdriveLeiste, state.viperOverdriveTimer, klasse()];
+      out.sounds = [
+        window.__game.Audio.audioHistory.filter(a => a.name === 'overdrive').length,
+        window.__game.Audio.audioHistory.filter(a => a.name === 'nearMiss').length
+      ];
+      const timerNachStart = state.viperOverdriveTimer;
+      // weitere Near-Misses laden waehrend des Overdrives nicht nach
+      const el = document.createElement('div');
+      document.getElementById('spielfeld').appendChild(el);
+      arrays.feindLaserArray.push({ id: 'extra', el, x: 190, y: 300, vx: 0, vy: 5, width: 4, height: 15 });
+      const t0 = timerNachStart;
+      T.schritte(60);
+      out.mitte = [state.viperOverdriveLeiste, state.viperOverdriveTimer, t0 - state.viperOverdriveTimer, klasse()];
+      out.hud = document.getElementById('viper-overdrive-hud').classList.contains('aktiv');
+      T.schritte(timerNachStart - 60 - 1);
+      out.fast = [state.viperOverdriveTimer, klasse()];
+      T.schritte(1);
+      out.aus = [state.viperOverdriveLeiste, state.viperOverdriveTimer, klasse()];
+      out.hudAus = document.getElementById('viper-overdrive-hud').classList.contains('aktiv');
+      return out;
+    });
+    expect(r.start[0]).toBeGreaterThan(50);
+    expect(r.start[1]).toBeGreaterThan(0);
+    expect(r.start[2]).toBe(true);
+    expect(r.sounds).toEqual([1, 9]);
+    expect(r.mitte[2]).toBe(60);
+    expect(r.mitte[0]).toBeLessThan(r.start[0]);
+    expect(r.mitte[3]).toBe(true);
+    expect(r.hud).toBe(true);
+    expect(r.fast).toEqual([1, true]);
+    expect(r.aus).toEqual([0, 0, false]);
+    expect(r.hudAus).toBe(false);
+  });
+
+  test('Overdrive dauert genau 300 Schritte ab Start', async ({ page }) => {
+    await starteSpiel(page);
+    const r = await page.evaluate(() => {
+      const { state, arrays } = window.__game;
+      const T = window.__viperTest;
+      T.leeren();
+      state.viperOverdriveLeiste = 90;
+      state.viperOverdriveTimer = 0;
+      const el = document.createElement('div');
+      document.getElementById('spielfeld').appendChild(el);
+      arrays.feindLaserArray.push({ id: 'z', el, x: 190, y: 380, vx: 0, vy: 5, width: 4, height: 15 });
+      let start = null;
+      for (let i = 1; i <= 20 && start === null; i++) {
+        T.schritte(1);
+        if (state.viperOverdriveTimer > 0) start = i;
+      }
+      const t = state.viperOverdriveTimer;
+      let dauer = 0;
+      while (state.viperOverdriveTimer > 0 && dauer < 400) { T.schritte(1); dauer++; }
+      return { t, leiste: state.viperOverdriveLeiste, dauer };
+    });
+    expect(r.t).toBe(300);
+    expect(r.dauer).toBe(300);
+    expect(r.leiste).toBe(0);
+  });
+
+  test('im Overdrive halbe Schussabstaende und Durchschlag, ausserhalb nicht', async ({ page }) => {
+    await starteSpiel(page);
+    const messe = (overdrive) => page.evaluate((overdrive) => {
+      const { state, arrays } = window.__game;
+      const T = window.__viperTest;
+      T.leeren();
+      state.laserStufe = 1;
+      state.laserDurchschlag = false;
+      state.energie = 50;
+      state.maxEnergie = 50;
+      state.unbegrenzteEnergie = true;
+      state.spielerSchussCooldown = 0;
+      state.viperOverdriveLeiste = overdrive ? 100 : 0;
+      state.viperOverdriveTimer = overdrive ? 300 : 0;
+      // zwei hintereinander stehende, ruhende Ziele ueber dem Schiff
+      const ziele = [300, 200].map((y, i) => {
+        const el = document.createElement('div');
+        el.classList.add('asteroid');
+        document.getElementById('spielfeld').appendChild(el);
+        const a = { id: 'ziel' + i, el, x: 140, y, groesse: 50, vx: 0, vy: 0, immune: 0, hp: 100000, maxHp: 100000,
+          istMagma: false, istUnzerstoerbar: false, traegtPowerup: false, rissEl: null, istFeind: false, rot: 0, vRot: 0 };
+        arrays.asteroiden.push(a);
+        return a;
+      });
+      const ids = new Set();
+      state.tastenGedrueckt.l = true;
+      for (let i = 0; i < 30; i++) {
+        T.schritte(1);
+        arrays.laserArray.forEach(l => ids.add(l.id));
+      }
+      state.tastenGedrueckt.l = false;
+      return { schuesse: ids.size, hp: ziele.map(z => z.hp) };
+    }, overdrive);
+    const normal = await messe(false);
+    const od = await messe(true);
+    expect(normal.hp[0]).toBeLessThan(100000);
+    expect(normal.hp[1]).toBe(100000);
+    expect(od.hp[0]).toBeLessThan(100000);
+    expect(od.hp[1]).toBeLessThan(100000);
+    expect(normal.schuesse).toBe(5);
+    expect(od.schuesse).toBe(10);
+  });
+
+  test('Phantom bekommt keinen Overdrive und keine Leiste im HUD', async ({ page }) => {
+    await starteSpiel(page, { p1: 'phantom' });
+    const r = await page.evaluate(() => {
+      const { state, arrays } = window.__game;
+      const T = window.__viperTest;
+      T.leeren();
+      state.viperOverdriveLeiste = 0;
+      state.viperOverdriveTimer = 0;
+      for (let i = 0; i < 12; i++) {
+        const el = document.createElement('div');
+        document.getElementById('spielfeld').appendChild(el);
+        arrays.feindLaserArray.push({ id: 'ph' + i, el, x: 190, y: 100 + i * 20, vx: 0, vy: 5, width: 4, height: 15 });
+      }
+      T.schritte(100);
+      return {
+        leiste: state.viperOverdriveLeiste,
+        timer: state.viperOverdriveTimer,
+        hud: document.getElementById('viper-overdrive-hud').style.display,
+        klasse: document.getElementById('spieler').classList.contains('viper-overdrive')
+      };
+    });
+    expect(r).toEqual({ leiste: 0, timer: 0, hud: 'none', klasse: false });
+  });
+
+  test('Neustart setzt Leiste und Overdrive zurueck', async ({ page }) => {
+    await starteSpiel(page);
+    const r = await page.evaluate(() => {
+      const { state, Utils } = window.__game;
+      state.viperOverdriveLeiste = 70;
+      state.viperOverdriveTimer = 120;
+      state.p2.viperOverdriveLeiste = 30;
+      Utils.restartGame();
+      return [state.viperOverdriveLeiste, state.viperOverdriveTimer, state.p2.viperOverdriveLeiste];
+    });
+    expect(r).toEqual([0, 0, 0]);
+  });
+
+  test('Bot-Viper sammelt Near-Misses ohne Fehler', async ({ page }) => {
+    await starteSpiel(page, { coop: true });
+    const r = await page.evaluate(() => {
+      const { state, arrays } = window.__game;
+      const T = window.__viperTest;
+      T.leeren();
+      state.p2IsBot = true;
+      state.p2BotDifficulty = 'hard';
+      state.p2.viperOverdriveLeiste = 0;
+      state.p2.viperOverdriveTimer = 0;
+      state.x = 340;
+      state.p2.x = 150;
+      state.p2.y = 400;
+      const fehler = [];
+      window.addEventListener('error', e => fehler.push(e.message));
+      for (let i = 0; i < 6; i++) {
+        const el = document.createElement('div');
+        document.getElementById('spielfeld').appendChild(el);
+        arrays.feindLaserArray.push({ id: 'b' + i, el, x: 192, y: 100 + i * 25, vx: 0, vy: 5, width: 4, height: 15 });
+      }
+      T.schritte(120);
+      return { fehler, leistePlausibel: state.p2.viperOverdriveLeiste >= 0 && state.p2.viperOverdriveLeiste <= 100, leben: state.p2.leben };
+    });
+    expect(r.fehler).toEqual([]);
+    expect(r.leistePlausibel).toBe(true);
+  });
+});
+
+test.describe('Viper-X Near-Miss und Overdrive: Online', () => {
+  async function alsOnline(page, host) {
+    await page.evaluate((host) => {
+      const { state, arrays, Utils } = window.__game;
+      Utils.setGameMode('online');
+      state.spielLaeuft = true;
+      state.pausiert = false;
+      state.cutsceneAktiv = false;
+      state.gameOverAktiv = false;
+      state.bossWarningAktiv = false;
+      state.selectedShipModel = 'viper';
+      state.p2.selectedShipModel = 'viper';
+      state.network.isOnline = true;
+      state.network.isHost = host;
+      state.network.isClient = !host;
+      state.network.connected = true;
+      state.frameZaehler = 1;
+      ['feinde', 'asteroiden', 'bosses', 'powerups', 'laserArray', 'raketenArray', 'bombenArray',
+        'feindLaserArray', 'hackProjektilArray', 'bossLaserArray', 'bossRaketenArray', 'bossBombenArray'].forEach(n => {
+        arrays[n].forEach(o => { if (o.el) o.el.remove(); });
+        arrays[n].length = 0;
+      });
+      Object.keys(state.tastenGedrueckt).forEach(k => { state.tastenGedrueckt[k] = false; });
+    }, host);
+  }
+
+  test('Snapshot enthaelt Leiste und Overdrive-Timer (ganzzahlig), der Client zeigt die Klasse und spielt die Sounds fuer das eigene Schiff', async ({ page }) => {
+    await page.waitForFunction(() => window.__game && window.__game.state);
+    await alsOnline(page, true);
+    const r = await page.evaluate(async () => {
+      const g = window.__game;
+      const { state } = g;
+      const NK = await import('./js/netzkodierung.js');
+      const out = {};
+      state.viperOverdriveLeiste = 50;
+      state.viperOverdriveTimer = 150.4;
+      state.p2.viperOverdriveLeiste = 40;
+      state.p2.viperOverdriveTimer = 0;
+      const voll = JSON.parse(JSON.stringify(g.Network.serializeGameState()));
+      out.roh = [voll.p1.viperOverdriveLeiste, voll.p1.viperOverdriveTimer, voll.p2.viperOverdriveLeiste, voll.p2.viperOverdriveTimer];
+      state.p2.selectedShipModel = 'phantom';
+      out.phantomFelder = 'viperOverdriveLeiste' in g.Network.serializeGameState().p2;
+      state.p2.selectedShipModel = 'viper';
+      const kodierer = new NK.SnapshotKodierer();
+      const dekodierer = new NK.SnapshotDekodierer();
+      const rekon = dekodierer.dekodiere(JSON.parse(JSON.stringify(kodierer.kodiere(voll, 0))));
+      out.draht = [rekon.p1.viperOverdriveLeiste, rekon.p1.viperOverdriveTimer, rekon.p2.viperOverdriveLeiste, rekon.p2.viperOverdriveTimer];
+
+      // Client: Host-P1 im Overdrive, eigenes Schiff (P2) lernt einen Near-Miss kennen
+      state.network.isHost = false;
+      state.network.isClient = true;
+      state.viperOverdriveLeiste = 0;
+      state.viperOverdriveTimer = 0;
+      state.p2.viperOverdriveLeiste = 30;
+      state.p2.viperOverdriveTimer = 0;
+      g.Audio.clearAudioHistory();
+      g.Network.applyGameStateSnapshot(rekon);
+      g.Loop.simulationsSchritt();
+      out.klasseP1 = document.getElementById('spieler').classList.contains('viper-overdrive');
+      out.hudP1 = document.getElementById('viper-overdrive-hud').classList.contains('aktiv');
+      out.klasseP2 = document.getElementById('spieler-2').classList.contains('viper-overdrive');
+      out.leisteClientP2 = state.p2.viperOverdriveLeiste;
+      out.tickAudio = g.Audio.audioHistory.filter(a => a.name === 'nearMiss').length;
+      // eigener Overdrive startet
+      const kopie = JSON.parse(JSON.stringify(rekon));
+      kopie.p2.viperOverdriveLeiste = 100;
+      kopie.p2.viperOverdriveTimer = 300;
+      g.Network.applyGameStateSnapshot(kopie);
+      g.Loop.simulationsSchritt();
+      out.klasseP2Danach = document.getElementById('spieler-2').classList.contains('viper-overdrive');
+      out.overdriveAudio = g.Audio.audioHistory.filter(a => a.name === 'overdrive').length;
+      return out;
+    });
+    expect(r.roh).toEqual([50, 150.4, 40, 0]);
+    expect(r.phantomFelder).toBe(false);
+    expect(r.draht).toEqual([50, 150, 40, 0]);
+    expect(r.klasseP1).toBe(true);
+    expect(r.hudP1).toBe(true);
+    expect(r.klasseP2).toBe(false);
+    expect(r.leisteClientP2).toBe(40);
+    expect(r.tickAudio).toBe(1);
+    expect(r.klasseP2Danach).toBe(true);
+    expect(r.overdriveAudio).toBe(1);
+  });
+
+  test('Host erkennt Near-Miss des Client-Schiffs (P2) und serialisiert die Leiste', async ({ page }) => {
+    await page.waitForFunction(() => window.__game && window.__game.state);
+    await alsOnline(page, true);
+    const r = await page.evaluate(() => {
+      const g = window.__game;
+      const { state, arrays } = g;
+      state.p2.x = 250;
+      state.p2.y = 400;
+      state.p2.isDead = false;
+      state.p2.viperOverdriveLeiste = 0;
+      state.p2.viperOverdriveTimer = 0;
+      const el = document.createElement('div');
+      document.getElementById('spielfeld').appendChild(el);
+      arrays.feindLaserArray.push({ id: 'h', el, x: 290, y: 300, vx: 0, vy: 5, width: 4, height: 15 });
+      for (let i = 0; i < 40; i++) g.Loop.simulationsSchritt();
+      return [state.p2.viperOverdriveLeiste, g.Network.serializeGameState().p2.viperOverdriveLeiste];
+    });
+    expect(r).toEqual([10, 10]);
+  });
+});

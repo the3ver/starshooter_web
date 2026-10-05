@@ -7,7 +7,7 @@
 // viperRolleCooldown, Erkennung: viperLinksGehalten/viperRechtsGehalten (Tasten-Flanken), viperTapRichtung/
 // viperTapAlter (letzter Tipp und Schritte seitdem), viperJoyRuhe/viperJoyVorher (Wischen).
 
-import { dom, config, arrays, shipColors } from './state.js';
+import { state, dom, config, arrays, shipColors, isCoopMode } from './state.js';
 import * as Audio from './audio.js';
 import * as Hack from './hack.js';
 
@@ -19,12 +19,24 @@ export const WISCH_FENSTER = 8; // Schritte vom Ruhebereich (|x| < 0.2) bis |x| 
 const WISCH_RUHE = 0.2;
 const WISCH_SCHWELLE = 0.8;
 
+// Near-Miss + Overdrive: Ein feindliches Geschoss, das dem Schiff auf <= NEAR_MISS_ABSTAND px nahe kommt, ohne zu
+// treffen, und sich dann wieder entfernt, laedt die Leiste (0..100) um NEAR_MISS_LADUNG. Bei 100 startet der
+// Overdrive fuer OVERDRIVE_DAUER Schritte (Leiste leert sich sichtbar): doppelte Feuerrate des Projektil-Lasers und
+// Durchschlag. Erkennung nur auf dem Host/Solo (pruefeNearMiss, einmal pro Schritt ueber alle Geschosslisten).
+export const NEAR_MISS_ABSTAND = 18;
+export const NEAR_MISS_LADUNG = 10;
+export const OVERDRIVE_DAUER = 300;
+
 export function istViper(pState) {
   return !!pState && pState.selectedShipModel === 'viper';
 }
 
 export function istRolleAktiv(pState) {
   return !!pState && (pState.viperRolleTimer || 0) > 0;
+}
+
+export function istOverdrive(pState) {
+  return !!pState && pState.selectedShipModel === 'viper' && (pState.viperOverdriveTimer || 0) > 0;
 }
 
 function schiffElement(pKey) {
@@ -101,11 +113,17 @@ export function aktualisiereViper(pState, pKey, eingabe, anfrage = 0) {
   if ((pState.viperRolleTimer || 0) > 0) pState.viperRolleTimer--;
   if ((pState.viperRolleCooldown || 0) > 0) pState.viperRolleCooldown--;
   pState.viperNetzStart = null;
+  tickOverdrive(pState);
 
   const el = schiffElement(pKey);
   if (pState.isDead) {
     pState.viperRolleTimer = 0;
-    if (el) el.classList.remove('viper-rolle');
+    pState.viperOverdriveTimer = 0;
+    pState.viperOverdriveLeiste = 0;
+    if (el) {
+      el.classList.remove('viper-rolle');
+      el.classList.remove('viper-overdrive');
+    }
     return false;
   }
 
@@ -115,8 +133,77 @@ export function aktualisiereViper(pState, pKey, eingabe, anfrage = 0) {
 
   const rollt = istRolleAktiv(pState);
   if (rollt) rolleSchritt(pState);
-  if (el) el.classList.toggle('viper-rolle', rollt);
+  if (el) {
+    el.classList.toggle('viper-rolle', rollt);
+    el.classList.toggle('viper-overdrive', istOverdrive(pState));
+  }
   return rollt;
+}
+
+// Overdrive-Restzeit herunterzaehlen, die Leiste folgt (ganzzahlig, 100 -> 0 ueber die Dauer)
+function tickOverdrive(p) {
+  if ((p.viperOverdriveTimer || 0) > 0) {
+    p.viperOverdriveTimer--;
+    p.viperOverdriveLeiste = Math.ceil(p.viperOverdriveTimer * 100 / OVERDRIVE_DAUER);
+  }
+}
+
+// Abstand zweier Rechtecke (0 bei Ueberlappung): Luecken in x und y als Euklid
+function rechteckAbstand(ax, ay, aw, ah, bx, by, bw, bh) {
+  const dx = Math.max(bx - (ax + aw), ax - (bx + bw), 0);
+  const dy = Math.max(by - (ay + ah), ay - (by + bh), 0);
+  return Math.hypot(dx, dy);
+}
+
+// Marke am Geschoss: undefined = nie nah, Zahl = kleinster Abstand bisher (nah dran), true = schon gezaehlt
+function nearMissFuer(p, markeKey, geschosse) {
+  const g = config.spielerGroesse;
+  for (const list of geschosse) {
+    for (const s of list) {
+      if (s.harmlos || s[markeKey] === true) continue;
+      const abstand = rechteckAbstand(p.x, p.y, g, g, s.x, s.y, s.width, s.height);
+      if (abstand <= NEAR_MISS_ABSTAND) {
+        if (typeof s[markeKey] !== 'number' || abstand < s[markeKey]) s[markeKey] = abstand;
+        else if (abstand > s[markeKey]) { s[markeKey] = true; zaehleNearMiss(p); } // entfernt sich wieder
+      } else if (typeof s[markeKey] === 'number') {
+        s[markeKey] = true; // war nah dran und ist jetzt weiter weg
+        zaehleNearMiss(p);
+      }
+    }
+  }
+}
+
+function zaehleNearMiss(p) {
+  if ((p.viperOverdriveTimer || 0) > 0) return; // waehrend des Overdrives laedt nichts nach
+  p.viperOverdriveLeiste = Math.min(100, (p.viperOverdriveLeiste || 0) + NEAR_MISS_LADUNG);
+  if (p.viperOverdriveLeiste >= 100) {
+    p.viperOverdriveTimer = OVERDRIVE_DAUER;
+    Audio.playOverdrive();
+  } else {
+    Audio.playNearMiss();
+  }
+  zeigeNearMissPlus(p);
+}
+
+// Einmal pro Simulationsschritt (loop.js, nach allen Geschoss-Bewegungen und Treffern); nur Host bzw. Solo.
+// Zentral statt in gegner.js/boss.js: eine Stelle fuer alle vier Listen, Treffer haben das Geschoss schon entfernt.
+export function pruefeNearMiss() {
+  const listen = [arrays.feindLaserArray, arrays.bossLaserArray, arrays.hackProjektilArray, arrays.bossRaketenArray];
+  if (istViper(state) && !state.isDead) nearMissFuer(state, 'nearMissP1', listen);
+  if (isCoopMode() && state.p2 && istViper(state.p2) && !state.p2.isDead) nearMissFuer(state.p2, 'nearMissP2', listen);
+}
+
+// Kleines Plus am Schiff (sparsam: ein Zeichen, steigt kurz auf)
+function zeigeNearMissPlus(p) {
+  const el = document.createElement('div');
+  el.classList.add('viper-nearmiss-plus');
+  el.textContent = '+';
+  const x = p.x + config.spielerGroesse / 2 - 4;
+  const y = p.y - 6;
+  el.style.left = x + 'px';
+  el.style.top = y + 'px';
+  dom.spielfeld.appendChild(el);
+  arrays.partikelArray.push({ el, x, y, vx: 0, vy: -1.5, leben: 0.8, zerfall: 0.06 });
 }
 
 // Tastenzustand eines Spielers fuer aktualisiereViper (Joystick nur, wenn er aktiv ist)
@@ -136,6 +223,15 @@ export function netzEingabe(pState) {
 
 export function uebernehmeSnapshot(pState, daten, eigenes) {
   if (!daten || daten.viperRolleTimer === undefined) return;
+  // Overdrive: Host ist massgeblich; Sounds nur fuer das eigene Schiff, bei Aenderung
+  const leiste = daten.viperOverdriveLeiste || 0;
+  const odTimer = daten.viperOverdriveTimer || 0;
+  if (eigenes) {
+    if (odTimer > 0 && !((pState.viperOverdriveTimer || 0) > 0)) Audio.playOverdrive();
+    else if (leiste > (pState.viperOverdriveLeiste || 0) && odTimer <= 0) Audio.playNearMiss();
+  }
+  pState.viperOverdriveLeiste = leiste;
+  pState.viperOverdriveTimer = odTimer;
   const cooldown = daten.viperRolleCooldown || 0;
   if (eigenes) {
     // Rolle laeuft lokal vorhergesagt; der Cooldown des Hosts gilt, wenn er laenger ist
@@ -155,7 +251,12 @@ export function zeigeViperZustand(pState, pKey, eigenes) {
   const el = schiffElement(pKey);
   const viper = istViper(pState) && !pState.isDead;
   const rollt = viper && istRolleAktiv(pState);
-  if (el) el.classList.toggle('viper-rolle', rollt);
+  if (el) {
+    el.classList.toggle('viper-rolle', rollt);
+    el.classList.toggle('viper-overdrive', viper && istOverdrive(pState));
+  }
+  // Fremdes Schiff (P1 des Hosts): Overdrive-Zeit zwischen den Snapshots selbst herunterzaehlen
+  if (!eigenes && viper) tickOverdrive(pState);
   if (rollt && !eigenes) {
     erzeugeNachbild(pState);
     pState.viperRolleTimer--;
@@ -176,6 +277,7 @@ export function zeigeRollenHud(pKey, pState, sichtbar = true) {
   const cd = pState ? (pState.viperRolleCooldown || 0) : 0;
   const bereit = zeigen && cd <= 0 && !istRolleAktiv(pState);
   const fuell = zeigen ? Math.round((1 - cd / ROLLE_COOLDOWN) * 100) : 0;
+  zeigeOverdriveHud(pKey, pState, zeigen);
   const signatur = `${zeigen}|${bereit}|${fuell}`;
   if (hudZustand[pKey] === signatur) return;
   hudZustand[pKey] = signatur;
@@ -185,7 +287,27 @@ export function zeigeRollenHud(pKey, pState, sichtbar = true) {
   if (balken) balken.style.width = Math.max(0, Math.min(100, fuell)) + '%';
 }
 
+const odHudZustand = { p1: '', p2: '' };
+
+// Overdrive-Leiste neben dem Rollenbalken (gelb waehrend des Overdrives)
+function zeigeOverdriveHud(pKey, pState, zeigen) {
+  const el = document.getElementById(pKey === 'p2' ? 'viper-overdrive-hud-p2' : 'viper-overdrive-hud');
+  if (!el) return;
+  const leiste = zeigen && pState ? Math.max(0, Math.min(100, Math.round(pState.viperOverdriveLeiste || 0))) : 0;
+  const aktiv = zeigen && istOverdrive(pState);
+  const signatur = `${zeigen}|${aktiv}|${leiste}`;
+  if (odHudZustand[pKey] === signatur) return;
+  odHudZustand[pKey] = signatur;
+  el.style.display = zeigen ? 'block' : 'none';
+  el.classList.toggle('aktiv', aktiv);
+  const balken = el.firstElementChild;
+  if (balken) balken.style.width = leiste + '%';
+}
+
 export function setzeZurueck(pState, schiffEl) {
+  pState.viperOverdriveLeiste = 0;
+  pState.viperOverdriveTimer = 0;
+  if (schiffEl) schiffEl.classList.remove('viper-overdrive');
   pState.viperRolleTimer = 0;
   pState.viperRolleRichtung = 0;
   pState.viperRolleCooldown = 0;

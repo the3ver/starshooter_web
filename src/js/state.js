@@ -133,6 +133,8 @@ export const state = {
     // Viper-Ausweichrolle (viper.js): Rest-Schritte, Richtung (+1/-1), Cooldown, Tipp-/Wisch-Erkennung
     viperRolleTimer: 0, viperRolleRichtung: 0, viperRolleCooldown: 0,
     viperLinksGehalten: false, viperRechtsGehalten: false, viperTapRichtung: 0, viperTapAlter: 999, viperJoyRuhe: 0, viperJoyVorher: 0,
+    // Viper-Overdrive: Leiste 0..100 (je Near-Miss +10), Rest-Schritte des Overdrives
+    viperOverdriveLeiste: 0, viperOverdriveTimer: 0,
     tastenGedrueckt: {
         w: false, a: false, s: false, d: false,
         l: false, k: false, ' ': false,
@@ -182,7 +184,8 @@ export const state = {
         gleveUnverwundbar: 0, gleveDashTasteGehalten: false, gleveDashTreffer: [],
         gleveSweepTimer: 0, gleveSweepWinkel: 0, gleveSweepRichtung: 0, gleveSweepTreffer: [], gleveSweepTakt: 0,
         viperRolleTimer: 0, viperRolleRichtung: 0, viperRolleCooldown: 0,
-        viperLinksGehalten: false, viperRechtsGehalten: false, viperTapRichtung: 0, viperTapAlter: 999, viperJoyRuhe: 0, viperJoyVorher: 0
+        viperLinksGehalten: false, viperRechtsGehalten: false, viperTapRichtung: 0, viperTapAlter: 999, viperJoyRuhe: 0, viperJoyVorher: 0,
+        viperOverdriveLeiste: 0, viperOverdriveTimer: 0
     },
     network: {
         isOnline: false,

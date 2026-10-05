@@ -6,6 +6,7 @@ import * as Audio from './audio.js';
 import * as Cutscene from './cutscene.js';
 import * as Network from './network.js';
 import * as Hack from './hack.js';
+import * as Viper from './viper.js';
 import { animierenPartikel } from './partikel.js';
 import { verwalteFeindSpawns, aktualisiereAsteroiden, aktualisiereFeinde, aktualisiereFeindLaser, aktualisiereHackProjektile } from './gegner.js';
 import { aktualisiereBosse, aktualisiereBossBomben, aktualisiereBossRaketen } from './boss.js';
@@ -206,6 +207,9 @@ export function simulationsSchritt() {
 
   // --- 9.8d BOSS RAKETEN UPDATE ---
   aktualisiereBossRaketen();
+
+  // --- 9.8e VIPER NEAR-MISS (nach allen Geschoss-Bewegungen und Treffern) ---
+  Viper.pruefeNearMiss();
 
   // --- 9.9 - 9.14 WAFFEN (Autolaser, Hitscan, Laser, Raketen, Bomben) ---
   aktualisiereWaffen(laserAktiv, laserAktivP2);

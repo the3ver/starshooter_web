@@ -12,7 +12,7 @@
 //   Delta eines Objekts: geaenderte Felder, '_d' = entfernte Felder, '_r' = Wert ersetzt.
 //   Fehlt 'i', bleiben die Ids wie im letzten Paket; fehlt eine Liste, ist sie unveraendert.
 
-export const PROTOKOLL_VERSION = 7;
+export const PROTOKOLL_VERSION = 8;
 export const KEYFRAME_INTERVALL = 30;   // jedes 30. Paket ist ein Keyframe (~1 s)
 export const DR_TOLERANZ = 0.5;         // px, ab dieser Abweichung wird x/y mitgesendet
 
@@ -43,7 +43,9 @@ export const RUNDUNG = {
     gleveDashLadungen: runde0, gleveDashTimer: runde0, gleveAbprallTimer: runde0, gleveUnverwundbar: runde0,
     gleveSweepTimer: runde0, gleveSweepWinkel: runde1, gleveSweepRichtung: runde0,
     // Viper-Rolle: Restschritte, Richtung und Cooldown ganzzahlig
-    viperRolleTimer: runde0, viperRolleRichtung: runde0, viperRolleCooldown: runde0
+    viperRolleTimer: runde0, viperRolleRichtung: runde0, viperRolleCooldown: runde0,
+    // Viper-Overdrive: Leiste (0..100) und Restschritte ganzzahlig
+    viperOverdriveLeiste: runde0, viperOverdriveTimer: runde0
 };
 
 function rundungsErsetzer(schluessel, wert) {
