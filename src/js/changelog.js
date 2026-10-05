@@ -1,6 +1,16 @@
-export const GAME_VERSION = '1.12.0';
+export const GAME_VERSION = '1.13.0';
 
 export const changelogData = {
+  '1.13.0': {
+    version: '1.13.0',
+    intro: 'Hey, es ist jetzt Version 1.13.0 rausgekommen, folgendes wurde aktualisiert:',
+    highlights: [
+      '🎯 Neues Schiff im Hangar: die SPECTRE-SR! Ein Fadenkreuz vor dem Schiff zeigt, wo der Schuss einschlägt, getroffen wird genau dort. Mit Laser-Upgrades wird der Zielbereich größer, ab Stufe 4 zielt das Fadenkreuz automatisch',
+      '⚡ Laser-Taste gedrückt halten lädt den Schuss auf, bis zum vierfachen Schaden. Voll geladen durchschlägt er sogar Schilde. Auf dem Handy gibt es dafür den L-Knopf',
+      '💣 Statt Raketen wirft die Spectre Granaten ins Fadenkreuz: Die Druckwelle stößt Gegner weg und legt sie kurz lahm',
+      '🔄 Für den Online-Modus brauchen beide Spieler Version 1.13.0, sonst bitte die Seite neu laden (Strg+F5)'
+    ]
+  },
   '1.12.0': {
     version: '1.12.0',
     intro: 'Hey, es ist jetzt Version 1.12.0 rausgekommen, folgendes wurde aktualisiert:',
