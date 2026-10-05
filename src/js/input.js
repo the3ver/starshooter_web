@@ -6,10 +6,11 @@ import * as Loop from './loop.js';
 import * as Audio from './audio.js';
 import * as Cutscene from './cutscene.js';
 import * as Network from './network.js';
-import { schaltePause } from './pause.js';
+import { schaltePause, behandleEscape, initPauseMenue } from './pause.js';
 
 
 export function setupInput() {
+  initPauseMenue();
   window.addEventListener('keydown', e => {
     if (e.target && e.target.tagName === 'INPUT') return;
     Audio.initAudio();
@@ -17,6 +18,10 @@ export function setupInput() {
     if (e.key === 'Escape' || e.key === 'Esc') {
       if (state.cutsceneAktiv) {
         Cutscene.skipCutscene();
+        return;
+      }
+      if (behandleEscape()) {
+        e.preventDefault();
         return;
       }
     }

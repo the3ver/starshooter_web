@@ -1,5 +1,6 @@
 import { state, dom } from './state.js';
 import * as Network from './network.js';
+import * as Utils from './utils.js';
 
 // Gemeinsame Pause im Online-Modus: Wer pausiert, ist Besitzer und kann allein fortsetzen.
 // Die Pause endet nach spaetestens PAUSE_MAX_MS automatisch. Ausserhalb des Online-Modus
@@ -8,6 +9,68 @@ import * as Network from './network.js';
 export const PAUSE_MAX_MS = 60000;
 const HINWEIS_MS = 2500;
 let hinweisBis = 0;
+let abfrageOffen = false;
+
+function zeigeEl(id, sichtbar) {
+  const el = document.getElementById(id);
+  if (el) el.style.display = sichtbar ? (id === 'pause-knoepfe' || id === 'pause-abfrage' ? 'flex' : 'block') : 'none';
+}
+
+// Knoepfe nur bei lokaler Pause (Single, Coop, Bot); online bleibt es beim Text
+function aktualisiereMenue() {
+  const lokal = state.pausiert && !state.pauseVon && !istOnlineModus();
+  if (!lokal) abfrageOffen = false;
+  zeigeEl('pause-menue', lokal);
+  zeigeEl('pause-knoepfe', lokal && !abfrageOffen);
+  zeigeEl('pause-abfrage', lokal && abfrageOffen);
+  zeigeEl('pause-abfrage-text', lokal && abfrageOffen);
+}
+
+export function istAbfrageOffen() {
+  return abfrageOffen;
+}
+
+export function oeffneAbfrage() {
+  if (!state.pausiert || state.pauseVon || istOnlineModus()) return;
+  abfrageOffen = true;
+  aktualisiereMenue();
+}
+
+export function schliesseAbfrage() {
+  abfrageOffen = false;
+  aktualisiereMenue();
+}
+
+// Pause beenden (WEITER bzw. Taste P)
+export function weiter() {
+  schaltePause();
+}
+
+// Laufendes Spiel verwerfen und zurueck zum Startbildschirm (kein Highscore, kein Game-Over)
+export function beendeSpielZumHauptmenue() {
+  if (!state.pausiert || state.pauseVon || istOnlineModus()) return;
+  abfrageOffen = false;
+  Utils.restartGame();
+  aktualisiereMenue();
+}
+
+// ESC waehrend der Pause: Abfrage oeffnen bzw. abbrechen. true = Taste verbraucht.
+export function behandleEscape() {
+  if (!state.pausiert || state.pauseVon || istOnlineModus()) return false;
+  if (abfrageOffen) schliesseAbfrage(); else oeffneAbfrage();
+  return true;
+}
+
+export function initPauseMenue() {
+  const bind = (id, fn) => {
+    const el = document.getElementById(id);
+    if (el) el.addEventListener('click', fn);
+  };
+  bind('btn-pause-weiter', weiter);
+  bind('btn-pause-hauptmenue', oeffneAbfrage);
+  bind('btn-pause-ja', beendeSpielZumHauptmenue);
+  bind('btn-pause-abbrechen', schliesseAbfrage);
+}
 
 export function istOnlineModus() {
   return state.gameMode === 'online' || Boolean(state.network && state.network.isOnline);
@@ -40,9 +103,11 @@ export function aktualisierePauseAnzeige() {
   if (!overlay) return;
   if (!state.pausiert) {
     overlay.style.display = 'none';
+    aktualisiereMenue();
     return;
   }
   overlay.style.display = 'block';
+  aktualisiereMenue();
   const titel = document.getElementById('pause-titel');
   const info = document.getElementById('pause-info');
   const hinweis = document.getElementById('pause-hinweis');
@@ -78,7 +143,9 @@ export function beendePause() {
   state.pauseVon = null;
   state.pauseEndeZeit = 0;
   hinweisBis = 0;
+  abfrageOffen = false;
   if (dom.pauseOverlay) dom.pauseOverlay.style.display = 'none';
+  aktualisiereMenue();
 }
 
 // Pro Simulationsschritt waehrend der Pause: Anzeige aktualisieren, bei Ablauf beenden.

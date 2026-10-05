@@ -2791,3 +2791,57 @@
 
 
 
+
+        .pause-menue {
+            margin-top: 14px;
+            white-space: normal;
+            letter-spacing: 1px;
+        }
+
+        .pause-abfrage-text {
+            font-size: 18px;
+            color: #f1c40f;
+            text-shadow: none;
+            margin-bottom: 10px;
+        }
+
+        .pause-knoepfe {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            align-items: center;
+        }
+
+        .pause-btn {
+            min-width: 220px;
+            min-height: 44px;
+            background: rgba(44, 62, 80, 0.85);
+            border: 1.5px solid #3498db;
+            color: #ecf0f1;
+            padding: 10px 18px;
+            font-size: 16px;
+            font-family: inherit;
+            font-weight: bold;
+            letter-spacing: 2px;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            touch-action: manipulation;
+        }
+
+        .pause-btn:hover,
+        .pause-btn:focus-visible {
+            background: rgba(52, 152, 219, 0.35);
+            border-color: #00ffff;
+            color: #fff;
+        }
+
+        .pause-btn-gefahr {
+            border-color: #e74c3c;
+        }
+
+        .pause-btn-gefahr:hover,
+        .pause-btn-gefahr:focus-visible {
+            background: rgba(231, 76, 60, 0.35);
+            border-color: #ff6b5b;
+        }

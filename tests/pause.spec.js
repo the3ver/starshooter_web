@@ -1,5 +1,5 @@
 const { test, expect } = require('@playwright/test');
-const { setzeSpielstand } = require('./helfer');
+const { setzeSpielstand, starteSpiel } = require('./helfer');
 
 test.beforeEach(async ({ page }) => {
   await page.route('**/api/highscores*', route => route.fulfill({
@@ -177,4 +177,118 @@ test('Pause f) Singleplayer: P schaltet wie bisher ohne Zeitlimit und ohne Event
   s = await pauseStatus(page);
   expect(s.sichtbar).toBe(false);
   expect(s.letztes).toBeNull();
+});
+
+// --- Pausenmenue: Knoepfe WEITER / HAUPTMENUE (nur lokal) ---
+
+async function startePausiert(page, modus) {
+  if (modus === 'coop') await page.evaluate(() => window.__game.Utils.setGameMode('coop'));
+  await starteSpiel(page);
+  await page.waitForFunction(() => window.__game.state.spielLaeuft);
+  await page.evaluate(() => {
+    const g = window.__game;
+    g.Entities.erzeugeFeind(100, 50);
+    g.Entities.erzeugeAsteroid(200, 80, 40, 0, 1);
+    g.state.score = 1234;
+  });
+  await page.keyboard.press('KeyP');
+  await page.waitForFunction(() => window.__game.state.pausiert);
+}
+
+const sichtbar = (page, id) => page.evaluate((id) => {
+  const el = document.getElementById(id);
+  return Boolean(el) && el.offsetParent !== null && getComputedStyle(el).display !== 'none';
+}, id);
+
+for (const modus of ['single', 'coop']) {
+  test(`Pausenmenue (${modus}): Knoepfe, WEITER, ABBRECHEN, ESC`, async ({ page }) => {
+    await startePausiert(page, modus);
+    expect(await sichtbar(page, 'btn-pause-weiter')).toBe(true);
+    expect(await sichtbar(page, 'btn-pause-hauptmenue')).toBe(true);
+    expect(await sichtbar(page, 'btn-pause-ja')).toBe(false);
+
+    // Abfrage ueber Knopf, ABBRECHEN bleibt pausiert
+    await page.click('#btn-pause-hauptmenue');
+    expect(await sichtbar(page, 'btn-pause-ja')).toBe(true);
+    expect(await sichtbar(page, 'pause-abfrage-text')).toBe(true);
+    await page.click('#btn-pause-abbrechen');
+    expect(await sichtbar(page, 'btn-pause-ja')).toBe(false);
+    expect(await sichtbar(page, 'btn-pause-weiter')).toBe(true);
+    expect(await page.evaluate(() => window.__game.state.pausiert)).toBe(true);
+
+    // ESC oeffnet und schliesst die Abfrage
+    await page.keyboard.press('Escape');
+    expect(await sichtbar(page, 'btn-pause-ja')).toBe(true);
+    await page.keyboard.press('Escape');
+    expect(await sichtbar(page, 'btn-pause-ja')).toBe(false);
+    expect(await page.evaluate(() => window.__game.state.pausiert)).toBe(true);
+
+    // WEITER beendet die Pause
+    await page.click('#btn-pause-weiter');
+    expect(await page.evaluate(() => window.__game.state.pausiert)).toBe(false);
+    expect(await sichtbar(page, 'pause-overlay')).toBe(false);
+    expect(await page.evaluate(() => window.__game.state.spielLaeuft)).toBe(true);
+  });
+
+  test(`Pausenmenue (${modus}): JA beendet das Spiel ohne Game-Over und ein neues Spiel startet`, async ({ page }) => {
+    await startePausiert(page, modus);
+    await page.click('#btn-pause-hauptmenue');
+    await page.click('#btn-pause-ja');
+    const r = await page.evaluate(() => {
+      const g = window.__game;
+      const el = (id) => document.getElementById(id);
+      const a = g.arrays;
+      return {
+        start: el('start-screen').style.display,
+        go: el('game-over-screen').style.display,
+        laeuft: g.state.spielLaeuft,
+        pausiert: g.state.pausiert,
+        gameOver: g.state.gameOverAktiv,
+        modus: g.state.gameMode,
+        overlay: el('pause-overlay').style.display,
+        feinde: a.feinde.length + a.asteroiden.length + a.laserArray.length + a.feindLaserArray.length,
+        dom: document.querySelectorAll('.feind, .asteroid, .laser, .feind-laser').length,
+        score: g.state.score,
+        scoreText: document.getElementById('score') ? document.getElementById('score').textContent : null
+      };
+    });
+    expect(r.start).toBe('block');
+    expect(r.go).toBe('none');
+    expect(r.laeuft).toBe(false);
+    expect(r.pausiert).toBe(false);
+    expect(r.gameOver).toBe(false);
+    expect(r.modus).toBe(modus);
+    expect(r.overlay).toBe('none');
+    expect(r.feinde).toBe(0);
+    expect(r.dom).toBe(0);
+    expect(r.score).toBe(0);
+    if (r.scoreText !== null) expect(r.scoreText).not.toContain('1234');
+
+    // Neues Spiel startet normal
+    await starteSpiel(page);
+    await page.waitForFunction(() => window.__game.state.spielLaeuft);
+    expect(await page.evaluate(() => window.__game.state.pausiert)).toBe(false);
+  });
+}
+
+test('Pausenmenue online: keine Knoepfe, ESC wirkungslos', async ({ page }) => {
+  await online(page, 'host');
+  await page.keyboard.press('KeyP');
+  await page.waitForFunction(() => window.__game.state.pausiert);
+  expect(await sichtbar(page, 'pause-overlay')).toBe(true);
+  expect(await sichtbar(page, 'btn-pause-weiter')).toBe(false);
+  expect(await sichtbar(page, 'btn-pause-hauptmenue')).toBe(false);
+  await page.keyboard.press('Escape');
+  expect(await sichtbar(page, 'btn-pause-ja')).toBe(false);
+  expect(await page.evaluate(() => window.__game.state.pausiert)).toBe(true);
+});
+
+test('Pausenmenue online (Client, fremde Pause): keine Knoepfe', async ({ page }) => {
+  await online(page, 'client');
+  await page.evaluate(() => {
+    window.__game.Network.handleNetworkEvent({ type: 'pause_start', von: 'p1', dauerMs: 60000 }, 'peer');
+  });
+  await page.waitForFunction(() => window.__game.state.pausiert);
+  expect(await sichtbar(page, 'btn-pause-weiter')).toBe(false);
+  expect(await sichtbar(page, 'btn-pause-hauptmenue')).toBe(false);
 });
