@@ -7,6 +7,7 @@ import * as Audio from './audio.js';
 import * as Bot from './bot.js';
 import * as Network from './network.js';
 import * as Gleve from './gleve.js';
+import * as Viper from './viper.js';
 
 
 export function addScore(punkte) {
@@ -333,6 +334,8 @@ function entferneGleveEffekte() {
   arrays.gleveWellen.length = 0;
   if (dom.spieler) dom.spieler.classList.remove('gleve-dash');
   if (dom.spieler2) dom.spieler2.classList.remove('gleve-dash');
+  if (dom.spieler) dom.spieler.classList.remove('viper-rolle');
+  if (dom.spieler2) dom.spieler2.classList.remove('viper-rolle');
 }
 
 export function triggerGameOver(finalScoreFromHost = null) {
@@ -406,9 +409,9 @@ export function triggerGameOver(finalScoreFromHost = null) {
   updateMobileControlsVisibility();
 }
 
-// Gleve-Dash (+ Nachlauf/Abprall): Schiff ist nicht treffbar, Geschosse und Gegner fliegen durch
+// Gleve-Dash (+ Nachlauf/Abprall) und Viper-Rolle: Schiff ist nicht treffbar, Geschosse und Gegner fliegen durch
 export function istDashUnverwundbar(pState) {
-  return !!pState && (pState.gleveUnverwundbar || 0) > 0;
+  return !!pState && ((pState.gleveUnverwundbar || 0) > 0 || (pState.viperRolleTimer || 0) > 0);
 }
 
 export function spielerGetroffen(kollisionsObjekt, explodiert = true, targetPlayer = 'p1') {
@@ -624,6 +627,8 @@ export function restartGame() {
   if (state.p2) state.p2.hacks = [];
   setzeGleveDashZurueck(state, dom.spieler);
   if (state.p2) setzeGleveDashZurueck(state.p2, dom.spieler2);
+  Viper.setzeZurueck(state, dom.spieler);
+  if (state.p2) Viper.setzeZurueck(state.p2, dom.spieler2);
   entferneGleveEffekte();
   Bot.resetBot();
   updateLebenUI();
@@ -1572,6 +1577,8 @@ function setzeHudLabel(el, text, lang) {
 export function updateSchiffHudLabels() {
   const modelP1 = state.selectedShipModel || 'viper';
   const modelP2 = (state.p2 && state.p2.selectedShipModel) || 'phantom';
+  Viper.zeigeRollenHud('p1', state);
+  if (state.p2) Viper.zeigeRollenHud('p2', state.p2, isCoopMode());
   const labelsP1 = HUD_LABELS[modelP1] || HUD_LABELS.standard;
   const labelsP2 = HUD_LABELS[modelP2] || HUD_LABELS.standard;
 

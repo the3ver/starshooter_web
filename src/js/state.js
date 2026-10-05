@@ -130,6 +130,9 @@ export const state = {
     // Gleve-Sweep: Restframes, Strahlwinkel (Grad), Richtung (+1/-1, 0 = noch kein Sweep), getroffene Ziele,
     // Frames bis zum naechsten moeglichen Start (Takt)
     gleveSweepTimer: 0, gleveSweepWinkel: 0, gleveSweepRichtung: 0, gleveSweepTreffer: [], gleveSweepTakt: 0,
+    // Viper-Ausweichrolle (viper.js): Rest-Schritte, Richtung (+1/-1), Cooldown, Tipp-/Wisch-Erkennung
+    viperRolleTimer: 0, viperRolleRichtung: 0, viperRolleCooldown: 0,
+    viperLinksGehalten: false, viperRechtsGehalten: false, viperTapRichtung: 0, viperTapAlter: 999, viperJoyRuhe: 0, viperJoyVorher: 0,
     tastenGedrueckt: {
         w: false, a: false, s: false, d: false,
         l: false, k: false, ' ': false,
@@ -177,7 +180,9 @@ export const state = {
         isDead: false, rotate: 0, hacks: [],
         gleveDashTimer: 0, gleveDashVx: 0, gleveDashVy: 0, gleveAbprallTimer: 0, gleveDashLadungen: 2,
         gleveUnverwundbar: 0, gleveDashTasteGehalten: false, gleveDashTreffer: [],
-        gleveSweepTimer: 0, gleveSweepWinkel: 0, gleveSweepRichtung: 0, gleveSweepTreffer: [], gleveSweepTakt: 0
+        gleveSweepTimer: 0, gleveSweepWinkel: 0, gleveSweepRichtung: 0, gleveSweepTreffer: [], gleveSweepTakt: 0,
+        viperRolleTimer: 0, viperRolleRichtung: 0, viperRolleCooldown: 0,
+        viperLinksGehalten: false, viperRechtsGehalten: false, viperTapRichtung: 0, viperTapAlter: 999, viperJoyRuhe: 0, viperJoyVorher: 0
     },
     network: {
         isOnline: false,

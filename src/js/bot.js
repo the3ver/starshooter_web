@@ -1,6 +1,7 @@
 
 import { state, config, arrays, shipModels } from './state.js';
 import * as Gleve from './gleve.js';
+import * as Viper from './viper.js';
 import * as Hack from './hack.js';
 
 // --- Bot-Schwierigkeitsstufen ---
@@ -410,6 +411,41 @@ function updateStandardWaffen(p2, diff, target, cx) {
   }
 }
 
+// --- Viper: Ausweichrolle, wenn eine Gefahr sehr nah ist und normales Ausweichen zu spaet kaeme ---
+const ROLLE_GEFAHR_NAH = 40;
+
+// Wie frei ist die Seite fuer eine Rolle: Platz bis zum Rand (hoechstens Rollweite), Abzug je Hindernis im Rollweg
+function seitenFreiheit(p2, richtung, cx, cy) {
+  const platz = richtung > 0 ? config.spielfeldBreite - config.spielerGroesse - p2.x : p2.x;
+  let wert = Math.min(platz, Viper.ROLLE_DISTANZ);
+  const x1 = cx + richtung * (Viper.ROLLE_DISTANZ + 15);
+  const lo = Math.min(cx, x1) - 8;
+  const hi = Math.max(cx, x1) + 8;
+  const hindernisse = [...arrays.asteroiden, ...arrays.feinde, ...arrays.feindLaserArray, ...arrays.bossLaserArray,
+    ...arrays.hackProjektilArray, ...arrays.bossBombenArray, ...arrays.bossRaketenArray];
+  for (const h of hindernisse) {
+    if (h.harmlos) continue;
+    const hx = h.x + (h.groesse || h.width || 4) / 2;
+    const hy = h.y + (h.groesse || h.height || 10) / 2;
+    if (hx > lo && hx < hi && Math.abs(hy - cy) < 45) wert -= 100;
+  }
+  return wert;
+}
+
+function pruefeViperRolle(p2, danger) {
+  p2.botRolleAnfrage = 0;
+  if (!Viper.istViper(p2) || !danger || Viper.istRolleAktiv(p2) || (p2.viperRolleCooldown || 0) > 0) return;
+  const cx = p2.x + config.spielerGroesse / 2;
+  const cy = p2.y + config.spielerGroesse / 2;
+  // Nur wenn die Gefahr fast auf dem Schiff liegt und von oben kommt (nicht schon vorbei)
+  if (danger.dSq >= ROLLE_GEFAHR_NAH * ROLLE_GEFAHR_NAH) return;
+  if (Math.abs(danger.x - cx) > config.spielerGroesse * 0.75 || danger.y > cy + 10) return;
+  const links = seitenFreiheit(p2, -1, cx, cy);
+  const rechts = seitenFreiheit(p2, 1, cx, cy);
+  if (links === rechts) p2.botRolleAnfrage = danger.x > cx ? -1 : 1;
+  else p2.botRolleAnfrage = links > rechts ? -1 : 1;
+}
+
 // --- Haupt-Update-Funktion (1x pro Frame) ---
 export function updateBot() {
   const p2 = state.p2;
@@ -430,6 +466,7 @@ export function updateBot() {
     const target = findBestTarget(p2, diff);
 
     lastDecision = computeMovement(p2, target, danger, powerup, diff);
+    pruefeViperRolle(p2, danger);
     updateBotWeapons(p2, diff, target);
   }
 

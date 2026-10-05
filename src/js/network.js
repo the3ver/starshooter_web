@@ -9,6 +9,7 @@ import { beendePause, verarbeitePauseEvent } from './pause.js';
 import { GAME_VERSION } from './changelog.js';
 import { PROTOKOLL_VERSION, KEYFRAME_INTERVALL, SnapshotKodierer, SnapshotDekodierer, EingabeSender } from './netzkodierung.js';
 import * as Gleve from './gleve.js';
+import * as Viper from './viper.js';
 
 let room = null;
 let sendStateAction = null;
@@ -785,6 +786,16 @@ function gleveZustand(s) {
     };
 }
 
+// Rollen-Zustand der Viper (Timer, Richtung, Cooldown) fuer Anzeige und Cooldown-Abgleich beim Client
+function viperZustand(s) {
+    if (!Viper.istViper(s)) return {};
+    return {
+        viperRolleTimer: s.viperRolleTimer || 0,
+        viperRolleRichtung: s.viperRolleRichtung || 0,
+        viperRolleCooldown: s.viperRolleCooldown || 0
+    };
+}
+
 // Von der Gleve weggeschleuderte Geschosse (fehlend = false)
 function harmlosFlag(o) {
     return o.harmlos ? { harmlos: true } : {};
@@ -816,7 +827,8 @@ export function serializeGameState() {
             phantomSchildRegenTimer: state.phantomSchildRegenTimer || 0,
             phantomSchildRegenMax: state.phantomSchildRegenMax || 900,
             hacks: state.hacks || [],
-            ...gleveZustand(state)
+            ...gleveZustand(state),
+            ...viperZustand(state)
         },
         p2: state.p2 ? {
             x: state.p2.x,
@@ -842,7 +854,8 @@ export function serializeGameState() {
             phantomSchildRegenTimer: state.p2.phantomSchildRegenTimer || 0,
             phantomSchildRegenMax: state.p2.phantomSchildRegenMax || 900,
             hacks: state.p2.hacks || [],
-            ...gleveZustand(state.p2)
+            ...gleveZustand(state.p2),
+            ...viperZustand(state.p2)
         } : null,
         score: state.score,
         level: state.level,
@@ -1076,6 +1089,7 @@ export function applyGameStateSnapshot(snapshot) {
         state.hacks = snapshot.p1.hacks || [];
         // Gleve des Hosts: Dash/Abprall/Sweep nur darstellen (clientSchritt zeichnet)
         Gleve.uebernehmeSnapshot(state, snapshot.p1, false);
+        Viper.uebernehmeSnapshot(state, snapshot.p1, false);
 
         if (dom.spieler) {
             setzeInterpolationsZiel(p1Anzeige, dom.spieler, state.x, state.y);
@@ -1144,6 +1158,7 @@ export function applyGameStateSnapshot(snapshot) {
         state.p2.isDead = snapshot.p2.isDead || false;
         // Eigene Gleve: Dash sagt client.js voraus, Abprall und Sweep kommen vom Host
         Gleve.uebernehmeSnapshot(state.p2, snapshot.p2, true);
+        Viper.uebernehmeSnapshot(state.p2, snapshot.p2, true);
 
         if (dom.spieler2) {
             dom.spieler2.classList.remove('schild-aktiv-1', 'schild-aktiv-2', 'schild-aktiv-3');
@@ -1734,10 +1749,15 @@ export function serializePlayerInput() {
     // Gleve: Steuerrichtung fuer den Dash; waehrend des vorhergesagten Dashs Startposition und Dash-Richtung
     const gleve = state.p2 && Gleve.istGleve(state.p2) ? Gleve.netzEingabe(state.p2, state.p2.clientSteuerRichtung) : null;
 
+    // Viper: im Startschritt der Rolle Startposition und Richtung (ro), der Host rollt von dort aus
+    const viper = state.p2 && Viper.istViper(state.p2) ? Viper.netzEingabe(state.p2) : null;
+    const start = gleve || viper;
+
     return {
-        x: gleve ? gleve.x : (state.p2 ? state.p2.x : state.x),
-        y: gleve ? gleve.y : (state.p2 ? state.p2.y : state.y),
+        x: start ? start.x : (state.p2 ? state.p2.x : state.x),
+        y: start ? start.y : (state.p2 ? state.p2.y : state.y),
         ...(gleve ? { rx: gleve.rx, ry: gleve.ry } : {}),
+        ...(viper ? { ro: viper.ro } : {}),
         rotate: state.p2 ? (state.p2.rotate || 0) : (state.rotate || 0),
         laser: isLaser,
         rakete: isRakete,
@@ -1750,7 +1770,9 @@ export function applyPlayerInput(input) {
 
     // Client-Werte nicht vertrauen: nur endliche Zahlen, begrenzt auf das Spielfeld.
     // Waehrend Gleve-Dash/-Abprall bewegt der Host das Schiff selbst (Treffer und Abprall sind Host-Sache).
-    const dashAktiv = Gleve.istGleve(state.p2) && Gleve.istDashAktiv(state.p2);
+    // Dasselbe gilt fuer die Viper-Rolle (laeuft oder ist angefragt, aber noch nicht gestartet).
+    const dashAktiv = (Gleve.istGleve(state.p2) && Gleve.istDashAktiv(state.p2)) ||
+        (Viper.istViper(state.p2) && (Viper.istRolleAktiv(state.p2) || Boolean(state.p2.netzRolleAnfrage)));
     if (Number.isFinite(input.x) && !dashAktiv) {
         state.p2.x = Math.min(Math.max(input.x, 0), config.spielfeldBreite - config.spielerGroesse);
     }
@@ -1765,6 +1787,9 @@ export function applyPlayerInput(input) {
         const f = laenge > 1 ? 1 / laenge : 1;
         state.p2.netzRichtung = { dx: input.rx * f, dy: input.ry * f };
     }
+
+    // Viper: Client meldet den Start seiner Rolle (Richtung -1/+1); der Host prueft den Cooldown selbst
+    if ((input.ro === 1 || input.ro === -1) && Viper.istViper(state.p2)) state.p2.netzRolleAnfrage = input.ro;
 
     if (input.laser !== undefined) state.p2.laserInputRequested = Boolean(input.laser);
 

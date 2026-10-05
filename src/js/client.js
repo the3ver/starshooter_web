@@ -5,6 +5,7 @@ import * as Hack from './hack.js';
 import { animierenPartikel } from './partikel.js';
 import { zeichneTraktorstrahl, entferneTraktorstrahl } from './powerups.js';
 import * as Gleve from './gleve.js';
+import * as Viper from './viper.js';
 
 // Steuerrichtung des Clients (Joystick normalisiert oder Tasten, Hacks angewendet)
 function steuerRichtung(keys) {
@@ -175,8 +176,14 @@ export function clientSchritt() {
       gleveDash = Gleve.sageDashVorher(state.p2, keys.k || keys.v, richtung);
     }
 
+    // Viper: Ausweichrolle des eigenen Schiffs lokal vorhergesagt (Startposition geht im Eingabe-Paket zum Host)
+    const viperRolle = Viper.istViper(state.p2) &&
+      Viper.aktualisiereViper(state.p2, 'p2', Viper.eingabeVonTasten(keys.a || keys.arrowleft, keys.d || keys.arrowright, state.joystick));
+
     if (gleveDash) {
       baseFlameScaleP2 = 2.2;
+    } else if (viperRolle) {
+      baseFlameScaleP2 = 1.0;
     } else if (state.joystick && state.joystick.active) {
       let mag = Math.sqrt(state.joystick.x * state.joystick.x + state.joystick.y * state.joystick.y);
       if (mag > 0.1) {
@@ -229,6 +236,9 @@ export function clientSchritt() {
   // Gleve-Effekte beider Schiffe (Dash-Klasse, Nachbilder, Sweep-Klinge)
   Gleve.zeigeGleveZustand(state, 'p1');
   if (state.p2) Gleve.zeigeGleveZustand(state.p2, 'p2');
+  // Viper-Rolle: Klasse, Nachbilder und Bereitschaftsanzeige beider Schiffe
+  Viper.zeigeViperZustand(state, 'p1', false);
+  if (state.p2) Viper.zeigeViperZustand(state.p2, 'p2', true);
 
   // Entfernte Objekte zwischen den Snapshots weiterbewegen
   extrapoliereProjektile();

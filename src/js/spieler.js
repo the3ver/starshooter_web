@@ -6,6 +6,7 @@ import * as Bot from './bot.js';
 import * as Hack from './hack.js';
 import { versteckeAlleLaser } from './waffen.js';
 import * as Gleve from './gleve.js';
+import * as Viper from './viper.js';
 
 // Laser-Taste von P1 (bei der Gleve: Sweep)
 function laserTasteP1() {
@@ -44,6 +45,35 @@ function dashTasteP2() {
   }
   if (state.p2IsBot) return state.p2.botFireRakete || false;
   return state.tastenGedrueckt.ö || state.tastenGedrueckt.numpad2 || state.tastenGedrueckt[','];
+}
+
+// Links/Rechts-Tasten von P1 (im lokalen Zwei-Spieler-Coop gehoeren die Pfeiltasten P2)
+function linksP1() {
+  const t = state.tastenGedrueckt;
+  return t.a || (!(state.gameMode === 'coop' && !state.p2IsBot) && t.arrowleft);
+}
+
+function rechtsP1() {
+  const t = state.tastenGedrueckt;
+  return t.d || (!(state.gameMode === 'coop' && !state.p2IsBot) && t.arrowright);
+}
+
+// Rollenwunsch von P2: lokaler Coop (Pfeiltasten) als Eingabe, Bot und Online-Host als fertige Richtung
+function viperEingabeP2() {
+  if (state.gameMode === 'coop' && !state.p2IsBot) {
+    return Viper.eingabeVonTasten(state.tastenGedrueckt.arrowleft, state.tastenGedrueckt.arrowright, null);
+  }
+  return null;
+}
+
+function viperAnfrageP2() {
+  const p2 = state.p2;
+  let anfrage = 0;
+  if (state.p2IsBot) anfrage = Viper.richtungNachHack(p2, p2.botRolleAnfrage || 0);
+  else if (istOnlineHost()) anfrage = p2.netzRolleAnfrage || 0;
+  p2.botRolleAnfrage = 0;
+  p2.netzRolleAnfrage = 0;
+  return anfrage;
 }
 
 // Aktuelle Steuerrichtung von P1 (Joystick oder Tasten, Hacks angewendet)
@@ -172,8 +202,13 @@ export function bewegeSpieler() {
   // Gleve: Dash/Abprall ersetzt in diesem Schritt die normale Steuerung
   const gleveDashP1 = Gleve.istGleve(state) && Gleve.aktualisiereGleve(state, 'p1', raketenTasteP1(), steuerRichtungP1());
 
+  // Viper: Ausweichrolle (Doppeltipp links/rechts oder Wisch) ersetzt die Steuerung
+  const viperRolleP1 = Viper.istViper(state) && Viper.aktualisiereViper(state, 'p1', Viper.eingabeVonTasten(linksP1(), rechtsP1(), state.joystick));
+
   if (gleveDashP1) {
     baseFlameScale = 2.2;
+  } else if (viperRolleP1) {
+    baseFlameScale = 1.0;
   } else if (state.joystick && state.joystick.active) {
     let mag = Math.sqrt(state.joystick.x * state.joystick.x + state.joystick.y * state.joystick.y);
     if (mag > 0.1) {
@@ -199,6 +234,7 @@ export function bewegeSpieler() {
   begrenzeUndMerkePosition(state);
   if (dom.spieler) setzeSchiffElement(dom.spieler, state, targetRotate);
   setzeFlammen('flame-left', 'flame-right', baseFlameScale);
+  Viper.zeigeRollenHud('p1', state);
 
   if (!state.isDead) erzeugeAbgas(state, baseFlameScale, '#f1c40f', '#e74c3c');
 
@@ -220,9 +256,14 @@ export function bewegeSpieler() {
 
       const gleveDashP2 = Gleve.istGleve(state.p2) && Gleve.aktualisiereGleve(state.p2, 'p2', dashTasteP2(), steuerRichtungP2());
 
+      const viperRolleP2 = Viper.istViper(state.p2) && Viper.aktualisiereViper(state.p2, 'p2', viperEingabeP2(), viperAnfrageP2());
+
       if (gleveDashP2) {
         // Gleve-Dash/Abprall uebernimmt die Bewegung
         baseFlameScaleP2 = 2.2;
+      } else if (viperRolleP2) {
+        // Viper-Rolle uebernimmt die Bewegung
+        baseFlameScaleP2 = 1.0;
       } else if (state.p2IsBot) {
         // Bot-KI steuert P2
         const prevBotX = state.p2.x;
@@ -249,6 +290,7 @@ export function bewegeSpieler() {
       begrenzeUndMerkePosition(state.p2);
       setzeSchiffElement(dom.spieler2, state.p2, targetRotateP2);
       setzeFlammen('flame-left-p2', 'flame-right-p2', baseFlameScaleP2);
+      Viper.zeigeRollenHud('p2', state.p2);
       erzeugeAbgas(state.p2, baseFlameScaleP2, '#74b9ff', '#0984e3');
     }
   }

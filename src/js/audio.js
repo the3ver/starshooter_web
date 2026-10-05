@@ -782,6 +782,55 @@ export function playDash(level = 1) {
     osc.stop(now + duration);
 }
 
+// Viper-Ausweichrolle: kurzes, leichtes Wusch (Rauschen steigt und faellt) mit schnellem Sinus-Glissando
+export function playRolle() {
+    recordSound('rolle');
+    if (isMuted) return;
+    const ctx = getAudioContext();
+    if (!ctx) return;
+    if (ctx.state === 'suspended') ctx.resume().catch(() => {});
+
+    const now = ctx.currentTime;
+    const duration = 0.18;
+
+    try {
+        const noiseBuf = getNoiseBuffer(ctx);
+        if (noiseBuf) {
+            const noiseSource = ctx.createBufferSource();
+            noiseSource.buffer = noiseBuf;
+            noiseSource.loop = true;
+            const bandpass = ctx.createBiquadFilter();
+            bandpass.type = 'bandpass';
+            bandpass.Q.setValueAtTime(1.8, now);
+            bandpass.frequency.setValueAtTime(900, now);
+            bandpass.frequency.exponentialRampToValueAtTime(2600, now + duration * 0.5);
+            bandpass.frequency.exponentialRampToValueAtTime(1000, now + duration);
+            const noiseGain = ctx.createGain();
+            noiseGain.gain.setValueAtTime(0.03, now);
+            noiseGain.gain.linearRampToValueAtTime(0.25, now + duration * 0.35);
+            noiseGain.gain.exponentialRampToValueAtTime(0.001, now + duration);
+            noiseSource.connect(bandpass);
+            bandpass.connect(noiseGain);
+            noiseGain.connect(masterGain);
+            noiseSource.start(now);
+            noiseSource.stop(now + duration);
+        }
+    } catch (e) {}
+
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.type = 'sine';
+    osc.frequency.setValueAtTime(320, now);
+    osc.frequency.exponentialRampToValueAtTime(760, now + duration * 0.5);
+    osc.frequency.exponentialRampToValueAtTime(400, now + duration);
+    gain.gain.setValueAtTime(0.1, now);
+    gain.gain.exponentialRampToValueAtTime(0.001, now + duration);
+    osc.connect(gain);
+    gain.connect(masterGain);
+    osc.start(now);
+    osc.stop(now + duration);
+}
+
 // Gleve-Laser-Sweep: heller, singender Klingen-Ton mit kurzem Zisch-Rauschen
 export function playSweep(level = 1) {
     recordSound('sweep', { level });

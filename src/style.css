@@ -2107,6 +2107,52 @@
             z-index: 5;
             pointer-events: none;
         }
+        /* Viper-Ausweichrolle: Rumpf dreht sich kurz um die Laengsachse (scaleX klappt ueber 0), Nachbilder */
+        .spieler-schiff.viper-rolle {
+            opacity: 0.85;
+        }
+        .spieler-schiff.viper-rolle > svg {
+            animation: viperRolleDrehung 0.2s linear;
+            transform-origin: 50% 50%;
+        }
+        @keyframes viperRolleDrehung {
+            0% { transform: scaleX(1); }
+            25% { transform: scaleX(0.05); }
+            50% { transform: scaleX(-1); }
+            75% { transform: scaleX(0.05); }
+            100% { transform: scaleX(1); }
+        }
+        .viper-nachbild {
+            position: absolute;
+            width: 30px;
+            height: 30px;
+            clip-path: polygon(50% 0%, 100% 100%, 50% 80%, 0% 100%);
+            opacity: 0.5;
+            z-index: 5;
+            pointer-events: none;
+        }
+        /* Rollen-Bereitschaft: kleiner Balken neben dem Energiebalken, gruen wenn bereit */
+        .viper-rolle-hud {
+            width: 22px;
+            height: 5px;
+            border-radius: 3px;
+            box-sizing: border-box;
+            border: 1px solid #e67e22;
+            background-color: #1a252f;
+            overflow: hidden;
+        }
+        .viper-rolle-fuell {
+            height: 100%;
+            width: 0;
+            background-color: #e67e22;
+        }
+        .viper-rolle-hud.bereit {
+            border-color: #2ecc71;
+            box-shadow: 0 0 4px #2ecc71;
+        }
+        .viper-rolle-hud.bereit .viper-rolle-fuell {
+            background-color: #2ecc71;
+        }
         .gleve-blitz {
             position: absolute;
             width: 40px;

@@ -12,7 +12,7 @@
 //   Delta eines Objekts: geaenderte Felder, '_d' = entfernte Felder, '_r' = Wert ersetzt.
 //   Fehlt 'i', bleiben die Ids wie im letzten Paket; fehlt eine Liste, ist sie unveraendert.
 
-export const PROTOKOLL_VERSION = 6;
+export const PROTOKOLL_VERSION = 7;
 export const KEYFRAME_INTERVALL = 30;   // jedes 30. Paket ist ein Keyframe (~1 s)
 export const DR_TOLERANZ = 0.5;         // px, ab dieser Abweichung wird x/y mitgesendet
 
@@ -41,7 +41,9 @@ export const RUNDUNG = {
     phantomSchildRegenTimer: runde0,
     // Gleve: Restframes ganzzahlig, Strahlwinkel (Grad, Schritte von 4,5) mit 1 Nachkommastelle
     gleveDashLadungen: runde0, gleveDashTimer: runde0, gleveAbprallTimer: runde0, gleveUnverwundbar: runde0,
-    gleveSweepTimer: runde0, gleveSweepWinkel: runde1, gleveSweepRichtung: runde0
+    gleveSweepTimer: runde0, gleveSweepWinkel: runde1, gleveSweepRichtung: runde0,
+    // Viper-Rolle: Restschritte, Richtung und Cooldown ganzzahlig
+    viperRolleTimer: runde0, viperRolleRichtung: runde0, viperRolleCooldown: runde0
 };
 
 function rundungsErsetzer(schluessel, wert) {
@@ -353,9 +355,11 @@ export class EingabeSender {
             e.rx = runde2(eingabe.rx);
             e.ry = runde2(eingabe.ry);
         }
+        // Viper: Rollenstart (Richtung -1/+1) geht sofort raus, nur im Startschritt gesetzt
+        if (eingabe.ro === 1 || eingabe.ro === -1) e.ro = eingabe.ro;
         const l = this.letzte;
         const seit = this.schritt - this.letzterVersand;
-        const tastenGeaendert = !l || l.laser !== e.laser || l.rakete !== e.rakete || l.bombe !== e.bombe;
+        const tastenGeaendert = !l || l.laser !== e.laser || l.rakete !== e.rakete || l.bombe !== e.bombe || l.ro !== e.ro;
         const bewegt = !l || l.x !== e.x || l.y !== e.y || l.rotate !== e.rotate;
         const faellig = tastenGeaendert || (bewegt && seit >= POSITIONS_INTERVALL) || seit >= HEARTBEAT_SCHRITTE;
         if (!faellig) return null;
