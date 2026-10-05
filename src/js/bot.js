@@ -257,6 +257,8 @@ function computeMovement(p2, target, danger, powerup, diff) {
 const SNIPER_TOLERANZ = 6;
 let sniperModus = null; // null (Taste oben) | 'tipp' | 'laden'
 let sniperHaltedauer = 0;
+let sniperTippRest = 0; // verbleibende Schritte des Granaten-/EMP-Tippens (botFireRakete true)
+let sniperTippPause = 0; // Pause nach dem Tippen, damit das Loslassen verarbeitet wird, bevor ein neuer Tipp beginnt
 
 // Unter dem Ziel stehen, sodass das Fadenkreuz auf dem Ziel liegt (Bosse: knapp ueber der Unterkante, ihre Box ist gross)
 function sniperBewegung(p2, target, cx, cy, zielX) {
@@ -300,7 +302,23 @@ function sniperGranateLohnt(p2, kreuz, imKreis) {
   return false;
 }
 
-// Jeden Schritt: Laser-Taste (Tippen/Laden: Halten und Loslassen brauchen den Schrittakt) und Granate (Flanke)
+// Feindliches Geschoss (v. a. Boss-Rakete) naeher als 80 px am Schiffsmittelpunkt: das EMP loest es auf
+function sniperEmpLohnt(p2) {
+  const cx = p2.x + config.spielerGroesse / 2;
+  const cy = p2.y + config.spielerGroesse / 2;
+  const r = Math.min(80, Sniper.empRadius(p2));
+  for (const g of [...arrays.feindLaserArray, ...arrays.bossLaserArray, ...arrays.hackProjektilArray, ...arrays.bossRaketenArray]) {
+    if (g.harmlos) continue;
+    const w = g.width || g.groesse || 4;
+    const h = g.height || g.groesse || 4;
+    const nx = Math.max(g.x, Math.min(cx, g.x + w));
+    const ny = Math.max(g.y, Math.min(cy, g.y + h));
+    if (Math.hypot(nx - cx, ny - cy) < r) return true;
+  }
+  return false;
+}
+
+// Jeden Schritt: Laser-Taste (Tippen/Laden: Halten und Loslassen brauchen den Schrittakt) und Granate/EMP (kurzer Tipp)
 function updateSniperWaffen(p2) {
   p2.botFireRakete = false;
   const offline = Hack.hatHack(p2, 'waffenOffline');
@@ -333,7 +351,17 @@ function updateSniperWaffen(p2) {
     }
   }
 
-  if (!offline && p2.raketenCooldown <= 0 && sniperGranateLohnt(p2, kreuz, imKreis)) p2.botFireRakete = true;
+  // Raketen-Taste als kurzer Tipp (2 Schritte), danach Pause; EMP gegen nahe Geschosse hat Vorrang vor dem Granaten-Zielen
+  if (sniperTippRest > 0) {
+    p2.botFireRakete = true;
+    sniperTippRest--;
+    if (sniperTippRest === 0) sniperTippPause = 3;
+  } else if (sniperTippPause > 0) {
+    sniperTippPause--;
+  } else if (!offline && p2.raketenCooldown <= 0 && (sniperEmpLohnt(p2) || sniperGranateLohnt(p2, kreuz, imKreis))) {
+    sniperTippRest = 1;
+    p2.botFireRakete = true;
+  }
 }
 
 // --- Gleve: Dash (Raketen-Taste) auf nahe Feinde, Sweep (Laser-Taste) gegen Geschosse und Gegner im Bogen ---
@@ -580,5 +608,7 @@ export function resetBot() {
   lastDecision = { moveX: 0, moveY: 0 };
   gleveDashSperre = 0;
   sniperModus = null;
+  sniperTippRest = 0;
+  sniperTippPause = 0;
   sniperHaltedauer = 0;
 }

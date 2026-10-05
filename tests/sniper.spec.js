@@ -1153,11 +1153,21 @@ async function bereiteGranate(page, optionen = {}) {
       },
       mitte(z) { const g = z.groesse; return { x: z.x + g / 2, y: z.y + g / 2 }; },
       abstand(z, cx, cy) { const m = this.mitte(z); return Math.hypot(m.x - cx, m.y - cy); },
-      // Raketen-Taste einen Schritt druecken (Cooldown vorher leeren)
+      // Raketen-Taste antippen: einen Schritt gedrueckt, Loslassen im Folgeschritt loest Granate + EMP aus
       wirf(taste = 'v') {
         state.tastenGedrueckt[taste] = true;
         Loop.simulationsSchritt();
         state.tastenGedrueckt[taste] = false;
+        Loop.simulationsSchritt();
+      },
+      // Raketen-Taste n Schritte halten (ohne Loslassen)
+      halte(n, taste = 'v') {
+        state.tastenGedrueckt[taste] = true;
+        for (let i = 0; i < n; i++) Loop.simulationsSchritt();
+      },
+      loslassen(taste = 'v') {
+        state.tastenGedrueckt[taste] = false;
+        Loop.simulationsSchritt();
       }
     };
     T.leeren();
@@ -1614,7 +1624,7 @@ test.describe('Spectre-SR online (Host)', () => {
       const fern = G.feind(100, 180); // am Fadenkreuz des Hosts (200|180) - darf nichts abbekommen
       E({ rakete: true });
       E({ rakete: false });
-      T.schritte(1);
+      T.schritte(2); // Schritt 1 zaehlt den Druck, Schritt 2 das Loslassen (Tippen)
       const nachWurf = { granaten: document.querySelectorAll('.sniper-granate').length, cd: state.p2.raketenCooldown, host: state.raketenCooldown };
       // Das Schiff des Clients zieht weiter: die Granate zielt trotzdem auf die Position beim Wurf
       E({ x: 285, y: 400 });
@@ -1636,7 +1646,7 @@ test.describe('Spectre-SR online (Host)', () => {
       const ziel = G.feind(430, 190);
       E({ rakete: true });
       E({ rakete: false });
-      G.frei(1);
+      G.frei(2);
       const imFlug = Network.serializeGameState().sniperGranaten.map(g => ({ owner: g.owner, rest: g.rest }));
       state.network.lastSentEvent = null;
       G.frei(31);
@@ -1759,5 +1769,384 @@ test.describe('Spectre-SR Bot', () => {
     expect(r.schuesse).toBe(0);
     expect(r.minE).toBeGreaterThan(49);
     expect(r.granaten).toBe(0);
+  });
+});
+
+// ---------------------------------------------------------------------------------------------
+// E1: Granaten-Taste als Tipp/Halte-Modell, EMP beim Tippen
+
+async function bereiteEmp(page, optionen = {}) {
+  await bereiteGranate(page, optionen);
+  await page.evaluate(async () => {
+    const Sn = await import('./js/sniper.js');
+    const { Entities, arrays, state, config } = window.__game;
+    const Mitte = () => ({ x: state.x + config.spielerGroesse / 2, y: state.y + config.spielerGroesse / 2 });
+    window.__emp = {
+      Sn,
+      mitte: Mitte,
+      // Geschoss im Abstand dx/dy von der Schiffsmitte (stehend, damit nichts weiterfliegt)
+      geschoss(art, dx, dy) {
+        const m = Mitte();
+        const x = m.x + dx;
+        const y = m.y + dy;
+        if (art === 'feindLaser') Entities.erzeugeFeindLaser(x, y);
+        else if (art === 'bossLaser') Entities.erzeugeBossLaser(x, y);
+        else if (art === 'hack') Entities.erzeugeHackProjektil(x, y, x, y + 100);
+        else if (art === 'bossRakete') Entities.erzeugeBossRakete(x, y, 1);
+        const liste = { feindLaser: arrays.feindLaserArray, bossLaser: arrays.bossLaserArray, hack: arrays.hackProjektilArray, bossRakete: arrays.bossRaketenArray }[art];
+        const g = liste[liste.length - 1];
+        g.x = x; g.y = y; g.vx = 0; g.vy = 0;
+        return g;
+      },
+      anzahl() {
+        return arrays.feindLaserArray.length + arrays.bossLaserArray.length + arrays.hackProjektilArray.length + arrays.bossRaketenArray.length;
+      }
+    };
+  });
+}
+
+test.describe('Spectre-SR Granaten-Taste und EMP', () => {
+  test('Tippen wirft die Granate und loest das EMP aus (Ring, Ton, Cooldown); der Wurf faellt erst beim Loslassen', async ({ page }) => {
+    await bereiteEmp(page);
+    const r = await page.evaluate(() => {
+      const { state, Audio } = window.__game;
+      const G = window.__gr;
+      Audio.clearAudioHistory();
+      G.halte(1);
+      const waehrendDruck = { granaten: document.querySelectorAll('.sniper-granate').length, emp: document.querySelectorAll('.sniper-emp').length, cd: state.raketenCooldown };
+      G.loslassen();
+      const danach = { granaten: document.querySelectorAll('.sniper-granate').length, emp: document.querySelectorAll('.sniper-emp').length, cd: state.raketenCooldown };
+      G.frei(4);
+      const breite = parseFloat(document.querySelector('.sniper-emp').style.width);
+      G.frei(10);
+      return { waehrendDruck, danach, breite, empWeg: document.querySelectorAll('.sniper-emp').length, ton: Audio.audioHistory.filter(e => e.name === 'emp').length };
+    });
+    expect(r.waehrendDruck).toEqual({ granaten: 0, emp: 0, cd: 0 });
+    expect(r.danach).toEqual({ granaten: 1, emp: 1, cd: 240 });
+    expect(r.breite).toBeGreaterThan(0);
+    expect(r.breite).toBeLessThan(140);
+    expect(r.empWeg).toBe(0);
+    expect(r.ton).toBe(1);
+  });
+
+  test('Halten ab 10 Schritten (20 Schritte) wirft nichts, loest kein EMP aus und startet keinen Cooldown', async ({ page }) => {
+    await bereiteEmp(page);
+    const r = await page.evaluate(() => {
+      const { state } = window.__game;
+      const G = window.__gr;
+      G.halte(20);
+      const waehrend = { granaten: document.querySelectorAll('.sniper-granate').length, emp: document.querySelectorAll('.sniper-emp').length, cd: state.raketenCooldown };
+      G.loslassen();
+      G.frei(3);
+      return { waehrend, danach: { granaten: document.querySelectorAll('.sniper-granate').length, emp: document.querySelectorAll('.sniper-emp').length, cd: state.raketenCooldown } };
+    });
+    expect(r.waehrend).toEqual({ granaten: 0, emp: 0, cd: 0 });
+    expect(r.danach).toEqual({ granaten: 0, emp: 0, cd: 0 });
+  });
+
+  test('Grenze: 9 Schritte gehalten ist noch ein Tipp, 10 Schritte ist ein Halten', async ({ page }) => {
+    await bereiteEmp(page);
+    const r = await page.evaluate(() => {
+      const { state } = window.__game;
+      const G = window.__gr;
+      G.halte(9);
+      G.loslassen();
+      const neun = state.raketenCooldown;
+      G.frei(1);
+      state.raketenCooldown = 0;
+      document.querySelectorAll('.sniper-granate, .sniper-emp').forEach(e => e.remove());
+      G.halte(10);
+      G.loslassen();
+      return { neun, zehn: state.raketenCooldown };
+    });
+    expect(r.neun).toBe(240);
+    expect(r.zehn).toBe(0);
+  });
+
+  test('Tippen im Cooldown wirft nichts; waffenOffline blockiert Granate und EMP', async ({ page }) => {
+    await bereiteEmp(page);
+    const r = await page.evaluate(async () => {
+      const { state } = window.__game;
+      const Hack = await import('./js/hack.js');
+      const G = window.__gr;
+      state.raketenCooldown = 100;
+      G.wirf();
+      const imCooldown = { granaten: document.querySelectorAll('.sniper-granate').length, emp: document.querySelectorAll('.sniper-emp').length };
+      state.raketenCooldown = 0;
+      Hack.hackeSpieler(state, 'waffenOffline');
+      G.wirf();
+      return { imCooldown, offline: { granaten: document.querySelectorAll('.sniper-granate').length, emp: document.querySelectorAll('.sniper-emp').length } };
+    });
+    expect(r.imCooldown).toEqual({ granaten: 0, emp: 0 });
+    expect(r.offline).toEqual({ granaten: 0, emp: 0 });
+  });
+
+  test('EMP zerstoert Feindlaser, Boss-Laser, Hack-Projektil und Boss-Rakete im Radius, nicht ausserhalb', async ({ page }) => {
+    await bereiteEmp(page);
+    const r = await page.evaluate(() => {
+      const { arrays, state } = window.__game;
+      const E = window.__emp;
+      for (const a of ['feindLaser', 'bossLaser', 'hack', 'bossRakete']) { E.geschoss(a, 40, -30); E.geschoss(a, 150, 0); }
+      const vorher = E.anzahl();
+      E.Sn.loeseEmpAus(state, 'p1');
+      const mx = E.mitte().x;
+      return {
+        vorher, nachher: E.anzahl(),
+        feindLaser: arrays.feindLaserArray.map(g => Math.round(g.x - mx)),
+        bossRakete: arrays.bossRaketenArray.map(g => Math.round(g.x - mx)),
+        els: document.querySelectorAll('.feind-laser').length
+      };
+    });
+    expect(r.vorher).toBe(8);
+    expect(r.nachher).toBe(4); // nur die entfernten (150 px) bleiben
+    expect(r.feindLaser).toEqual([150]);
+    expect(r.bossRakete).toEqual([150]);
+    expect(r.els).toBe(1);
+  });
+
+  test('EMP entfernt Boss-Bomben im Radius ohne Detonation', async ({ page }) => {
+    await bereiteEmp(page);
+    const r = await page.evaluate(() => {
+      const { Entities, arrays, state } = window.__game;
+      const E = window.__emp;
+      const m = E.mitte();
+      Entities.erzeugeBossBombe(m.x + 20, m.y - 40);
+      Entities.erzeugeBossBombe(m.x + 160, m.y);
+      const b = arrays.bossBombenArray;
+      b[0].x = m.x + 20; b[0].y = m.y - 40;
+      b[1].x = m.x + 160; b[1].y = m.y;
+      E.Sn.loeseEmpAus(state, 'p1');
+      return { rest: b.length, x: Math.round(b[0].x - m.x) };
+    });
+    expect(r.rest).toBe(1);
+    expect(r.x).toBe(160);
+  });
+
+  test('EMP betaeubt Feinde im Radius 30 Schritte (Maximum, keine Verkuerzung), Boss und Asteroid nicht, kein Schaden', async ({ page }) => {
+    await bereiteEmp(page);
+    const r = await page.evaluate(() => {
+      const { state, arrays, Entities } = window.__game;
+      const E = window.__emp;
+      const T = window.__sn;
+      const G = window.__gr;
+      const m = E.mitte();
+      const nah = G.feind(m.x + 30, m.y - 30);
+      const lang = G.feind(m.x - 30, m.y - 30);
+      lang.betaeubt = 100;
+      const fern = G.feind(m.x + 200, m.y - 30);
+      const ast = T.asteroid(m.x, m.y - 40, 30);
+      Entities.erzeugeBoss();
+      const boss = arrays.bosses[0];
+      Object.assign(boss, { x: m.x - 40, y: m.y - 80, hp: 1e6, maxHp: 1e6 });
+      const hp = [nah.hp, lang.hp, ast.hp, boss.hp];
+      E.Sn.loeseEmpAus(state, 'p1');
+      return {
+        nah: nah.betaeubt, lang: lang.betaeubt, fern: fern.betaeubt || 0, ast: ast.betaeubt || 0, boss: boss.betaeubt || 0,
+        klasse: nah.el.classList.contains('betaeubt'), hpGleich: [nah.hp, lang.hp, ast.hp, boss.hp].every((h, i) => h === hp[i])
+      };
+    });
+    expect(r.nah).toBe(30);
+    expect(r.lang).toBe(100);
+    expect(r.fern).toBe(0);
+    expect(r.ast).toBe(0);
+    expect(r.boss).toBe(0);
+    expect(r.klasse).toBe(true);
+    expect(r.hpGleich).toBe(true);
+  });
+
+  test('EMP-Radius je Raketen-Stufe 70/80/90/100/110: Geschoss knapp innerhalb wird zerstoert, knapp ausserhalb nicht', async ({ page }) => {
+    await bereiteEmp(page);
+    const r = await page.evaluate(() => {
+      const { state, arrays } = window.__game;
+      const E = window.__emp;
+      const radien = [];
+      const wirkung = [];
+      for (let stufe = 1; stufe <= 5; stufe++) {
+        state.raketenStufe = stufe;
+        radien.push(E.Sn.empRadius(state));
+        const soll = 60 + stufe * 10;
+        // Der Laser misst 4 px Breite ab seiner linken Kante: innen = soll - 6 (rechte Kante weiter innen), aussen = soll + 6
+        const innen = E.geschoss('feindLaser', soll - 6, 0);
+        const aussen = E.geschoss('feindLaser', soll + 6, 0);
+        E.Sn.loeseEmpAus(state, 'p1');
+        wirkung.push([!arrays.feindLaserArray.includes(innen), arrays.feindLaserArray.includes(aussen)]);
+        arrays.feindLaserArray.forEach(g => g.el.remove());
+        arrays.feindLaserArray.length = 0;
+      }
+      return { radien, wirkung, ringe: document.querySelectorAll('.sniper-emp').length };
+    });
+    expect(r.radien).toEqual([70, 80, 90, 100, 110]);
+    expect(r.wirkung).toEqual([[true, true], [true, true], [true, true], [true, true], [true, true]]);
+    expect(r.ringe).toBe(5);
+  });
+
+  test('EMP-Ring waechst in 10 Schritten und verschwindet', async ({ page }) => {
+    await bereiteEmp(page);
+    const r = await page.evaluate(() => {
+      const { state } = window.__game;
+      const G = window.__gr;
+      state.raketenStufe = 3;
+      G.wirf();
+      const b1 = parseFloat(document.querySelector('.sniper-emp').style.width);
+      G.frei(6);
+      const b2 = parseFloat(document.querySelector('.sniper-emp').style.width);
+      G.frei(6);
+      return { b1, b2, weg: document.querySelectorAll('.sniper-emp').length };
+    });
+    expect(r.b2).toBeGreaterThan(r.b1);
+    expect(r.b2).toBeLessThanOrEqual(180);
+    expect(r.weg).toBe(0);
+  });
+
+  test('Neustart raeumt EMP-Ringe ab', async ({ page }) => {
+    await bereiteEmp(page);
+    const r = await page.evaluate(() => {
+      const { state } = window.__game;
+      window.__gr.wirf();
+      const vorher = document.querySelectorAll('.sniper-emp').length;
+      window.__emp.Sn.setzeZurueck(state);
+      return { vorher, danach: document.querySelectorAll('.sniper-emp').length };
+    });
+    expect(r.vorher).toBe(1);
+    expect(r.danach).toBe(0);
+  });
+
+  test('Coop: Spieler 2 (Sniper) tippt mit Oe und das EMP kommt von seinem Schiff', async ({ page }) => {
+    await bereiteEmp(page, { coop: true });
+    const r = await page.evaluate(() => {
+      const { state, config } = window.__game;
+      const G = window.__gr;
+      G.wirf('ö');
+      const ring = document.querySelector('.sniper-emp');
+      const rad = parseFloat(ring.style.width) / 2;
+      return {
+        cdP2: state.p2.raketenCooldown, cdP1: state.raketenCooldown, ringe: document.querySelectorAll('.sniper-emp').length,
+        abstandX: Math.abs(parseFloat(ring.style.left) + rad - (state.p2.x + config.spielerGroesse / 2))
+      };
+    });
+    expect(r.cdP2).toBeGreaterThan(0);
+    expect(r.cdP1).toBe(0);
+    expect(r.ringe).toBe(1);
+    expect(r.abstandX).toBeLessThan(2);
+  });
+});
+
+test.describe('Spectre-SR EMP online', () => {
+  test('Host: Client-Tipp zwischen zwei Host-Schritten ergibt genau einen Wurf samt EMP-Ereignis; Halten wirft nichts', async ({ page }) => {
+    await bereiteOnlineHost(page);
+    const r = await page.evaluate(() => {
+      const { state } = window.__game;
+      const G = window.__gr;
+      const E = window.__eingabe;
+      state.network.lastSentEvent = null;
+      E({ rakete: true });
+      E({ rakete: false });
+      G.frei(2);
+      const tipp = { granaten: document.querySelectorAll('.sniper-granate').length, emp: document.querySelectorAll('.sniper-emp').length, cd: state.p2.raketenCooldown, ereignis: state.network.lastSentEvent };
+      G.frei(40);
+      state.p2.raketenCooldown = 0;
+      document.querySelectorAll('.sniper-granate, .sniper-emp').forEach(e => e.remove());
+      E({ rakete: true });
+      G.frei(20);
+      const halten = { granaten: document.querySelectorAll('.sniper-granate').length, emp: document.querySelectorAll('.sniper-emp').length, cd: state.p2.raketenCooldown };
+      E({ rakete: false });
+      G.frei(3);
+      return { tipp, halten, nachHalten: { granaten: document.querySelectorAll('.sniper-granate').length, cd: state.p2.raketenCooldown } };
+    });
+    expect(r.tipp.granaten).toBe(1);
+    expect(r.tipp.emp).toBe(1);
+    expect(r.tipp.cd).toBeGreaterThan(200);
+    expect(r.tipp.ereignis).toMatchObject({ type: 'emp_ausgeloest', owner: 'p2', radius: 70 });
+    expect(r.halten).toEqual({ granaten: 0, emp: 0, cd: 0 });
+    expect(r.nachHalten).toEqual({ granaten: 0, cd: 0 });
+  });
+
+  test('Client zeigt den EMP-Ring aus dem Ereignis (Ton, wachsender Ring, danach weg); ungueltige Daten werden ignoriert', async ({ page }) => {
+    await bereiteGranate(page);
+    const r = await page.evaluate(async () => {
+      const Sn = await import('./js/sniper.js');
+      const { Audio } = window.__game;
+      Audio.clearAudioHistory();
+      Sn.zeigeEmp({ x: 300, y: 300, radius: 90, owner: 'p1' });
+      Sn.zeigeEmp({ x: NaN, y: 1, radius: 90 });
+      Sn.zeigeEmp(null);
+      const ring = document.querySelectorAll('.sniper-emp').length;
+      for (let i = 0; i < 6; i++) Sn.clientSchritt();
+      const breite = parseFloat(document.querySelector('.sniper-emp').style.width);
+      for (let i = 0; i < 6; i++) Sn.clientSchritt();
+      return { ring, breite, weg: document.querySelectorAll('.sniper-emp').length, ton: Audio.audioHistory.filter(e => e.name === 'emp').length };
+    });
+    expect(r.ring).toBe(1);
+    expect(r.breite).toBeGreaterThan(0);
+    expect(r.weg).toBe(0);
+    expect(r.ton).toBe(1);
+  });
+
+  test('Protokollversion ist 11', async ({ page }) => {
+    await bereiteGranate(page);
+    const v = await page.evaluate(async () => (await import('./js/netzkodierung.js')).PROTOKOLL_VERSION);
+    expect(v).toBe(11);
+  });
+});
+
+test.describe('Spectre-SR Bot: EMP', () => {
+  test('Bot tippt kurz (wenige Schritte true, dann false) bei naher Boss-Rakete; die Rakete verschwindet, Cooldown startet', async ({ page }) => {
+    await bereiteEmp(page, { coop: true });
+    const r = await page.evaluate(async () => {
+      const Bot = await import('./js/bot.js');
+      const { state, arrays, Entities } = window.__game;
+      const G = window.__gr;
+      window.__sn.leeren();
+      state.p2IsBot = true;
+      state.p2BotDifficulty = 'hard';
+      Bot.resetBot();
+      state.p2.x = 285; state.p2.y = 480;
+      state.p2.botFireLaser = false; state.p2.botFireRakete = false;
+      state.p2.raketenCooldown = 0;
+      state.x = 40; state.y = 540;
+      const mx = state.p2.x + 15;
+      const my = state.p2.y + 15;
+      Entities.erzeugeBossRakete(mx, my - 50, 1);
+      const rk = arrays.bossRaketenArray[0];
+      rk.x = mx; rk.y = my - 50; rk.vx = 0; rk.vy = 0;
+      const folge = [];
+      let weg = -1;
+      for (let i = 0; i < 12; i++) {
+        G.frei(1);
+        folge.push(Boolean(state.p2.botFireRakete));
+        if (weg < 0 && !arrays.bossRaketenArray.includes(rk)) weg = i;
+      }
+      return { folge, weg, cd: state.p2.raketenCooldown };
+    });
+    expect(r.folge[0]).toBe(true);
+    expect(r.folge.indexOf(false)).toBeGreaterThan(0);
+    expect(r.folge.indexOf(false)).toBeLessThanOrEqual(3);
+    expect(r.folge.filter(Boolean).length).toBeLessThanOrEqual(3);
+    expect(r.weg).toBeGreaterThanOrEqual(0);
+    expect(r.cd).toBeGreaterThan(150);
+  });
+
+  test('Bot tippt nicht, wenn das Geschoss weit weg ist', async ({ page }) => {
+    await bereiteEmp(page, { coop: true });
+    const r = await page.evaluate(async () => {
+      const Bot = await import('./js/bot.js');
+      const { state, arrays, Entities } = window.__game;
+      const G = window.__gr;
+      window.__sn.leeren();
+      state.p2IsBot = true;
+      state.p2BotDifficulty = 'hard';
+      Bot.resetBot();
+      state.p2.x = 285; state.p2.y = 480;
+      state.p2.raketenCooldown = 0;
+      state.x = 40; state.y = 540;
+      Entities.erzeugeBossRakete(state.p2.x + 15, state.p2.y - 200, 1);
+      const rk = arrays.bossRaketenArray[0];
+      rk.vx = 0; rk.vy = 0;
+      let getippt = 0;
+      for (let i = 0; i < 20; i++) { G.frei(1); if (state.p2.botFireRakete) getippt++; }
+      return { getippt, rakete: arrays.bossRaketenArray.length };
+    });
+    expect(r.getippt).toBe(0);
+    expect(r.rakete).toBe(1);
   });
 });

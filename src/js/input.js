@@ -6,6 +6,7 @@ import * as Loop from './loop.js';
 import * as Audio from './audio.js';
 import * as Cutscene from './cutscene.js';
 import * as Network from './network.js';
+import * as Sniper from './sniper.js';
 import { schaltePause, behandleEscape, initPauseMenue } from './pause.js';
 
 
@@ -320,9 +321,16 @@ export function setupInput() {
       e.preventDefault();
       if (state.spielLaeuft && !state.gameOverAktiv && !state.pausiert) {
         state.tastenGedrueckt.k = true;
-        setTimeout(() => state.tastenGedrueckt.k = false, 100);
+        // Sniper: Halten zaehlt (Tippen = Granate + EMP, Halten = Minen), also bis zum Loslassen gedrueckt lassen
+        if (!Sniper.istSniper(state)) setTimeout(() => state.tastenGedrueckt.k = false, 100);
       }
     });
+    const raketeEnde = (e) => {
+      e.preventDefault();
+      if (Sniper.istSniper(state)) state.tastenGedrueckt.k = false;
+    };
+    btnRakete.addEventListener('touchend', raketeEnde);
+    btnRakete.addEventListener('touchcancel', raketeEnde);
   }
   
   // Sniper: Halten laedt, Loslassen feuert (wie die Laser-Taste; der Joystick feuert dagegen Normalschuesse)

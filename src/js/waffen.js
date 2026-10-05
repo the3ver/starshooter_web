@@ -165,6 +165,21 @@ function feuerRaketenFuerSpieler(pKey, pState) {
   if (pKey === 'p2' && state.p2 && state.p2.raketeGehalten && state.network && state.network.isOnline && state.network.isHost) {
     state.p2.networkFireRakete = true;
   }
+  // Sniper: Tippen = Granate + EMP, Halten = Minen (Haken); der Online-Host merkt sich einen Druck, auch wenn das Loslassen im selben Schritt ankommt
+  if (Sniper.istSniper(pState)) {
+    let gehalten;
+    if (pKey === 'p1') {
+      gehalten = isDualHumanCoop ? state.tastenGedrueckt.v : (state.tastenGedrueckt.k || state.tastenGedrueckt.v);
+    } else if (state.network && state.network.isOnline && state.network.isHost) {
+      gehalten = Boolean(state.p2.raketeGehalten || state.p2.netzGranatenAnfrage);
+      state.p2.netzGranatenAnfrage = false;
+      state.p2.networkFireRakete = false;
+    } else {
+      gehalten = state.p2IsBot ? (state.p2.botFireRakete || false) : (state.tastenGedrueckt.ö || state.tastenGedrueckt.numpad2 || state.tastenGedrueckt[',']);
+    }
+    Sniper.aktualisiereGranatenTaste(pState, pKey, Boolean(gehalten));
+    return;
+  }
   const isTriggered = pKey === 'p1'
     ? (isDualHumanCoop ? state.tastenGedrueckt.v : (state.tastenGedrueckt.k || state.tastenGedrueckt.v))
     : ((state.network && state.network.isOnline && state.network.isHost)
@@ -174,11 +189,6 @@ function feuerRaketenFuerSpieler(pKey, pState) {
   if (isTriggered && pState.raketenCooldown <= 0 && !Hack.hatHack(pState, 'waffenOffline')) {
     if (pKey === 'p2' && state.p2) state.p2.networkFireRakete = false;
     pState.raketenCooldown = maxRaketenCd;
-    // Sniper: statt Raketen eine Betaeubungsgranate zum Fadenkreuz
-    if (Sniper.istSniper(pState)) {
-      Sniper.werfeGranate(pState, pKey);
-      return;
-    }
     Audio.playMissile();
     let rSchaden = 25;
     let rRadius = 80;

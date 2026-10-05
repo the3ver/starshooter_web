@@ -41,6 +41,13 @@ const GRANATE_BETAEUBUNG = [60, 72, 90, 90, 120];
 const GRANATE_SCHADEN = [0, 15, 25, 35, 45];
 const GRANATE_COOLDOWN = [240, 210, 180, 180, 150];
 
+// Granaten-Taste: Tippen (< HALTEN_AB Schritte) = Granate + EMP, Halten (ab HALTEN_AB) = Minen (E2, derzeit leerer Haken)
+export const HALTEN_AB = 10;
+// EMP (beim Tippen): Ring waechst in EMP_SCHRITTE auf den Radius der Raketen-Stufe, zerstoert feindliche Geschosse und betaeubt Feinde
+export const EMP_SCHRITTE = 10;
+export const EMP_BETAEUBUNG = 30;
+const EMP_RADIUS = [70, 80, 90, 100, 110];
+
 function stufenIndex(pState) {
   return Math.max(1, Math.min(5, pState.laserStufe || 1)) - 1;
 }
@@ -62,6 +69,7 @@ export function granatenRadius(pState) { return GRANATE_RADIUS[raketenIndex(pSta
 export function granatenStoss(pState) { return GRANATE_STOSS[raketenIndex(pState)]; }
 export function granatenBetaeubung(pState) { return GRANATE_BETAEUBUNG[raketenIndex(pState)]; }
 export function granatenSchaden(pState) { return GRANATE_SCHADEN[raketenIndex(pState)]; }
+export function empRadius(pState) { return EMP_RADIUS[raketenIndex(pState)]; }
 
 // Ladeanteil 0-1 (unter 10 Schritten Haltedauer = Normalschuss, also 0)
 function ladeAnteil(ladung) {
@@ -434,7 +442,7 @@ function wegstossZiele() {
 function loescheGeschosse(array, cx, cy, r) {
   for (let i = array.length - 1; i >= 0; i--) {
     const p = array[i];
-    const b = { x1: p.x, y1: p.y, x2: p.x + (p.width || 4), y2: p.y + (p.height || 4) };
+    const b = { x1: p.x, y1: p.y, x2: p.x + (p.width || p.groesse || 4), y2: p.y + (p.height || p.groesse || 4) };
     if (boxSchneidetKreis(b, cx, cy, r)) {
       Utils.erzeugeExplosion((b.x1 + b.x2) / 2, (b.y1 + b.y2) / 2, '#ffffff', 3);
       if (p.el) p.el.remove();
@@ -482,6 +490,109 @@ function explodiereGranate(g) {
   }
 }
 
+// --- GRANATEN-TASTE (Tippen / Halten) und EMP ---
+
+const emps = []; // { el, pKey, cx, cy, radius, rest }
+
+// Mittelpunkt des Schiffs (EMP-Ursprung)
+function schiffsMitte(pState) {
+  return { x: pState.x + config.spielerGroesse / 2, y: pState.y + config.spielerGroesse / 2 };
+}
+
+function erzeugeEmpRing(cx, cy, radius, pKey) {
+  const el = document.createElement('div');
+  el.classList.add('sniper-emp');
+  el.style.left = cx + 'px';
+  el.style.top = cy + 'px';
+  el.style.width = '0px';
+  el.style.height = '0px';
+  dom.spielfeld.appendChild(el);
+  emps.push({ el, pKey, cx, cy, radius, rest: EMP_SCHRITTE });
+}
+
+function aktualisiereEmps(pKey) {
+  for (let i = emps.length - 1; i >= 0; i--) {
+    const e = emps[i];
+    if (pKey && e.pKey !== pKey) continue;
+    e.rest--;
+    if (e.rest <= 0 || !e.el.isConnected) {
+      e.el.remove();
+      emps.splice(i, 1);
+      continue;
+    }
+    const t = 1 - e.rest / EMP_SCHRITTE;
+    const d = e.radius * 2 * t;
+    e.el.style.width = d + 'px';
+    e.el.style.height = d + 'px';
+    e.el.style.left = (e.cx - d / 2) + 'px';
+    e.el.style.top = (e.cy - d / 2) + 'px';
+    e.el.style.opacity = 1 - t * 0.8;
+  }
+}
+
+// Feindliche Geschosse im Radius entfernen (mit kleinem Funken); Bomben ohne Detonation
+function zerstoereGeschosse(array, cx, cy, r) {
+  for (let i = array.length - 1; i >= 0; i--) {
+    const p = array[i];
+    const b = { x1: p.x, y1: p.y, x2: p.x + (p.width || p.groesse || 4), y2: p.y + (p.height || p.groesse || 4) };
+    if (boxSchneidetKreis(b, cx, cy, r)) {
+      Utils.erzeugeExplosion((b.x1 + b.x2) / 2, (b.y1 + b.y2) / 2, '#4fc3f7', 4);
+      if (p.el) p.el.remove();
+      array.splice(i, 1);
+    }
+  }
+}
+
+// EMP ums eigene Schiff: Geschosse zerstoeren, Feinde (keine Bosse, keine Asteroiden) 30 Schritte betaeuben, kein Schaden.
+export function loeseEmpAus(pState, pKey) {
+  const m = schiffsMitte(pState);
+  const r = empRadius(pState);
+  Audio.playEmp();
+  erzeugeEmpRing(m.x, m.y, r, pKey);
+  for (const liste of [arrays.feindLaserArray, arrays.bossLaserArray, arrays.hackProjektilArray, arrays.bossRaketenArray, arrays.bossBombenArray]) {
+    zerstoereGeschosse(liste, m.x, m.y, r);
+  }
+  for (const f of arrays.feinde) {
+    if (f.hp !== undefined && f.hp <= 0) continue;
+    if (!boxSchneidetKreis(zielBox(f), m.x, m.y, r)) continue;
+    f.betaeubt = Math.max(f.betaeubt || 0, EMP_BETAEUBUNG);
+    if (f.el) f.el.classList.add('betaeubt');
+  }
+  if (state.gameMode === 'online' && state.network && state.network.isHost) {
+    Network.sendNetworkEvent({ type: 'emp_ausgeloest', x: Math.round(m.x * 10) / 10, y: Math.round(m.y * 10) / 10, radius: r, owner: pKey });
+  }
+}
+
+// Haken fuer das Halten der Granaten-Taste (E2: Minen legen). `schritte` = bisherige Haltedauer, ab HALTEN_AB aufgerufen.
+// Derzeit ohne Wirkung: kein Wurf, kein EMP, kein Cooldown.
+export function haltenSchritt(pState, pKey, schritte) { // eslint-disable-line no-unused-vars
+}
+
+// Tippen: Granate ins Fadenkreuz und EMP, danach startet der Cooldown
+function tippeGranate(pState, pKey) {
+  pState.raketenCooldown = granatenCooldown(pState);
+  werfeGranate(pState, pKey);
+  loeseEmpAus(pState, pKey);
+}
+
+// Pro Schritt aus waffen.js (statt der Raketen): `gehalten` ist die Raketen-Taste. Druck startet die Zaehlung, Loslassen
+// entscheidet: unter HALTEN_AB Schritten (und freiem Cooldown) = Tippen, sonst tut das Loslassen nichts (Halten gehoert den Minen).
+export function aktualisiereGranatenTaste(pState, pKey, gehalten) {
+  if (!istSniper(pState)) return;
+  const sperre = Hack.hatHack(pState, 'waffenOffline') || pState.isDead || !state.spielLaeuft;
+  if (gehalten && !sperre) {
+    if (!pState.granateGehalten) pState.granateSchritte = 0;
+    pState.granateGehalten = true;
+    pState.granateSchritte = (pState.granateSchritte || 0) + 1;
+    if (pState.granateSchritte >= HALTEN_AB) haltenSchritt(pState, pKey, pState.granateSchritte);
+  } else if (pState.granateGehalten) {
+    const schritte = pState.granateSchritte || 0;
+    pState.granateGehalten = false;
+    pState.granateSchritte = 0;
+    if (!sperre && schritte < HALTEN_AB && (pState.raketenCooldown || 0) <= 0) tippeGranate(pState, pKey);
+  }
+}
+
 // Wegstossen: pro Schritt ein Stueck, am Feld begrenzt (seitlich und oben; unten darf ein Ziel das Feld verlassen)
 function aktualisiereStoesse(pKey) {
   for (let i = stoesse.length - 1; i >= 0; i--) {
@@ -513,7 +624,7 @@ function aktualisiereStoesse(pKey) {
 }
 
 function entferneGranatenEffekte(pKey) {
-  for (const liste of [granaten, wellen, stoesse, netzGranaten]) {
+  for (const liste of [granaten, wellen, stoesse, netzGranaten, emps]) {
     for (let i = liste.length - 1; i >= 0; i--) {
       if (pKey && liste[i].pKey !== pKey) continue;
       if (liste[i].el) liste[i].el.remove();
@@ -534,6 +645,7 @@ export function aktualisiereSniper(pState, pKey, gehalten, auto = false) {
   aktualisiereGranaten(pKey);
   aktualisiereStoesse(pKey);
   aktualisiereWellen(pKey);
+  aktualisiereEmps(pKey);
   if (pState.isDead || !state.spielLaeuft) {
     entferneFadenkreuz(pKey);
     pState.sniperGehalten = false;
@@ -659,11 +771,19 @@ export function zeigeDetonation(daten) {
   erzeugeDruckwelle(daten.x, daten.y, daten.radius, daten.owner === 'p2' ? 'p2' : 'p1');
 }
 
+// Client: EMP-Ring (Ereignis 'emp_ausgeloest')
+export function zeigeEmp(daten) {
+  if (!daten || !Number.isFinite(daten.x) || !Number.isFinite(daten.y) || !(daten.radius > 0)) return;
+  Audio.playEmp();
+  erzeugeEmpRing(daten.x, daten.y, daten.radius, daten.owner === 'p2' ? 'p2' : 'p1');
+}
+
 // Client, jeden Schritt: Strahlen und Druckwellen animieren; das eigene Fadenkreuz folgt dem vorhergesagten Schiff
 // (ohne Auto-Zielen liegt es auf der Grundposition, mit Auto-Zielen gilt der Host-Wert)
 export function clientSchritt() {
   aktualisiereStrahlen();
   aktualisiereWellen();
+  aktualisiereEmps();
   const p = state.p2;
   if (p && istSniper(p) && !p.isDead && p.sniperZielX != null) {
     if (autoZielTempo(p) === 0) {
@@ -685,6 +805,8 @@ export function setzeZurueck(pState) {
   pState.sniperGepuffert = null;
   pState.sniperLadung = 0;
   pState.sniperVoll = false;
+  pState.granateGehalten = false;
+  pState.granateSchritte = 0;
   entferneFadenkreuz(pState === state ? 'p1' : 'p2');
   entferneGranatenEffekte(pState === state ? 'p1' : 'p2');
   return true;

@@ -2324,6 +2324,17 @@
             z-index: 8;
             pointer-events: none;
         }
+        /* Sniper-EMP: blauer Ring vom Schiff, waechst und verblasst */
+        .sniper-emp {
+            position: absolute;
+            box-sizing: border-box;
+            border: 3px solid #4fc3f7;
+            border-radius: 50%;
+            background: radial-gradient(circle, rgba(79, 195, 247, 0.04), rgba(79, 195, 247, 0.22));
+            box-shadow: 0 0 14px #4fc3f7, inset 0 0 14px #b3e5fc;
+            z-index: 8;
+            pointer-events: none;
+        }
         /* Betaeubt (Sniper-Granate): entsaettigt, mit kreisenden Funken */
         .betaeubt {
             filter: saturate(0.2) brightness(0.85);

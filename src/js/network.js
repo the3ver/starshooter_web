@@ -675,6 +675,9 @@ export function handleNetworkEvent(data, peerId = null) {
         if (data.type === 'missile_detonated') {
             Utils.erzeugeRaketenDetonation(data.x, data.y, data.radius);
         }
+        if (data.type === 'emp_ausgeloest') {
+            Sniper.zeigeEmp(data);
+        }
         if (data.type === 'granate_detonated') {
             Sniper.zeigeDetonation(data);
         }
@@ -1836,12 +1839,15 @@ export function applyPlayerInput(input) {
     // einem true in jedem Schritt); ein kurzer Druck bleibt wie bisher bis zum Schuss gemerkt
     if (input.rakete !== undefined) {
         // Neuer Druck bleibt fuer den Gleve-Dash gemerkt, auch wenn das Loslassen im selben Host-Schritt ankommt
-        if (input.rakete && !state.p2.raketeGehalten) state.p2.netzDashAnfrage = true;
+        if (input.rakete && !state.p2.raketeGehalten) {
+            state.p2.netzDashAnfrage = true;
+            state.p2.netzGranatenAnfrage = true; // Sniper: kurzer Tipp geht nicht verloren
+        }
         state.p2.raketeGehalten = Boolean(input.rakete);
     }
     if (input.bombe !== undefined) state.p2.bombeGehalten = Boolean(input.bombe);
 
-    if (input.rakete) {
+    if (input.rakete && !Sniper.istSniper(state.p2)) {
         state.p2.networkFireRakete = true;
     }
 
