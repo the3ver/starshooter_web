@@ -814,7 +814,8 @@ test.describe('Space Shooter', () => {
     const perksContainer = page.locator('#hangar-ship-perks');
     await expect(perksContainer).toBeVisible();
 
-    const badges = perksContainer.locator('.hangar-perk-badge');
+    const badges = perksContainer.locator('.hangar-perk-chip');
+    const detail = page.locator('#hangar-perk-detail');
 
     // Erwartete Perks kommen aus der Schiffs-Config, nicht aus festen Texten/Anzahlen
     const getPerks = (modell) => page.evaluate((m) => window.__game.shipModels[m].perks.map(p => ({ label: p.label, type: p.type })), modell);
@@ -824,8 +825,9 @@ test.describe('Space Shooter', () => {
       const perks = await getPerks(modell);
       expect(perks.length).toBeGreaterThan(0);
       await expect(badges).toHaveCount(perks.length);
-      await expect(badges.locator('.perk-label')).toHaveText(perks.map(p => p.label));
       for (let i = 0; i < perks.length; i++) {
+        await badges.nth(i).click();
+        await expect(detail).toContainText(perks[i].label);
         await expect(badges.nth(i)).toHaveClass(perks[i].type === 'nerf' ? /perk-nerf/ : /perk-buff/);
       }
       return perks.map(p => p.label);
@@ -833,13 +835,13 @@ test.describe('Space Shooter', () => {
 
     // 1. Initial mit Viper-X
     const viperLabels = await pruefeBadges('viper');
-    await expect(perksContainer).toContainText('SPLITTER-DROP');
+    expect(viperLabels).toContain('SPLITTER-DROP');
 
     // 2. Wechsel auf Phantom-NX
     await page.locator('.hangar-model-btn[data-model="phantom"]').click();
     const phantomLabels = await pruefeBadges('phantom');
     expect(phantomLabels).not.toEqual(viperLabels);
-    await expect(perksContainer).not.toContainText('SPLITTER-DROP');
+    expect(phantomLabels).not.toContain('SPLITTER-DROP');
 
     // 3. Wechsel auf Gleve-MR
     await page.locator('.hangar-model-btn[data-model="gleve"]').click();

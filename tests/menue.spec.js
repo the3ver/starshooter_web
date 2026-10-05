@@ -174,6 +174,7 @@ test('Co-op: Bot-Steuerung (Spieler-2-Reiter, Schwierigkeit) sprengt die feste H
 test('Co-op-Steuerung: zwei Spalten mit je vier Zeilen "Taste -> Aktion", ohne Umbruch', async ({ page }) => {
   await oeffneMenue(page, { width: 800, height: 600 });
   await page.click('#gamemode-btn-coop');
+  await page.click('#btn-open-steuerung');
   const spalten = await page.evaluate(() => {
     return [...document.querySelectorAll('#steuerung-info-coop .steuerung-col')].map(col =>
       [...col.querySelectorAll('.steuerung-zeile')].map(z => {
@@ -244,4 +245,98 @@ test('Einzelspieler bleibt beim Spielstart bei 400 px', async ({ page }) => {
   const w = await miss(page);
   expect(w.configBreite).toBe(400);
   expect(w.feldBreite).toBe(400);
+});
+
+test.describe('Menue aufgeraeumt: Steuerung-Overlay und Perk-Chips', () => {
+  test('Steuerungsknopf oeffnet das Overlay, SCHLIESSEN und ESC schliessen es', async ({ page }) => {
+    await oeffneMenue(page, { width: 800, height: 600 });
+    const overlay = page.locator('#steuerung-overlay');
+    await expect(overlay).toBeHidden();
+    await page.click('#btn-open-steuerung');
+    await expect(overlay).toBeVisible();
+    await page.click('#btn-close-steuerung');
+    await expect(overlay).toBeHidden();
+    await page.click('#btn-open-steuerung');
+    await expect(overlay).toBeVisible();
+    await page.keyboard.press('Escape');
+    await expect(overlay).toBeHidden();
+    expect(await page.evaluate(() => window.__game.state.spielLaeuft)).toBe(false);
+  });
+
+  test('Overlay zeigt die Steuerung des aktuellen Modus (Single vs Co-op)', async ({ page }) => {
+    await oeffneMenue(page, { width: 800, height: 600 });
+    await page.click('#btn-open-steuerung');
+    await expect(page.locator('#steuerung-info-single')).toBeVisible();
+    await expect(page.locator('#steuerung-info-coop')).toBeHidden();
+    await page.click('#btn-close-steuerung');
+    await page.click('#gamemode-btn-coop');
+    await page.click('#btn-open-steuerung');
+    await expect(page.locator('#steuerung-info-coop')).toBeVisible();
+    await expect(page.locator('#steuerung-info-single')).toBeHidden();
+    await expect(page.locator('#steuerung-info-coop')).toContainText('SPIELER 2');
+  });
+
+  test('Tastendruck bei offenem Overlay startet kein Spiel, danach schon', async ({ page }) => {
+    await oeffneMenue(page, { width: 800, height: 600 });
+    await page.click('#btn-open-steuerung');
+    await page.keyboard.down('KeyW');
+    await page.waitForTimeout(300);
+    await page.keyboard.up('KeyW');
+    expect(await page.evaluate(() => window.__game.state.spielLaeuft || window.__game.state.cutsceneAktiv)).toBeFalsy();
+    await expect(page.locator('#start-screen')).toBeVisible();
+    await page.keyboard.press('Escape');
+    await page.keyboard.down('KeyW');
+    await expect.poll(() => page.evaluate(() => window.__game.state.cutsceneAktiv || window.__game.state.spielLaeuft)).toBeTruthy();
+    await page.keyboard.up('KeyW');
+  });
+
+  test('Kurzzeile mit den wichtigsten Tasten je Modus', async ({ page }) => {
+    await oeffneMenue(page, { width: 800, height: 600 });
+    const kurz = page.locator('#steuerung-kurz');
+    await expect(kurz).toContainText('L Laser');
+    await page.click('#gamemode-btn-coop');
+    await expect(kurz).toContainText('P1: WASD');
+    await expect(kurz).toContainText('P2: Pfeile');
+    await page.click('#gamemode-btn-online');
+    await expect(kurz).toContainText('L Laser');
+    await expect(kurz).toBeVisible();
+  });
+
+  test('Perk-Chips: Anzahl passt zum Schiff, Antippen zeigt Label und Beschreibung', async ({ page }) => {
+    await oeffneMenue(page, { width: 800, height: 600 });
+    for (const modell of ['viper', 'phantom', 'gleve']) {
+      await page.click(`.hangar-model-btn[data-model="${modell}"]`);
+      const perks = await page.evaluate((m) => window.__game.shipModels[m].perks.map(p => ({ label: p.label, desc: p.desc })), modell);
+      const chips = page.locator('#hangar-ship-perks .hangar-perk-chip');
+      await expect(chips).toHaveCount(perks.length);
+      await expect(page.locator('#hangar-perk-detail')).toContainText('antippen');
+      for (let i = 0; i < perks.length; i++) {
+        await chips.nth(i).click();
+        await expect(page.locator('#hangar-perk-detail')).toContainText(perks[i].label);
+        await expect(page.locator('#hangar-perk-detail')).toContainText(perks[i].desc);
+      }
+    }
+  });
+
+  test('Hangar-Hoehe und Perk-Zeile sind fuer alle Schiffe gleich (eine Zeile)', async ({ page }) => {
+    await oeffneMenue(page, { width: 800, height: 600 });
+    const hoehen = [];
+    for (const modell of ['viper', 'phantom', 'gleve']) {
+      await page.click(`.hangar-model-btn[data-model="${modell}"]`);
+      await page.locator('#hangar-ship-perks .hangar-perk-chip').last().click();
+      hoehen.push(await page.evaluate(() => ({
+        hangar: document.getElementById('hangar-container').getBoundingClientRect().height,
+        perks: document.getElementById('hangar-ship-perks').getBoundingClientRect().height,
+        detail: document.getElementById('hangar-perk-detail').scrollHeight - document.getElementById('hangar-perk-detail').clientHeight,
+        scroll: document.getElementById('start-screen').scrollHeight - document.getElementById('start-screen').clientHeight
+      })));
+    }
+    for (const h of hoehen) {
+      expect(Math.abs(h.hangar - hoehen[0].hangar)).toBeLessThanOrEqual(0.5);
+      expect(Math.abs(h.perks - hoehen[0].perks)).toBeLessThanOrEqual(0.5);
+      expect(h.perks).toBeLessThan(36);
+      expect(h.detail).toBeLessThanOrEqual(0);
+      expect(h.scroll).toBeLessThanOrEqual(0);
+    }
+  });
 });

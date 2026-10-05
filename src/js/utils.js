@@ -1431,6 +1431,16 @@ export function setGameMode(mode) {
 }
 
 export function updateSteuerungInfo() {
+  const kurz = document.getElementById('steuerung-kurz');
+  if (kurz) {
+    if (state.gameMode === 'coop') {
+      kurz.textContent = state.p2IsBot
+        ? 'WASD bewegen · L/B Laser · K/V Raketen · LEER/C Bombe · P Pause'
+        : 'P1: WASD · B/V/C   P2: Pfeile · Ä/Ö/L';
+    } else {
+      kurz.textContent = 'WASD bewegen · L Laser · K Raketen · LEER Bombe · P Pause';
+    }
+  }
   const infoCoop = document.getElementById('steuerung-info-coop');
   if (infoCoop) {
     if (state.p2IsBot) {
@@ -1461,6 +1471,18 @@ export function updateSteuerungInfo() {
       `;
     }
   }
+}
+
+// Beschreibungszeile unter den Perk-Chips (feste Hoehe, Index -1 = Hinweistext)
+export function zeigePerkDetail(index) {
+  const detail = document.getElementById('hangar-perk-detail');
+  const container = document.getElementById('hangar-ship-perks');
+  if (!detail || !container) return;
+  const modell = container.dataset.modell;
+  const perk = shipModels && shipModels[modell] && shipModels[modell].perks[index];
+  container.querySelectorAll('.hangar-perk-chip').forEach((chip, i) => chip.classList.toggle('aktiv', i === index));
+  detail.classList.toggle('hinweis', !perk);
+  detail.textContent = perk ? perk.label + ': ' + perk.desc : 'Perk antippen für Details';
 }
 
 export function updatePlayerShipVisuals() {
@@ -1505,13 +1527,10 @@ export function updatePlayerShipVisuals() {
 
   // Hangar Perks rendern
   const perksContainer = document.getElementById('hangar-ship-perks');
-  if (perksContainer && shipData && shipData.perks) {
-    perksContainer.innerHTML = shipData.perks.map(p => `
-      <div class="hangar-perk-badge ${p.type === 'nerf' ? 'perk-nerf' : 'perk-buff'}" title="${p.desc}">
-        <span class="perk-icon">${p.icon}</span>
-        <span class="perk-label">${p.label}</span>
-      </div>
-    `).join('');
+  if (perksContainer && shipData && shipData.perks && perksContainer.dataset.modell !== activeHangarModel) {
+    perksContainer.dataset.modell = activeHangarModel;
+    perksContainer.innerHTML = shipData.perks.map((p, i) => `<button type="button" class="hangar-perk-chip ${p.type === 'nerf' ? 'perk-nerf' : 'perk-buff'}" data-perk="${i}" title="${p.label}: ${p.desc}">${p.icon}</button>`).join('');
+    zeigePerkDetail(-1);
   }
 
   // Active Klassen auf Hangar Tabs aktualisieren

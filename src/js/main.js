@@ -275,6 +275,35 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
+    Utils.updateSteuerungInfo();
+
+    // Steuerungs-Overlay (Knopf im Menue, ESC und SCHLIESSEN schliessen)
+    const steuerungOverlay = document.getElementById('steuerung-overlay');
+    const btnOpenSteuerung = document.getElementById('btn-open-steuerung');
+    if (steuerungOverlay && btnOpenSteuerung) {
+        btnOpenSteuerung.addEventListener('click', (e) => {
+            e.stopPropagation();
+            Utils.updateSteuerungInfo();
+            steuerungOverlay.style.display = 'flex';
+        });
+        const btnCloseSteuerung = document.getElementById('btn-close-steuerung');
+        if (btnCloseSteuerung) btnCloseSteuerung.addEventListener('click', (e) => {
+            e.stopPropagation();
+            steuerungOverlay.style.display = 'none';
+        });
+    }
+
+    // Perk-Chips im Hangar: Ueberfahren bzw. Antippen zeigt die Beschreibung
+    const perkListe = document.getElementById('hangar-ship-perks');
+    if (perkListe) {
+        const perkIndex = (e) => {
+            const chip = e.target.closest('.hangar-perk-chip');
+            return chip ? Number(chip.dataset.perk) : null;
+        };
+        perkListe.addEventListener('mouseover', (e) => { const i = perkIndex(e); if (i !== null) Utils.zeigePerkDetail(i); });
+        perkListe.addEventListener('click', (e) => { const i = perkIndex(e); if (i !== null) Utils.zeigePerkDetail(i); });
+    }
+
     const startText = document.getElementById('start-text');
     if (startText) {
         startText.addEventListener('click', (e) => {

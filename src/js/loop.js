@@ -40,7 +40,9 @@ export function simulationsSchritt() {
 
   if (!state.spielLaeuft) {
     const whatsNew = document.getElementById('whats-new-overlay');
-    const isWhatsNewOpen = whatsNew && whatsNew.style.display !== 'none';
+    const steuerungOffen = document.getElementById('steuerung-overlay');
+    const isWhatsNewOpen = (whatsNew && whatsNew.style.display !== 'none') ||
+                           (steuerungOffen && steuerungOffen.style.display !== 'none');
     const keys = state.tastenGedrueckt;
     const startKeyPressed = keys.w || keys.a || keys.s || keys.d || keys.l || keys.k || keys[' '] ||
                             keys.b || keys.v || keys.c || keys.ä || keys.ö ||

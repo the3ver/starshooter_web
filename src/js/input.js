@@ -16,6 +16,12 @@ export function setupInput() {
     Audio.initAudio();
 
     if (e.key === 'Escape' || e.key === 'Esc') {
+      const steuerung = document.getElementById('steuerung-overlay');
+      if (steuerung && steuerung.style.display !== 'none') {
+        steuerung.style.display = 'none';
+        e.preventDefault();
+        return;
+      }
       if (state.cutsceneAktiv) {
         Cutscene.skipCutscene();
         return;
@@ -231,9 +237,11 @@ export function setupInput() {
     }
     
     // Ignoriere Klicks auf alle UI-Elemente / Overlays
-    if (e.target.closest('button, input, select, textarea, a, .gamemode-selector, #online-lobby-container, #hangar-container, #whats-new-overlay, #btn-open-whats-new, #btn-sound-toggle, #game-over-screen, .highscore-tab, .credits')) return;
+    if (e.target.closest('button, input, select, textarea, a, .gamemode-selector, #online-lobby-container, #hangar-container, #whats-new-overlay, #steuerung-overlay, #btn-open-steuerung, #btn-open-whats-new, #btn-sound-toggle, #game-over-screen, .highscore-tab, .credits')) return;
     const whatsNew = document.getElementById('whats-new-overlay');
     if (whatsNew && whatsNew.style.display !== 'none') return;
+    const steuerungOv = document.getElementById('steuerung-overlay');
+    if (steuerungOv && steuerungOv.style.display !== 'none') return;
 
     if (!state.spielLaeuft || state.gameOverAktiv) return;
     

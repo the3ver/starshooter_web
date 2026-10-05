@@ -2388,16 +2388,95 @@
         .online-status .vp-balken span { flex: 1; height: 6px; border-radius: 3px; background: rgba(255, 255, 255, 0.15); }
         .online-status .vp-balken span.aktiv { background: #f1c40f; }
 
-        #start-screen .steuerung-titel {
-            margin-top: 4px;
-            margin-bottom: 3px;
-            padding-bottom: 2px;
+        /* Steuerung steckt im Overlay (#steuerung-overlay), im Menue steht nur die Kurzzeile */
+        #steuerung-overlay {
+            position: absolute;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background-color: rgba(10, 15, 25, 0.92);
+            backdrop-filter: blur(8px);
+            -webkit-backdrop-filter: blur(8px);
+            display: none;
+            justify-content: center;
+            align-items: center;
+            z-index: 2000;
+            padding: 20px;
+            box-sizing: border-box;
         }
 
-        /* Steuerungs-Block hat in allen Modi dieselbe Hoehe (groesster Inhalt: Co-op-Tabelle) */
-        #start-screen .steuerung-info {
-            min-height: 96px;
-            box-sizing: border-box;
+        .steuerung-overlay-content {
+            max-width: 380px;
+            font-size: 12px;
+            line-height: 1.7;
+        }
+
+        .steuerung-overlay-content .steuerung-info {
+            margin: 0 0 12px 0;
+        }
+
+        .steuerung-touch {
+            font-size: 11px;
+            color: #95a5a6;
+            margin-bottom: 14px;
+        }
+
+        .steuerung-kurz {
+            font-size: 10px;
+            letter-spacing: 0.5px;
+            color: #95a5a6;
+            text-align: center;
+            margin-top: 10px;
+            white-space: nowrap;
+        }
+
+        .menue-knoepfe {
+            display: flex;
+            gap: 10px;
+            justify-content: center;
+            margin-top: 6px;
+        }
+
+        .hangar-perk-chip {
+            font-size: 15px;
+            line-height: 1;
+            padding: 4px 9px;
+            border-radius: 6px;
+            border: 1px solid rgba(255, 255, 255, 0.15);
+            background: rgba(11, 19, 25, 0.85);
+            cursor: pointer;
+            transition: transform 0.15s ease, box-shadow 0.15s ease;
+        }
+
+        .hangar-perk-chip:hover,
+        .hangar-perk-chip.aktiv {
+            transform: translateY(-1px);
+            box-shadow: 0 0 8px rgba(255, 255, 255, 0.25);
+        }
+
+        .hangar-perk-chip.perk-buff {
+            border-color: rgba(46, 204, 113, 0.5);
+            background: rgba(46, 204, 113, 0.1);
+        }
+
+        .hangar-perk-chip.perk-nerf {
+            border-color: rgba(230, 126, 34, 0.5);
+            background: rgba(230, 126, 34, 0.1);
+        }
+
+        .hangar-perk-detail {
+            height: 14px;
+            line-height: 14px;
+            margin-top: 6px;
+            width: 100%;
+            font-size: 9px;
+            text-align: center;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            color: #ecf0f1;
+        }
+
+        .hangar-perk-detail.hinweis {
+            color: #7f8c8d;
         }
 
         /* Das Menue ist hoch genug, um die Sound-Taste (unten links) zu ueberdecken: Taste bleibt davor bedienbar */
@@ -2407,7 +2486,7 @@
 
         /* Kompaktes Menue: Gesamthoehe in allen Modi <= Spielfeldhoehe (600 px) */
         #start-screen {
-            padding: 10px 20px;
+            padding: 14px 20px;
         }
 
         #start-screen .start-title {
@@ -2436,7 +2515,7 @@
             margin-bottom: 6px;
         }
 
-        #start-screen .steuerung-coop-grid {
+        #steuerung-overlay .steuerung-coop-grid {
             font-size: 10px;
             line-height: 1.25;
             padding: 4px 8px;

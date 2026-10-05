@@ -23,8 +23,11 @@ test('Gleve-MR: im Hangar wählbar, Perks, Manta-SVG, keine Werfer-Pods, HUD SWE
   });
   expect(werte.model).toBe('gleve');
   await expect(page.locator('#hangar-ship-name')).toContainText(werte.name);
-  await expect(page.locator('#hangar-ship-perks .hangar-perk-badge')).toHaveCount(werte.perks.length);
-  await expect(page.locator('#hangar-ship-perks .perk-label')).toHaveText(werte.perks);
+  await expect(page.locator('#hangar-ship-perks .hangar-perk-chip')).toHaveCount(werte.perks.length);
+  for (let i = 0; i < werte.perks.length; i++) {
+    await page.locator('#hangar-ship-perks .hangar-perk-chip').nth(i).click();
+    await expect(page.locator('#hangar-perk-detail')).toContainText(werte.perks[i]);
+  }
 
   // Spiel starten
   await page.keyboard.down('KeyW');
