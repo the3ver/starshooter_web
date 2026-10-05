@@ -2147,13 +2147,24 @@ test.describe('2-Spieler-Modus (Co-op)', () => {
       return { gameMode: state.gameMode, width: config.spielfeldBreite };
     });
     expect(modeInfo.gameMode).toBe('coop');
-    expect(modeInfo.width).toBe(600);
+    // Im Menue bleibt die Breite fest (kein Springen beim Moduswechsel)
+    expect(modeInfo.width).toBe(400);
+    expect(await page.evaluate(() => document.getElementById('spielfeld').style.width)).toBe('400px');
 
-    // Spielfeld-Element hat 600px Breite
-    const box = await spielfeld.boundingBox();
-    // BoundingBox ist im Unscaled/Scaled Zustand äquivalent zur berechneten Breite
+    // Erst nach Spielstart gilt die Co-op-Breite von 600 px
+    await starteSpiel(page);
+    await page.waitForFunction(() => window.__game.state.spielLaeuft);
+    modeInfo = await page.evaluate(async () => {
+      const { state, config } = await import('./js/state.js');
+      return { gameMode: state.gameMode, width: config.spielfeldBreite };
+    });
+    expect(modeInfo.width).toBe(600);
     const styleWidth = await page.evaluate(() => document.getElementById('spielfeld').style.width);
     expect(styleWidth).toBe('600px');
+
+    // Zurück ins Hauptmenü: wieder Menübreite
+    await page.evaluate(() => window.__game.Utils.restartGame());
+    await expect(btnSingle).toBeVisible();
 
     // Zurück auf 1-Spieler
     await btnSingle.click();
@@ -4288,10 +4299,10 @@ test.describe('Bot-Partner', () => {
     // Klick auf Online-Modus
     await btnOnline.click();
 
-    // Button muss aktiv sein und Spielfeld auf 600px vergrößert werden
+    // Button muss aktiv sein; im Menü bleibt das Spielfeld schmal (keine Layout-Sprünge)
     await expect(btnOnline).toHaveClass(/active/);
     const spielfeld = page.locator('#spielfeld');
-    await expect(spielfeld).toHaveClass(/mode-coop/);
+    await expect(spielfeld).not.toHaveClass(/mode-coop/);
 
     // Online-Lobby-Bereich muss sichtbar sein
     const lobby = page.locator('#online-lobby-container');
@@ -4303,6 +4314,12 @@ test.describe('Bot-Partner', () => {
     // Zurück auf 1-Spieler schalten blendet Lobby wieder aus
     await page.click('#gamemode-btn-single');
     await expect(lobby).toBeHidden();
+
+    // Erst beim Online-Spielstart wird das Spielfeld auf 600px vergrößert
+    await btnOnline.click();
+    await page.evaluate(() => window.__game.Network.startOnlineGame());
+    await expect(spielfeld).toHaveClass(/mode-coop/);
+    expect(await page.evaluate(() => window.__game.config.spielfeldBreite)).toBe(600);
   });
 
   test('Online-Multiplayer › Raum erstellen (Host) generiert Raum-Code und zeigt Status an', async ({ page }) => {

@@ -100,6 +100,9 @@ export function startCutscene(callback) {
     if (cutsceneActive) return;
     onCompleteCallback = callback;
 
+    // Ab Spielstart gilt die Breite des gewaehlten Modus (im Menue bleibt sie fest)
+    Utils.wendeSpielfeldBreiteAn(state.gameMode);
+
     try {
         if (typeof window !== 'undefined' && localStorage.getItem('starshooter_skip_cutscene') === 'true') {
             endCutsceneAndStartGame(true);

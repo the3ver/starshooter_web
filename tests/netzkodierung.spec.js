@@ -285,6 +285,7 @@ async function alsClient(page) {
   await page.evaluate((LISTEN_ARRAYS) => {
     const { state, arrays, Utils } = window.__game;
     Utils.setGameMode('online');
+    Utils.wendeSpielfeldBreiteAn('online'); // Spielstart: erst jetzt gilt die Online-Breite (600 px)
     state.spielLaeuft = true;
     state.pausiert = false;
     state.cutsceneAktiv = false;

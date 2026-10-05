@@ -738,6 +738,7 @@ export function restartGame() {
   
   let startScreen = document.getElementById('start-screen');
   if (startScreen) startScreen.style.display = 'block';
+  wendeSpielfeldBreiteAn('menue');
   updatePlayerShipVisuals();
   updateMobileControlsVisibility();
   if (state.gameMode === 'online') {
@@ -1340,12 +1341,28 @@ export function getShipSVGContent(model, colorId) {
   `;
 }
 
+// Menuebreite (Einzelspieler-Feld), gilt solange der Startbildschirm sichtbar ist
+export const MENUE_BREITE = 400;
+export const MULTIPLAYER_BREITE = 600;
+
+// Setzt die Spielfeldbreite: 'single' = 400 px, 'coop'/'online' = 600 px, 'menue' = Menuebreite.
+// Ohne Argument gilt state.gameMode. Wird beim Spielstart (Cutscene) bzw. beim Rueckweg ins Menue gerufen.
+export function wendeSpielfeldBreiteAn(modus = state.gameMode) {
+  const breit = modus === 'coop' || modus === 'online';
+  config.spielfeldBreite = breit ? MULTIPLAYER_BREITE : MENUE_BREITE;
+  const spielfeld = dom.spielfeld || document.getElementById('spielfeld');
+  if (spielfeld) {
+    spielfeld.classList.toggle('mode-coop', breit);
+    spielfeld.style.width = config.spielfeldBreite + 'px';
+  }
+  if (typeof window.resizeGame === 'function') window.resizeGame();
+}
+
 export function setGameMode(mode) {
   state.gameMode = mode;
   const isCoop = mode === 'coop';
   const isOnline = mode === 'online';
   const isMultiplayer = isCoop || isOnline;
-  config.spielfeldBreite = isMultiplayer ? 600 : 400;
 
   const btnSingle = document.getElementById('gamemode-btn-single');
   const btnCoop = document.getElementById('gamemode-btn-coop');
@@ -1354,11 +1371,12 @@ export function setGameMode(mode) {
   if (btnCoop) btnCoop.classList.toggle('active', isCoop);
   if (btnOnline) btnOnline.classList.toggle('active', isOnline);
 
-  const spielfeld = dom.spielfeld || document.getElementById('spielfeld');
-  if (spielfeld) {
-    spielfeld.classList.toggle('mode-coop', isMultiplayer);
-    spielfeld.style.width = config.spielfeldBreite + 'px';
-  }
+  // Die Spielfeldbreite aendert sich NICHT hier: Das Menue bleibt in allen Modi gleich breit,
+  // die Modusbreite gilt erst ab Spielstart (wendeSpielfeldBreiteAn in startCutscene/startOnlineGame).
+  const hinweisSingle = document.getElementById('modus-optionen-single');
+  if (hinweisSingle) hinweisSingle.style.display = (mode === 'single') ? 'block' : 'none';
+  const optionenCoop = document.getElementById('modus-optionen-coop');
+  if (optionenCoop) optionenCoop.style.display = isCoop ? 'block' : 'none';
 
   const onlineLobby = document.getElementById('online-lobby-container');
   if (onlineLobby) onlineLobby.style.display = isOnline ? 'block' : 'none';
@@ -1386,14 +1404,12 @@ export function setGameMode(mode) {
     if (isOnline) {
       startText.textContent = 'RAUM ERSTELLEN ODER BEITRETEN ZUM START';
       startText.style.color = '#1abc9c';
+      startText.classList.add('start-text-lang');
     } else {
       startText.textContent = 'TAP OR PRESS ANY KEY TO START';
       startText.style.color = '#f1c40f';
+      startText.classList.remove('start-text-lang');
     }
-  }
-
-  if (typeof window.resizeGame === 'function') {
-    window.resizeGame();
   }
 
   updatePlayerShipVisuals();
@@ -1428,16 +1444,18 @@ export function updateSteuerungInfo() {
         <div class="steuerung-titel">Steuerung 2-Spieler (PC)</div>
         <div class="steuerung-coop-grid">
             <div class="steuerung-col">
-                <strong style="color: #e74c3c;">SPIELER 1:</strong><br>
-                <b>W A S D</b> &rarr; Bewegen<br>
-                <b>B</b> &rarr; Laser &nbsp;|&nbsp; <b>V</b> &rarr; Raketen<br>
-                <b>C</b> &rarr; Bombe
+                <strong style="color: #e74c3c;">SPIELER 1</strong>
+                <div class="steuerung-zeile"><b>W A S D</b><span>&rarr; Bewegen</span></div>
+                <div class="steuerung-zeile"><b>B</b><span>&rarr; Laser</span></div>
+                <div class="steuerung-zeile"><b>V</b><span>&rarr; Raketen</span></div>
+                <div class="steuerung-zeile"><b>C</b><span>&rarr; Bombe</span></div>
             </div>
             <div class="steuerung-col">
-                <strong style="color: #3498db;">SPIELER 2:</strong><br>
-                <b>&uarr; &larr; &darr; &rarr;</b> &rarr; Bewegen<br>
-                <b>Ä</b> &rarr; Laser &nbsp;|&nbsp; <b>Ö</b> &rarr; Raketen<br>
-                <b>L</b> &rarr; Bombe
+                <strong style="color: #3498db;">SPIELER 2</strong>
+                <div class="steuerung-zeile"><b>&uarr; &larr; &darr; &rarr;</b><span>&rarr; Bewegen</span></div>
+                <div class="steuerung-zeile"><b>Ä</b><span>&rarr; Laser</span></div>
+                <div class="steuerung-zeile"><b>Ö</b><span>&rarr; Raketen</span></div>
+                <div class="steuerung-zeile"><b>L</b><span>&rarr; Bombe</span></div>
             </div>
         </div>
       `;

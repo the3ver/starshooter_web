@@ -261,6 +261,7 @@ export function updateOnlineLobbyUI() {
     const connectedControls = document.getElementById('online-connected-controls');
     const btnStart = document.getElementById('btn-online-start');
     const startText = document.getElementById('start-text');
+    if (startText) startText.classList.add('start-text-lang');
 
     const isConnected = state.network && state.network.connected;
     const isHost = state.network && state.network.isHost;
@@ -436,12 +437,7 @@ export function startOnlineGame() {
     let startScreen = document.getElementById('start-screen');
     if (startScreen) startScreen.style.display = 'none';
 
-    config.spielfeldBreite = 600;
-    const spielfeld = dom.spielfeld || document.getElementById('spielfeld');
-    if (spielfeld) {
-        spielfeld.classList.add('mode-coop');
-        spielfeld.style.width = '600px';
-    }
+    Utils.wendeSpielfeldBreiteAn('online');
 
     const uiP2 = dom.uiContainerP2 || document.getElementById('ui-container-p2');
     if (uiP2) uiP2.style.display = 'flex';
