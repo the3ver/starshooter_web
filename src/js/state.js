@@ -225,7 +225,7 @@ export const state = {
 
 export const arrays = {
     laserArray: [], raketenArray: [], bombenArray: [], feinde: [], asteroiden: [],
-    bosses: [], bossBombenArray: [], bossRaketenArray: [], partikelArray: [], explosionenArray: [], powerups: [], feindLaserArray: [], hackProjektilArray: [], bossLaserArray: [], sterne: [], gleveWellen: []
+    bosses: [], bossBombenArray: [], bossRaketenArray: [], partikelArray: [], explosionenArray: [], powerups: [], feindLaserArray: [], hackProjektilArray: [], bossLaserArray: [], sterne: [], gleveWellen: [], sniperMinen: []
 };
 
 export function isCoopMode() {

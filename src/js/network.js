@@ -681,6 +681,9 @@ export function handleNetworkEvent(data, peerId = null) {
         if (data.type === 'granate_detonated') {
             Sniper.zeigeDetonation(data);
         }
+        if (data.type === 'mine_explodiert') {
+            Sniper.zeigeMinenExplosion(data);
+        }
         if (data.type === 'target_destroyed') {
             Utils.erzeugeExplosion(data.x, data.y, data.farbe, data.anzahl);
             if (data.soundType) Audio.playExplosion(data.soundType);
@@ -946,6 +949,8 @@ export function serializeGameState() {
         })),
         // Sniper-Granaten im Flug (ohne Sniper leer, wie gleveWellen)
         sniperGranaten: Sniper.netzGranatenListe(),
+        // Sniper-Haftminen (ohne Sniper leer)
+        sniperMinen: Sniper.netzMinenListe(),
         gleveWellen: arrays.gleveWellen.map(w => ({
             id: w.id,
             x: w.x,
@@ -1569,6 +1574,7 @@ export function applyGameStateSnapshot(snapshot) {
 
     // Granaten des Sniper-Hosts/-Clients im Flug
     Sniper.synchronisiereGranaten(snapshot.sniperGranaten);
+    Sniper.synchronisiereMinen(snapshot.sniperMinen);
 
     // 11. Replicate Enemy Lasers
     synchronisiereListe(arrays.feindLaserArray, snapshot.feindLaser, flData => {

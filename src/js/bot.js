@@ -259,6 +259,9 @@ let sniperModus = null; // null (Taste oben) | 'tipp' | 'laden'
 let sniperHaltedauer = 0;
 let sniperTippRest = 0; // verbleibende Schritte des Granaten-/EMP-Tippens (botFireRakete true)
 let sniperTippPause = 0; // Pause nach dem Tippen, damit das Loslassen verarbeitet wird, bevor ein neuer Tipp beginnt
+let sniperMinenHalt = false; // Raketen-Taste wird zum Minenlegen gehalten
+let sniperMinenSchritte = 0; // bisherige Haltedauer fuer die Minen
+const sniperVorDist = new WeakMap(); // letzter Abstand von Feinden/Asteroiden zum Schiff (Annaeherung erkennen)
 
 // Unter dem Ziel stehen, sodass das Fadenkreuz auf dem Ziel liegt (Bosse: knapp ueber der Unterkante, ihre Box ist gross)
 function sniperBewegung(p2, target, cx, cy, zielX) {
@@ -318,6 +321,22 @@ function sniperEmpLohnt(p2) {
   return false;
 }
 
+// Feind oder Asteroid (nicht Magma) naeher als 150 px am Schiffsmittelpunkt und im Annaehern: Minen legen
+function sniperMinenLohnt(p2) {
+  const cx = p2.x + config.spielerGroesse / 2;
+  const cy = p2.y + config.spielerGroesse / 2;
+  let lohnt = false;
+  for (const z of [...arrays.feinde, ...arrays.asteroiden]) {
+    if (z.istUnzerstoerbar || (z.hp !== undefined && z.hp <= 0)) continue;
+    const g = z.groesse || 30;
+    const dist = Math.hypot(z.x + g / 2 - cx, z.y + g / 2 - cy);
+    const vorher = sniperVorDist.get(z);
+    sniperVorDist.set(z, dist);
+    if (dist < 150 && vorher !== undefined && dist < vorher - 0.01) lohnt = true;
+  }
+  return lohnt;
+}
+
 // Jeden Schritt: Laser-Taste (Tippen/Laden: Halten und Loslassen brauchen den Schrittakt) und Granate/EMP (kurzer Tipp)
 function updateSniperWaffen(p2) {
   p2.botFireRakete = false;
@@ -351,6 +370,20 @@ function updateSniperWaffen(p2) {
     }
   }
 
+  // Raketen-Taste: Minen (gehalten, solange ein Feind heranfliegt; mindestens 10 Schritte, damit es kein Tipp wird; max. 5 Minen)
+  const minenLohnt = sniperMinenLohnt(p2);
+  if (sniperMinenHalt) {
+    sniperMinenSchritte++;
+    const fertig = (p2.granateMinen || 0) >= 5 || !minenLohnt || offline || p2.raketenCooldown > 0;
+    if (fertig && (sniperMinenSchritte > 10 || offline)) {
+      sniperMinenHalt = false;
+      sniperMinenSchritte = 0;
+      sniperTippPause = 3;
+    } else {
+      p2.botFireRakete = true;
+    }
+    return;
+  }
   // Raketen-Taste als kurzer Tipp (2 Schritte), danach Pause; EMP gegen nahe Geschosse hat Vorrang vor dem Granaten-Zielen
   if (sniperTippRest > 0) {
     p2.botFireRakete = true;
@@ -360,6 +393,10 @@ function updateSniperWaffen(p2) {
     sniperTippPause--;
   } else if (!offline && p2.raketenCooldown <= 0 && (sniperEmpLohnt(p2) || sniperGranateLohnt(p2, kreuz, imKreis))) {
     sniperTippRest = 1;
+    p2.botFireRakete = true;
+  } else if (!offline && p2.raketenCooldown <= 0 && minenLohnt) {
+    sniperMinenHalt = true;
+    sniperMinenSchritte = 1;
     p2.botFireRakete = true;
   }
 }
@@ -610,5 +647,7 @@ export function resetBot() {
   sniperModus = null;
   sniperTippRest = 0;
   sniperTippPause = 0;
+  sniperMinenHalt = false;
+  sniperMinenSchritte = 0;
   sniperHaltedauer = 0;
 }

@@ -41,12 +41,25 @@ const GRANATE_BETAEUBUNG = [60, 72, 90, 90, 120];
 const GRANATE_SCHADEN = [0, 15, 25, 35, 45];
 const GRANATE_COOLDOWN = [240, 210, 180, 180, 150];
 
-// Granaten-Taste: Tippen (< HALTEN_AB Schritte) = Granate + EMP, Halten (ab HALTEN_AB) = Minen (E2, derzeit leerer Haken)
+// Granaten-Taste: Tippen (< HALTEN_AB Schritte) = Granate + EMP, Halten (ab HALTEN_AB) = Haftminen
 export const HALTEN_AB = 10;
 // EMP (beim Tippen): Ring waechst in EMP_SCHRITTE auf den Radius der Raketen-Stufe, zerstoert feindliche Geschosse und betaeubt Feinde
 export const EMP_SCHRITTE = 10;
 export const EMP_BETAEUBUNG = 30;
 const EMP_RADIUS = [70, 80, 90, 100, 110];
+
+// Haftminen (beim Halten): alle MINE_INTERVALL Schritte ab HALTEN_AB eine Mine, max. MINE_MAX_PRO_HALTEN pro Halten,
+// max. MINE_MAX_AKTIV pro Spieler (aelteste weg). Lebensdauer MINE_LEBEN (die letzten MINE_BLINK blinkend); haftet am Ziel
+// und explodiert nach MINE_ZUENDUNG Schritten mit Radius MINE_RADIUS.
+export const MINE_INTERVALL = 12;
+export const MINE_MAX_PRO_HALTEN = 5;
+export const MINE_MAX_AKTIV = 8;
+export const MINE_LEBEN = 360;
+export const MINE_BLINK = 60;
+export const MINE_ZUENDUNG = 30;
+export const MINE_RADIUS = 30;
+const MINE_GROESSE = 12;
+const MINE_SCHADEN = [20, 25, 30, 35, 40];
 
 function stufenIndex(pState) {
   return Math.max(1, Math.min(5, pState.laserStufe || 1)) - 1;
@@ -70,6 +83,7 @@ export function granatenStoss(pState) { return GRANATE_STOSS[raketenIndex(pState
 export function granatenBetaeubung(pState) { return GRANATE_BETAEUBUNG[raketenIndex(pState)]; }
 export function granatenSchaden(pState) { return GRANATE_SCHADEN[raketenIndex(pState)]; }
 export function empRadius(pState) { return EMP_RADIUS[raketenIndex(pState)]; }
+export function minenSchaden(pState) { return MINE_SCHADEN[raketenIndex(pState)]; }
 
 // Ladeanteil 0-1 (unter 10 Schritten Haltedauer = Normalschuss, also 0)
 function ladeAnteil(ladung) {
@@ -404,9 +418,9 @@ function aktualisiereGranaten(pKey) {
   }
 }
 
-function erzeugeDruckwelle(cx, cy, radius, pKey) {
+function erzeugeDruckwelle(cx, cy, radius, pKey, klasse = 'sniper-druckwelle') {
   const el = document.createElement('div');
-  el.classList.add('sniper-druckwelle');
+  el.classList.add(klasse);
   el.style.left = cx + 'px';
   el.style.top = cy + 'px';
   el.style.width = '0px';
@@ -563,9 +577,115 @@ export function loeseEmpAus(pState, pKey) {
   }
 }
 
-// Haken fuer das Halten der Granaten-Taste (E2: Minen legen). `schritte` = bisherige Haltedauer, ab HALTEN_AB aufgerufen.
-// Derzeit ohne Wirkung: kein Wurf, kein EMP, kein Cooldown.
-export function haltenSchritt(pState, pKey, schritte) { // eslint-disable-line no-unused-vars
+// --- HAFTMINEN ---
+
+function ueberlappen(a, b) {
+  return a.x1 <= b.x2 && a.x2 >= b.x1 && a.y1 <= b.y2 && a.y2 >= b.y1;
+}
+
+function mineBox(m) {
+  const h = MINE_GROESSE / 2;
+  return { x1: m.x - h, y1: m.y - h, x2: m.x + h, y2: m.y + h };
+}
+
+// Ziele fuer Kontakt und Explosion: Feinde, Asteroiden (ausser Magma) und Bosse
+function minenZiele() {
+  return [...arrays.feinde, ...arrays.asteroiden, ...arrays.bosses].filter(z => !z.istUnzerstoerbar && (z.hp === undefined || z.hp > 0));
+}
+
+let minenId = 0;
+const netzMinen = []; // Online-Client: { id, el, pKey, haftet } nach Snapshot der Minen des Hosts
+
+function zeigeMine(m) {
+  m.el.style.left = (m.x - MINE_GROESSE / 2) + 'px';
+  m.el.style.top = (m.y - MINE_GROESSE / 2) + 'px';
+  m.el.classList.toggle('haftet', !!m.ziel);
+  m.el.classList.toggle('blinkt', !m.ziel && m.rest <= MINE_BLINK);
+}
+
+function entferneMine(m) {
+  if (m.el) m.el.remove();
+  const i = arrays.sniperMinen.indexOf(m);
+  if (i >= 0) arrays.sniperMinen.splice(i, 1);
+}
+
+// Mine unter der Schiffsmitte legen; ueber dem Limit pro Spieler faellt die aelteste weg
+function legeMine(pState, pKey) {
+  const eigene = arrays.sniperMinen.filter(m => m.pKey === pKey);
+  while (eigene.length >= MINE_MAX_AKTIV) entferneMine(eigene.shift());
+  const el = document.createElement('div');
+  el.classList.add('sniper-mine', 'sniper-mine-' + pKey);
+  dom.spielfeld.appendChild(el);
+  const m = {
+    id: 'sm_' + (++minenId), el, pKey, x: pState.x + config.spielerGroesse / 2, y: pState.y + config.spielerGroesse,
+    rest: MINE_LEBEN, ziel: null, offX: 0, offY: 0, zuender: -1, schaden: minenSchaden(pState)
+  };
+  arrays.sniperMinen.push(m);
+  zeigeMine(m);
+  Audio.playMineLegen();
+}
+
+function erzeugeMinenExplosion(cx, cy, pKey) {
+  Audio.playMineExplosion();
+  Utils.erzeugeExplosion(cx, cy, '#ffffff', 6);
+  Utils.erzeugeExplosion(cx, cy, '#ff9800', 8);
+  erzeugeDruckwelle(cx, cy, MINE_RADIUS, pKey, 'sniper-mine-explosion');
+}
+
+// Explosion an der aktuellen Position: jedes Ziel im Radius genau einmal (Schild zuerst)
+function explodiereMine(m) {
+  entferneMine(m);
+  erzeugeMinenExplosion(m.x, m.y, m.pKey);
+  if (state.gameMode === 'online' && state.network && state.network.isHost) {
+    Network.sendNetworkEvent({ type: 'mine_explodiert', x: Math.round(m.x * 10) / 10, y: Math.round(m.y * 10) / 10, radius: MINE_RADIUS, owner: m.pKey });
+  }
+  for (const z of minenZiele().filter(t => boxSchneidetKreis(zielBox(t), m.x, m.y, MINE_RADIUS))) {
+    schadeZiel(z, m.schaden, m.pKey);
+  }
+}
+
+function zielLebt(z) {
+  return (arrays.feinde.includes(z) || arrays.asteroiden.includes(z) || arrays.bosses.includes(z)) && (z.hp === undefined || z.hp > 0);
+}
+
+function aktualisiereMinen(pKey) {
+  for (let i = arrays.sniperMinen.length - 1; i >= 0; i--) {
+    const m = arrays.sniperMinen[i];
+    if (!m || m.pKey !== pKey) continue;
+    if (m.ziel) {
+      if (!zielLebt(m.ziel)) { explodiereMine(m); continue; } // Ziel vorher gestorben: Explosion an der letzten Position
+      const c = zielMitte(m.ziel);
+      m.x = c.x + m.offX;
+      m.y = c.y + m.offY;
+      m.zuender--;
+      if (m.zuender <= 0) { explodiereMine(m); continue; }
+      if (m.zuender % 10 === 0) Audio.playMinePiep();
+    } else {
+      m.rest--;
+      if (m.rest <= 0) { entferneMine(m); continue; }
+      const box = mineBox(m);
+      const z = minenZiele().find(t => ueberlappen(box, zielBox(t)));
+      if (z) {
+        const c = zielMitte(z);
+        m.ziel = z;
+        m.offX = m.x - c.x;
+        m.offY = m.y - c.y;
+        m.zuender = MINE_ZUENDUNG;
+        Audio.playMinePiep();
+      }
+    }
+    zeigeMine(m);
+  }
+}
+
+// Halten der Granaten-Taste (aus aktualisiereGranatenTaste, ab HALTEN_AB): alle MINE_INTERVALL Schritte eine Mine, bei freiem Cooldown.
+// `schritte` = bisherige Haltedauer.
+export function haltenSchritt(pState, pKey, schritte) {
+  if ((pState.raketenCooldown || 0) > 0 || Hack.hatHack(pState, 'waffenOffline')) return;
+  if ((pState.granateMinen || 0) >= MINE_MAX_PRO_HALTEN) return;
+  if ((schritte - HALTEN_AB) % MINE_INTERVALL !== 0) return;
+  legeMine(pState, pKey);
+  pState.granateMinen = (pState.granateMinen || 0) + 1;
 }
 
 // Tippen: Granate ins Fadenkreuz und EMP, danach startet der Cooldown
@@ -576,20 +696,24 @@ function tippeGranate(pState, pKey) {
 }
 
 // Pro Schritt aus waffen.js (statt der Raketen): `gehalten` ist die Raketen-Taste. Druck startet die Zaehlung, Loslassen
-// entscheidet: unter HALTEN_AB Schritten (und freiem Cooldown) = Tippen, sonst tut das Loslassen nichts (Halten gehoert den Minen).
+// entscheidet: unter HALTEN_AB Schritten (und freiem Cooldown) = Tippen; nach dem Halten startet der Cooldown, wenn Minen lagen.
 export function aktualisiereGranatenTaste(pState, pKey, gehalten) {
   if (!istSniper(pState)) return;
   const sperre = Hack.hatHack(pState, 'waffenOffline') || pState.isDead || !state.spielLaeuft;
   if (gehalten && !sperre) {
-    if (!pState.granateGehalten) pState.granateSchritte = 0;
+    if (!pState.granateGehalten) { pState.granateSchritte = 0; pState.granateMinen = 0; }
     pState.granateGehalten = true;
     pState.granateSchritte = (pState.granateSchritte || 0) + 1;
     if (pState.granateSchritte >= HALTEN_AB) haltenSchritt(pState, pKey, pState.granateSchritte);
   } else if (pState.granateGehalten) {
     const schritte = pState.granateSchritte || 0;
+    const minen = pState.granateMinen || 0;
     pState.granateGehalten = false;
     pState.granateSchritte = 0;
+    pState.granateMinen = 0;
     if (!sperre && schritte < HALTEN_AB && (pState.raketenCooldown || 0) <= 0) tippeGranate(pState, pKey);
+    // Halten: der Cooldown startet nur, wenn mindestens eine Mine gelegt wurde
+    else if (schritte >= HALTEN_AB && minen > 0) pState.raketenCooldown = granatenCooldown(pState);
   }
 }
 
@@ -624,7 +748,10 @@ function aktualisiereStoesse(pKey) {
 }
 
 function entferneGranatenEffekte(pKey) {
-  for (const liste of [granaten, wellen, stoesse, netzGranaten, emps]) {
+  for (let i = arrays.sniperMinen.length - 1; i >= 0; i--) {
+    if (!pKey || arrays.sniperMinen[i].pKey === pKey) entferneMine(arrays.sniperMinen[i]);
+  }
+  for (const liste of [granaten, wellen, stoesse, netzGranaten, netzMinen, emps]) {
     for (let i = liste.length - 1; i >= 0; i--) {
       if (pKey && liste[i].pKey !== pKey) continue;
       if (liste[i].el) liste[i].el.remove();
@@ -643,6 +770,7 @@ export function aktualisiereSniper(pState, pKey, gehalten, auto = false) {
   if (!istSniper(pState)) return false;
   aktualisiereStrahlen();
   aktualisiereGranaten(pKey);
+  aktualisiereMinen(pKey);
   aktualisiereStoesse(pKey);
   aktualisiereWellen(pKey);
   aktualisiereEmps(pKey);
@@ -706,6 +834,14 @@ export function netzGranatenListe() {
   return granaten.map(g => ({ id: g.id, x: g.x, y: g.y, owner: g.pKey, rest: g.rest }));
 }
 
+// Host: aktive Minen fuer den Snapshot (id, Position, Besitzer, haftet, Restzuendzeit, Restlebensdauer, blinkt)
+export function netzMinenListe() {
+  return arrays.sniperMinen.map(m => ({
+    id: m.id, x: m.x, y: m.y, owner: m.pKey, haftet: !!m.ziel, zuender: m.ziel ? m.zuender : 0, rest: m.rest,
+    blinkt: !m.ziel && m.rest <= MINE_BLINK
+  }));
+}
+
 // Client: Zustand eines Spielers aus dem Snapshot uebernehmen und darstellen. Der Schuss wird am Sprung des
 // Schussabstands erkannt (Strahl mit der zuletzt bekannten Ladung), Sounds nur fuer das eigene Schiff.
 export function uebernehmeSnapshot(pState, daten, pKey, eigenes) {
@@ -762,6 +898,41 @@ export function synchronisiereGranaten(liste) {
   }
 }
 
+// Client: Minen des Hosts abgleichen (Element pro Id; Legen-, Haft- und Piep-Ton)
+export function synchronisiereMinen(liste) {
+  const daten = liste || [];
+  const ids = new Set(daten.map(d => d.id));
+  for (let i = netzMinen.length - 1; i >= 0; i--) {
+    if (!ids.has(netzMinen[i].id)) {
+      netzMinen[i].el.remove();
+      netzMinen.splice(i, 1);
+    }
+  }
+  for (const d of daten) {
+    let m = netzMinen.find(n => n.id === d.id);
+    if (!m) {
+      const el = document.createElement('div');
+      el.classList.add('sniper-mine', 'sniper-mine-' + (d.owner === 'p2' ? 'p2' : 'p1'));
+      dom.spielfeld.appendChild(el);
+      m = { id: d.id, el, pKey: d.owner, haftet: false };
+      netzMinen.push(m);
+      Audio.playMineLegen();
+    }
+    if (d.haftet && !m.haftet) Audio.playMinePiep();
+    m.haftet = !!d.haftet;
+    m.el.style.left = (d.x - MINE_GROESSE / 2) + 'px';
+    m.el.style.top = (d.y - MINE_GROESSE / 2) + 'px';
+    m.el.classList.toggle('haftet', m.haftet);
+    m.el.classList.toggle('blinkt', !m.haftet && !!d.blinkt);
+  }
+}
+
+// Client: Minen-Explosion (Ereignis 'mine_explodiert')
+export function zeigeMinenExplosion(daten) {
+  if (!daten || !Number.isFinite(daten.x) || !Number.isFinite(daten.y)) return;
+  erzeugeMinenExplosion(daten.x, daten.y, daten.owner === 'p2' ? 'p2' : 'p1');
+}
+
 // Client: Explosion einer Granate (Ereignis 'granate_detonated')
 export function zeigeDetonation(daten) {
   if (!daten || !Number.isFinite(daten.x) || !Number.isFinite(daten.y) || !(daten.radius > 0)) return;
@@ -807,6 +978,7 @@ export function setzeZurueck(pState) {
   pState.sniperVoll = false;
   pState.granateGehalten = false;
   pState.granateSchritte = 0;
+  pState.granateMinen = 0;
   entferneFadenkreuz(pState === state ? 'p1' : 'p2');
   entferneGranatenEffekte(pState === state ? 'p1' : 'p2');
   return true;

@@ -12,14 +12,14 @@
 //   Delta eines Objekts: geaenderte Felder, '_d' = entfernte Felder, '_r' = Wert ersetzt.
 //   Fehlt 'i', bleiben die Ids wie im letzten Paket; fehlt eine Liste, ist sie unveraendert.
 
-export const PROTOKOLL_VERSION = 11;
+export const PROTOKOLL_VERSION = 12;
 export const KEYFRAME_INTERVALL = 30;   // jedes 30. Paket ist ein Keyframe (~1 s)
 export const DR_TOLERANZ = 0.5;         // px, ab dieser Abweichung wird x/y mitgesendet
 
 // Id-Praefix je Liste (siehe Entities.neueId); andere Ids gehen als Text
 const LISTEN_PRAEFIX = {
     feinde: 'f', asteroiden: 'a', bosses: 'boss', laser: 'l', raketen: 'r', bomben: 'b',
-    hackProjektile: 'hp', feindLaser: 'fl', bossLaser: 'bl', bossRaketen: 'br', bossBomben: 'bb', powerups: 'pu', gleveWellen: 'gw', sniperGranaten: 'sg'
+    hackProjektile: 'hp', feindLaser: 'fl', bossLaser: 'bl', bossRaketen: 'br', bossBomben: 'bb', powerups: 'pu', gleveWellen: 'gw', sniperGranaten: 'sg', sniperMinen: 'sm'
 };
 export const LISTEN = Object.keys(LISTEN_PRAEFIX);
 
@@ -49,7 +49,7 @@ export const RUNDUNG = {
     // Viper-Kill-Kombo: Kills und Restschritte des Fensters ganzzahlig
     viperKombo: runde0, viperKomboTimer: runde0,
     // Sniper: Fadenkreuz (x/y 1 Nachkommastelle), Ladung, Schussabstand, Granatenflug und Betaeubung ganzzahlig
-    sniperZielX: runde1, sniperZielY: runde1, sniperLadung: runde0, sniperCooldown: runde0, rest: runde0, betaeubt: runde0
+    sniperZielX: runde1, sniperZielY: runde1, sniperLadung: runde0, sniperCooldown: runde0, rest: runde0, zuender: runde0, betaeubt: runde0
 };
 
 function rundungsErsetzer(schluessel, wert) {

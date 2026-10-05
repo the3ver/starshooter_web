@@ -524,7 +524,7 @@ test('Online: Sniper-Felder gehen nur fuer Sniper in den Snapshot (Granatenliste
   expect(r.ohneSniper).toEqual([0, 0]);
   expect(r.granate).toEqual([{ id: 'string', owner: 'p1', rest: 30, hatPos: true }]);
   expect(r.dekodiert).toEqual([123.5, 99, 45, 18, 33, 1]);
-  expect(r.protokoll).toBe(11);
+  expect(r.protokoll).toBe(12);
 });
 
 test('Online-Client: Fadenkreuz an der Host-Position, Ladering bei Ladung, Strahl beim Schuss, Sounds nur fuers eigene Schiff', async ({ page }) => {
@@ -734,4 +734,40 @@ test('Online-Client: eigenes Fadenkreuz folgt dem vorhergesagten Schiff (ohne Au
   expect(r.gelaufen).toBe(true);
   expect(r.folgt[0]).toBeCloseTo(r.folgt[1], 5);
   expect(r.auto).toEqual([300, 150]);
+});
+
+test('Online-Client: Haftminen aus dem Snapshot (Legen, Blinken, Haften, Ton), Explosion per Ereignis, Entfernen', async ({ page }) => {
+  const r = await page.evaluate(() => {
+    const g = window.__game;
+    const out = {};
+    const mine = (extra) => Object.assign({ id: 'sm_1', x: 150, y: 250, owner: 'p2', haftet: false, zuender: 0, rest: 300, blinkt: false }, extra || {});
+    g.Audio.clearAudioHistory();
+    g.Network.applyGameStateSnapshot(window.__snapshot({ sniperMinen: [mine()] }));
+    const el = document.querySelector('.sniper-mine');
+    out.da = [document.querySelectorAll('.sniper-mine').length, el.classList.contains('sniper-mine-p2'), parseFloat(el.style.left) + 6, parseFloat(el.style.top) + 6];
+    out.legenTon = g.Audio.audioHistory.filter(a => a.name === 'mine_legen').length;
+    g.Network.applyGameStateSnapshot(window.__snapshot({ sniperMinen: [mine({ rest: 40, blinkt: true })] }));
+    out.blinkt = [el.classList.contains('blinkt'), el.classList.contains('haftet'), document.querySelectorAll('.sniper-mine').length];
+    g.Network.applyGameStateSnapshot(window.__snapshot({ sniperMinen: [mine({ x: 170, y: 260, haftet: true, zuender: 20 })] }));
+    out.haftet = [el.classList.contains('haftet'), el.classList.contains('blinkt'), parseFloat(el.style.left) + 6];
+    out.piep = g.Audio.audioHistory.filter(a => a.name === 'mine_piep').length;
+    g.Audio.clearAudioHistory();
+    g.Network.handleNetworkEvent({ type: 'mine_explodiert', x: 170, y: 260, radius: 30, owner: 'p2' }, 'host');
+    out.welle = document.querySelectorAll('.sniper-mine-explosion').length;
+    out.knall = g.Audio.audioHistory.filter(a => a.name === 'mine_explosion').length;
+    g.Network.handleNetworkEvent({ type: 'mine_explodiert', x: 'a', y: null }, 'host');
+    out.unsinn = document.querySelectorAll('.sniper-mine-explosion').length;
+    g.Network.applyGameStateSnapshot(window.__snapshot({ sniperMinen: [] }));
+    out.weg = document.querySelectorAll('.sniper-mine').length;
+    return out;
+  });
+  expect(r.da).toEqual([1, true, 150, 250]);
+  expect(r.legenTon).toBe(1);
+  expect(r.blinkt).toEqual([true, false, 1]);
+  expect(r.haftet).toEqual([true, false, 170]);
+  expect(r.piep).toBe(1);
+  expect(r.welle).toBe(1);
+  expect(r.knall).toBe(1);
+  expect(r.unsinn).toBe(1);
+  expect(r.weg).toBe(0);
 });

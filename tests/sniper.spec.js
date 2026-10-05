@@ -160,6 +160,9 @@ async function starteSniper(page, { coop = false } = {}) {
           arrays[name].forEach(o => o.el && o.el.remove());
           arrays[name].length = 0;
         });
+        arrays.sniperMinen.forEach(m => m.el && m.el.remove());
+        arrays.sniperMinen.length = 0;
+        document.querySelectorAll('.sniper-mine, .sniper-mine-explosion').forEach(e => e.remove());
         Object.keys(state.tastenGedrueckt).forEach(k => { state.tastenGedrueckt[k] = false; });
         state.frameZaehler = 1;
         state.level = 1;
@@ -1829,7 +1832,7 @@ test.describe('Spectre-SR Granaten-Taste und EMP', () => {
     expect(r.ton).toBe(1);
   });
 
-  test('Halten ab 10 Schritten (20 Schritte) wirft nichts, loest kein EMP aus und startet keinen Cooldown', async ({ page }) => {
+  test('Halten ab 10 Schritten (20 Schritte) wirft nichts und loest kein EMP aus; der Cooldown startet erst beim Loslassen (Mine gelegt)', async ({ page }) => {
     await bereiteEmp(page);
     const r = await page.evaluate(() => {
       const { state } = window.__game;
@@ -1841,7 +1844,8 @@ test.describe('Spectre-SR Granaten-Taste und EMP', () => {
       return { waehrend, danach: { granaten: document.querySelectorAll('.sniper-granate').length, emp: document.querySelectorAll('.sniper-emp').length, cd: state.raketenCooldown } };
     });
     expect(r.waehrend).toEqual({ granaten: 0, emp: 0, cd: 0 });
-    expect(r.danach).toEqual({ granaten: 0, emp: 0, cd: 0 });
+    expect(r.danach.cd).toBeGreaterThan(230); // Cooldown laeuft nach dem Loslassen (3 Schritte spaeter)
+    expect({ ...r.danach, cd: 0 }).toEqual({ granaten: 0, emp: 0, cd: 0 });
   });
 
   test('Grenze: 9 Schritte gehalten ist noch ein Tipp, 10 Schritte ist ein Halten', async ({ page }) => {
@@ -1860,7 +1864,7 @@ test.describe('Spectre-SR Granaten-Taste und EMP', () => {
       return { neun, zehn: state.raketenCooldown };
     });
     expect(r.neun).toBe(240);
-    expect(r.zehn).toBe(0);
+    expect(r.zehn).toBe(240); // Halten legt eine Mine -> Cooldown, aber keine Granate
   });
 
   test('Tippen im Cooldown wirft nichts; waffenOffline blockiert Granate und EMP', async ({ page }) => {
@@ -2058,7 +2062,8 @@ test.describe('Spectre-SR EMP online', () => {
     expect(r.tipp.cd).toBeGreaterThan(200);
     expect(r.tipp.ereignis).toMatchObject({ type: 'emp_ausgeloest', owner: 'p2', radius: 70 });
     expect(r.halten).toEqual({ granaten: 0, emp: 0, cd: 0 });
-    expect(r.nachHalten).toEqual({ granaten: 0, cd: 0 });
+    expect(r.nachHalten.granaten).toBe(0);
+    expect(r.nachHalten.cd).toBeGreaterThan(200); // eine Mine wurde gelegt -> Cooldown nach dem Loslassen
   });
 
   test('Client zeigt den EMP-Ring aus dem Ereignis (Ton, wachsender Ring, danach weg); ungueltige Daten werden ignoriert', async ({ page }) => {
@@ -2082,10 +2087,10 @@ test.describe('Spectre-SR EMP online', () => {
     expect(r.ton).toBe(1);
   });
 
-  test('Protokollversion ist 11', async ({ page }) => {
+  test('Protokollversion ist 12', async ({ page }) => {
     await bereiteGranate(page);
     const v = await page.evaluate(async () => (await import('./js/netzkodierung.js')).PROTOKOLL_VERSION);
-    expect(v).toBe(11);
+    expect(v).toBe(12);
   });
 });
 
@@ -2148,5 +2153,397 @@ test.describe('Spectre-SR Bot: EMP', () => {
     });
     expect(r.getippt).toBe(0);
     expect(r.rakete).toBe(1);
+  });
+});
+
+// ---------------------------------------------------------------------------------------------
+// Haftminen (E2): Halten der Granaten-Taste legt Minen
+
+// Mine legen: Raketen-Taste n Schritte halten und loslassen, Schiff danach aus dem Weg (Mine bleibt bei (200|430))
+async function bereiteMinen(page, optionen = {}) {
+  await bereiteGranate(page, optionen);
+  await page.evaluate(() => {
+    const { state, arrays, Entities } = window.__game;
+    const G = window.__gr;
+    window.__mi = {
+      minen: () => arrays.sniperMinen,
+      // Eine Mine am Schiff legen und das Schiff wegsetzen
+      eineMine() {
+        G.halte(12);
+        G.loslassen();
+        state.raketenCooldown = 0;
+        state.x = 0; state.y = 100;
+        return arrays.sniperMinen[arrays.sniperMinen.length - 1];
+      },
+      setzeFeind(cx, cy, hp = 1000) {
+        const f = G.feind(cx, cy);
+        f.hp = f.maxHp = hp;
+        return f;
+      },
+      // Ziel pro Schritt um (dx|dy) bewegen, bis die Mine haftet (max. n Schritte)
+      bisHaftet(z, dx, dy, n = 40) {
+        const m = arrays.sniperMinen[0];
+        for (let i = 0; i < n && !m.ziel; i++) {
+          z.x += dx; z.y += dy;
+          z.el.style.left = z.x + 'px'; z.el.style.top = z.y + 'px';
+          G.frei(1);
+        }
+        return m;
+      }
+    };
+  });
+}
+
+test.describe('Spectre-SR Haftminen', () => {
+  test('Halten 70 Schritte legt 5 Minen im 12er-Takt an den jeweiligen Schiffspositionen, ohne Granate und EMP; danach Cooldown', async ({ page }) => {
+    await bereiteMinen(page);
+    const r = await page.evaluate(() => {
+      const { state, arrays, Audio } = window.__game;
+      Audio.clearAudioHistory();
+      state.tastenGedrueckt.v = true;
+      const anzahl = [];
+      for (let i = 0; i < 70; i++) {
+        state.x = 100 + i * 2; // Schiff wandert
+        window.__game.Loop.simulationsSchritt();
+        anzahl.push(arrays.sniperMinen.length);
+      }
+      const waehrend = { granaten: document.querySelectorAll('.sniper-granate').length, emp: document.querySelectorAll('.sniper-emp').length, cd: state.raketenCooldown };
+      state.tastenGedrueckt.v = false;
+      window.__game.Loop.simulationsSchritt();
+      return {
+        anzahl, waehrend, cd: state.raketenCooldown, xs: arrays.sniperMinen.map(m => m.x), ys: arrays.sniperMinen.map(m => m.y),
+        owner: arrays.sniperMinen.map(m => m.pKey), els: document.querySelectorAll('.sniper-mine').length,
+        toene: Audio.audioHistory.filter(e => e.name === 'mine_legen').length, emp: Audio.audioHistory.filter(e => e.name === 'emp').length
+      };
+    });
+    // Mine k (k = 0..4) faellt in Schritt 10 + 12k (Index 9 + 12k): Schiff steht dann bei x = 100 + (9 + 12k) * 2
+    expect(r.anzahl[8]).toBe(0);
+    expect(r.anzahl[9]).toBe(1);
+    expect(r.anzahl[20]).toBe(1);
+    expect(r.anzahl[21]).toBe(2);
+    expect(r.anzahl[69]).toBe(5);
+    expect(r.anzahl.filter((n, i) => i > 0 && n > r.anzahl[i - 1])).toHaveLength(5);
+    expect(r.xs).toEqual([0, 1, 2, 3, 4].map(k => 100 + (9 + 12 * k) * 2 + 15));
+    expect(r.ys.every(y => y === 430)).toBe(true);
+    expect(r.owner.every(o => o === 'p1')).toBe(true);
+    expect(r.els).toBe(5);
+    expect(r.toene).toBe(5);
+    expect(r.waehrend).toEqual({ granaten: 0, emp: 0, cd: 0 });
+    expect(r.emp).toBe(0);
+    expect(r.cd).toBe(240);
+  });
+
+  test('Halten nur 12 Schritte legt 1 Mine; Halten im Cooldown legt keine und startet keinen neuen', async ({ page }) => {
+    await bereiteMinen(page);
+    const r = await page.evaluate(() => {
+      const { state, arrays } = window.__game;
+      const G = window.__gr;
+      G.halte(12);
+      G.loslassen();
+      const eins = { minen: arrays.sniperMinen.length, cd: state.raketenCooldown };
+      G.halte(40);
+      G.loslassen();
+      return { eins, imCooldown: { minen: arrays.sniperMinen.length, cd: state.raketenCooldown } };
+    });
+    expect(r.eins).toEqual({ minen: 1, cd: 240 });
+    expect(r.imCooldown.minen).toBe(1);
+    expect(r.imCooldown.cd).toBeLessThan(240);
+  });
+
+  test('maximal 8 aktive Minen pro Spieler, die aelteste faellt weg', async ({ page }) => {
+    await bereiteMinen(page);
+    const r = await page.evaluate(() => {
+      const { state, arrays } = window.__game;
+      const G = window.__gr;
+      const ids = [];
+      for (let i = 0; i < 2; i++) {
+        state.raketenCooldown = 0;
+        G.halte(70);
+        G.loslassen();
+        ids.push(...arrays.sniperMinen.map(m => m.id));
+      }
+      const erste = ids[0];
+      return { anzahl: arrays.sniperMinen.length, els: document.querySelectorAll('.sniper-mine').length, ersteNochDa: arrays.sniperMinen.some(m => m.id === erste), gesamt: new Set(ids).size };
+    });
+    expect(r.anzahl).toBe(8);
+    expect(r.els).toBe(8);
+    expect(r.ersteNochDa).toBe(false);
+    expect(r.gesamt).toBeGreaterThanOrEqual(10);
+  });
+
+  test('Mine bleibt stehen; Lebensdauer 360 Schritte, ab 300 blinkend, danach weg ohne Explosion', async ({ page }) => {
+    await bereiteMinen(page);
+    const r = await page.evaluate(() => {
+      const G = window.__gr;
+      const M = window.__mi;
+      const m = M.eineMine();
+      const x0 = m.x; const y0 = m.y;
+      G.frei(100);
+      const stehen = [m.x === x0, m.y === y0];
+      G.frei(190); // gesamt 290 Schritte nach dem Legen
+      const bei290 = m.el.classList.contains('blinkt');
+      G.frei(15);
+      const bei305 = m.el.classList.contains('blinkt');
+      G.frei(50);
+      const bei355 = M.minen().includes(m);
+      G.frei(10);
+      return { stehen, bei290, bei305, bei355, weg: !M.minen().includes(m), elWeg: !m.el.isConnected, explosion: document.querySelectorAll('.sniper-mine-explosion').length };
+    });
+    expect(r.stehen).toEqual([true, true]);
+    expect(r.bei290).toBe(false);
+    expect(r.bei305).toBe(true);
+    expect(r.bei355).toBe(true);
+    expect(r.weg).toBe(true);
+    expect(r.elWeg).toBe(true);
+    expect(r.explosion).toBe(0);
+  });
+
+  test('Feind beruehrt die Mine: haftet, folgt dem Feind, piept; Magma loest nicht aus', async ({ page }) => {
+    await bereiteMinen(page);
+    const r = await page.evaluate(() => {
+      const { Audio } = window.__game;
+      const G = window.__gr;
+      const M = window.__mi;
+      const m = M.eineMine();
+      // Magma-Asteroid direkt auf der Mine: keine Reaktion
+      const magma = window.__sn.asteroid(m.x, m.y, 30, true);
+      delete magma.festX; delete magma.festY;
+      G.frei(5);
+      const magmaHaftet = !!m.ziel;
+      magma.el.remove();
+      window.__game.arrays.asteroiden.splice(window.__game.arrays.asteroiden.indexOf(magma), 1);
+      Audio.clearAudioHistory();
+      const f = M.setzeFeind(200, 480);
+      M.bisHaftet(f, 0, -3);
+      const haftet = !!m.ziel && m.ziel === f;
+      const offX = m.x - (f.x + 15);
+      const offY = m.y - (f.y + 15);
+      const klasse = m.el.classList.contains('haftet');
+      const piept = Audio.audioHistory.filter(e => e.name === 'mine_piep').length;
+      // Feind wandert: Mine folgt
+      for (let i = 0; i < 5; i++) { f.x += 2; f.y -= 1; f.el.style.left = f.x + 'px'; f.el.style.top = f.y + 'px'; G.frei(1); }
+      return { magmaHaftet, haftet, klasse, piept, folgeX: m.x - (f.x + 15) - offX, folgeY: m.y - (f.y + 15) - offY, zuender: m.zuender };
+    });
+    expect(r.magmaHaftet).toBe(false);
+    expect(r.haftet).toBe(true);
+    expect(r.klasse).toBe(true);
+    expect(r.piept).toBeGreaterThanOrEqual(1);
+    expect(Math.abs(r.folgeX)).toBeLessThan(0.01);
+    expect(Math.abs(r.folgeY)).toBeLessThan(0.01);
+    expect(r.zuender).toBeLessThan(30);
+  });
+
+  test('haftet am Ziel und explodiert nach 30 Schritten: Schaden der Stufe im Radius 30, Nachbar im Radius auch, Ziel ausserhalb nicht', async ({ page }) => {
+    await bereiteMinen(page);
+    const r = await page.evaluate(() => {
+      const { state, arrays, Audio } = window.__game;
+      const G = window.__gr;
+      const M = window.__mi;
+      state.raketenStufe = 3; // 30 Schaden
+      const m = M.eineMine();
+      const a = M.setzeFeind(200, 480);
+      const nah = M.setzeFeind(240, 430); // Mitte 40 px entfernt, Box-Kante bei 25 px -> im Radius
+      const fern = M.setzeFeind(320, 430);
+      M.bisHaftet(a, 0, -3);
+      Audio.clearAudioHistory();
+      G.frei(28);
+      const vor = { hp: a.hp, nah: nah.hp, da: arrays.sniperMinen.includes(m) };
+      G.frei(1); // 29. Schritt nach dem Haften
+      const vor30 = arrays.sniperMinen.includes(m);
+      G.frei(1); // 30.
+      return {
+        vor, vor30, nach: arrays.sniperMinen.includes(m), a: a.hp, nah: nah.hp, fern: fern.hp,
+        welle: document.querySelectorAll('.sniper-mine-explosion').length,
+        ton: Audio.audioHistory.filter(e => e.name === 'mine_explosion').length
+      };
+    });
+    expect(r.vor).toEqual({ hp: 1000, nah: 1000, da: true });
+    expect(r.vor30).toBe(true);
+    expect(r.nach).toBe(false);
+    expect(r.a).toBe(970);
+    expect(r.nah).toBe(970);
+    expect(r.fern).toBe(1000);
+    expect(r.welle).toBe(1);
+    expect(r.ton).toBe(1);
+  });
+
+  test('Schaden je Raketen-Stufe 20/25/30/35/40; Schild nimmt den Schaden zuerst', async ({ page }) => {
+    await bereiteMinen(page);
+    const r = await page.evaluate(() => {
+      const { state } = window.__game;
+      const G = window.__gr;
+      const M = window.__mi;
+      const hp = [];
+      for (let stufe = 1; stufe <= 5; stufe++) {
+        window.__sn.leeren();
+        state.raketenStufe = stufe;
+        state.raketenCooldown = 0;
+        const m = M.eineMine();
+        const f = M.setzeFeind(m.x, m.y + 40);
+        M.bisHaftet(f, 0, -3);
+        G.frei(31);
+        hp.push(f.hp);
+      }
+      window.__sn.leeren();
+      state.raketenStufe = 1;
+      const m = M.eineMine();
+      const f = M.setzeFeind(m.x, m.y + 40);
+      f.schildHp = 50; f.hatSchild = true;
+      M.bisHaftet(f, 0, -3);
+      G.frei(31);
+      return { hp, schild: f.schildHp, hpSchild: f.hp };
+    });
+    expect(r.hp).toEqual([980, 975, 970, 965, 960]);
+    expect(r.schild).toBe(30);
+    expect(r.hpSchild).toBe(1000);
+  });
+
+  test('Ziel stirbt vorher: Explosion an der letzten Position, Nachbar dort bekommt Schaden', async ({ page }) => {
+    await bereiteMinen(page);
+    const r = await page.evaluate(() => {
+      const { arrays, Utils } = window.__game;
+      const G = window.__gr;
+      const M = window.__mi;
+      const m = M.eineMine();
+      const a = M.setzeFeind(200, 480);
+      const nah = M.setzeFeind(225, 430);
+      M.bisHaftet(a, 0, -3);
+      G.frei(10);
+      const px = m.x; const py = m.y;
+      Utils.zerstoereZiel(a, 'p1');
+      G.frei(1);
+      const w = document.querySelector('.sniper-mine-explosion');
+      return {
+        weg: !arrays.sniperMinen.includes(m), nah: nah.hp,
+        welleX: w ? parseFloat(w.style.left) + parseFloat(w.style.width) / 2 : null, px, py
+      };
+    });
+    expect(r.weg).toBe(true);
+    expect(r.nah).toBe(980);
+    expect(r.welleX).not.toBeNull();
+  });
+
+  test('Coop-P2 legt eigene Minen an der Position von P2; Reset und Game Over raeumen alles ab', async ({ page }) => {
+    await bereiteMinen(page, { coop: true });
+    const r = await page.evaluate(() => {
+      const { state, arrays } = window.__game;
+      const G = window.__gr;
+      G.halte(23, 'ö');
+      G.loslassen('ö');
+      const p2 = { minen: arrays.sniperMinen.map(m => [m.pKey, m.x, m.y]), cd: state.p2.raketenCooldown, cdP1: state.raketenCooldown };
+      const el = document.querySelectorAll('.sniper-mine-p2').length;
+      return { p2, el };
+    });
+    expect(r.p2.minen).toEqual([['p2', 400, 430], ['p2', 400, 430]]);
+    expect(r.p2.cd).toBe(240);
+    expect(r.p2.cdP1).toBe(0);
+    expect(r.el).toBe(2);
+    const reset = await page.evaluate(async () => {
+      const Sn = await import('./js/sniper.js');
+      const { state, arrays } = window.__game;
+      Sn.setzeZurueck(state.p2);
+      const nachP2 = arrays.sniperMinen.length;
+      window.__gr.halte(12);
+      window.__gr.loslassen();
+      const mitP1 = arrays.sniperMinen.length;
+      Sn.entferneEffekte();
+      return { nachP2, mitP1, ende: arrays.sniperMinen.length, els: document.querySelectorAll('.sniper-mine').length };
+    });
+    expect(reset).toEqual({ nachP2: 0, mitP1: 1, ende: 0, els: 0 });
+  });
+});
+
+test.describe('Spectre-SR Bot: Minen', () => {
+  async function bereiteBotMinen(page) {
+    await bereiteEmp(page, { coop: true });
+    await page.evaluate(async () => {
+      const Bot = await import('./js/bot.js');
+      const { state } = window.__game;
+      window.__sn.leeren();
+      state.p2IsBot = true;
+      state.p2BotDifficulty = 'hard';
+      Bot.resetBot();
+      state.p2.x = 285; state.p2.y = 480;
+      state.p2.raketenCooldown = 0;
+      state.x = 40; state.y = 540;
+    });
+  }
+
+  test('Bot haelt die Raketen-Taste und legt Minen, wenn ein Feind heranfliegt (max. 5), dann loslassen und Cooldown', async ({ page }) => {
+    await bereiteBotMinen(page);
+    const r = await page.evaluate(() => {
+      const { state, arrays } = window.__game;
+      const G = window.__gr;
+      const f = G.feind(300, 480 + 15 - 148 - 15);
+      let maxMinen = 0;
+      let gehalten = 0;
+      let granaten = 0;
+      for (let i = 0; i < 80; i++) {
+        // Schiff fest, Feind naehert sich jeden Schritt um 1,2 px von 148 auf etwa 60 px Abstand
+        state.p2.x = 285; state.p2.y = 480;
+        f.x = 285; f.y = 480 - 148 + Math.min(i, 73) * 1.2;
+        f.el.style.left = f.x + 'px'; f.el.style.top = f.y + 'px';
+        G.frei(1);
+        if (state.p2.botFireRakete) gehalten++;
+        maxMinen = Math.max(maxMinen, arrays.sniperMinen.filter(m => m.pKey === 'p2').length);
+        granaten = Math.max(granaten, document.querySelectorAll('.sniper-granate').length);
+      }
+      return { maxMinen, gehalten, granaten, cd: state.p2.raketenCooldown, andere: arrays.sniperMinen.filter(m => m.pKey !== 'p2').length };
+    });
+    expect(r.maxMinen).toBe(5);
+    expect(r.gehalten).toBeGreaterThanOrEqual(55);
+    expect(r.gehalten).toBeLessThanOrEqual(62);
+    expect(r.cd).toBeGreaterThan(150);
+    expect(r.granaten).toBe(0);
+    expect(r.andere).toBe(0);
+  });
+
+  test('Bot legt keine Minen ohne heranfliegenden Feind (stehender Feind, weit weg)', async ({ page }) => {
+    await bereiteBotMinen(page);
+    const r = await page.evaluate(() => {
+      const { state, arrays } = window.__game;
+      const G = window.__gr;
+      G.feind(300, 480 + 15 - 100); // nah, aber ruhend: naehert sich nicht
+      G.feind(100, 100);
+      let gehalten = 0;
+      for (let i = 0; i < 40; i++) { G.frei(1); if (state.p2.botFireRakete) gehalten++; }
+      return { gehalten, minen: arrays.sniperMinen.length };
+    });
+    expect(r.gehalten).toBe(0);
+    expect(r.minen).toBe(0);
+  });
+});
+
+test.describe('Spectre-SR Haftminen online (Host)', () => {
+  test('Host: Snapshot enthaelt die Minen (id, x, y, owner, haftet, Timer, blinkt) und ein Ereignis bei der Explosion', async ({ page }) => {
+    await bereiteOnlineHost(page);
+    const r = await page.evaluate(async () => {
+      const { state, Network, arrays } = window.__game;
+      const G = window.__gr;
+      const E = window.__eingabe;
+      const NK = await import('./js/netzkodierung.js');
+      E({ rakete: true });
+      G.frei(25);
+      E({ rakete: false });
+      G.frei(2);
+      const snap = Network.serializeGameState();
+      const liste = snap.sniperMinen.map(m => ({ id: typeof m.id, x: m.x, y: m.y, owner: m.owner, haftet: m.haftet, rest: m.rest > 300, blinkt: m.blinkt }));
+      const k = new NK.SnapshotKodierer();
+      const dek = new NK.SnapshotDekodierer().dekodiere(JSON.parse(JSON.stringify(k.kodiere(snap, 0))));
+      // Feind an die erste Mine -> haftet
+      const m0 = arrays.sniperMinen[0];
+      const f = G.feind(m0.x, m0.y + 20);
+      G.frei(2);
+      const haftet = Network.serializeGameState().sniperMinen.find(m => m.id === m0.id);
+      state.network.lastSentEvent = null;
+      G.frei(32);
+      return { liste, dekodiert: dek.sniperMinen.length, haftet: haftet && [haftet.haftet, haftet.zuender > 0], ereignis: state.network.lastSentEvent, hp: f.hp };
+    });
+    expect(r.liste).toHaveLength(2);
+    expect(r.liste[0]).toEqual({ id: 'string', x: 400, y: 430, owner: 'p2', haftet: false, rest: true, blinkt: false });
+    expect(r.dekodiert).toBe(2);
+    expect(r.haftet).toEqual([true, true]);
+    expect(r.ereignis).toMatchObject({ type: 'mine_explodiert', owner: 'p2', radius: 30 });
+    expect(r.hp).toBe(960); // beide Minen (an derselben Stelle) haften und explodieren
   });
 });
