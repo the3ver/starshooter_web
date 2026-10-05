@@ -7,6 +7,7 @@ import * as Hack from './hack.js';
 import { versteckeAlleLaser } from './waffen.js';
 import * as Gleve from './gleve.js';
 import * as Viper from './viper.js';
+import * as Sniper from './sniper.js';
 
 // Laser-Taste von P1 (bei der Gleve: Sweep)
 function laserTasteP1() {
@@ -330,9 +331,20 @@ function steuereGleveSweep(s, pKey, gehalten) {
   if (!gehalten && !Gleve.istSweepAktiv(s)) ladeEnergie(s);
 }
 
+// Sniper: kein Laser, die gehaltene Laser-Taste loest Fadenkreuz-Schuesse im Schussabstand aus (sniper.js).
+// Energie regeneriert normal (keine Sonderregeln).
+function steuereSniper(s, pKey, gehalten) {
+  s.laserSchiesst = false;
+  Sniper.aktualisiereSniper(s, pKey, gehalten);
+  ladeEnergie(s);
+}
+
 export function aktualisiereEnergie() {
   let laserAktiv = false;
-  if (Gleve.istGleve(state)) {
+  if (Sniper.istSniper(state)) {
+    steuereSniper(state, 'p1', Boolean(laserTasteP1()) && !state.isDead);
+    versteckeAlleLaser();
+  } else if (Gleve.istGleve(state)) {
     steuereGleveSweep(state, 'p1', laserTasteP1() && !state.isDead);
     versteckeAlleLaser();
   } else {
@@ -359,8 +371,11 @@ export function aktualisiereEnergie() {
 
   // --- 9.4 ENERGIE SPIELER 2 (Co-op) ---
   let laserAktivP2 = false;
+  if (Sniper.istSniper(state.p2) && (!isCoopMode() || state.p2.isDead)) Sniper.aktualisiereSniper(state.p2, 'p2', false); // Fadenkreuz entfernen
   if (isCoopMode() && state.p2 && !state.p2.isDead) {
-    if (Gleve.istGleve(state.p2)) {
+    if (Sniper.istSniper(state.p2)) {
+      steuereSniper(state.p2, 'p2', Boolean(laserTasteP2()));
+    } else if (Gleve.istGleve(state.p2)) {
       steuereGleveSweep(state.p2, 'p2', Boolean(laserTasteP2()));
     } else {
       steuereLaserZuendung(state.p2, laserTasteP2());

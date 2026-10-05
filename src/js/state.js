@@ -153,6 +153,8 @@ export const state = {
     viperOverdriveLeiste: 0, viperOverdriveTimer: 0,
     // Viper-Kill-Kombo: Kills in Folge und Restschritte des Kombo-Fensters
     viperKombo: 0, viperKomboTimer: 0,
+    // Sniper-Fadenkreuz (sniper.js): Mitte im Spielfeld (null = noch nicht gesetzt), Schussabstand, Laser-Taste im Vorschritt
+    sniperZielX: null, sniperZielY: null, sniperCooldown: 0, sniperGehalten: false,
     tastenGedrueckt: {
         w: false, a: false, s: false, d: false,
         l: false, k: false, ' ': false,
@@ -204,7 +206,8 @@ export const state = {
         viperRolleTimer: 0, viperRolleRichtung: 0, viperRolleCooldown: 0,
         viperLinksGehalten: false, viperRechtsGehalten: false, viperTapRichtung: 0, viperTapAlter: 999, viperJoyRuhe: 0, viperJoyVorher: 0,
         viperOverdriveLeiste: 0, viperOverdriveTimer: 0,
-        viperKombo: 0, viperKomboTimer: 0
+        viperKombo: 0, viperKomboTimer: 0,
+        sniperZielX: null, sniperZielY: null, sniperCooldown: 0, sniperGehalten: false
     },
     network: {
         isOnline: false,

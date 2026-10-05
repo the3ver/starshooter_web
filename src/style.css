@@ -2244,6 +2244,32 @@
             z-index: 7;
             pointer-events: none;
         }
+        .sniper-fadenkreuz {
+            position: absolute;
+            box-sizing: border-box;
+            border: 2px solid;
+            border-radius: 50%;
+            z-index: 6;
+            pointer-events: none;
+        }
+        .sniper-strich {
+            position: absolute;
+            background: currentColor;
+        }
+        .sniper-strich-o, .sniper-strich-u { width: 2px; height: 8px; left: calc(50% - 1px); }
+        .sniper-strich-o { top: -8px; }
+        .sniper-strich-u { bottom: -8px; }
+        .sniper-strich-l, .sniper-strich-r { height: 2px; width: 8px; top: calc(50% - 1px); }
+        .sniper-strich-l { left: -8px; }
+        .sniper-strich-r { right: -8px; }
+        .sniper-strahl {
+            position: absolute;
+            width: 3px;
+            background: #ffffff;
+            transform-origin: 50% 100%;
+            z-index: 7;
+            pointer-events: none;
+        }
         .gleve-faecher {
             position: absolute;
             transform-origin: 50% 100%;

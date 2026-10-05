@@ -782,6 +782,28 @@ export function playDash(level = 1) {
     osc.stop(now + duration);
 }
 
+// Sniper-Schuss (Fadenkreuz-Laser): trockener, tiefer Knall mit kurzem hellem Zischen; hoehere Stufen klingen kraeftiger
+export function playSniperSchuss(level = 1) {
+    recordSound('sniperSchuss', { level });
+    if (isMuted) return;
+    const ctx = getAudioContext();
+    if (!ctx) return;
+    if (ctx.state === 'suspended') ctx.resume().catch(() => {});
+
+    const now = ctx.currentTime;
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.type = 'square';
+    osc.frequency.setValueAtTime(1400 + level * 120, now);
+    osc.frequency.exponentialRampToValueAtTime(60, now + 0.16);
+    gain.gain.setValueAtTime(0.12 + level * 0.02, now);
+    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.16);
+    osc.connect(gain);
+    gain.connect(masterGain);
+    osc.start(now);
+    osc.stop(now + 0.16);
+}
+
 // Viper-Ausweichrolle: kurzes, leichtes Wusch (Rauschen steigt und faellt) mit schnellem Sinus-Glissando
 export function playRolle() {
     recordSound('rolle');

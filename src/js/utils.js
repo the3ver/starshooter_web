@@ -337,6 +337,7 @@ export function zerstoereZiel(ziel, killer = 'p1') {
 // Laufende Sweep-Klingen und Dash-Darstellung entfernen (Darstellung aus gleve.js).
 // Nach dem Game Over laeuft keine Simulation mehr, die sie selbst abraeumen wuerde.
 function entferneGleveEffekte() {
+  Sniper.entferneEffekte();
   document.querySelectorAll('.gleve-klinge, .gleve-welle').forEach(el => el.remove());
   arrays.gleveWellen.length = 0;
   if (dom.spieler) dom.spieler.classList.remove('gleve-dash');
@@ -640,6 +641,8 @@ export function restartGame() {
   if (state.p2) setzeGleveDashZurueck(state.p2, dom.spieler2);
   Viper.setzeZurueck(state, dom.spieler);
   if (state.p2) Viper.setzeZurueck(state.p2, dom.spieler2);
+  Sniper.setzeZurueck(state);
+  if (state.p2) Sniper.setzeZurueck(state.p2);
   entferneGleveEffekte();
   Bot.resetBot();
   updateLebenUI();

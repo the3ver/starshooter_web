@@ -349,6 +349,9 @@ export function aktualisiereWaffen(laserAktiv, laserAktivP2) {
   // Gleve hat statt Laser den Sweep (gleve.js): weder Projektil- noch Hitscan-Laser
   if (state.selectedShipModel === 'gleve') laserAktiv = false;
   if (state.p2 && state.p2.selectedShipModel === 'gleve') laserAktivP2 = false;
+  // Sniper hat statt Laser den Fadenkreuz-Schuss (sniper.js, aufgerufen aus spieler.js)
+  if (state.selectedShipModel === 'sniper') laserAktiv = false;
+  if (state.p2 && state.p2.selectedShipModel === 'sniper') laserAktivP2 = false;
   const alleZiele = [...arrays.asteroiden, ...arrays.feinde, ...arrays.bosses, ...arrays.bossBombenArray, ...arrays.bossRaketenArray];
 
   // --- 9.9 AUTOLASER ---

@@ -165,7 +165,7 @@ function begrenzeAufSpielfeld(pState) {
 }
 
 // Schaden wie bei den anderen Waffen: Schild zuerst, dann HP. Liefert true, wenn das Ziel zerstoert wurde.
-function schadeZiel(z, schaden, pKey) {
+export function schadeZiel(z, schaden, pKey) {
   if ((z.schildHp || 0) > 0) {
     z.schildHp -= schaden;
     if (z.schildHp <= 0) {
