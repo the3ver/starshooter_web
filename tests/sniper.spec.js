@@ -2298,6 +2298,36 @@ test.describe('Spectre-SR Haftminen', () => {
     expect(r.explosion).toBe(0);
   });
 
+  test('Boss-Rakete beruehrt die Mine: Mine explodiert sofort und zerstoert Rakete und Boss-Bombe im Radius', async ({ page }) => {
+    await bereiteMinen(page);
+    const r = await page.evaluate(() => {
+      const { arrays, Entities } = window.__game;
+      const G = window.__gr;
+      const M = window.__mi;
+      const m = M.eineMine();
+      // Boss-Bombe neben der Mine (im Radius 30, aber ohne Kontakt) – loest allein nicht aus
+      Entities.erzeugeBossBombe(m.x + 12, m.y - 40);
+      const bombe = arrays.bossBombenArray[arrays.bossBombenArray.length - 1];
+      Object.assign(bombe, { x: m.x + 12, y: m.y - 30, vx: 0, vy: 0, timer: 9999 });
+      G.frei(1);
+      const nachBombe = { mineDa: M.minen().includes(m), bombeDa: arrays.bossBombenArray.includes(bombe) };
+      // Boss-Rakete direkt auf der Mine
+      Entities.erzeugeBossRakete(m.x - 5, m.y - 8, 1);
+      const rakete = arrays.bossRaketenArray[arrays.bossRaketenArray.length - 1];
+      Object.assign(rakete, { x: m.x - 5, y: m.y - 8, vx: 0, vy: 0 });
+      G.frei(1);
+      return {
+        nachBombe, mineWeg: !M.minen().includes(m), raketeWeg: !arrays.bossRaketenArray.includes(rakete),
+        bombeWeg: !arrays.bossBombenArray.includes(bombe), explosion: document.querySelectorAll('.sniper-mine-explosion').length
+      };
+    });
+    expect(r.nachBombe).toEqual({ mineDa: true, bombeDa: true });
+    expect(r.mineWeg).toBe(true);
+    expect(r.raketeWeg).toBe(true);
+    expect(r.bombeWeg).toBe(true);
+    expect(r.explosion).toBeGreaterThanOrEqual(1);
+  });
+
   test('Feind beruehrt die Mine: haftet, folgt dem Feind, piept; Magma loest nicht aus', async ({ page }) => {
     await bereiteMinen(page);
     const r = await page.evaluate(() => {

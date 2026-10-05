@@ -642,6 +642,15 @@ function explodiereMine(m) {
   for (const z of minenZiele().filter(t => boxSchneidetKreis(zielBox(t), m.x, m.y, MINE_RADIUS))) {
     schadeZiel(z, m.schaden, m.pKey);
   }
+  // Boss-Raketen und -Bomben im Radius werden zerstoert (wie beim EMP)
+  zerstoereGeschosse(arrays.bossRaketenArray, m.x, m.y, MINE_RADIUS);
+  zerstoereGeschosse(arrays.bossBombenArray, m.x, m.y, MINE_RADIUS);
+}
+
+// Beruehrt eine Boss-Rakete oder -Bombe die Mine?
+function bossGeschossAnMine(m) {
+  const box = mineBox(m);
+  return [...arrays.bossRaketenArray, ...arrays.bossBombenArray].some(g => ueberlappen(box, zielBox(g)));
 }
 
 function zielLebt(z) {
@@ -663,6 +672,8 @@ function aktualisiereMinen(pKey) {
     } else {
       m.rest--;
       if (m.rest <= 0) { entferneMine(m); continue; }
+      // Boss-Raketen und -Bomben loesen die Mine sofort aus (kein Haften an Geschossen)
+      if (bossGeschossAnMine(m)) { explodiereMine(m); continue; }
       const box = mineBox(m);
       const z = minenZiele().find(t => ueberlappen(box, zielBox(t)));
       if (z) {
