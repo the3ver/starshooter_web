@@ -3,7 +3,7 @@ import { state, dom, config, arrays, isCoopMode } from './state.js';
 import * as Utils from './utils.js';
 import * as Entities from './entities.js';
 import * as Audio from './audio.js';
-import { naechsterSpielerMitte } from './gegner.js';
+import { naechsterSpielerMitte, tickBetaeubung } from './gegner.js';
 
 
 const BOSS_HACK_AB_LEVEL = 5;
@@ -14,6 +14,7 @@ export function aktualisiereBosse() {
   for (let i = arrays.bosses.length - 1; i >= 0; i--) {
     let b = arrays.bosses[i];
     if (!b) break;
+    const betaeubt = tickBetaeubung(b); // Sniper-Granate: keine Bewegung, keine Angriffe
     if (b.phase === 'einzug') {
       if (!b.el.classList.contains('repulsor-aktiv')) b.el.classList.add('repulsor-aktiv');
       b.y += b.vy;
@@ -52,7 +53,7 @@ export function aktualisiereBosse() {
       }
 
       // Hack-Projektile ab Level 5 (Quelle null, damit der Boss mehrfach hacken kann)
-      if (state.level >= BOSS_HACK_AB_LEVEL) {
+      if (!betaeubt && state.level >= BOSS_HACK_AB_LEVEL) {
         b.hackTimer--;
         if (b.hackTimer <= 0) {
           const ziel = naechsterSpielerMitte(b);
@@ -62,7 +63,9 @@ export function aktualisiereBosse() {
       }
 
       // Bewegung
-      if (b.bossTyp === 1) {
+      if (betaeubt) {
+        // betaeubt: steht still
+      } else if (b.bossTyp === 1) {
         // Kreuzer
         b.x += b.vx;
         if (b.x <= 10 || b.x >= config.spielfeldBreite - b.groesse - 10) b.vx *= -1;
@@ -97,8 +100,8 @@ export function aktualisiereBosse() {
         Utils.erzeugeAntriebsRauch(b.x + b.groesse * 0.25, b.y - b.groesse * 0.05, -2);
         Utils.erzeugeAntriebsRauch(b.x + b.groesse * 0.75, b.y - b.groesse * 0.05, -2);
       }
-      b.schussTimer--;
-      if (b.schussTimer <= 0) {
+      if (!betaeubt) b.schussTimer--;
+      if (!betaeubt && b.schussTimer <= 0) {
         if (b.bossTyp === 1) {
           Entities.erzeugeBossLaser(b.x + b.groesse * 0.2, b.y + b.groesse * 0.7);
           Entities.erzeugeBossLaser(b.x + b.groesse * 0.46, b.y + b.groesse * 0.9);
@@ -136,15 +139,15 @@ export function aktualisiereBosse() {
       }
 
       // Boss-Bomben Abwurf
-      b.bombenTimer = (b.bombenTimer !== undefined ? b.bombenTimer : (Math.random() * 120 + 240)) - 1;
-      if (b.bombenTimer <= 0) {
+      b.bombenTimer = (b.bombenTimer !== undefined ? b.bombenTimer : (Math.random() * 120 + 240)) - (betaeubt ? 0 : 1);
+      if (!betaeubt && b.bombenTimer <= 0) {
         Entities.erzeugeBossBombe(b.x + b.groesse / 2 - 13, b.y + b.groesse * 0.7);
         b.bombenTimer = Math.max(160, 360 - (state.level - 1) * 30);
       }
 
       // Boss-Raketen Abwurf (seitlich zielsuchend)
-      b.raketenTimer = (b.raketenTimer !== undefined ? b.raketenTimer : (Math.random() * 140 + 200)) - 1;
-      if (b.raketenTimer <= 0) {
+      b.raketenTimer = (b.raketenTimer !== undefined ? b.raketenTimer : (Math.random() * 140 + 200)) - (betaeubt ? 0 : 1);
+      if (!betaeubt && b.raketenTimer <= 0) {
         let side = Math.random() < 0.5 ? -1 : 1;
         Entities.erzeugeBossRakete(b.x + (side < 0 ? 0 : b.groesse - 14), b.y + b.groesse * 0.5, side);
         if (b.enragePhaseAktiv || state.level >= 4) {

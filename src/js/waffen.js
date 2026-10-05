@@ -7,6 +7,7 @@ import * as Network from './network.js';
 import * as Hack from './hack.js';
 import * as Gleve from './gleve.js';
 import * as Viper from './viper.js';
+import * as Sniper from './sniper.js';
 
 
 export function versteckeAlleLaser() {
@@ -127,6 +128,7 @@ function feuerRaketenFuerSpieler(pKey, pState) {
   if (pState.raketenStufe >= 2 && pState.raketenStufe <= 3) maxRaketenCd = 150;
   if (pState.raketenStufe >= 4) maxRaketenCd = 120;
   if (istGleve) maxRaketenCd = Gleve.dashCooldown(pState);
+  if (Sniper.istSniper(pState)) maxRaketenCd = Sniper.granatenCooldown(pState);
 
   if (istGleve) {
     Gleve.zeigeDashHud(pKey, pState);
@@ -172,6 +174,11 @@ function feuerRaketenFuerSpieler(pKey, pState) {
   if (isTriggered && pState.raketenCooldown <= 0 && !Hack.hatHack(pState, 'waffenOffline')) {
     if (pKey === 'p2' && state.p2) state.p2.networkFireRakete = false;
     pState.raketenCooldown = maxRaketenCd;
+    // Sniper: statt Raketen eine Betaeubungsgranate zum Fadenkreuz
+    if (Sniper.istSniper(pState)) {
+      Sniper.werfeGranate(pState, pKey);
+      return;
+    }
     Audio.playMissile();
     let rSchaden = 25;
     let rRadius = 80;

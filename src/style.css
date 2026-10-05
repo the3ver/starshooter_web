@@ -2291,6 +2291,67 @@
             z-index: 7;
             pointer-events: none;
         }
+        .sniper-granate {
+            position: absolute;
+            width: 14px;
+            height: 14px;
+            margin: 0;
+            border-radius: 50%;
+            background: radial-gradient(circle at 35% 35%, #b8c4a0, #4b5d3a 60%, #2a3520);
+            border: 2px solid #ffeb3b;
+            box-sizing: border-box;
+            box-shadow: 0 0 8px #ffeb3b;
+            z-index: 8;
+            pointer-events: none;
+        }
+        .sniper-granate::after {
+            content: '';
+            position: absolute;
+            left: 50%;
+            top: -5px;
+            width: 2px;
+            height: 5px;
+            margin-left: -1px;
+            background: #ffeb3b;
+        }
+        .sniper-druckwelle {
+            position: absolute;
+            box-sizing: border-box;
+            border: 4px solid #ffffff;
+            border-radius: 50%;
+            background: radial-gradient(circle, rgba(255, 235, 59, 0.05), rgba(255, 235, 59, 0.3));
+            box-shadow: 0 0 18px #ffeb3b, inset 0 0 18px #ffffff;
+            z-index: 8;
+            pointer-events: none;
+        }
+        /* Betaeubt (Sniper-Granate): entsaettigt, mit kreisenden Funken */
+        .betaeubt {
+            filter: saturate(0.2) brightness(0.85);
+        }
+        .betaeubt::before, .betaeubt::after {
+            content: '\2726';
+            position: absolute;
+            left: 50%;
+            top: 50%;
+            margin: -7px 0 0 -7px;
+            width: 14px;
+            font-size: 14px;
+            line-height: 14px;
+            text-align: center;
+            color: #ffeb3b;
+            text-shadow: 0 0 6px #ffeb3b;
+            pointer-events: none;
+            z-index: 9;
+            animation: betaeubt-kreis 0.9s linear infinite;
+        }
+        .betaeubt::after {
+            color: #ffffff;
+            animation-delay: -0.45s;
+        }
+        @keyframes betaeubt-kreis {
+            from { transform: rotate(0deg) translateY(-20px) rotate(0deg); }
+            to { transform: rotate(360deg) translateY(-20px) rotate(-360deg); }
+        }
         .gleve-faecher {
             position: absolute;
             transform-origin: 50% 100%;

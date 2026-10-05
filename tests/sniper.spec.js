@@ -1132,3 +1132,366 @@ test.describe('Spectre-SR Aufladen mobil', () => {
     await expect(page.locator('#btn-laden')).toBeHidden();
   });
 });
+
+// ---------------------------------------------------------------------------------------------
+// Granate + Betaeubung (S4). Raketen-Taste (V bei P1, Oe bei P2 im Coop) wirft eine Granate zum Fadenkreuz.
+// Testfeinde sind 'swoop' mit vx = vy = 0 (stehen still, kein Pendeln); die Schritte laufen frei (ohne Zuruecksetzen).
+
+async function bereiteGranate(page, optionen = {}) {
+  await starteSniper(page, optionen);
+  await page.evaluate(() => {
+    const { state, arrays, Loop } = window.__game;
+    const T = window.__sn;
+    window.__gr = {
+      frei(n) { for (let i = 0; i < n; i++) Loop.simulationsSchritt(); },
+      // Stehender Feind mit Mitte (cx|cy), ohne Pendeln und ohne Schuesse
+      feind(cx, cy) {
+        const f = T.feind(cx, cy);
+        delete f.festX; delete f.festY;
+        f.muster = 'swoop'; f.vx = 0; f.vy = 0;
+        return f;
+      },
+      mitte(z) { const g = z.groesse; return { x: z.x + g / 2, y: z.y + g / 2 }; },
+      abstand(z, cx, cy) { const m = this.mitte(z); return Math.hypot(m.x - cx, m.y - cy); },
+      // Raketen-Taste einen Schritt druecken (Cooldown vorher leeren)
+      wirf(taste = 'v') {
+        state.tastenGedrueckt[taste] = true;
+        Loop.simulationsSchritt();
+        state.tastenGedrueckt[taste] = false;
+      }
+    };
+    T.leeren();
+    for (const s of [state, state.p2]) { s.raketenStufe = 1; s.raketenCooldown = 0; }
+  });
+}
+
+test.describe('Spectre-SR Granate', () => {
+  test('fliegt zum Fadenkreuz beim Wurf (nicht dorthin, wohin es sich danach bewegt) und explodiert nach ca. 30 Schritten mit Druckwelle und Ton', async ({ page }) => {
+    await bereiteGranate(page);
+    const r = await page.evaluate(() => {
+      const { state, Audio } = window.__game;
+      const T = window.__sn;
+      const G = window.__gr;
+      const ziel = G.feind(240, 180); // im Radius um (200|180)
+      const nebenan = G.feind(100, 130); // liegt am Fadenkreuz NACH dem Verschieben des Schiffs (100|130), aber ausserhalb des Radius um (200|180)
+      T.schritte(1);
+      G.wirf();
+      const nachWurf = { granaten: document.querySelectorAll('.sniper-granate').length, cd: state.raketenCooldown, raketen: window.__game.arrays.raketenArray.length };
+      state.x = 85; // Fadenkreuz wandert nach (100|130)
+      let schritte = 1;
+      const mitte = [];
+      while (document.querySelector('.sniper-granate') && schritte < 60) {
+        G.frei(1);
+        schritte++;
+        if (schritte === 15) {
+          const e = document.querySelector('.sniper-granate');
+          mitte.push(parseFloat(e.style.left) + 7, parseFloat(e.style.top) + 7, e.style.transform);
+        }
+      }
+      const welle1 = document.querySelector('.sniper-druckwelle');
+      const breite1 = welle1 ? parseFloat(welle1.style.width) : -1;
+      G.frei(6);
+      const breite2 = welle1 ? parseFloat(welle1.style.width) : -1;
+      G.frei(12);
+      return {
+        nachWurf, schritte, mitte, breite1, breite2, welleWeg: document.querySelectorAll('.sniper-druckwelle').length,
+        ziel: ziel.betaeubt, nebenan: nebenan.betaeubt, zielX: G.mitte(ziel).x, nebenanX: G.mitte(nebenan).x,
+        ton: Audio.audioHistory.filter(e => e.name === 'granate').length
+      };
+    });
+    expect(r.nachWurf).toEqual({ granaten: 1, cd: 240, raketen: 0 });
+    expect(r.schritte).toBeGreaterThanOrEqual(30);
+    expect(r.schritte).toBeLessThanOrEqual(32);
+    // Mitte des Flugs: Bogen (Linie waere y = 290), x wie beim Wurf (Fadenkreuz stand bei x = 200)
+    expect(r.mitte[0]).toBeGreaterThan(190);
+    expect(r.mitte[0]).toBeLessThan(215);
+    expect(r.mitte[1]).toBeLessThan(260);
+    expect(r.mitte[1]).toBeGreaterThan(180);
+    expect(r.mitte[2]).toContain('rotate');
+    expect(r.breite1).toBeGreaterThan(0);
+    expect(r.breite2).toBeGreaterThan(r.breite1);
+    expect(r.welleWeg).toBe(0);
+    expect(r.ton).toBe(1);
+    expect(r.ziel).toBeGreaterThanOrEqual(0); // wurde betaeubt (Zaehler laeuft ab)
+    expect(r.zielX).toBeGreaterThan(280); // weggestossen
+    expect(r.nebenan === undefined).toBe(true); // unberuehrt
+    expect(r.nebenanX).toBe(100);
+  });
+
+  test('Stufe 1: kein Schaden, Wegstossen um ca. 60 px (gleitend), Betaeubung 60 Schritte (steht still, schiesst nicht), danach wieder aktiv; ausserhalb unberuehrt', async ({ page }) => {
+    await bereiteGranate(page);
+    const r = await page.evaluate(() => {
+      const { state, arrays } = window.__game;
+      const G = window.__gr;
+      const f = G.feind(240, 180); // 40 px rechts vom Einschlag (200|180)
+      const aussen = G.feind(200 + 70 + 15 + 10, 180); // Box beginnt 80 px neben dem Zentrum (Radius 70)
+      G.wirf();
+      let n = 1;
+      while (!f.betaeubt && n < 60) { G.frei(1); n++; }
+      const start = { x: G.mitte(f).x, hp: f.hp, klasse: f.el.classList.contains('betaeubt'), betaeubt: f.betaeubt };
+      f.vx = 2; // wuerde sich bewegen, wenn nicht betaeubt
+      f.schussTimer = 1; // wuerde sofort schiessen
+      const xs = [];
+      const laserWaehrend = [];
+      let schritteBetaeubt = 0;
+      while (f.betaeubt > 0 && schritteBetaeubt < 200) {
+        G.frei(1);
+        schritteBetaeubt++;
+        xs.push(G.mitte(f).x);
+        laserWaehrend.push(arrays.feindLaserArray.length);
+      }
+      const weite = G.abstand(f, 200, 180) - 40;
+      const klasseDanach = f.el.classList.contains('betaeubt');
+      const xEnde = G.mitte(f).x;
+      G.frei(5);
+      return {
+        start, weite, schritteBetaeubt, klasseDanach,
+        bewegtWaehrend: Math.max(...xs.slice(10)) - Math.min(...xs.slice(10)), // nach dem Wegstossen (10 Schritte) keine Bewegung
+        gleitend: xs[0] > start.x,
+        laserWaehrend: Math.max(...laserWaehrend),
+        xNachher: G.mitte(f).x - xEnde, laserNachher: arrays.feindLaserArray.length,
+        aussenBetaeubt: aussen.betaeubt, aussenX: G.mitte(aussen).x, aussenHp: aussen.hp
+      };
+    });
+    expect(r.start.hp).toBe(1000);
+    expect(r.start.klasse).toBe(true);
+    expect(r.schritteBetaeubt).toBeGreaterThanOrEqual(55);
+    expect(r.schritteBetaeubt).toBeLessThanOrEqual(61);
+    expect(r.weite).toBeGreaterThan(55);
+    expect(r.weite).toBeLessThan(65);
+    expect(r.gleitend).toBe(true);
+    expect(r.bewegtWaehrend).toBe(0);
+    expect(r.laserWaehrend).toBe(0);
+    expect(r.klasseDanach).toBe(false);
+    expect(r.xNachher).toBeGreaterThan(0); // wieder aktiv: bewegt sich
+    expect(r.laserNachher).toBeGreaterThan(0); // und schiesst
+    expect(r.aussenBetaeubt).toBeUndefined();
+    expect(r.aussenX).toBe(295);
+    expect(r.aussenHp).toBe(1000);
+  });
+
+  test('Schaden je Stufe (1: 0, 3: 25) ueber Schild zuerst; Wegstossen am Feld begrenzt', async ({ page }) => {
+    await bereiteGranate(page);
+    const r = await page.evaluate(() => {
+      const { state } = window.__game;
+      const T = window.__sn;
+      const G = window.__gr;
+      const lauf = (stufe, praep) => {
+        T.leeren();
+        state.raketenStufe = stufe;
+        state.raketenCooldown = 0;
+        const f = G.feind(240, 180);
+        if (praep) praep(f);
+        G.wirf();
+        G.frei(45);
+        return f;
+      };
+      const s1 = lauf(1).hp;
+      const s3 = lauf(3).hp;
+      const s2 = lauf(2).hp;
+      const schild = lauf(3, f => { f.schildHp = 20; f.maxSchildHp = 20; });
+      // Am Rand: Feind 5 px vom rechten Feldrand, wird nach rechts gestossen -> bleibt im Feld
+      const breite = window.__game.config.spielfeldBreite;
+      const rand = lauf(1, f => { state.x = breite - 60; f.x = breite - 30; f.y = 165; f.el.style.left = f.x + 'px'; G.frei(1); });
+      const randX = rand.x;
+      return { s1, s3, s2, schildHp: schild.schildHp, schildHpLeben: schild.hp, randX, breite };
+    });
+    expect(r.s1).toBe(1000);
+    expect(r.s2).toBe(985);
+    expect(r.s3).toBe(975);
+    expect(r.schildHp).toBe(0); // Schild 20 durch 25 weg, kein Durchschlag auf die HP
+    expect(r.schildHpLeben).toBe(1000);
+    expect(r.randX).toBe(r.breite - 30); // wuerde nach rechts hinaus gestossen, bleibt am Feldrand
+  });
+
+  test('Boss: kein Wegstossen, halbe Betaeubung, greift waehrend der Betaeubung nicht an (Schuss, Bombe, Rakete)', async ({ page }) => {
+    await bereiteGranate(page);
+    const r = await page.evaluate(() => {
+      const { state, arrays, Entities } = window.__game;
+      const G = window.__gr;
+      state.level = 1;
+      Entities.erzeugeBoss();
+      const b = arrays.bosses[0];
+      b.phase = 'kampf';
+      b.x = 150; b.y = 40; // Box ohne Rand (165..235|55..125) schneidet den Kreis um (200|180) (Abstand 55 < 70)
+      b.hp = b.maxHp = 100000;
+      b.vx = 0; // schwebt (Bewegung wird getrennt geprueft)
+      b.schussTimer = 99999; b.bombenTimer = 99999; b.raketenTimer = 99999;
+      G.wirf();
+      let n = 1;
+      while (!b.betaeubt && n < 60) { G.frei(1); n++; }
+      const betaeubt = b.betaeubt;
+      const pos = { x: b.x, y: b.y };
+      b.vx = 2;
+      b.schussTimer = 1; b.bombenTimer = 1; b.raketenTimer = 1;
+      const vorher = arrays.bossLaserArray.length + arrays.bossBombenArray.length + arrays.bossRaketenArray.length;
+      let neu = 0;
+      let schritte = 0;
+      while (b.betaeubt > 0 && schritte < 100) {
+        G.frei(1);
+        schritte++;
+        neu = Math.max(neu, arrays.bossLaserArray.length + arrays.bossBombenArray.length + arrays.bossRaketenArray.length - vorher);
+      }
+      const bewegtWaehrend = b.x - pos.x;
+      G.frei(3);
+      return {
+        betaeubt, pos, bewegtWaehrend, schritte, neu, klasse: b.el.classList.contains('betaeubt'),
+        danachAngriffe: arrays.bossLaserArray.length + arrays.bossBombenArray.length + arrays.bossRaketenArray.length - vorher,
+        danachX: b.x - pos.x
+      };
+    });
+    expect(r.betaeubt).toBeGreaterThanOrEqual(29);
+    expect(r.betaeubt).toBeLessThanOrEqual(30); // halbe Dauer von 60
+    expect(r.pos).toEqual({ x: 150, y: 40 }); // nicht weggestossen
+    expect(r.bewegtWaehrend).toBe(0);
+    expect(r.neu).toBe(0);
+    expect(r.klasse).toBe(false);
+    expect(r.danachAngriffe).toBeGreaterThan(0);
+    expect(r.danachX).toBeGreaterThan(0);
+  });
+
+  test('Asteroid wird weggestossen, aber nicht betaeubt; Magma bleibt unversehrt', async ({ page }) => {
+    await bereiteGranate(page);
+    const r = await page.evaluate(() => {
+      const { state } = window.__game;
+      const T = window.__sn;
+      const G = window.__gr;
+      state.raketenStufe = 3;
+      const a = T.asteroid(240, 180);
+      delete a.festX; delete a.festY;
+      const m = T.asteroid(160, 180, 30, true);
+      delete m.festX; delete m.festY;
+      const ax = a.x;
+      G.wirf();
+      G.frei(45);
+      return { betaeubt: a.betaeubt, klasse: a.el.classList.contains('betaeubt'), weite: a.x - ax, hp: a.hp, magmaHp: m.hp, magmaBetaeubt: m.betaeubt };
+    });
+    expect(r.betaeubt).toBeUndefined();
+    expect(r.klasse).toBe(false);
+    expect(r.weite).toBeGreaterThan(70); // Stufe 3: 80 px
+    expect(r.hp).toBe(975);
+    expect(r.magmaHp).toBe(1000);
+    expect(r.magmaBetaeubt).toBeUndefined();
+  });
+
+  test('Stufe 5 loescht feindliche Geschosse im Radius (Feind-, Boss-, Hack-Projektile); Stufe 4 nicht', async ({ page }) => {
+    await bereiteGranate(page);
+    const r = await page.evaluate(() => {
+      const { state, arrays, Entities } = window.__game;
+      const T = window.__sn;
+      const G = window.__gr;
+      const lauf = (stufe) => {
+        T.leeren();
+        state.raketenStufe = stufe;
+        state.raketenCooldown = 0;
+        G.wirf();
+        // Ruhende Geschosse: je eines im Radius um (200|180) und eines weit ausserhalb
+        Entities.erzeugeFeindLaser(200, 170);
+        Entities.erzeugeBossLaser(180, 170);
+        Entities.erzeugeHackProjektil(210, 170, 210, 400, null);
+        Entities.erzeugeFeindLaser(340, 170);
+        Entities.erzeugeBossLaser(340, 170);
+        Entities.erzeugeHackProjektil(340, 170, 340, 400, null);
+        [...arrays.feindLaserArray, ...arrays.bossLaserArray, ...arrays.hackProjektilArray].forEach(p => { p.vx = 0; p.vy = 0; p.lenkZeit = 0; });
+        G.frei(35);
+        return { feind: arrays.feindLaserArray.length, boss: arrays.bossLaserArray.length, hack: arrays.hackProjektilArray.length };
+      };
+      return { s4: lauf(4), s5: lauf(5) };
+    });
+    expect(r.s4).toEqual({ feind: 2, boss: 2, hack: 2 });
+    expect(r.s5).toEqual({ feind: 1, boss: 1, hack: 1 });
+  });
+
+  test('Cooldown je Stufe (240/210/180/180/150), keine zweite Granate waehrend des Cooldowns; waffenOffline blockiert; keine Raketen', async ({ page }) => {
+    await bereiteGranate(page);
+    const r = await page.evaluate(async () => {
+      const { state, arrays } = window.__game;
+      const Hack = await import('./js/hack.js');
+      const T = window.__sn;
+      const G = window.__gr;
+      const cds = [];
+      for (let stufe = 1; stufe <= 5; stufe++) {
+        T.leeren();
+        state.raketenStufe = stufe;
+        state.raketenCooldown = 0;
+        G.wirf();
+        cds.push(state.raketenCooldown);
+      }
+      T.leeren();
+      document.querySelectorAll('.sniper-granate').forEach(e => e.remove());
+      G.frei(1);
+      state.raketenStufe = 1;
+      state.raketenCooldown = 0;
+      G.wirf();
+      G.wirf();
+      G.wirf();
+      const granaten = document.querySelectorAll('.sniper-granate').length;
+      const balken = parseFloat(document.getElementById('raketen-cd-balken').style.width);
+      state.raketenCooldown = 0;
+      Hack.hackeSpieler(state, 'waffenOffline');
+      const vorher = document.querySelectorAll('.sniper-granate').length;
+      G.wirf();
+      return { cds, granaten, balken, blockiert: document.querySelectorAll('.sniper-granate').length === vorher, raketen: arrays.raketenArray.length };
+    });
+    expect(r.cds).toEqual([240, 210, 180, 180, 150]);
+    expect(r.granaten).toBe(1);
+    expect(r.balken).toBeLessThan(10); // HUD-Balken zeigt den Cooldown
+    expect(r.blockiert).toBe(true);
+    expect(r.raketen).toBe(0);
+  });
+
+  test('Coop: Spieler 2 (Sniper) wirft mit Oe zu seinem Fadenkreuz', async ({ page }) => {
+    await bereiteGranate(page, { coop: true });
+    const r = await page.evaluate(() => {
+      const { state } = window.__game;
+      const G = window.__gr;
+      G.frei(1);
+      const cx = state.p2.x + 15; // Fadenkreuz-Mitte von P2
+      const f = G.feind(cx - 40, 180); // im Radius links davon
+      const x0 = G.mitte(f).x;
+      G.wirf('ö');
+      const granaten = document.querySelectorAll('.sniper-granate').length;
+      G.frei(45);
+      return { granaten, cdP2: state.p2.raketenCooldown, cdP1: state.raketenCooldown, betaeubt: f.betaeubt, weite: G.mitte(f).x - x0, balken: document.getElementById('raketen-cd-balken-p2').style.width };
+    });
+    expect(r.granaten).toBe(1);
+    expect(r.cdP2).toBeGreaterThan(190);
+    expect(r.cdP1).toBe(0);
+    expect(r.betaeubt).toBeGreaterThanOrEqual(0);
+    expect(r.weite).toBeLessThan(-30); // weg vom Fadenkreuz (Wegstossen nach links)
+  });
+
+  test('Neustart und Game Over raeumen Granaten, Druckwellen und Wegstossen ab', async ({ page }) => {
+    await bereiteGranate(page);
+    const r = await page.evaluate(() => {
+      const { Utils } = window.__game;
+      const G = window.__gr;
+      const f = G.feind(240, 180);
+      G.wirf();
+      G.frei(10);
+      const imFlug = document.querySelectorAll('.sniper-granate').length;
+      Utils.triggerGameOver();
+      const gameOver = document.querySelectorAll('.sniper-granate, .sniper-druckwelle').length;
+      Utils.restartGame();
+      return { imFlug, gameOver, neustart: document.querySelectorAll('.sniper-granate, .sniper-druckwelle').length, f: !!f };
+    });
+    expect(r.imFlug).toBe(1);
+    expect(r.gameOver).toBe(0);
+    expect(r.neustart).toBe(0);
+  });
+
+  test('Neustart mitten im Flug und waehrend der Druckwelle laesst nichts zurueck', async ({ page }) => {
+    await bereiteGranate(page);
+    const r = await page.evaluate(() => {
+      const { Utils } = window.__game;
+      const G = window.__gr;
+      G.wirf();
+      G.frei(33); // Explosion ist durch, Druckwelle laeuft
+      const welle = document.querySelectorAll('.sniper-druckwelle').length;
+      Utils.restartGame();
+      return { welle, danach: document.querySelectorAll('.sniper-granate, .sniper-druckwelle').length };
+    });
+    expect(r.welle).toBe(1);
+    expect(r.danach).toBe(0);
+  });
+});

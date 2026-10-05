@@ -131,11 +131,23 @@ export function aktualisiereAsteroiden() {
   }
 }
 
+// Betaeubung (Sniper-Granate): zaehlt pro Schritt herunter; true = das Ziel ist in diesem Schritt noch betaeubt
+// (keine Bewegung, kein Schiessen, keine Hacks, keine Boss-Angriffe). Die Klasse 'betaeubt' faellt mit dem letzten Schritt weg.
+export function tickBetaeubung(z) {
+  if (!(z.betaeubt > 0)) return false;
+  z.betaeubt--;
+  if (z.betaeubt <= 0 && z.el) z.el.classList.remove('betaeubt');
+  return true;
+}
+
 export function aktualisiereFeinde() {
   for (let i = arrays.feinde.length - 1; i >= 0; i--) {
     let f = arrays.feinde[i];
     if (!f) break;
-    if (f.muster === 'stopAndGo') {
+    const betaeubt = tickBetaeubung(f);
+    if (betaeubt) {
+      // betaeubt: steht still (Position, Muster-Zeit und Timer bleiben stehen)
+    } else if (f.muster === 'stopAndGo') {
       if (f.phase === 'anflug') {
         f.y += f.vy * 2.5; // Schneller Anflug
         if (f.y >= f.stopY) {
@@ -208,7 +220,7 @@ export function aktualisiereFeinde() {
       continue;
     }
 
-    if (f.muster !== 'hacker' && (f.muster !== 'clingOn' || f.phase !== 'attached')) {
+    if (!betaeubt && f.muster !== 'hacker' && (f.muster !== 'clingOn' || f.phase !== 'attached')) {
       if (f.burstCount > 0) {
         f.burstTimer--;
         if (f.burstTimer <= 0) {

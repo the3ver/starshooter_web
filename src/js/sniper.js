@@ -1,6 +1,6 @@
 // Spectre-SR (Model-ID `sniper`): Fadenkreuz-Laser mit Aufladen und Betaeubungsgranate (siehe AGENTS.md, Abschnitt Sniper).
-// Stand S3: Fadenkreuz (Grundposition, Auto-Zielen ab Laser-Stufe 4), Sofort-Schuss auf den Trefferkreis und Aufladen
-// (Druck startet Laden, Loslassen feuert).
+// Stand S4: Fadenkreuz (Grundposition, Auto-Zielen ab Laser-Stufe 4), Sofort-Schuss auf den Trefferkreis, Aufladen
+// (Druck startet Laden, Loslassen feuert) und Betaeubungsgranate auf der Raketen-Taste.
 // pState ist `state` (P1) oder `state.p2`, pKey 'p1' / 'p2'.
 // Zustand pro Spieler: sniperZielX/sniperZielY (Fadenkreuz-Mitte im Spielfeld, null = noch nicht gesetzt),
 // sniperCooldown (Schritte bis zum naechsten Schuss), sniperGehalten (Laser-Taste im Schritt davor = Ladevorgang laeuft),
@@ -29,8 +29,23 @@ const SCHADEN = [30, 35, 40, 45, 50];
 const SCHUSS_ABSTAND = [24, 21, 21, 18, 18];
 const AUTOZIEL_TEMPO = [0, 0, 0, 6, 10]; // px pro Schritt, 0 = kein Auto-Zielen
 
+// Granate, Werte pro Raketen-Stufe 1-5
+export const GRANATE_FLUG = 30; // Schritte bis zur Explosion
+const GRANATE_BOGEN = 70; // px Bogenhoehe in der Mitte des Flugs
+const STOSS_SCHRITTE = 10; // Wegstossen gleitet ueber so viele Schritte
+const WELLE_SCHRITTE = 14; // Wachstum des Druckwellen-Rings
+const GRANATE_RADIUS = [70, 80, 90, 100, 110];
+const GRANATE_STOSS = [60, 70, 80, 90, 100];
+const GRANATE_BETAEUBUNG = [60, 72, 90, 90, 120];
+const GRANATE_SCHADEN = [0, 15, 25, 35, 45];
+const GRANATE_COOLDOWN = [240, 210, 180, 180, 150];
+
 function stufenIndex(pState) {
   return Math.max(1, Math.min(5, pState.laserStufe || 1)) - 1;
+}
+
+function raketenIndex(pState) {
+  return Math.max(1, Math.min(5, pState.raketenStufe || 1)) - 1;
 }
 
 export function istSniper(pState) {
@@ -41,6 +56,11 @@ export function trefferRadius(pState) { return RADIUS[stufenIndex(pState)]; }
 export function schussSchaden(pState) { return SCHADEN[stufenIndex(pState)]; }
 export function schussAbstand(pState) { return SCHUSS_ABSTAND[stufenIndex(pState)]; }
 export function autoZielTempo(pState) { return AUTOZIEL_TEMPO[stufenIndex(pState)]; }
+export function granatenCooldown(pState) { return GRANATE_COOLDOWN[raketenIndex(pState)]; }
+export function granatenRadius(pState) { return GRANATE_RADIUS[raketenIndex(pState)]; }
+export function granatenStoss(pState) { return GRANATE_STOSS[raketenIndex(pState)]; }
+export function granatenBetaeubung(pState) { return GRANATE_BETAEUBUNG[raketenIndex(pState)]; }
+export function granatenSchaden(pState) { return GRANATE_SCHADEN[raketenIndex(pState)]; }
 
 // Ladeanteil 0-1 (unter 10 Schritten Haltedauer = Normalschuss, also 0)
 function ladeAnteil(ladung) {
@@ -324,6 +344,175 @@ function versuche(pState, pKey, ladung) {
   return true;
 }
 
+// --- GRANATE ---
+
+const granaten = []; // { el, pKey, startX, startY, zielX, zielY, rest, rot, werte }
+const stoesse = []; // { z, vx, vy, rest, pKey } laufendes Wegstossen
+const wellen = []; // { el, pKey, cx, cy, radius, rest }
+
+// Wurf zum Fadenkreuz (Position beim Wurf), Flug in GRANATE_FLUG Schritten im Bogen; die Werte der Stufe gelten ab dem Wurf.
+export function werfeGranate(pState, pKey) {
+  const n = schiffsNase(pState);
+  const grund = grundPosition(pState);
+  const zx = pState.sniperZielX != null ? pState.sniperZielX : grund.x;
+  const zy = pState.sniperZielY != null ? pState.sniperZielY : grund.y;
+  const el = document.createElement('div');
+  el.classList.add('sniper-granate');
+  el.style.left = (n.x - 7) + 'px';
+  el.style.top = (n.y - 7) + 'px';
+  dom.spielfeld.appendChild(el);
+  granaten.push({
+    el, pKey, startX: n.x, startY: n.y, zielX: zx, zielY: zy, rest: GRANATE_FLUG, rot: 0,
+    werte: {
+      radius: granatenRadius(pState), stoss: granatenStoss(pState), betaeubung: granatenBetaeubung(pState),
+      schaden: granatenSchaden(pState), loescht: (pState.raketenStufe || 1) >= 5
+    }
+  });
+}
+
+function aktualisiereGranaten(pKey) {
+  for (let i = granaten.length - 1; i >= 0; i--) {
+    const g = granaten[i];
+    if (g.pKey !== pKey) continue;
+    g.rest--;
+    if (g.rest <= 0 || !g.el.isConnected) {
+      g.el.remove();
+      granaten.splice(i, 1);
+      if (g.rest <= 0) explodiereGranate(g);
+      continue;
+    }
+    const t = 1 - g.rest / GRANATE_FLUG;
+    const x = g.startX + (g.zielX - g.startX) * t;
+    const y = g.startY + (g.zielY - g.startY) * t - Math.sin(Math.PI * t) * GRANATE_BOGEN;
+    g.rot += 24;
+    g.el.style.left = (x - 7) + 'px';
+    g.el.style.top = (y - 7) + 'px';
+    g.el.style.transform = 'rotate(' + g.rot + 'deg)';
+  }
+}
+
+function erzeugeDruckwelle(cx, cy, radius, pKey) {
+  const el = document.createElement('div');
+  el.classList.add('sniper-druckwelle');
+  el.style.left = cx + 'px';
+  el.style.top = cy + 'px';
+  el.style.width = '0px';
+  el.style.height = '0px';
+  dom.spielfeld.appendChild(el);
+  wellen.push({ el, pKey, cx, cy, radius, rest: WELLE_SCHRITTE });
+}
+
+function aktualisiereWellen(pKey) {
+  for (let i = wellen.length - 1; i >= 0; i--) {
+    const w = wellen[i];
+    if (w.pKey !== pKey) continue;
+    w.rest--;
+    if (w.rest <= 0 || !w.el.isConnected) {
+      w.el.remove();
+      wellen.splice(i, 1);
+      continue;
+    }
+    const t = 1 - w.rest / WELLE_SCHRITTE;
+    const d = w.radius * 2 * Math.sqrt(t); // schnell am Anfang, gegen Ende auslaufend
+    w.el.style.width = d + 'px';
+    w.el.style.height = d + 'px';
+    w.el.style.left = (w.cx - d / 2) + 'px';
+    w.el.style.top = (w.cy - d / 2) + 'px';
+    w.el.style.opacity = 1 - t * 0.85;
+  }
+}
+
+function wegstossZiele() {
+  return [...arrays.feinde, ...arrays.asteroiden, ...arrays.bosses];
+}
+
+function loescheGeschosse(array, cx, cy, r) {
+  for (let i = array.length - 1; i >= 0; i--) {
+    const p = array[i];
+    const b = { x1: p.x, y1: p.y, x2: p.x + (p.width || 4), y2: p.y + (p.height || 4) };
+    if (boxSchneidetKreis(b, cx, cy, r)) {
+      Utils.erzeugeExplosion((b.x1 + b.x2) / 2, (b.y1 + b.y2) / 2, '#ffffff', 3);
+      if (p.el) p.el.remove();
+      array.splice(i, 1);
+    }
+  }
+}
+
+function explodiereGranate(g) {
+  const cx = g.zielX;
+  const cy = g.zielY;
+  const w = g.werte;
+  Audio.playGranate();
+  Utils.erzeugeExplosion(cx, cy, '#ffffff', 10);
+  Utils.erzeugeExplosion(cx, cy, '#ffeb3b', 10);
+  erzeugeDruckwelle(cx, cy, w.radius, g.pKey);
+
+  for (const z of wegstossZiele().filter(t => (t.hp === undefined || t.hp > 0) && boxSchneidetKreis(zielBox(t), cx, cy, w.radius))) {
+    const m = zielMitte(z);
+    let dx = m.x - cx;
+    let dy = m.y - cy;
+    let dist = Math.hypot(dx, dy);
+    if (dist < 0.001) { dx = 0; dy = -1; dist = 1; }
+    if (w.schaden > 0 && !z.istUnzerstoerbar) schadeZiel(z, w.schaden, g.pKey);
+    // Vom Schaden zerstoert: nichts mehr zu tun
+    if (!wegstossZiele().includes(z)) continue;
+    if (!z.istBoss) {
+      stoesse.push({ z, vx: dx / dist * w.stoss / STOSS_SCHRITTE, vy: dy / dist * w.stoss / STOSS_SCHRITTE, rest: STOSS_SCHRITTE, pKey: g.pKey });
+    }
+    if (z.istFeind || z.istBoss) {
+      const dauer = z.istBoss ? Math.round(w.betaeubung / 2) : w.betaeubung;
+      z.betaeubt = Math.max(z.betaeubt || 0, dauer);
+      if (z.el) z.el.classList.add('betaeubt');
+    }
+  }
+
+  if (w.loescht) {
+    loescheGeschosse(arrays.feindLaserArray, cx, cy, w.radius);
+    loescheGeschosse(arrays.bossLaserArray, cx, cy, w.radius);
+    loescheGeschosse(arrays.hackProjektilArray, cx, cy, w.radius);
+  }
+}
+
+// Wegstossen: pro Schritt ein Stueck, am Feld begrenzt (seitlich und oben; unten darf ein Ziel das Feld verlassen)
+function aktualisiereStoesse(pKey) {
+  for (let i = stoesse.length - 1; i >= 0; i--) {
+    const s = stoesse[i];
+    if (s.pKey !== pKey) continue;
+    const z = s.z;
+    s.rest--;
+    if (s.rest < 0 || !wegstossZiele().includes(z)) {
+      stoesse.splice(i, 1);
+      continue;
+    }
+    const g = z.groesse || 30;
+    const nx = Math.max(0, Math.min(config.spielfeldBreite - g, z.x + s.vx));
+    let ny = z.y + s.vy;
+    if (ny < 0 && z.y >= 0) ny = 0;
+    const ddx = nx - z.x;
+    const ddy = ny - z.y;
+    z.x = nx;
+    z.y = ny;
+    if (z.basisX !== undefined) z.basisX += ddx;
+    if (z.festX !== undefined) z.festX += ddx;
+    if (z.festY !== undefined) z.festY += ddy;
+    if (z.el) {
+      z.el.style.left = z.x + 'px';
+      z.el.style.top = z.y + 'px';
+    }
+    if (s.rest === 0) stoesse.splice(i, 1);
+  }
+}
+
+function entferneGranatenEffekte(pKey) {
+  for (const liste of [granaten, wellen, stoesse]) {
+    for (let i = liste.length - 1; i >= 0; i--) {
+      if (pKey && liste[i].pKey !== pKey) continue;
+      if (liste[i].el) liste[i].el.remove();
+      liste.splice(i, 1);
+    }
+  }
+}
+
 // Pro Schritt aus spieler.js (Energie-Phase, nach der Bewegung): Fadenkreuz pflegen und Schuss ausloesen.
 // `gehalten` ist die Laser-Taste (Bot/Online liefern sie ebenfalls). Auswahl des Modells:
 // - normal: Druck startet das Laden, Loslassen feuert (Haltedauer unter 10 Schritten = Normalschuss, sonst Ladeschuss).
@@ -333,6 +522,9 @@ function versuche(pState, pKey, ladung) {
 export function aktualisiereSniper(pState, pKey, gehalten, auto = false) {
   if (!istSniper(pState)) return false;
   aktualisiereStrahlen();
+  aktualisiereGranaten(pKey);
+  aktualisiereStoesse(pKey);
+  aktualisiereWellen(pKey);
   if (pState.isDead || !state.spielLaeuft) {
     entferneFadenkreuz(pKey);
     pState.sniperGehalten = false;
@@ -384,6 +576,7 @@ export function setzeZurueck(pState) {
   pState.sniperLadung = 0;
   pState.sniperVoll = false;
   entferneFadenkreuz(pState === state ? 'p1' : 'p2');
+  entferneGranatenEffekte(pState === state ? 'p1' : 'p2');
   return true;
 }
 
@@ -393,4 +586,5 @@ export function entferneEffekte() {
   entferneFadenkreuz('p2');
   strahlen.forEach(s => s.el.remove());
   strahlen.length = 0;
+  entferneGranatenEffekte();
 }
