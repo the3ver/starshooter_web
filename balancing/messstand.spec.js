@@ -41,6 +41,8 @@ async function messe(page, { schiff, szenario, seed, maxSchritte }) {
 
     // Sauberer Ausgangszustand wie beim Spielstart (die echte Schleife hat vorher beliebig viele Schritte gemacht)
     window.__game.Utils.restartGame();
+    // restartGame setzt das Spielfeld auf Menuebreite zurueck; gespielt wird im Co-op-Feld wie beim echten Start
+    window.__game.Utils.wendeSpielfeldBreiteAn('coop');
     state.spielLaeuft = true;
     window.__game.dom.spieler.style.display = 'block';
     window.__game.dom.spieler2.style.display = 'block';
