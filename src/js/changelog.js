@@ -1,6 +1,15 @@
-export const GAME_VERSION = '1.11.0';
+export const GAME_VERSION = '1.11.1';
 
 export const changelogData = {
+  '1.11.1': {
+    version: '1.11.1',
+    intro: 'Hey, es ist jetzt Version 1.11.1 rausgekommen, folgendes wurde aktualisiert:',
+    highlights: [
+      '🧭 Das Hauptmenü ist aufgeräumt: Beim Wechsel zwischen Einzelspieler, Co-op und Online springt nichts mehr, alles bleibt an seinem Platz',
+      '🎮 Die Steuerung steht jetzt hinter dem Knopf „Steuerung“, im Menü bleibt nur eine Kurzzeile. Die Schiffs-Perks sind kleine Icons, antippen zeigt die Beschreibung',
+      '⏸️ Im Pausenmenü kommst du jetzt mit „Hauptmenü“ zurück ins Startmenü (nicht im Online-Modus)'
+    ]
+  },
   '1.11.0': {
     version: '1.11.0',
     intro: 'Hey, es ist jetzt Version 1.11.0 rausgekommen, folgendes wurde aktualisiert:',
