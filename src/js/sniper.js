@@ -10,6 +10,7 @@ import { state, dom, config, arrays, shipColors } from './state.js';
 import * as Utils from './utils.js';
 import * as Audio from './audio.js';
 import * as Hack from './hack.js';
+import * as Network from './network.js';
 import { schadeZiel } from './gleve.js';
 
 export const FADENKREUZ_ABSTAND = 220; // px ueber der Schiffsoberkante
@@ -346,9 +347,11 @@ function versuche(pState, pKey, ladung) {
 
 // --- GRANATE ---
 
-const granaten = []; // { el, pKey, startX, startY, zielX, zielY, rest, rot, werte }
+const granaten = []; // { id, el, pKey, x, y, startX, startY, zielX, zielY, rest, rot, werte }
+let granatenId = 0;
 const stoesse = []; // { z, vx, vy, rest, pKey } laufendes Wegstossen
 const wellen = []; // { el, pKey, cx, cy, radius, rest }
+const netzGranaten = []; // Online-Client: { id, el, pKey } nach Snapshot der Granaten des Hosts
 
 // Wurf zum Fadenkreuz (Position beim Wurf), Flug in GRANATE_FLUG Schritten im Bogen; die Werte der Stufe gelten ab dem Wurf.
 export function werfeGranate(pState, pKey) {
@@ -362,7 +365,7 @@ export function werfeGranate(pState, pKey) {
   el.style.top = (n.y - 7) + 'px';
   dom.spielfeld.appendChild(el);
   granaten.push({
-    el, pKey, startX: n.x, startY: n.y, zielX: zx, zielY: zy, rest: GRANATE_FLUG, rot: 0,
+    id: 'sg_' + (++granatenId), el, pKey, x: n.x, y: n.y, startX: n.x, startY: n.y, zielX: zx, zielY: zy, rest: GRANATE_FLUG, rot: 0,
     werte: {
       radius: granatenRadius(pState), stoss: granatenStoss(pState), betaeubung: granatenBetaeubung(pState),
       schaden: granatenSchaden(pState), loescht: (pState.raketenStufe || 1) >= 5
@@ -385,6 +388,8 @@ function aktualisiereGranaten(pKey) {
     const x = g.startX + (g.zielX - g.startX) * t;
     const y = g.startY + (g.zielY - g.startY) * t - Math.sin(Math.PI * t) * GRANATE_BOGEN;
     g.rot += 24;
+    g.x = x;
+    g.y = y;
     g.el.style.left = (x - 7) + 'px';
     g.el.style.top = (y - 7) + 'px';
     g.el.style.transform = 'rotate(' + g.rot + 'deg)';
@@ -405,7 +410,7 @@ function erzeugeDruckwelle(cx, cy, radius, pKey) {
 function aktualisiereWellen(pKey) {
   for (let i = wellen.length - 1; i >= 0; i--) {
     const w = wellen[i];
-    if (w.pKey !== pKey) continue;
+    if (pKey && w.pKey !== pKey) continue;
     w.rest--;
     if (w.rest <= 0 || !w.el.isConnected) {
       w.el.remove();
@@ -446,6 +451,10 @@ function explodiereGranate(g) {
   Utils.erzeugeExplosion(cx, cy, '#ffffff', 10);
   Utils.erzeugeExplosion(cx, cy, '#ffeb3b', 10);
   erzeugeDruckwelle(cx, cy, w.radius, g.pKey);
+  // Online-Host: der Client zeigt die Druckwelle ueber ein Ereignis (Granate verschwindet im Snapshot)
+  if (state.gameMode === 'online' && state.network && state.network.isHost) {
+    Network.sendNetworkEvent({ type: 'granate_detonated', x: Math.round(cx * 10) / 10, y: Math.round(cy * 10) / 10, radius: w.radius, owner: g.pKey });
+  }
 
   for (const z of wegstossZiele().filter(t => (t.hp === undefined || t.hp > 0) && boxSchneidetKreis(zielBox(t), cx, cy, w.radius))) {
     const m = zielMitte(z);
@@ -504,7 +513,7 @@ function aktualisiereStoesse(pKey) {
 }
 
 function entferneGranatenEffekte(pKey) {
-  for (const liste of [granaten, wellen, stoesse]) {
+  for (const liste of [granaten, wellen, stoesse, netzGranaten]) {
     for (let i = liste.length - 1; i >= 0; i--) {
       if (pKey && liste[i].pKey !== pKey) continue;
       if (liste[i].el) liste[i].el.remove();
@@ -563,6 +572,107 @@ export function aktualisiereSniper(pState, pKey, gehalten, auto = false) {
   }
   zeigeFadenkreuz(pState, pKey);
   return geschossen;
+}
+
+// --- ONLINE ---
+
+// Host: Sniper-Zustand eines Spielers fuer den Snapshot (leer bei anderen Schiffen)
+export function netzZustand(pState) {
+  if (!istSniper(pState)) return {};
+  const grund = grundPosition(pState);
+  return {
+    sniperZielX: pState.sniperZielX != null ? pState.sniperZielX : grund.x,
+    sniperZielY: pState.sniperZielY != null ? pState.sniperZielY : grund.y,
+    sniperLadung: pState.sniperLadung || 0,
+    sniperVoll: istVoll(pState.sniperLadung || 0),
+    sniperCooldown: pState.sniperCooldown || 0
+  };
+}
+
+// Host: fliegende Granaten fuer den Snapshot (id, Position, Besitzer, Restschritte des Flugs)
+export function netzGranatenListe() {
+  return granaten.map(g => ({ id: g.id, x: g.x, y: g.y, owner: g.pKey, rest: g.rest }));
+}
+
+// Client: Zustand eines Spielers aus dem Snapshot uebernehmen und darstellen. Der Schuss wird am Sprung des
+// Schussabstands erkannt (Strahl mit der zuletzt bekannten Ladung), Sounds nur fuer das eigene Schiff.
+export function uebernehmeSnapshot(pState, daten, pKey, eigenes) {
+  if (!pState) return;
+  if (!istSniper(pState) || !daten || daten.sniperZielX === undefined || daten.isDead) {
+    entferneFadenkreuz(pKey);
+    pState.sniperGehalten = false;
+    pState.sniperLadung = 0;
+    pState.sniperCooldown = 0;
+    pState.sniperVoll = false;
+    return;
+  }
+  const alteLadung = pState.sniperLadung || 0;
+  const alterCooldown = pState.sniperCooldown || 0;
+  const warVoll = !!pState.sniperVoll;
+  pState.sniperZielX = daten.sniperZielX;
+  pState.sniperZielY = daten.sniperZielY;
+  pState.sniperLadung = daten.sniperLadung || 0;
+  pState.sniperVoll = !!daten.sniperVoll;
+  pState.sniperCooldown = daten.sniperCooldown || 0;
+  pState.sniperGehalten = pState.sniperLadung > 0;
+  if (pState.sniperCooldown > alterCooldown) {
+    const anteil = ladeAnteil(alteLadung);
+    erzeugeStrahl(pState, anteil);
+    erzeugeEinschlag(pState, pState.sniperZielX, pState.sniperZielY, anteil);
+    if (eigenes) Audio.playSniperSchuss(pState.laserStufe || 1, anteil);
+  }
+  if (eigenes && pState.sniperVoll && !warVoll) Audio.playSniperVoll();
+  zeigeFadenkreuz(pState, pKey);
+}
+
+// Client: Granaten des Hosts abgleichen (Element pro Id, Position und Drehung aus dem Snapshot)
+export function synchronisiereGranaten(liste) {
+  const daten = liste || [];
+  const ids = new Set(daten.map(d => d.id));
+  for (let i = netzGranaten.length - 1; i >= 0; i--) {
+    if (!ids.has(netzGranaten[i].id)) {
+      netzGranaten[i].el.remove();
+      netzGranaten.splice(i, 1);
+    }
+  }
+  for (const d of daten) {
+    let g = netzGranaten.find(n => n.id === d.id);
+    if (!g) {
+      const el = document.createElement('div');
+      el.classList.add('sniper-granate');
+      dom.spielfeld.appendChild(el);
+      g = { id: d.id, el, pKey: d.owner };
+      netzGranaten.push(g);
+    }
+    g.el.style.left = (d.x - 7) + 'px';
+    g.el.style.top = (d.y - 7) + 'px';
+    g.el.style.transform = 'rotate(' + (GRANATE_FLUG - (d.rest || 0)) * 24 + 'deg)';
+  }
+}
+
+// Client: Explosion einer Granate (Ereignis 'granate_detonated')
+export function zeigeDetonation(daten) {
+  if (!daten || !Number.isFinite(daten.x) || !Number.isFinite(daten.y) || !(daten.radius > 0)) return;
+  Audio.playGranate();
+  Utils.erzeugeExplosion(daten.x, daten.y, '#ffffff', 10);
+  Utils.erzeugeExplosion(daten.x, daten.y, '#ffeb3b', 10);
+  erzeugeDruckwelle(daten.x, daten.y, daten.radius, daten.owner === 'p2' ? 'p2' : 'p1');
+}
+
+// Client, jeden Schritt: Strahlen und Druckwellen animieren; das eigene Fadenkreuz folgt dem vorhergesagten Schiff
+// (ohne Auto-Zielen liegt es auf der Grundposition, mit Auto-Zielen gilt der Host-Wert)
+export function clientSchritt() {
+  aktualisiereStrahlen();
+  aktualisiereWellen();
+  const p = state.p2;
+  if (p && istSniper(p) && !p.isDead && p.sniperZielX != null) {
+    if (autoZielTempo(p) === 0) {
+      const grund = grundPosition(p);
+      p.sniperZielX = grund.x;
+      p.sniperZielY = grund.y;
+    }
+    zeigeFadenkreuz(p, 'p2');
+  }
 }
 
 // Fadenkreuz, Strahlen und Schusszustand eines Spielers zuruecksetzen (restartGame, Game Over, Schiffswechsel)

@@ -1495,3 +1495,158 @@ test.describe('Spectre-SR Granate', () => {
     expect(r.danach).toBe(0);
   });
 });
+
+// ---------------------------------------------------------------------------------------------
+// Online-Host (S5a): Client-Sniper als P2 laedt, feuert und wirft ueber die Eingabe-Pakete.
+
+async function bereiteOnlineHost(page) {
+  await bereiteGranate(page, { coop: true });
+  await page.evaluate(() => {
+    const { state, Network } = window.__game;
+    const T = window.__sn;
+    state.gameMode = 'online';
+    Object.assign(state.network, { isOnline: true, isHost: true, isClient: false, connected: false });
+    T.leeren();
+    state.p2.selectedShipModel = 'sniper';
+    state.p2.raketenStufe = 1;
+    state.p2.raketenCooldown = 0;
+    state.p2.laserInputRequested = false;
+    state.p2.raketeGehalten = false;
+    state.p2.netzLaserAnfrage = false;
+    state.p2.sniperAutoInput = false;
+    state.p2.networkFireRakete = false;
+    // Client-Eingabe wie aus einem Paket (Position des Clients: P2-Schiff bei (385|400) -> Fadenkreuz (400|180))
+    window.__eingabe = (e) => Network.applyPlayerInput(Object.assign({ x: 385, y: 400, rotate: 0, laser: false, rakete: false, bombe: false }, e));
+  });
+}
+
+test.describe('Spectre-SR online (Host)', () => {
+  test('kurzer Tipp des Clients (Druck und Loslassen vor demselben Host-Schritt) wird zu genau einem Schuss', async ({ page }) => {
+    await bereiteOnlineHost(page);
+    const r = await page.evaluate(() => {
+      const { state, Audio } = window.__game;
+      const T = window.__sn;
+      const E = window.__eingabe;
+      const ziel = T.feind(400, 180, 1000);
+      Audio.clearAudioHistory();
+      E({ laser: true });
+      E({ laser: false });
+      T.schritte(1);
+      T.schritte(5);
+      const schuesse = () => Audio.audioHistory.filter(a => a.name === 'sniperSchuss').length;
+      const tipp = { hp: ziel.hp, schuesse: schuesse(), energie: state.p2.energie, cd: state.p2.sniperCooldown > 0 };
+      // Zweiter Tipp nach der Sperre: wieder genau ein Schuss
+      T.schritte(30);
+      E({ laser: true });
+      E({ laser: false });
+      T.schritte(6);
+      const zweiter = { hp: ziel.hp, schuesse: schuesse() };
+      // Normal gehalten ueber mehrere Pakete: kein Dauerfeuer, ein Schuss beim Loslassen
+      T.schritte(30);
+      E({ laser: true });
+      T.schritte(3);
+      const waehrend = schuesse();
+      E({ laser: false });
+      T.schritte(3);
+      return { tipp, zweiter, waehrend, nachHalten: schuesse(), hpEnde: ziel.hp };
+    });
+    expect(r.tipp.hp).toBe(970);
+    expect(r.tipp.schuesse).toBe(1);
+    expect(r.tipp.cd).toBe(true);
+    expect(r.zweiter).toEqual({ hp: 940, schuesse: 2 });
+    expect(r.waehrend).toBe(2);
+    expect(r.nachHalten).toBe(3);
+    expect(r.hpEnde).toBe(910);
+  });
+
+  test('gehaltene Laser-Eingabe laedt bis voll (Ton, kein Schuss beim Halten), Loslassen feuert den Ladeschuss', async ({ page }) => {
+    await bereiteOnlineHost(page);
+    const r = await page.evaluate(() => {
+      const { state, Audio } = window.__game;
+      const T = window.__sn;
+      const E = window.__eingabe;
+      const ziel = T.feind(400, 180, 1000);
+      Audio.clearAudioHistory();
+      E({ laser: true });
+      T.schritte(100);
+      const geladen = { ladung: state.p2.sniperLadung, voll: state.p2.sniperVoll, ton: Audio.audioHistory.filter(a => a.name === 'sniperVoll').length, hp: ziel.hp };
+      E({ laser: false });
+      T.schritte(2);
+      return { geladen, hp: ziel.hp, ladungDanach: state.p2.sniperLadung };
+    });
+    expect(r.geladen).toEqual({ ladung: 90, voll: true, ton: 1, hp: 1000 });
+    expect(r.hp).toBe(880); // voll geladen: Schaden x4
+    expect(r.ladungDanach).toBe(0);
+  });
+
+  test('Autofeuer des Clients (Joystick) schiesst Normalschuesse im Schussabstand ohne Laden', async ({ page }) => {
+    await bereiteOnlineHost(page);
+    const r = await page.evaluate(() => {
+      const { state, Audio } = window.__game;
+      const T = window.__sn;
+      const E = window.__eingabe;
+      const ziel = T.feind(400, 180, 1000);
+      Audio.clearAudioHistory();
+      E({ laser: true, auto: true });
+      T.schritte(50);
+      const maxLadung = state.p2.sniperLadung;
+      const gehalten = state.p2.sniperGehalten;
+      E({ laser: false });
+      T.schritte(2);
+      return { schuesse: Audio.audioHistory.filter(a => a.name === 'sniperSchuss').length, hp: ziel.hp, maxLadung, gehalten, ton: Audio.audioHistory.filter(a => a.name === 'sniperVoll').length };
+    });
+    // Stufe 1: Schussabstand 24 Schritte -> Schuesse in den Schritten 1, 25, 49
+    expect(r.schuesse).toBe(3);
+    expect(r.hp).toBe(910);
+    expect(r.maxLadung).toBe(0);
+    expect(r.gehalten).toBe(false);
+    expect(r.ton).toBe(0);
+  });
+
+  test('Granate ueber die Raketen-Eingabe (auch kurzer Tipp) fliegt zum Fadenkreuz des Clients und betaeubt dort', async ({ page }) => {
+    await bereiteOnlineHost(page);
+    const r = await page.evaluate(() => {
+      const { state } = window.__game;
+      const T = window.__sn;
+      const G = window.__gr;
+      const E = window.__eingabe;
+      const ziel = G.feind(430, 190); // im Radius 70 um das Fadenkreuz des Clients (400|180)
+      const fern = G.feind(100, 180); // am Fadenkreuz des Hosts (200|180) - darf nichts abbekommen
+      E({ rakete: true });
+      E({ rakete: false });
+      T.schritte(1);
+      const nachWurf = { granaten: document.querySelectorAll('.sniper-granate').length, cd: state.p2.raketenCooldown, host: state.raketenCooldown };
+      // Das Schiff des Clients zieht weiter: die Granate zielt trotzdem auf die Position beim Wurf
+      E({ x: 285, y: 400 });
+      G.frei(31);
+      return { nachWurf, ziel: ziel.betaeubt > 0, fern: fern.betaeubt || 0, welle: document.querySelectorAll('.sniper-druckwelle').length };
+    });
+    expect(r.nachWurf).toEqual({ granaten: 1, cd: 240, host: 0 });
+    expect(r.ziel).toBe(true);
+    expect(r.fern).toBe(0);
+    expect(r.welle).toBe(1);
+  });
+
+  test('Host sendet fuer die Druckwelle ein Ereignis und die Granate im Snapshot; Betaeubung steht am Feind im Snapshot', async ({ page }) => {
+    await bereiteOnlineHost(page);
+    const r = await page.evaluate(() => {
+      const { state, Network } = window.__game;
+      const G = window.__gr;
+      const E = window.__eingabe;
+      const ziel = G.feind(430, 190);
+      E({ rakete: true });
+      E({ rakete: false });
+      G.frei(1);
+      const imFlug = Network.serializeGameState().sniperGranaten.map(g => ({ owner: g.owner, rest: g.rest }));
+      state.network.lastSentEvent = null;
+      G.frei(31);
+      const ereignis = state.network.lastSentEvent;
+      const feindSnap = Network.serializeGameState().feinde.find(f => f.id === ziel.id);
+      return { imFlug, ereignis, betaeubt: feindSnap.betaeubt > 0 };
+    });
+    expect(r.imFlug).toHaveLength(1);
+    expect(r.imFlug[0].owner).toBe('p2');
+    expect(r.ereignis).toMatchObject({ type: 'granate_detonated', x: 400, y: 180, radius: 70, owner: 'p2' });
+    expect(r.betaeubt).toBe(true);
+  });
+});

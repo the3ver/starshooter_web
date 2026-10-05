@@ -10,6 +10,7 @@ import { GAME_VERSION } from './changelog.js';
 import { PROTOKOLL_VERSION, KEYFRAME_INTERVALL, SnapshotKodierer, SnapshotDekodierer, EingabeSender } from './netzkodierung.js';
 import * as Gleve from './gleve.js';
 import * as Viper from './viper.js';
+import * as Sniper from './sniper.js';
 
 let room = null;
 let sendStateAction = null;
@@ -48,6 +49,8 @@ function setzeNetzEingabenZurueck() {
     state.p2.networkFireRakete = false;
     state.p2.networkFireBombe = false;
     state.p2.netzDashAnfrage = false;
+    state.p2.netzLaserAnfrage = false;
+    state.p2.sniperAutoInput = false;
     state.p2.netzRichtung = null;
 }
 
@@ -672,6 +675,9 @@ export function handleNetworkEvent(data, peerId = null) {
         if (data.type === 'missile_detonated') {
             Utils.erzeugeRaketenDetonation(data.x, data.y, data.radius);
         }
+        if (data.type === 'granate_detonated') {
+            Sniper.zeigeDetonation(data);
+        }
         if (data.type === 'target_destroyed') {
             Utils.erzeugeExplosion(data.x, data.y, data.farbe, data.anzahl);
             if (data.soundType) Audio.playExplosion(data.soundType);
@@ -832,7 +838,8 @@ export function serializeGameState() {
             phantomSchildRegenMax: state.phantomSchildRegenMax || 900,
             hacks: state.hacks || [],
             ...gleveZustand(state),
-            ...viperZustand(state)
+            ...viperZustand(state),
+            ...Sniper.netzZustand(state)
         },
         p2: state.p2 ? {
             x: state.p2.x,
@@ -859,7 +866,8 @@ export function serializeGameState() {
             phantomSchildRegenMax: state.p2.phantomSchildRegenMax || 900,
             hacks: state.p2.hacks || [],
             ...gleveZustand(state.p2),
-            ...viperZustand(state.p2)
+            ...viperZustand(state.p2),
+            ...Sniper.netzZustand(state.p2)
         } : null,
         score: state.score,
         level: state.level,
@@ -875,7 +883,8 @@ export function serializeGameState() {
             typ: f.typ || 1,
             muster: f.muster || 'normal',
             hatSchild: (f.schildHp || 0) > 0,
-            schildHp: f.schildHp || 0
+            schildHp: f.schildHp || 0,
+            ...(f.betaeubt > 0 ? { betaeubt: f.betaeubt } : {})
         })),
         asteroiden: arrays.asteroiden.map((a) => ({
             id: a.id,
@@ -900,7 +909,8 @@ export function serializeGameState() {
             maxHp: b.maxHp,
             groesse: b.groesse || 100,
             typ: b.typ || 1,
-            enrage: b.enragePhaseAktiv || false
+            enrage: b.enragePhaseAktiv || false,
+            ...(b.betaeubt > 0 ? { betaeubt: b.betaeubt } : {})
         })),
         laser: arrays.laserArray.map((l) => ({
             id: l.id,
@@ -931,6 +941,8 @@ export function serializeGameState() {
             stufe: b.stufe || 1,
             isMini: b.isMini || false
         })),
+        // Sniper-Granaten im Flug (ohne Sniper leer, wie gleveWellen)
+        sniperGranaten: Sniper.netzGranatenListe(),
         gleveWellen: arrays.gleveWellen.map(w => ({
             id: w.id,
             x: w.x,
@@ -1013,6 +1025,12 @@ function synchronisiereListe(liste, datenListe, erzeuge, aktualisiere) {
     neueListe.forEach(obj => liste.push(obj));
 }
 
+// Betaeubung (Sniper-Granate) aus dem Snapshot: Feld und Klasse 'betaeubt' setzen bzw. entfernen
+function zeigeBetaeubung(obj, daten) {
+    obj.betaeubt = daten.betaeubt > 0 ? daten.betaeubt : 0;
+    if (obj.el) obj.el.classList.toggle('betaeubt', obj.betaeubt > 0);
+}
+
 // Von der Gleve weggeschleudert: orange einfaerben und in Flugrichtung drehen (einmalig)
 function uebernehmeHarmlos(obj, daten) {
     if (!daten.harmlos || obj.harmlos) return;
@@ -1023,6 +1041,7 @@ function uebernehmeHarmlos(obj, daten) {
 // Max-Cooldown fuer den Raketen-HUD-Balken (Gleve: Dash-Cooldown)
 function maxRaketenCooldown(s) {
     if (Gleve.istGleve(s)) return Gleve.dashCooldown(s);
+    if (Sniper.istSniper(s)) return Sniper.granatenCooldown(s);
     if (s.raketenStufe >= 4) return 120;
     if (s.raketenStufe >= 2) return 150;
     return 180;
@@ -1094,6 +1113,7 @@ export function applyGameStateSnapshot(snapshot) {
         // Gleve des Hosts: Dash/Abprall/Sweep nur darstellen (clientSchritt zeichnet)
         Gleve.uebernehmeSnapshot(state, snapshot.p1, false);
         Viper.uebernehmeSnapshot(state, snapshot.p1, false);
+        Sniper.uebernehmeSnapshot(state, snapshot.p1, 'p1', false);
 
         if (dom.spieler) {
             setzeInterpolationsZiel(p1Anzeige, dom.spieler, state.x, state.y);
@@ -1163,6 +1183,7 @@ export function applyGameStateSnapshot(snapshot) {
         // Eigene Gleve: Dash sagt client.js voraus, Abprall und Sweep kommen vom Host
         Gleve.uebernehmeSnapshot(state.p2, snapshot.p2, true);
         Viper.uebernehmeSnapshot(state.p2, snapshot.p2, true);
+        Sniper.uebernehmeSnapshot(state.p2, snapshot.p2, 'p2', true);
 
         if (dom.spieler2) {
             dom.spieler2.classList.remove('schild-aktiv-1', 'schild-aktiv-2', 'schild-aktiv-3');
@@ -1280,6 +1301,7 @@ export function applyGameStateSnapshot(snapshot) {
                 existing.hp = fData.hp;
                 setzeInterpolationsZiel(existing, existing.el, fData.x, fData.y);
             }
+            zeigeBetaeubung(existing, fData);
         });
         for (let i = arrays.feinde.length - 1; i >= 0; i--) {
             if (!currentIds.has(arrays.feinde[i].id)) {
@@ -1408,6 +1430,7 @@ export function applyGameStateSnapshot(snapshot) {
                 existing.hp = bData.hp;
                 setzeInterpolationsZiel(existing, existing.el, bData.x, bData.y);
             }
+            zeigeBetaeubung(existing, bData);
         });
         for (let i = arrays.bosses.length - 1; i >= 0; i--) {
             if (!currentIds.has(arrays.bosses[i].id)) {
@@ -1540,6 +1563,9 @@ export function applyGameStateSnapshot(snapshot) {
         obj.y = wData.y;
         Gleve.zeigeWelle(obj);
     });
+
+    // Granaten des Sniper-Hosts/-Clients im Flug
+    Sniper.synchronisiereGranaten(snapshot.sniperGranaten);
 
     // 11. Replicate Enemy Lasers
     synchronisiereListe(arrays.feindLaserArray, snapshot.feindLaser, flData => {
@@ -1747,7 +1773,10 @@ export function applyGameStateSnapshot(snapshot) {
 
 export function serializePlayerInput() {
     const keys = state.tastenGedrueckt;
-    const isLaser = Boolean(keys.l || keys.b);
+    // Sniper: Lade-Knopf (Handy) zaehlt wie die Laser-Taste; der Joystick feuert dagegen Normalschuesse ohne Laden (auto)
+    const sniper = state.p2 && Sniper.istSniper(state.p2);
+    const isLaser = Boolean(keys.l || keys.b || (sniper && state.sniperLadeKnopf));
+    const sniperAuto = Boolean(sniper && state.joystick && state.joystick.feuert && !state.sniperLadeKnopf && !keys.b);
     const isRakete = Boolean(keys.k || keys.v);
     const isBombe = Boolean(keys[' '] || keys.c || keys.enter);
     // Gleve: Steuerrichtung fuer den Dash; waehrend des vorhergesagten Dashs Startposition und Dash-Richtung
@@ -1765,7 +1794,8 @@ export function serializePlayerInput() {
         rotate: state.p2 ? (state.p2.rotate || 0) : (state.rotate || 0),
         laser: isLaser,
         rakete: isRakete,
-        bombe: isBombe
+        bombe: isBombe,
+        ...(sniperAuto ? { auto: true } : {})
     };
 }
 
@@ -1795,7 +1825,12 @@ export function applyPlayerInput(input) {
     // Viper: Client meldet den Start seiner Rolle (Richtung -1/+1); der Host prueft den Cooldown selbst
     if ((input.ro === 1 || input.ro === -1) && Viper.istViper(state.p2)) state.p2.netzRolleAnfrage = input.ro;
 
-    if (input.laser !== undefined) state.p2.laserInputRequested = Boolean(input.laser);
+    if (input.laser !== undefined) {
+        // Sniper: neuer Druck bleibt gemerkt, auch wenn das Loslassen im selben Host-Schritt ankommt (kurzer Tipp = ein Schuss)
+        if (input.laser && !state.p2.laserInputRequested && Sniper.istSniper(state.p2)) state.p2.netzLaserAnfrage = true;
+        state.p2.laserInputRequested = Boolean(input.laser);
+    }
+    state.p2.sniperAutoInput = Boolean(input.auto);
 
     // Gehaltene Tasten gelten bis zum naechsten Paket (waffen.js feuert damit wie bei
     // einem true in jedem Schritt); ein kurzer Druck bleibt wie bisher bis zum Schuss gemerkt

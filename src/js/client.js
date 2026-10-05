@@ -6,6 +6,7 @@ import { animierenPartikel } from './partikel.js';
 import { zeichneTraktorstrahl, entferneTraktorstrahl } from './powerups.js';
 import * as Gleve from './gleve.js';
 import * as Viper from './viper.js';
+import * as Sniper from './sniper.js';
 
 // Steuerrichtung des Clients (Joystick normalisiert oder Tasten, Hacks angewendet)
 function steuerRichtung(keys) {
@@ -239,6 +240,9 @@ export function clientSchritt() {
   // Viper-Rolle: Klasse, Nachbilder und Bereitschaftsanzeige beider Schiffe
   Viper.zeigeViperZustand(state, 'p1', false);
   if (state.p2) Viper.zeigeViperZustand(state.p2, 'p2', true);
+
+  // Sniper: Strahlen, Druckwellen und das Fadenkreuz des eigenen Schiffs
+  Sniper.clientSchritt();
 
   // Entfernte Objekte zwischen den Snapshots weiterbewegen
   extrapoliereProjektile();

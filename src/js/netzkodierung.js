@@ -12,14 +12,14 @@
 //   Delta eines Objekts: geaenderte Felder, '_d' = entfernte Felder, '_r' = Wert ersetzt.
 //   Fehlt 'i', bleiben die Ids wie im letzten Paket; fehlt eine Liste, ist sie unveraendert.
 
-export const PROTOKOLL_VERSION = 9;
+export const PROTOKOLL_VERSION = 10;
 export const KEYFRAME_INTERVALL = 30;   // jedes 30. Paket ist ein Keyframe (~1 s)
 export const DR_TOLERANZ = 0.5;         // px, ab dieser Abweichung wird x/y mitgesendet
 
 // Id-Praefix je Liste (siehe Entities.neueId); andere Ids gehen als Text
 const LISTEN_PRAEFIX = {
     feinde: 'f', asteroiden: 'a', bosses: 'boss', laser: 'l', raketen: 'r', bomben: 'b',
-    hackProjektile: 'hp', feindLaser: 'fl', bossLaser: 'bl', bossRaketen: 'br', bossBomben: 'bb', powerups: 'pu', gleveWellen: 'gw'
+    hackProjektile: 'hp', feindLaser: 'fl', bossLaser: 'bl', bossRaketen: 'br', bossBomben: 'bb', powerups: 'pu', gleveWellen: 'gw', sniperGranaten: 'sg'
 };
 export const LISTEN = Object.keys(LISTEN_PRAEFIX);
 
@@ -47,7 +47,9 @@ export const RUNDUNG = {
     // Viper-Overdrive: Leiste (0..100) und Restschritte ganzzahlig
     viperOverdriveLeiste: runde0, viperOverdriveTimer: runde0,
     // Viper-Kill-Kombo: Kills und Restschritte des Fensters ganzzahlig
-    viperKombo: runde0, viperKomboTimer: runde0
+    viperKombo: runde0, viperKomboTimer: runde0,
+    // Sniper: Fadenkreuz (x/y 1 Nachkommastelle), Ladung, Schussabstand, Granatenflug und Betaeubung ganzzahlig
+    sniperZielX: runde1, sniperZielY: runde1, sniperLadung: runde0, sniperCooldown: runde0, rest: runde0, betaeubt: runde0
 };
 
 function rundungsErsetzer(schluessel, wert) {
@@ -361,9 +363,11 @@ export class EingabeSender {
         }
         // Viper: Rollenstart (Richtung -1/+1) geht sofort raus, nur im Startschritt gesetzt
         if (eingabe.ro === 1 || eingabe.ro === -1) e.ro = eingabe.ro;
+        // Sniper: Joystick-Autofeuer (Normalschuesse ohne Laden), nur wenn gesetzt
+        if (eingabe.auto) e.auto = true;
         const l = this.letzte;
         const seit = this.schritt - this.letzterVersand;
-        const tastenGeaendert = !l || l.laser !== e.laser || l.rakete !== e.rakete || l.bombe !== e.bombe || l.ro !== e.ro;
+        const tastenGeaendert = !l || l.laser !== e.laser || l.rakete !== e.rakete || l.bombe !== e.bombe || l.ro !== e.ro || l.auto !== e.auto;
         const bewegt = !l || l.x !== e.x || l.y !== e.y || l.rotate !== e.rotate;
         const faellig = tastenGeaendert || (bewegt && seit >= POSITIONS_INTERVALL) || seit >= HEARTBEAT_SCHRITTE;
         if (!faellig) return null;

@@ -27,7 +27,14 @@ function istOnlineHost() {
 
 // Laser-Taste von P2 (Online-Host: gehaltene Client-Eingabe, Bot: KI-Entscheidung)
 function laserTasteP2() {
-  if (istOnlineHost()) return Boolean(state.p2 && state.p2.laserInputRequested);
+  if (istOnlineHost()) {
+    // Sniper: ein Druck zaehlt mindestens einen Schritt, auch wenn Loslassen im selben Host-Schritt ankommt (kurzer Tipp = ein Schuss)
+    if (state.p2 && state.p2.netzLaserAnfrage) {
+      state.p2.netzLaserAnfrage = false;
+      return true;
+    }
+    return Boolean(state.p2 && state.p2.laserInputRequested);
+  }
   if (state.p2IsBot) return state.p2.botFireLaser || false;
   return state.tastenGedrueckt.ä || state.tastenGedrueckt.numpad1 || state.tastenGedrueckt['.'];
 }
@@ -379,7 +386,8 @@ export function aktualisiereEnergie() {
   if (Sniper.istSniper(state.p2) && (!isCoopMode() || state.p2.isDead)) Sniper.aktualisiereSniper(state.p2, 'p2', false); // Fadenkreuz entfernen
   if (isCoopMode() && state.p2 && !state.p2.isDead) {
     if (Sniper.istSniper(state.p2)) {
-      steuereSniper(state.p2, 'p2', Boolean(laserTasteP2()));
+      // Online-Client mit Joystick-Autofeuer (Handy): Normalschuesse ohne Laden
+      steuereSniper(state.p2, 'p2', Boolean(laserTasteP2()), istOnlineHost() && Boolean(state.p2.sniperAutoInput));
     } else if (Gleve.istGleve(state.p2)) {
       steuereGleveSweep(state.p2, 'p2', Boolean(laserTasteP2()));
     } else {

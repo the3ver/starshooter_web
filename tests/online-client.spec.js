@@ -478,3 +478,260 @@ test('Online-Client: Gegner und Host-Schiff gleiten zur neuen Snapshot-Position 
   expect(r.logisch).toEqual([60, 210]);
   expect(r.sprung).toEqual(['400px', '500px']);
 });
+
+// ---------------------------------------------------------------------------------------------
+// Spectre-SR online (S5a): Snapshot-Felder, Darstellung beim Client, Eingaben
+
+test('Online: Sniper-Felder gehen nur fuer Sniper in den Snapshot (Granatenliste sonst leer) und ueberstehen Kodierer/Dekodierer (gerundet)', async ({ page }) => {
+  const r = await page.evaluate(async () => {
+    const g = window.__game;
+    const { state, arrays } = g;
+    const NK = await import('./js/netzkodierung.js');
+    const Sniper = await import('./js/sniper.js');
+    const out = {};
+    state.selectedShipModel = 'sniper';
+    state.p2.selectedShipModel = 'viper';
+    Object.assign(state, { sniperZielX: 123.456, sniperZielY: 99.04, sniperLadung: 45.4, sniperCooldown: 17.6, x: 108, y: 319 });
+    g.Entities.erzeugeFeind(100, 100, 'normal', 0, false);
+    g.Entities.erzeugeFeind(200, 100, 'normal', 0, false);
+    arrays.feinde[0].betaeubt = 33.4;
+    const voll = g.Network.serializeGameState();
+    out.p1 = ['sniperZielX', 'sniperZielY', 'sniperLadung', 'sniperVoll', 'sniperCooldown'].every(k => k in voll.p1);
+    out.p2Ohne = Object.keys(voll.p2).filter(k => k.startsWith('sniper')).length;
+    out.liste = Array.isArray(voll.sniperGranaten);
+    out.betaeubtNurWenn = [voll.feinde[0].betaeubt, 'betaeubt' in voll.feinde[1]];
+    // Ohne Sniper keine Sniper-Felder und keine Granatenliste
+    state.selectedShipModel = 'viper';
+    const ohne = g.Network.serializeGameState();
+    out.ohneSniper = [Object.keys(ohne.p1).filter(k => k.startsWith('sniper')).length, ohne.sniperGranaten.length];
+    state.selectedShipModel = 'sniper';
+    // Granate im Flug: Eintrag mit Id, Position, Besitzer, Flugfortschritt
+    Sniper.werfeGranate(state, 'p1');
+    const mitGranate = g.Network.serializeGameState();
+    out.granate = mitGranate.sniperGranaten.map(x => ({ id: typeof x.id, owner: x.owner, rest: x.rest, hatPos: Number.isFinite(x.x) && Number.isFinite(x.y) }));
+    // Kodierer -> Dekodierer
+    const k = new NK.SnapshotKodierer();
+    const dek = new NK.SnapshotDekodierer().dekodiere(JSON.parse(JSON.stringify(k.kodiere(mitGranate, 0))));
+    out.dekodiert = [dek.p1.sniperZielX, dek.p1.sniperZielY, dek.p1.sniperLadung, dek.p1.sniperCooldown, dek.feinde[0].betaeubt, dek.sniperGranaten.length];
+    out.protokoll = NK.PROTOKOLL_VERSION;
+    Sniper.setzeZurueck(state);
+    return out;
+  });
+  expect(r.p1).toBe(true);
+  expect(r.p2Ohne).toBe(0);
+  expect(r.liste).toBe(true);
+  expect(r.betaeubtNurWenn).toEqual([33.4, false]);
+  expect(r.ohneSniper).toEqual([0, 0]);
+  expect(r.granate).toEqual([{ id: 'string', owner: 'p1', rest: 30, hatPos: true }]);
+  expect(r.dekodiert).toEqual([123.5, 99, 45, 18, 33, 1]);
+  expect(r.protokoll).toBe(10);
+});
+
+test('Online-Client: Fadenkreuz an der Host-Position, Ladering bei Ladung, Strahl beim Schuss, Sounds nur fuers eigene Schiff', async ({ page }) => {
+  const r = await page.evaluate(() => {
+    const g = window.__game;
+    const { state } = g;
+    const out = {};
+    state.selectedShipModel = 'sniper';
+    state.p2.selectedShipModel = 'sniper';
+    const snap = (p1, p2) => {
+      const s = window.__snapshot();
+      Object.assign(s.p1, { laserStufe: 1 }, p1);
+      Object.assign(s.p2, { laserStufe: 1 }, p2);
+      return s;
+    };
+    const z = (x, y, ladung, cd) => ({ sniperZielX: x, sniperZielY: y, sniperLadung: ladung, sniperVoll: ladung >= 90, sniperCooldown: cd });
+    g.Audio.clearAudioHistory();
+    g.Network.applyGameStateSnapshot(snap(z(123.4, 99.2, 0, 0), z(350, 180, 0, 0)));
+    const k1 = document.querySelector('.sniper-fadenkreuz-p1');
+    const k2 = document.querySelector('.sniper-fadenkreuz-p2');
+    out.kreuze = document.querySelectorAll('.sniper-fadenkreuz').length;
+    out.p1Mitte = [parseFloat(k1.style.left) + parseFloat(k1.style.width) / 2, parseFloat(k1.style.top) + parseFloat(k1.style.height) / 2];
+    out.p2Mitte = [parseFloat(k2.style.left) + parseFloat(k2.style.width) / 2, parseFloat(k2.style.top) + parseFloat(k2.style.height) / 2];
+    out.ringAus = !k1.querySelector('.sniper-ladering') || k1.querySelector('.sniper-ladering').style.display === 'none';
+
+    // Ladung 50: Ring sichtbar und groesser als der Trefferkreis, noch nicht voll
+    g.Network.applyGameStateSnapshot(snap(z(123.4, 99.2, 50, 0), z(350, 180, 50, 0)));
+    const ring = k1.querySelector('.sniper-ladering');
+    out.ring = { an: ring.style.display, breite: parseFloat(ring.style.width), voll: ring.classList.contains('voll') };
+    // Voll: Klasse voll, Ton nur fuer das eigene Schiff (P2) und nur einmal
+    g.Network.applyGameStateSnapshot(snap(z(123.4, 99.2, 90, 0), z(350, 180, 90, 0)));
+    g.Network.applyGameStateSnapshot(snap(z(123.4, 99.2, 90, 0), z(350, 180, 90, 0)));
+    out.voll = k1.querySelector('.sniper-ladering').classList.contains('voll');
+    out.vollTon = g.Audio.audioHistory.filter(a => a.name === 'sniperVoll').length;
+
+    // Schuss: Cooldown springt hoch, Ladung ist zurueck auf 0 -> ein Strahl pro Schiff, breit wegen der Ladung
+    g.Network.applyGameStateSnapshot(snap(z(123.4, 99.2, 0, 24), z(350, 180, 0, 24)));
+    const strahlen = [...document.querySelectorAll('.sniper-strahl')];
+    out.strahlen = strahlen.length;
+    out.breit = strahlen.every(s => parseFloat(s.style.width) > 8);
+    out.schussTon = g.Audio.audioHistory.filter(a => a.name === 'sniperSchuss').length;
+    out.ringWeg = k1.querySelector('.sniper-ladering').style.display;
+    // Sinkender Cooldown: kein weiterer Strahl
+    g.Network.applyGameStateSnapshot(snap(z(123.4, 99.2, 0, 22), z(350, 180, 0, 22)));
+    out.strahlenDanach = document.querySelectorAll('.sniper-strahl').length;
+
+    // Tod des Hosts und Schiffswechsel: Fadenkreuz weg
+    g.Network.applyGameStateSnapshot(snap(Object.assign(z(123.4, 99.2, 0, 0), { isDead: true }), z(350, 180, 0, 0)));
+    out.nachTod = document.querySelectorAll('.sniper-fadenkreuz-p1').length;
+    state.p2.selectedShipModel = 'viper';
+    g.Network.applyGameStateSnapshot(snap(z(123.4, 99.2, 0, 0), {}));
+    out.nachWechsel = document.querySelectorAll('.sniper-fadenkreuz-p2').length;
+    return out;
+  });
+  expect(r.kreuze).toBe(2);
+  expect(r.p1Mitte).toEqual([123.4, 99.2]);
+  expect(r.p2Mitte).toEqual([350, 180]);
+  expect(r.ringAus).toBe(true);
+  expect(r.ring.an).toBe('block');
+  expect(r.ring.breite).toBeGreaterThan(12);
+  expect(r.ring.voll).toBe(false);
+  expect(r.voll).toBe(true);
+  expect(r.vollTon).toBe(1);
+  expect(r.strahlen).toBe(2);
+  expect(r.breit).toBe(true);
+  expect(r.schussTon).toBe(1);
+  expect(r.ringWeg).toBe('none');
+  expect(r.strahlenDanach).toBe(2);
+  expect(r.nachTod).toBe(0);
+  expect(r.nachWechsel).toBe(0);
+});
+
+test('Online-Client: Granate im Flug, Druckwelle per Ereignis, betaeubte Gegner mit Klasse, Granaten-HUD', async ({ page }) => {
+  const r = await page.evaluate(async () => {
+    const g = window.__game;
+    const { state, arrays } = g;
+    const { simulationsSchritt } = await import('./js/loop.js');
+    const out = {};
+    state.selectedShipModel = 'sniper';
+    state.p2.selectedShipModel = 'sniper';
+    const feind = (bet) => ({ id: 'f_1', x: 100, y: 100, hp: 30, maxHp: 30, groesse: 30, typ: 1, muster: 'normal', hatSchild: false, schildHp: 0, ...(bet ? { betaeubt: bet } : {}) });
+    const boss = (bet) => ({ id: 'boss_1', x: 200, y: 50, hp: 400, maxHp: 400, groesse: 100, typ: 1, enrage: false, ...(bet ? { betaeubt: bet } : {}) });
+
+    // Granate: erscheint, bewegt sich mit dem Snapshot, verschwindet wieder
+    g.Network.applyGameStateSnapshot(window.__snapshot({ sniperGranaten: [{ id: 'sg_1', x: 150, y: 250, owner: 'p2', rest: 20 }] }));
+    const el = document.querySelector('.sniper-granate');
+    out.granate = [document.querySelectorAll('.sniper-granate').length, parseFloat(el.style.left) + 7, parseFloat(el.style.top) + 7];
+    g.Network.applyGameStateSnapshot(window.__snapshot({ sniperGranaten: [{ id: 'sg_1', x: 160, y: 230, owner: 'p2', rest: 18 }] }));
+    out.bewegt = [document.querySelectorAll('.sniper-granate').length, parseFloat(el.style.left) + 7, parseFloat(el.style.top) + 7, el.isConnected];
+    g.Network.applyGameStateSnapshot(window.__snapshot({ sniperGranaten: [] }));
+    out.weg = document.querySelectorAll('.sniper-granate').length;
+
+    // Druckwelle ueber Ereignis, waechst mit den Client-Schritten und verschwindet
+    g.Audio.clearAudioHistory();
+    g.Network.handleNetworkEvent({ type: 'granate_detonated', x: 160, y: 200, radius: 90, owner: 'p1' }, 'host');
+    out.welleDa = document.querySelectorAll('.sniper-druckwelle').length;
+    out.granateTon = g.Audio.audioHistory.filter(a => a.name === 'granate').length;
+    simulationsSchritt(); simulationsSchritt(); simulationsSchritt();
+    const welle = document.querySelector('.sniper-druckwelle');
+    out.welleBreit = parseFloat(welle.style.width);
+    for (let i = 0; i < 20; i++) simulationsSchritt();
+    out.welleWeg = document.querySelectorAll('.sniper-druckwelle').length;
+    // Unsinnige Ereignisse werden ignoriert
+    g.Network.handleNetworkEvent({ type: 'granate_detonated', x: 'a', y: null, radius: -3 }, 'host');
+    out.unsinn = document.querySelectorAll('.sniper-druckwelle').length;
+
+    // Betaeubung: Klasse an Feind und Boss, nach dem Snapshot ohne Feld wieder weg
+    g.Network.applyGameStateSnapshot(window.__snapshot({ feinde: [feind(40)], bosses: [boss(30)] }));
+    out.betaeubt = [arrays.feinde[0].el.classList.contains('betaeubt'), arrays.bosses[0].el.classList.contains('betaeubt')];
+    g.Network.applyGameStateSnapshot(window.__snapshot({ feinde: [feind(0)], bosses: [boss(0)] }));
+    out.vorbei = [arrays.feinde[0].el.classList.contains('betaeubt'), arrays.bosses[0].el.classList.contains('betaeubt')];
+
+    // Granaten-HUD: Cooldown-Balken des eigenen Schiffs nutzt den Granaten-Cooldown (Stufe 1: 240)
+    const s = window.__snapshot();
+    Object.assign(s.p2, { laserStufe: 1, raketenStufe: 1, raketenCooldown: 120, sniperZielX: 350, sniperZielY: 180, sniperLadung: 0, sniperVoll: false, sniperCooldown: 0 });
+    g.Network.applyGameStateSnapshot(s);
+    out.hud = document.getElementById('raketen-cd-balken-p2').style.width;
+    return out;
+  });
+  expect(r.granate).toEqual([1, 150, 250]);
+  expect(r.bewegt).toEqual([1, 160, 230, true]);
+  expect(r.weg).toBe(0);
+  expect(r.welleDa).toBe(1);
+  expect(r.granateTon).toBe(1);
+  expect(r.welleBreit).toBeGreaterThan(0);
+  expect(r.welleWeg).toBe(0);
+  expect(r.unsinn).toBe(0);
+  expect(r.betaeubt).toEqual([true, true]);
+  expect(r.vorbei).toEqual([false, false]);
+  expect(r.hud).toBe('50%');
+});
+
+test('Online-Client: Eingabe-Paket traegt Lade-Knopf als Laser, Joystick-Autofeuer als auto, Taste L ohne auto', async ({ page }) => {
+  const r = await page.evaluate(async () => {
+    const g = window.__game;
+    const { state } = g;
+    const NK = await import('./js/netzkodierung.js');
+    const keys = state.tastenGedrueckt;
+    Object.keys(keys).forEach(k => { keys[k] = false; });
+    state.p2.selectedShipModel = 'sniper';
+    const lies = () => { const e = g.Network.serializePlayerInput(); return { laser: e.laser, auto: e.auto === true }; };
+    const out = {};
+    out.ruhe = lies();
+    keys.l = true;
+    out.taste = lies();
+    keys.l = false;
+    state.sniperLadeKnopf = true;
+    out.knopf = lies();
+    state.sniperLadeKnopf = false;
+    state.joystick.active = true; state.joystick.feuert = true; keys.l = true; // wie input.js beim Joystick-touchstart
+    out.joystick = lies();
+    state.sniperLadeKnopf = true;
+    out.joystickUndKnopf = lies();
+    state.sniperLadeKnopf = false;
+    state.joystick.active = false; state.joystick.feuert = false; keys.l = false;
+    // Anderes Schiff: nie auto, Knopf zaehlt nicht
+    state.p2.selectedShipModel = 'viper';
+    state.joystick.feuert = true; keys.l = true;
+    out.viper = lies();
+    state.joystick.feuert = false; keys.l = false;
+    // Der Sender schickt auto nur wenn gesetzt, eine Aenderung geht sofort raus
+    const s = new NK.EingabeSender();
+    const basis = { x: 1, y: 2, rotate: 0, laser: true, rakete: false, bombe: false };
+    const a = s.naechstes(basis);
+    const b = s.naechstes(basis);
+    const c = s.naechstes({ ...basis, auto: true });
+    const d = s.naechstes({ ...basis, auto: true });
+    out.sender = [a && 'auto' in a, b, c && c.auto, d];
+    return out;
+  });
+  expect(r.ruhe).toEqual({ laser: false, auto: false });
+  expect(r.taste).toEqual({ laser: true, auto: false });
+  expect(r.knopf).toEqual({ laser: true, auto: false });
+  expect(r.joystick).toEqual({ laser: true, auto: true });
+  expect(r.joystickUndKnopf).toEqual({ laser: true, auto: false });
+  expect(r.viper).toEqual({ laser: true, auto: false });
+  expect(r.sender).toEqual([false, null, true, null]);
+});
+
+test('Online-Client: eigenes Fadenkreuz folgt dem vorhergesagten Schiff (ohne Auto-Zielen), mit Auto-Zielen gilt der Host-Wert', async ({ page }) => {
+  const r = await page.evaluate(async () => {
+    const g = window.__game;
+    const { state } = g;
+    const { simulationsSchritt } = await import('./js/loop.js');
+    const keys = state.tastenGedrueckt;
+    Object.keys(keys).forEach(k => { keys[k] = false; });
+    state.p2.selectedShipModel = 'sniper';
+    const s = window.__snapshot();
+    Object.assign(s.p2, { laserStufe: 1, sniperZielX: 365, sniperZielY: 180, sniperLadung: 0, sniperVoll: false, sniperCooldown: 0 });
+    g.Network.applyGameStateSnapshot(s);
+    simulationsSchritt();
+    const out = {};
+    const stand = state.p2.x;
+    keys.a = true;
+    for (let i = 0; i < 10; i++) simulationsSchritt();
+    keys.a = false;
+    out.gelaufen = state.p2.x < stand;
+    out.folgt = [state.p2.sniperZielX, state.p2.x + 15];
+    // Stufe 4: Host-Wert bleibt stehen
+    const s4 = window.__snapshot();
+    Object.assign(s4.p2, { laserStufe: 4, sniperZielX: 300, sniperZielY: 150, sniperLadung: 0, sniperVoll: false, sniperCooldown: 0 });
+    g.Network.applyGameStateSnapshot(s4);
+    simulationsSchritt();
+    out.auto = [state.p2.sniperZielX, state.p2.sniperZielY];
+    return out;
+  });
+  expect(r.gelaufen).toBe(true);
+  expect(r.folgt[0]).toBeCloseTo(r.folgt[1], 5);
+  expect(r.auto).toEqual([300, 150]);
+});
