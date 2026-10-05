@@ -111,6 +111,21 @@ export const shipModels = {
             { icon: '⚠️', label: 'KURZE REICHWEITE', desc: 'Sweep und Dash reichen nur wenig über das Schiff hinaus', type: 'nerf' },
             { icon: '🚫', label: 'KEIN FERNKAMPF', desc: 'Keine Laser und Raketen, nur Nahkampf', type: 'nerf' }
         ]
+    },
+    sniper: {
+        name: 'SPECTRE-SR MARKSMAN',
+        shortName: 'SPECTRE-SR',
+        speed: 4.5,
+        energyRegen: 0.45,
+        startShield: 0,
+        loseUpgradesOnHit: false,
+        perks: [
+            { icon: '🎯', label: 'PRÄZISIONSSCHUSS', desc: 'Der Laser trifft genau im Fadenkreuz', type: 'buff' },
+            { icon: '⚡', label: 'AUFLADEN', desc: 'Laser-Taste halten verstärkt den Schuss bis auf x4', type: 'buff' },
+            { icon: '💣', label: 'BETÄUBUNGSGRANATE', desc: 'Die Druckwelle stößt Gegner weg und betäubt sie', type: 'buff' },
+            { icon: '🐢', label: 'LANGSAME SCHUSSFOLGE', desc: 'Deutlich seltenere Schüsse als bei anderen Schiffen', type: 'nerf' },
+            { icon: '🔍', label: 'ZIELEN NÖTIG', desc: 'Bis Laser-Stufe 3 gibt es kein Auto-Zielen', type: 'nerf' }
+        ]
     }
 };
 

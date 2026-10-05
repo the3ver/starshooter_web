@@ -7,6 +7,7 @@ import * as Audio from './audio.js';
 import * as Bot from './bot.js';
 import * as Network from './network.js';
 import * as Gleve from './gleve.js';
+import * as Sniper from './sniper.js';
 import * as Viper from './viper.js';
 
 
@@ -906,7 +907,8 @@ export function escapeHtml(wert) {
 const HS_SCHIFFE = {
   viper: { klasse: 'hs-ship-viper', label: 'Viper-X', kurz: 'V' },
   phantom: { klasse: 'hs-ship-phantom', label: 'Phantom-NX', kurz: 'P' },
-  gleve: { klasse: 'hs-ship-gleve', label: 'Gleve-MR', kurz: 'G' }
+  gleve: { klasse: 'hs-ship-gleve', label: 'Gleve-MR', kurz: 'G' },
+  sniper: { klasse: 'hs-ship-sniper', label: 'Spectre-SR', kurz: 'S' }
 };
 
 function hsSchiffInfo(model) {
@@ -1342,6 +1344,20 @@ export function getShipSVGContent(model, colorId) {
       <rect x="13" y="24" width="4" height="4" fill="#7f8c8d"/>
     `;
   }
+  if (model === 'sniper') {
+    return `
+      <!-- Spectre-SR: Railgun -->
+      <rect x="11" y="0" width="2" height="15" fill="#7f8c8d"/>
+      <rect x="17" y="0" width="2" height="15" fill="#7f8c8d"/>
+      <rect x="12.5" y="1" width="5" height="1.5" fill="${c.accent}"/>
+      <rect x="12.5" y="5" width="5" height="1.5" fill="${c.accent}" opacity="0.7"/>
+      <path d="M15 10 L9 14 L1 20 L3 24 L10 21 L15 27 L20 21 L27 24 L29 20 L21 14 Z" fill="${c.sec}"/>
+      <path d="M15 12 L12 17 L15 25 L18 17 Z" fill="${c.prim}"/>
+      <path d="M15 15 L13.8 18 L15 20 L16.2 18 Z" fill="#87CEEB"/>
+      <rect x="9" y="22" width="3" height="4" fill="#7f8c8d"/>
+      <rect x="18" y="22" width="3" height="4" fill="#7f8c8d"/>
+    `;
+  }
   // Default: Viper-X Interceptor
   return `
     <!-- Viper-X: Delta Wings -->
@@ -1575,7 +1591,8 @@ export function updatePlayerShipVisuals() {
 // und den Raketen-Cooldown für den Dash. Sonst Originaltexte (E / R).
 const HUD_LABELS = {
   standard: { energie: 'E', rakete: 'R', mobilRakete: 'R' },
-  gleve: { energie: 'SWEEP', rakete: 'DASH', mobilRakete: 'D' }
+  gleve: { energie: 'SWEEP', rakete: 'DASH', mobilRakete: 'D', lang: true },
+  sniper: { energie: 'E', rakete: 'GRANATE', mobilRakete: 'G', lang: true }
 };
 
 function setzeHudLabel(el, text, lang) {
@@ -1593,9 +1610,9 @@ export function updateSchiffHudLabels() {
   const labelsP2 = HUD_LABELS[modelP2] || HUD_LABELS.standard;
 
   setzeHudLabel(document.querySelector('#energie-cd-container .cooldown-letter'), labelsP1.energie, modelP1 === 'gleve');
-  setzeHudLabel(document.querySelector('#raketen-cd-container .cooldown-letter'), labelsP1.rakete, modelP1 === 'gleve');
+  setzeHudLabel(document.querySelector('#raketen-cd-container .cooldown-letter'), labelsP1.rakete, !!labelsP1.lang);
   setzeHudLabel(document.querySelector('#energie-cd-container-p2 .cooldown-letter'), labelsP2.energie, modelP2 === 'gleve');
-  setzeHudLabel(document.querySelector('#raketen-cd-container-p2 .cooldown-letter'), labelsP2.rakete, modelP2 === 'gleve');
+  setzeHudLabel(document.querySelector('#raketen-cd-container-p2 .cooldown-letter'), labelsP2.rakete, !!labelsP2.lang);
 
   // Dash-Ladungspunkte nur bei der Gleve (Inhalt pflegt Gleve.zeigeDashHud)
   for (const [id, model] of [['dash-ladungen', modelP1], ['dash-ladungen-p2', modelP2]]) {
@@ -1678,8 +1695,8 @@ function updateWerferForShip(spielerEl, pState, prevKey) {
   let showRight = false;
   let showCenter = false;
 
-  if (model === 'gleve') {
-    // Gleve hat keine Raketenwerfer (Dash statt Raketen): alle Pods aus
+  if (model === 'gleve' || Sniper.istSniper(pState)) {
+    // Gleve (Dash) und Sniper (Granate) haben keine Raketenwerfer: alle Pods aus
   } else if (lvl <= 2) {
     if (model === 'phantom') {
       showRight = true;
@@ -1699,7 +1716,7 @@ function updateWerferForShip(spielerEl, pState, prevKey) {
   const prevStates = (prevKey === 'p1') ? prevWerferStatesP1 : prevWerferStatesP2;
 
   // Prüfen, ob Werfer durch Downgrade verloren gingen (Gleve: nie Abwurf-Effekt)
-  if (prevStates && state.spielLaeuft && !pState.isDead && model !== 'gleve') {
+  if (prevStates && state.spielLaeuft && !pState.isDead && model !== 'gleve' && !Sniper.istSniper(pState)) {
     if (prevStates.left && !showLeft) {
       erzeugeAbgeworfenenWerfer(pState.x - 8, pState.y + 7, -3 - Math.random() * 2, 2 + Math.random() * 2, -10);
     }

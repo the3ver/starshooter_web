@@ -1242,6 +1242,13 @@
             box-shadow: 0 0 5px rgba(46, 204, 113, 0.3);
         }
 
+        .hs-ship-sniper {
+            background: rgba(155, 89, 182, 0.2);
+            border: 1px solid #9b59b6;
+            color: #d6a2e8;
+            box-shadow: 0 0 5px rgba(155, 89, 182, 0.3);
+        }
+
         .hs-rank {
             font-weight: bold;
             font-size: 11px;
@@ -2321,7 +2328,7 @@
 
         .hangar-models {
             display: flex;
-            gap: 8px;
+            gap: 5px;
             justify-content: center;
             margin-bottom: 8px;
         }
@@ -2331,10 +2338,11 @@
             background: rgba(44, 62, 80, 0.8);
             border: 1px solid #7f8c8d;
             color: #bdc3c7;
-            padding: 5px 4px;
-            font-size: 11px;
+            padding: 5px 2px;
+            font-size: 10px;
             font-weight: bold;
-            letter-spacing: 1px;
+            letter-spacing: 0.5px;
+            white-space: nowrap;
             border-radius: 4px;
             cursor: pointer;
             transition: all 0.2s ease;

@@ -145,7 +145,7 @@ test('Online-Lobby ist so breit wie der Hangar und zentriert; Lobby-Zustaende sp
 
 test('Menue passt fuer jedes Schiff und jeden Modus in die Spielfeldhoehe', async ({ page }) => {
   await oeffneMenue(page, { width: 800, height: 600 });
-  for (const modell of ['viper', 'phantom', 'gleve']) {
+  for (const modell of ['viper', 'phantom', 'gleve', 'sniper']) {
     await page.click(`.hangar-model-btn[data-model="${modell}"]`);
     for (const modus of MODI) {
       await page.click(`#gamemode-btn-${modus}`);
@@ -304,7 +304,7 @@ test.describe('Menue aufgeraeumt: Steuerung-Overlay und Perk-Chips', () => {
 
   test('Perk-Chips: Anzahl passt zum Schiff, Antippen zeigt Label und Beschreibung', async ({ page }) => {
     await oeffneMenue(page, { width: 800, height: 600 });
-    for (const modell of ['viper', 'phantom', 'gleve']) {
+    for (const modell of ['viper', 'phantom', 'gleve', 'sniper']) {
       await page.click(`.hangar-model-btn[data-model="${modell}"]`);
       const perks = await page.evaluate((m) => window.__game.shipModels[m].perks.map(p => ({ label: p.label, desc: p.desc })), modell);
       const chips = page.locator('#hangar-ship-perks .hangar-perk-chip');
@@ -321,7 +321,7 @@ test.describe('Menue aufgeraeumt: Steuerung-Overlay und Perk-Chips', () => {
   test('Hangar-Hoehe und Perk-Zeile sind fuer alle Schiffe gleich (eine Zeile)', async ({ page }) => {
     await oeffneMenue(page, { width: 800, height: 600 });
     const hoehen = [];
-    for (const modell of ['viper', 'phantom', 'gleve']) {
+    for (const modell of ['viper', 'phantom', 'gleve', 'sniper']) {
       await page.click(`.hangar-model-btn[data-model="${modell}"]`);
       await page.locator('#hangar-ship-perks .hangar-perk-chip').last().click();
       hoehen.push(await page.evaluate(() => ({
