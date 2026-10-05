@@ -2,6 +2,7 @@
 import { state, config, arrays, shipModels } from './state.js';
 import * as Gleve from './gleve.js';
 import * as Viper from './viper.js';
+import * as Sniper from './sniper.js';
 import * as Hack from './hack.js';
 
 // --- Bot-Schwierigkeitsstufen ---
@@ -142,7 +143,7 @@ export function findBestTarget(p2, diff) {
     const m = bossMitte(boss);
     const dSq = distanceSq(cx, p2.y, m.x, m.y);
     if (m.y < p2.y && dSq < bestDSq) { // Nur Ziele über dem Bot
-      bestTarget = { x: m.x, y: m.y, dSq, isBoss: true, unten: boss.y + (boss.groesse || 100) };
+      bestTarget = { x: m.x, y: m.y, dSq, isBoss: true, unten: boss.y + (boss.groesse || 100), groesse: boss.groesse || 100 };
       bestDSq = dSq;
     }
   }
@@ -230,6 +231,7 @@ function computeMovement(p2, target, danger, powerup, diff) {
       const bossUnten = target.unten;
       idealY = Math.min(baselineY, bossUnten + 0.6 * Gleve.sweepLaenge(p2));
     }
+    if (Sniper.istSniper(p2)) return sniperBewegung(p2, target, cx, cy, zielX);
     const dy = idealY - cy;
     if (Math.abs(dy) > 15) {
       moveY = dy > 0 ? 0.5 : -0.5;
@@ -248,6 +250,90 @@ function computeMovement(p2, target, danger, powerup, diff) {
   if (Math.abs(fdy) > 15) moveY = fdy > 0 ? 0.4 : -0.4;
 
   return { moveX, moveY };
+}
+
+// --- Sniper: Fadenkreuz (Grundposition 220 px ueber dem Schiff) auf das Ziel bringen, tippen/laden, Granate ---
+
+const SNIPER_TOLERANZ = 6;
+let sniperModus = null; // null (Taste oben) | 'tipp' | 'laden'
+let sniperHaltedauer = 0;
+
+// Unter dem Ziel stehen, sodass das Fadenkreuz auf dem Ziel liegt (Bosse: knapp ueber der Unterkante, ihre Box ist gross)
+function sniperBewegung(p2, target, cx, cy, zielX) {
+  let moveX = 0;
+  let moveY = 0;
+  const dx = zielX - cx;
+  if (Math.abs(dx) > SNIPER_TOLERANZ) moveX = dx > 0 ? 0.8 : -0.8;
+  const kreuzY = target.isBoss ? target.unten - 0.3 * target.groesse : target.y;
+  const halfSize = config.spielerGroesse / 2;
+  // Schiffsoberkante = Mitte - halfSize; Fadenkreuz liegt FADENKREUZ_ABSTAND darueber (oben bei 0 begrenzt)
+  const idealCy = Math.max(Sniper.FADENKREUZ_ABSTAND + halfSize, Math.min(config.spielfeldHoehe - halfSize, kreuzY + Sniper.FADENKREUZ_ABSTAND + halfSize));
+  const dy = idealCy - cy;
+  if (Math.abs(dy) > SNIPER_TOLERANZ) moveY = dy > 0 ? 0.8 : -0.8;
+  return { moveX, moveY };
+}
+
+function sniperKreuz(p2) {
+  if (p2.sniperZielX != null && p2.sniperZielY != null) return { x: p2.sniperZielX, y: p2.sniperZielY };
+  return Sniper.grundPosition(p2);
+}
+
+function sniperGranateLohnt(p2, kreuz, imKreis) {
+  if (arrays.bosses.some(b => b.hp > 0 && imKreis.includes(b))) return true;
+  const r = Sniper.granatenRadius(p2);
+  let feinde = 0;
+  for (const f of arrays.feinde) {
+    if (f.hp <= 0) continue;
+    const g = f.groesse || 30;
+    if (Math.hypot(f.x + g / 2 - kreuz.x, f.y + g / 2 - kreuz.y) <= r) feinde++;
+  }
+  if (feinde >= 2) return true;
+  // Stufe 5 loescht Geschosse im Radius: Geschoss, das nach der Flugzeit (30 Schritte) am Kreuz ankommt und aufs Schiff zielt
+  if ((p2.raketenStufe || 1) >= 5) {
+    const cx = p2.x + config.spielerGroesse / 2;
+    for (const g of [...arrays.feindLaserArray, ...arrays.bossLaserArray, ...arrays.hackProjektilArray, ...arrays.bossRaketenArray]) {
+      if (g.harmlos || Math.abs(g.x - cx) > 50 || g.y > p2.y) continue;
+      const py = g.y + (g.vy || 4) * Sniper.GRANATE_FLUG;
+      if (Math.hypot(g.x - kreuz.x, py - kreuz.y) <= r * 0.8) return true;
+    }
+  }
+  return false;
+}
+
+// Jeden Schritt: Laser-Taste (Tippen/Laden: Halten und Loslassen brauchen den Schrittakt) und Granate (Flanke)
+function updateSniperWaffen(p2) {
+  p2.botFireRakete = false;
+  const offline = Hack.hatHack(p2, 'waffenOffline');
+  const kreuz = sniperKreuz(p2);
+  const radius = Sniper.trefferRadius(p2);
+  const imKreis = Sniper.zieleImKreis(kreuz.x, kreuz.y, radius);
+  const bossImKreis = imKreis.some(z => arrays.bosses.includes(z));
+  const normalImKreis = imKreis.some(z => !arrays.bosses.includes(z));
+  const energie = p2.unbegrenzteEnergie ? 999 : p2.energie;
+  const ladeEnergie = Math.min(Sniper.SCHUSS_ENERGIE + Sniper.LADE_ENERGIE + 1, p2.maxEnergie || 50);
+
+  if (sniperModus) {
+    sniperHaltedauer++;
+    let loslassen = offline || sniperModus === 'tipp';
+    if (sniperModus === 'laden') {
+      const bossNah = bossImKreis || Sniper.zieleImKreis(kreuz.x, kreuz.y, radius * Sniper.MAX_RADIUSFAKTOR).some(z => arrays.bosses.includes(z));
+      // Voll geladen (oder Energie bis auf den Schuss aufgebraucht) oder Boss weg: loslassen
+      if (p2.sniperVoll || (p2.sniperLadung || 0) >= Sniper.LADUNG_VOLL || !bossNah || sniperHaltedauer > Sniper.LADUNG_VOLL + 15 || energie < Sniper.SCHUSS_ENERGIE + 1) loslassen = true;
+    }
+    if (loslassen) { p2.botFireLaser = false; sniperModus = null; sniperHaltedauer = 0; }
+    else p2.botFireLaser = true;
+  } else {
+    p2.botFireLaser = false;
+    if (!offline && p2.sniperCooldown <= 0) {
+      if (bossImKreis) {
+        if (energie >= ladeEnergie) { sniperModus = 'laden'; sniperHaltedauer = 0; p2.botFireLaser = true; }
+      } else if (normalImKreis && energie >= 8) {
+        sniperModus = 'tipp'; sniperHaltedauer = 0; p2.botFireLaser = true;
+      }
+    }
+  }
+
+  if (!offline && p2.raketenCooldown <= 0 && sniperGranateLohnt(p2, kreuz, imKreis)) p2.botFireRakete = true;
 }
 
 // --- Gleve: Dash (Raketen-Taste) auf nahe Feinde, Sweep (Laser-Taste) gegen Geschosse und Gegner im Bogen ---
@@ -378,6 +464,8 @@ function updateBotWeapons(p2, diff, target) {
 
   if (Gleve.istGleve(p2)) {
     updateGleveWaffen(p2);
+  } else if (Sniper.istSniper(p2)) {
+    // Laser/Granate laufen jeden Schritt in updateBot (updateSniperWaffen)
   } else {
     updateStandardWaffen(p2, diff, target, cx);
   }
@@ -470,6 +558,8 @@ export function updateBot() {
     updateBotWeapons(p2, diff, target);
   }
 
+  if (Sniper.istSniper(p2)) updateSniperWaffen(p2);
+
   // Smooth Bewegung anwenden
   const p2Ship = shipModels && shipModels[p2.selectedShipModel || 'phantom'];
   const speed = (p2Ship?.speed || config.geschwindigkeit);
@@ -489,4 +579,6 @@ export function resetBot() {
   reactionCounter = 0;
   lastDecision = { moveX: 0, moveY: 0 };
   gleveDashSperre = 0;
+  sniperModus = null;
+  sniperHaltedauer = 0;
 }

@@ -6,7 +6,7 @@ const fs = require('fs');
 const path = require('path');
 const { setzeSpielstand } = require('../tests/helfer');
 
-const SCHIFFE = ['viper', 'phantom', 'gleve'];
+const SCHIFFE = ['viper', 'phantom', 'gleve', 'sniper'];
 const SEEDS = [1, 2, 3, 4, 5];
 const SZENARIEN = [
   { id: 'A_welle', name: 'Welle (8 Feinde, Lvl 1)', maxSchritte: 3600 },
@@ -35,6 +35,7 @@ function installiereSeed() {
 async function messe(page, { schiff, szenario, seed, maxSchritte }) {
   return page.evaluate(async ({ schiff, szenario, seed, maxSchritte }) => {
     const Gleve = await import('./js/gleve.js');
+    const Sniper = await import('./js/sniper.js');
     const Bot = await import('./js/bot.js');
     const { state, arrays, Entities, Loop, shipModels, config } = window.__game;
     window.__setzeSeed(seed);
@@ -95,6 +96,7 @@ async function messe(page, { schiff, szenario, seed, maxSchritte }) {
     p2.x = 370;
     p2.y = 285;
     Gleve.setzeDashLadungenVoll(p2);
+    Sniper.setzeZurueck(p2);
     Bot.resetBot();
     const schildStart = p2.schildStufe;
 

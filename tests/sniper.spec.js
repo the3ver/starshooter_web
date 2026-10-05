@@ -1650,3 +1650,114 @@ test.describe('Spectre-SR online (Host)', () => {
     expect(r.betaeubt).toBe(true);
   });
 });
+
+// ---------------------------------------------------------------------------------------------
+// Bot (S5b): Spieler 2 als KI fliegt die Spectre-SR
+
+test.describe('Spectre-SR Bot', () => {
+  async function bereiteBot(page) {
+    await bereiteGranate(page, { coop: true });
+    await page.evaluate(async () => {
+      const Bot = await import('./js/bot.js');
+      const { state } = window.__game;
+      window.__bot = {
+        start() {
+          window.__sn.leeren();
+          state.p2IsBot = true;
+          state.p2BotDifficulty = 'hard';
+          Bot.resetBot();
+          state.p2.x = 285; state.p2.y = 480;
+          state.p2.botFireLaser = false; state.p2.botFireRakete = false;
+          state.p2.raketenCooldown = 0;
+          state.x = 40; state.y = 540; // P1 aus dem Weg
+        }
+      };
+    });
+  }
+
+  test('bringt das Fadenkreuz auf einen stehenden Feind und zerstoert ihn mit Normalschuessen', async ({ page }) => {
+    await bereiteBot(page);
+    const r = await page.evaluate(() => {
+      const { state, arrays } = window.__game;
+      window.__bot.start();
+      const f = window.__gr.feind(420, 150);
+      f.hp = f.maxHp = 100;
+      let maxLadung = 0;
+      let abstand = null;
+      for (let i = 0; i < 400 && arrays.feinde.includes(f) && f.hp > 0; i++) {
+        window.__gr.frei(1);
+        maxLadung = Math.max(maxLadung, state.p2.sniperLadung || 0);
+        if (i === 100) abstand = Math.hypot(state.p2.sniperZielX - 420, state.p2.sniperZielY - 150);
+      }
+      return { tot: !arrays.feinde.includes(f) || f.hp <= 0, abstand, maxLadung };
+    });
+    expect(r.tot).toBe(true);
+    expect(r.abstand).toBeLessThan(15);
+    expect(r.maxLadung).toBeLessThan(10);
+  });
+
+  test('gegen einen Boss laedt er voll und schiesst mit Faktor 4', async ({ page }) => {
+    await bereiteBot(page);
+    const r = await page.evaluate(() => {
+      const { state, arrays, Entities } = window.__game;
+      window.__bot.start();
+      Entities.erzeugeBoss();
+      const b = arrays.bosses[0];
+      Object.assign(b, { phase: 'kampf', x: 250, y: 20, vx: 0, vy: 0, hp: 1e6, maxHp: 1e6, schussTimer: 9999, bombenTimer: 9999, raketenTimer: 9999 });
+      let voll = 0;
+      let vorher = 0;
+      for (let i = 0; i < 600; i++) {
+        window.__gr.frei(1);
+        if (state.p2.sniperVoll && !vorher) voll++;
+        vorher = state.p2.sniperVoll ? 1 : 0;
+        b.x = 250; b.y = 20; b.phase = 'kampf';
+      }
+      return { voll, bossHp: b.hp };
+    });
+    expect(r.voll).toBeGreaterThanOrEqual(1);
+    expect(r.bossHp).toBeLessThan(1e6 - 150);
+  });
+
+  test('wirft eine Granate bei einer Feindgruppe', async ({ page }) => {
+    await bereiteBot(page);
+    const r = await page.evaluate(() => {
+      const { state, arrays } = window.__game;
+      window.__bot.start();
+      const G = window.__gr;
+      G.feind(300, 150); G.feind(340, 160); G.feind(320, 190);
+      let granaten = 0;
+      let cd = 0;
+      for (let i = 0; i < 200; i++) {
+        G.frei(1);
+        granaten = Math.max(granaten, document.querySelectorAll('.sniper-granate').length);
+        cd = Math.max(cd, state.p2.raketenCooldown);
+        arrays.feinde.forEach(f => { f.hp = f.maxHp = 1e6; });
+        if (granaten) break;
+      }
+      return { granaten, cd };
+    });
+    expect(r.granaten).toBe(1);
+    expect(r.cd).toBeGreaterThan(150);
+  });
+
+  test('tippt nicht ohne Ziel: Energie bleibt bei leerem Feld voll, kein Schuss', async ({ page }) => {
+    await bereiteBot(page);
+    const r = await page.evaluate(() => {
+      const { state } = window.__game;
+      window.__bot.start();
+      let schuesse = 0;
+      let minE = 50;
+      for (let i = 0; i < 300; i++) {
+        state.frameZaehler = 1; // keine natuerlichen Spawns
+        const cd = state.p2.sniperCooldown;
+        window.__gr.frei(1);
+        if (state.p2.sniperCooldown > cd) schuesse++;
+        minE = Math.min(minE, state.p2.energie);
+      }
+      return { schuesse, minE, granaten: document.querySelectorAll('.sniper-granate').length };
+    });
+    expect(r.schuesse).toBe(0);
+    expect(r.minE).toBeGreaterThan(49);
+    expect(r.granaten).toBe(0);
+  });
+});
