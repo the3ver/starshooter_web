@@ -1,6 +1,15 @@
-export const GAME_VERSION = '1.14.1';
+export const GAME_VERSION = '1.15.0';
 
 export const changelogData = {
+  '1.15.0': {
+    version: '1.15.0',
+    intro: 'Hey, es ist jetzt Version 1.15.0 rausgekommen, folgendes wurde aktualisiert:',
+    highlights: [
+      '💣 Die Spectre-SR hat jetzt Granaten-Ladungen: Von Anfang an kannst du zweimal hintereinander werfen, ab Raketen-Stufe 4 dreimal. Leere Ladungen füllen sich nacheinander wieder auf, die Punkte neben dem GRANATE-Balken zeigen den Stand',
+      '🎈 Haftminen bleiben nicht mehr liegen, sondern driften langsam nach oben den Gegnern entgegen',
+      '🔄 Für den Online-Modus brauchen beide Spieler Version 1.15.0, sonst bitte die Seite neu laden (Strg+F5)'
+    ]
+  },
   '1.14.1': {
     version: '1.14.1',
     intro: 'Hey, es ist jetzt Version 1.14.1 rausgekommen, folgendes wurde aktualisiert:',
