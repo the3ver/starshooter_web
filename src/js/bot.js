@@ -374,7 +374,7 @@ function updateSniperWaffen(p2) {
   const minenLohnt = sniperMinenLohnt(p2);
   if (sniperMinenHalt) {
     sniperMinenSchritte++;
-    const fertig = (p2.granateMinen || 0) >= 5 || !minenLohnt || offline || p2.raketenCooldown > 0;
+    const fertig = (p2.granateMinen || 0) >= 5 || !minenLohnt || offline || ((p2.granateMinen || 0) === 0 && (p2.sniperGranatenLadungen || 0) < 1);
     if (fertig && (sniperMinenSchritte > 10 || offline)) {
       sniperMinenHalt = false;
       sniperMinenSchritte = 0;
@@ -391,10 +391,10 @@ function updateSniperWaffen(p2) {
     if (sniperTippRest === 0) sniperTippPause = 3;
   } else if (sniperTippPause > 0) {
     sniperTippPause--;
-  } else if (!offline && p2.raketenCooldown <= 0 && (sniperEmpLohnt(p2) || sniperGranateLohnt(p2, kreuz, imKreis))) {
+  } else if (!offline && (p2.sniperGranatenLadungen || 0) >= 1 && (sniperEmpLohnt(p2) || sniperGranateLohnt(p2, kreuz, imKreis))) {
     sniperTippRest = 1;
     p2.botFireRakete = true;
-  } else if (!offline && p2.raketenCooldown <= 0 && minenLohnt) {
+  } else if (!offline && (p2.sniperGranatenLadungen || 0) >= 1 && minenLohnt) {
     sniperMinenHalt = true;
     sniperMinenSchritte = 1;
     p2.botFireRakete = true;

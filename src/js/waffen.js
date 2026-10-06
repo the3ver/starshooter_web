@@ -122,6 +122,7 @@ function feuerRaketenFuerSpieler(pKey, pState) {
   if (!pState || pState.isDead) return;
   const istGleve = Gleve.istGleve(pState);
   if (istGleve) Gleve.aktualisiereDashLadungen(pState);
+  else if (Sniper.istSniper(pState)) Sniper.aktualisiereGranatenLadungen(pKey, pState);
   else if (pState.raketenCooldown > 0) pState.raketenCooldown--;
 
   let maxRaketenCd = 180;
@@ -132,6 +133,8 @@ function feuerRaketenFuerSpieler(pKey, pState) {
 
   if (istGleve) {
     Gleve.zeigeDashHud(pKey, pState);
+  } else if (Sniper.istSniper(pState)) {
+    // HUD pflegt Sniper.aktualisiereGranatenLadungen
   } else if (pKey === 'p1') {
     const raketenCdBalken = document.getElementById('raketen-cd-balken');
     if (raketenCdBalken) {
@@ -178,6 +181,7 @@ function feuerRaketenFuerSpieler(pKey, pState) {
       gehalten = state.p2IsBot ? (state.p2.botFireRakete || false) : (state.tastenGedrueckt.ö || state.tastenGedrueckt.numpad2 || state.tastenGedrueckt[',']);
     }
     Sniper.aktualisiereGranatenTaste(pState, pKey, Boolean(gehalten));
+    Sniper.zeigeGranatenHud(pKey, pState);
     return;
   }
   const isTriggered = pKey === 'p1'

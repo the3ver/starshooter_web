@@ -11,7 +11,7 @@ import * as Utils from './utils.js';
 import * as Audio from './audio.js';
 import * as Hack from './hack.js';
 import * as Network from './network.js';
-import { schadeZiel } from './gleve.js';
+import { schadeZiel, zeigeLadungenHud } from './gleve.js';
 
 export const FADENKREUZ_ABSTAND = 220; // px ueber der Schiffsoberkante
 export const SCHUSS_ENERGIE = 6;
@@ -80,6 +80,48 @@ export function schussSchaden(pState) { return SCHADEN[stufenIndex(pState)]; }
 export function schussAbstand(pState) { return SCHUSS_ABSTAND[stufenIndex(pState)]; }
 export function autoZielTempo(pState) { return AUTOZIEL_TEMPO[stufenIndex(pState)]; }
 export function granatenCooldown(pState) { return GRANATE_COOLDOWN[raketenIndex(pState)]; }
+// Granaten-Ladungen: Raketen-Stufe 1-3 -> 2, 4-5 -> 3. raketenCooldown ist die Ladezeit der naechsten Ladung.
+export function granatenMax(pState) { return (pState.raketenStufe || 1) >= 4 ? 3 : 2; }
+
+// Ladungen voll, kein laufendes Nachladen (Spielstart, Neustart, Schiffswechsel)
+export function setzeGranatenLadungenVoll(pState) {
+  if (!pState) return;
+  pState.sniperGranatenLadungen = granatenMax(pState);
+  pState.raketenCooldown = 0;
+}
+
+export function granatenLadungen(pState) {
+  return pState.sniperGranatenLadungen === undefined ? granatenMax(pState) : pState.sniperGranatenLadungen;
+}
+
+// Verbraucht eine Ladung; ein Nachladen startet nur, wenn noch keins laeuft
+function verbraucheGranate(pState) {
+  pState.sniperGranatenLadungen = Math.max(0, granatenLadungen(pState) - 1);
+  if ((pState.raketenCooldown || 0) <= 0) pState.raketenCooldown = granatenCooldown(pState);
+}
+
+// Pro Schritt (waffen.js): Nachladen nacheinander (laeuft auf 0 -> +1 Ladung, ggf. weiter laden) und HUD
+export function aktualisiereGranatenLadungen(pKey, pState) {
+  const max = granatenMax(pState);
+  if (pState.sniperGranatenLadungen === undefined) pState.sniperGranatenLadungen = max;
+  if (pState.sniperGranatenLadungen > max) pState.sniperGranatenLadungen = max;
+  if (pState.raketenCooldown > 0) {
+    pState.raketenCooldown--;
+    if (pState.raketenCooldown <= 0) {
+      pState.sniperGranatenLadungen = Math.min(max, pState.sniperGranatenLadungen + 1);
+      pState.raketenCooldown = pState.sniperGranatenLadungen < max ? granatenCooldown(pState) : 0;
+    }
+  } else if (pState.sniperGranatenLadungen < max) {
+    // z. B. nach Upgrade auf Stufe 4: Nachladen starten
+    pState.raketenCooldown = granatenCooldown(pState);
+  }
+  zeigeGranatenHud(pKey, pState);
+}
+
+export function zeigeGranatenHud(pKey, pState) {
+  if (!pState || !istSniper(pState)) return;
+  zeigeLadungenHud(pKey, pState, granatenLadungen(pState), granatenMax(pState), granatenCooldown(pState));
+}
 export function granatenRadius(pState) { return GRANATE_RADIUS[raketenIndex(pState)]; }
 export function granatenStoss(pState) { return GRANATE_STOSS[raketenIndex(pState)]; }
 export function granatenBetaeubung(pState) { return GRANATE_BETAEUBUNG[raketenIndex(pState)]; }
@@ -695,16 +737,21 @@ function aktualisiereMinen(pKey) {
 // Halten der Granaten-Taste (aus aktualisiereGranatenTaste, ab HALTEN_AB): alle MINE_INTERVALL Schritte eine Mine, bei freiem Cooldown.
 // `schritte` = bisherige Haltedauer.
 export function haltenSchritt(pState, pKey, schritte) {
-  if ((pState.raketenCooldown || 0) > 0 || Hack.hatHack(pState, 'waffenOffline')) return;
+  if (Hack.hatHack(pState, 'waffenOffline')) return;
   if ((pState.granateMinen || 0) >= MINE_MAX_PRO_HALTEN) return;
   if ((schritte - HALTEN_AB) % MINE_INTERVALL !== 0) return;
+  // Die erste Mine eines Haltens kostet eine Ladung (ohne Ladung keine Minen), weitere nichts
+  if ((pState.granateMinen || 0) === 0) {
+    if (granatenLadungen(pState) < 1) return;
+    verbraucheGranate(pState);
+  }
   legeMine(pState, pKey);
   pState.granateMinen = (pState.granateMinen || 0) + 1;
 }
 
 // Tippen: Granate ins Fadenkreuz und EMP, danach startet der Cooldown
 function tippeGranate(pState, pKey) {
-  pState.raketenCooldown = granatenCooldown(pState);
+  verbraucheGranate(pState);
   werfeGranate(pState, pKey);
   loeseEmpAus(pState, pKey);
 }
@@ -721,13 +768,10 @@ export function aktualisiereGranatenTaste(pState, pKey, gehalten) {
     if (pState.granateSchritte >= HALTEN_AB) haltenSchritt(pState, pKey, pState.granateSchritte);
   } else if (pState.granateGehalten) {
     const schritte = pState.granateSchritte || 0;
-    const minen = pState.granateMinen || 0;
     pState.granateGehalten = false;
     pState.granateSchritte = 0;
     pState.granateMinen = 0;
-    if (!sperre && schritte < HALTEN_AB && (pState.raketenCooldown || 0) <= 0) tippeGranate(pState, pKey);
-    // Halten: der Cooldown startet nur, wenn mindestens eine Mine gelegt wurde
-    else if (schritte >= HALTEN_AB && minen > 0) pState.raketenCooldown = granatenCooldown(pState);
+    if (!sperre && schritte < HALTEN_AB && granatenLadungen(pState) >= 1) tippeGranate(pState, pKey);
   }
 }
 
@@ -839,7 +883,8 @@ export function netzZustand(pState) {
     sniperZielY: pState.sniperZielY != null ? pState.sniperZielY : grund.y,
     sniperLadung: pState.sniperLadung || 0,
     sniperVoll: istVoll(pState.sniperLadung || 0),
-    sniperCooldown: pState.sniperCooldown || 0
+    sniperCooldown: pState.sniperCooldown || 0,
+    sniperGranatenLadungen: granatenLadungen(pState)
   };
 }
 
@@ -877,6 +922,10 @@ export function uebernehmeSnapshot(pState, daten, pKey, eigenes) {
   pState.sniperVoll = !!daten.sniperVoll;
   pState.sniperCooldown = daten.sniperCooldown || 0;
   pState.sniperGehalten = pState.sniperLadung > 0;
+  if (daten.sniperGranatenLadungen !== undefined) {
+    pState.sniperGranatenLadungen = daten.sniperGranatenLadungen;
+    zeigeGranatenHud(pKey, pState);
+  }
   if (pState.sniperCooldown > alterCooldown) {
     const anteil = ladeAnteil(alteLadung);
     erzeugeStrahl(pState, anteil);
@@ -990,6 +1039,7 @@ export function setzeZurueck(pState) {
   pState.sniperGepuffert = null;
   pState.sniperLadung = 0;
   pState.sniperVoll = false;
+  setzeGranatenLadungenVoll(pState);
   pState.granateGehalten = false;
   pState.granateSchritte = 0;
   pState.granateMinen = 0;

@@ -1156,6 +1156,10 @@ export function applyGameStateSnapshot(snapshot) {
                 state.gleveDashLadungen = snapshot.p1.gleveDashLadungen;
                 Gleve.zeigeDashHud('p1', state);
             }
+            if (Sniper.istSniper(state) && snapshot.p1.sniperGranatenLadungen !== undefined) {
+                state.sniperGranatenLadungen = snapshot.p1.sniperGranatenLadungen;
+                Sniper.zeigeGranatenHud('p1', state);
+            }
         }
         if (snapshot.p1.bombenCooldown !== undefined) {
             state.bombenCooldown = snapshot.p1.bombenCooldown;
@@ -1217,6 +1221,10 @@ export function applyGameStateSnapshot(snapshot) {
             if (Gleve.istGleve(state.p2) && snapshot.p2.gleveDashLadungen !== undefined) {
                 state.p2.gleveDashLadungen = snapshot.p2.gleveDashLadungen;
                 Gleve.zeigeDashHud('p2', state.p2);
+            }
+            if (Sniper.istSniper(state.p2) && snapshot.p2.sniperGranatenLadungen !== undefined) {
+                state.p2.sniperGranatenLadungen = snapshot.p2.sniperGranatenLadungen;
+                Sniper.zeigeGranatenHud('p2', state.p2);
             }
         }
         if (snapshot.p2.bombenCooldown !== undefined) {

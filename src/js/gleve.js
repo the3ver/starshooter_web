@@ -67,11 +67,16 @@ export function aktualisiereDashLadungen(pState) {
 // Punkte = Ladungen (gefuellt = vorhanden), mobil Ladungszahl und Fuellung am Raketen-Button des lokalen Schiffs.
 export function zeigeDashHud(pKey, pState) {
   if (!pState || !istGleve(pState)) return;
-  const sfx = pKey === 'p2' ? '-p2' : '';
   const max = dashMaxLadungen(pState);
-  const ladungen = Math.max(0, Math.min(max, Math.round(pState.gleveDashLadungen === undefined ? max : pState.gleveDashLadungen)));
+  zeigeLadungenHud(pKey, pState, pState.gleveDashLadungen === undefined ? max : pState.gleveDashLadungen, max, dashCooldown(pState));
+}
+
+// Gemeinsam fuer Gleve-Dash und Sniper-Granaten: Balken (Ladefortschritt aus raketenCooldown), Punkte und Mobil-Zahl
+export function zeigeLadungenHud(pKey, pState, anzahl, max, ladezeit) {
+  const sfx = pKey === 'p2' ? '-p2' : '';
+  const ladungen = Math.max(0, Math.min(max, Math.round(anzahl)));
   const voll = ladungen >= max;
-  const pct = voll ? 100 : Math.max(0, Math.min(100, 100 - (pState.raketenCooldown || 0) / dashCooldown(pState) * 100));
+  const pct = voll ? 100 : Math.max(0, Math.min(100, 100 - (pState.raketenCooldown || 0) / ladezeit * 100));
 
   const balken = document.getElementById('raketen-cd-balken' + sfx);
   if (balken) {

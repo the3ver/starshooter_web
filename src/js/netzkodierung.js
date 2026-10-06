@@ -12,7 +12,7 @@
 //   Delta eines Objekts: geaenderte Felder, '_d' = entfernte Felder, '_r' = Wert ersetzt.
 //   Fehlt 'i', bleiben die Ids wie im letzten Paket; fehlt eine Liste, ist sie unveraendert.
 
-export const PROTOKOLL_VERSION = 12;
+export const PROTOKOLL_VERSION = 13;
 export const KEYFRAME_INTERVALL = 30;   // jedes 30. Paket ist ein Keyframe (~1 s)
 export const DR_TOLERANZ = 0.5;         // px, ab dieser Abweichung wird x/y mitgesendet
 
@@ -40,7 +40,7 @@ export const RUNDUNG = {
     raketenCooldown: runde0, bombenCooldown: runde0,
     phantomSchildRegenTimer: runde0,
     // Gleve: Restframes ganzzahlig, Strahlwinkel (Grad, Schritte von 4,5) mit 1 Nachkommastelle
-    gleveDashLadungen: runde0, gleveDashTimer: runde0, gleveAbprallTimer: runde0, gleveUnverwundbar: runde0,
+    gleveDashLadungen: runde0, sniperGranatenLadungen: runde0, gleveDashTimer: runde0, gleveAbprallTimer: runde0, gleveUnverwundbar: runde0,
     gleveSweepTimer: runde0, gleveSweepWinkel: runde1, gleveSweepRichtung: runde0,
     // Viper-Rolle: Restschritte, Richtung und Cooldown ganzzahlig
     viperRolleTimer: runde0, viperRolleRichtung: runde0, viperRolleCooldown: runde0,

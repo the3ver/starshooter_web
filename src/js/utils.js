@@ -1617,16 +1617,17 @@ export function updateSchiffHudLabels() {
   setzeHudLabel(document.querySelector('#energie-cd-container-p2 .cooldown-letter'), labelsP2.energie, modelP2 === 'gleve');
   setzeHudLabel(document.querySelector('#raketen-cd-container-p2 .cooldown-letter'), labelsP2.rakete, !!labelsP2.lang);
 
-  // Dash-Ladungspunkte nur bei der Gleve (Inhalt pflegt Gleve.zeigeDashHud)
+  // Ladungspunkte nur bei Gleve (Dash) und Sniper (Granaten); Inhalt pflegt Gleve.zeigeLadungenHud
   for (const [id, model] of [['dash-ladungen', modelP1], ['dash-ladungen-p2', modelP2]]) {
     const el = document.getElementById(id);
     if (!el) continue;
-    el.style.display = model === 'gleve' ? 'flex' : 'none';
-    if (model !== 'gleve') el.replaceChildren();
+    const mitLadungen = model === 'gleve' || model === 'sniper';
+    el.style.display = mitLadungen ? 'flex' : 'none';
+    if (!mitLadungen) el.replaceChildren();
   }
   const ladungenEl = document.getElementById('btn-rakete-ladungen');
   if (ladungenEl) {
-    const mobilGleve = lokalesSchiffModell() === 'gleve';
+    const mobilGleve = lokalesSchiffModell() === 'gleve' || lokalesSchiffModell() === 'sniper';
     ladungenEl.style.display = mobilGleve ? '' : 'none';
     if (!mobilGleve) ladungenEl.textContent = '';
   }

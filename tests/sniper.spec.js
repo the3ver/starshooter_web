@@ -1174,7 +1174,7 @@ async function bereiteGranate(page, optionen = {}) {
       }
     };
     T.leeren();
-    for (const s of [state, state.p2]) { s.raketenStufe = 1; s.raketenCooldown = 0; }
+    for (const s of [state, state.p2]) { s.raketenStufe = 1; s.raketenCooldown = 0; s.sniperGranatenLadungen = 2; }
   });
 }
 
@@ -1292,7 +1292,7 @@ test.describe('Spectre-SR Granate', () => {
       const lauf = (stufe, praep) => {
         T.leeren();
         state.raketenStufe = stufe;
-        state.raketenCooldown = 0;
+        state.raketenCooldown = 0; state.sniperGranatenLadungen = 3;
         const f = G.feind(240, 180);
         if (praep) praep(f);
         G.wirf();
@@ -1396,7 +1396,7 @@ test.describe('Spectre-SR Granate', () => {
       const lauf = (stufe) => {
         T.leeren();
         state.raketenStufe = stufe;
-        state.raketenCooldown = 0;
+        state.raketenCooldown = 0; state.sniperGranatenLadungen = 3;
         G.wirf();
         // Ruhende Geschosse: je eines im Radius um (200|180) und eines weit ausserhalb
         Entities.erzeugeFeindLaser(200, 170);
@@ -1415,7 +1415,7 @@ test.describe('Spectre-SR Granate', () => {
     expect(r.s5).toEqual({ feind: 1, boss: 1, hack: 1 });
   });
 
-  test('Cooldown je Stufe (240/210/180/180/150), keine zweite Granate waehrend des Cooldowns; waffenOffline blockiert; keine Raketen', async ({ page }) => {
+  test('Ladezeit je Stufe (240/210/180/180/150), keine dritte Granate ohne Ladung; waffenOffline blockiert; keine Raketen', async ({ page }) => {
     await bereiteGranate(page);
     const r = await page.evaluate(async () => {
       const { state, arrays } = window.__game;
@@ -1426,7 +1426,7 @@ test.describe('Spectre-SR Granate', () => {
       for (let stufe = 1; stufe <= 5; stufe++) {
         T.leeren();
         state.raketenStufe = stufe;
-        state.raketenCooldown = 0;
+        state.raketenCooldown = 0; state.sniperGranatenLadungen = 3;
         G.wirf();
         cds.push(state.raketenCooldown);
       }
@@ -1434,21 +1434,23 @@ test.describe('Spectre-SR Granate', () => {
       document.querySelectorAll('.sniper-granate').forEach(e => e.remove());
       G.frei(1);
       state.raketenStufe = 1;
-      state.raketenCooldown = 0;
+      state.raketenCooldown = 0; state.sniperGranatenLadungen = 3;
       G.wirf();
       G.wirf();
       G.wirf();
       const granaten = document.querySelectorAll('.sniper-granate').length;
+      const ladungen = state.sniperGranatenLadungen;
       const balken = parseFloat(document.getElementById('raketen-cd-balken').style.width);
-      state.raketenCooldown = 0;
+      state.raketenCooldown = 0; state.sniperGranatenLadungen = 3;
       Hack.hackeSpieler(state, 'waffenOffline');
       const vorher = document.querySelectorAll('.sniper-granate').length;
       G.wirf();
-      return { cds, granaten, balken, blockiert: document.querySelectorAll('.sniper-granate').length === vorher, raketen: arrays.raketenArray.length };
+      return { cds, granaten, ladungen, balken, blockiert: document.querySelectorAll('.sniper-granate').length === vorher, raketen: arrays.raketenArray.length };
     });
     expect(r.cds).toEqual([240, 210, 180, 180, 150]);
-    expect(r.granaten).toBe(1);
-    expect(r.balken).toBeLessThan(10); // HUD-Balken zeigt den Cooldown
+    expect(r.granaten).toBe(2); // zwei Ladungen: zwei Granaten direkt nacheinander, die dritte nicht
+    expect(r.ladungen).toBe(0);
+    expect(r.balken).toBeLessThan(10); // HUD-Balken zeigt den Ladefortschritt
     expect(r.blockiert).toBe(true);
     expect(r.raketen).toBe(0);
   });
@@ -1522,7 +1524,7 @@ async function bereiteOnlineHost(page) {
     T.leeren();
     state.p2.selectedShipModel = 'sniper';
     state.p2.raketenStufe = 1;
-    state.p2.raketenCooldown = 0;
+    state.p2.raketenCooldown = 0; state.p2.sniperGranatenLadungen = 3;
     state.p2.laserInputRequested = false;
     state.p2.raketeGehalten = false;
     state.p2.netzLaserAnfrage = false;
@@ -1681,7 +1683,7 @@ test.describe('Spectre-SR Bot', () => {
           Bot.resetBot();
           state.p2.x = 285; state.p2.y = 480;
           state.p2.botFireLaser = false; state.p2.botFireRakete = false;
-          state.p2.raketenCooldown = 0;
+          state.p2.raketenCooldown = 0; state.p2.sniperGranatenLadungen = 3;
           state.x = 40; state.y = 540; // P1 aus dem Weg
         }
       };
@@ -1832,20 +1834,21 @@ test.describe('Spectre-SR Granaten-Taste und EMP', () => {
     expect(r.ton).toBe(1);
   });
 
-  test('Halten ab 10 Schritten (20 Schritte) wirft nichts und loest kein EMP aus; der Cooldown startet erst beim Loslassen (Mine gelegt)', async ({ page }) => {
+  test('Halten ab 10 Schritten (20 Schritte) wirft nichts und loest kein EMP aus; die erste Mine verbraucht genau eine Ladung und startet das Nachladen', async ({ page }) => {
     await bereiteEmp(page);
     const r = await page.evaluate(() => {
       const { state } = window.__game;
       const G = window.__gr;
       G.halte(20);
-      const waehrend = { granaten: document.querySelectorAll('.sniper-granate').length, emp: document.querySelectorAll('.sniper-emp').length, cd: state.raketenCooldown };
+      const waehrend = { granaten: document.querySelectorAll('.sniper-granate').length, emp: document.querySelectorAll('.sniper-emp').length, ladungen: state.sniperGranatenLadungen, cd: state.raketenCooldown };
       G.loslassen();
       G.frei(3);
-      return { waehrend, danach: { granaten: document.querySelectorAll('.sniper-granate').length, emp: document.querySelectorAll('.sniper-emp').length, cd: state.raketenCooldown } };
+      return { waehrend, danach: { granaten: document.querySelectorAll('.sniper-granate').length, emp: document.querySelectorAll('.sniper-emp').length, ladungen: state.sniperGranatenLadungen, cd: state.raketenCooldown } };
     });
-    expect(r.waehrend).toEqual({ granaten: 0, emp: 0, cd: 0 });
-    expect(r.danach.cd).toBeGreaterThan(230); // Cooldown laeuft nach dem Loslassen (3 Schritte spaeter)
-    expect({ ...r.danach, cd: 0 }).toEqual({ granaten: 0, emp: 0, cd: 0 });
+    expect(r.waehrend).toMatchObject({ granaten: 0, emp: 0, ladungen: 1 });
+    expect(r.waehrend.cd).toBeGreaterThan(220); // Nachladen laeuft seit der ersten Mine
+    expect(r.danach).toMatchObject({ granaten: 0, emp: 0, ladungen: 1 });
+    expect(r.danach.cd).toBeGreaterThan(210);
   });
 
   test('Grenze: 9 Schritte gehalten ist noch ein Tipp, 10 Schritte ist ein Halten', async ({ page }) => {
@@ -1857,26 +1860,27 @@ test.describe('Spectre-SR Granaten-Taste und EMP', () => {
       G.loslassen();
       const neun = state.raketenCooldown;
       G.frei(1);
-      state.raketenCooldown = 0;
+      state.raketenCooldown = 0; state.sniperGranatenLadungen = 3;
       document.querySelectorAll('.sniper-granate, .sniper-emp').forEach(e => e.remove());
       G.halte(10);
       G.loslassen();
-      return { neun, zehn: state.raketenCooldown };
+      return { neun, zehn: state.raketenCooldown, ladungen: state.sniperGranatenLadungen };
     });
     expect(r.neun).toBe(240);
-    expect(r.zehn).toBe(240); // Halten legt eine Mine -> Cooldown, aber keine Granate
+    expect(r.zehn).toBeGreaterThan(230); // Halten legt eine Mine -> Nachladen, aber keine Granate
+    expect(r.ladungen).toBe(1);
   });
 
-  test('Tippen im Cooldown wirft nichts; waffenOffline blockiert Granate und EMP', async ({ page }) => {
+  test('Tippen ohne Ladung wirft nichts; waffenOffline blockiert Granate und EMP', async ({ page }) => {
     await bereiteEmp(page);
     const r = await page.evaluate(async () => {
       const { state } = window.__game;
       const Hack = await import('./js/hack.js');
       const G = window.__gr;
-      state.raketenCooldown = 100;
+      state.raketenCooldown = 100; state.sniperGranatenLadungen = 0;
       G.wirf();
       const imCooldown = { granaten: document.querySelectorAll('.sniper-granate').length, emp: document.querySelectorAll('.sniper-emp').length };
-      state.raketenCooldown = 0;
+      state.raketenCooldown = 0; state.sniperGranatenLadungen = 3;
       Hack.hackeSpieler(state, 'waffenOffline');
       G.wirf();
       return { imCooldown, offline: { granaten: document.querySelectorAll('.sniper-granate').length, emp: document.querySelectorAll('.sniper-emp').length } };
@@ -2048,11 +2052,11 @@ test.describe('Spectre-SR EMP online', () => {
       G.frei(2);
       const tipp = { granaten: document.querySelectorAll('.sniper-granate').length, emp: document.querySelectorAll('.sniper-emp').length, cd: state.p2.raketenCooldown, ereignis: state.network.lastSentEvent };
       G.frei(40);
-      state.p2.raketenCooldown = 0;
+      state.p2.raketenCooldown = 0; state.p2.sniperGranatenLadungen = 3;
       document.querySelectorAll('.sniper-granate, .sniper-emp').forEach(e => e.remove());
       E({ rakete: true });
       G.frei(20);
-      const halten = { granaten: document.querySelectorAll('.sniper-granate').length, emp: document.querySelectorAll('.sniper-emp').length, cd: state.p2.raketenCooldown };
+      const halten = { granaten: document.querySelectorAll('.sniper-granate').length, emp: document.querySelectorAll('.sniper-emp').length, cd: state.p2.raketenCooldown, ladungen: state.p2.sniperGranatenLadungen };
       E({ rakete: false });
       G.frei(3);
       return { tipp, halten, nachHalten: { granaten: document.querySelectorAll('.sniper-granate').length, cd: state.p2.raketenCooldown } };
@@ -2061,7 +2065,7 @@ test.describe('Spectre-SR EMP online', () => {
     expect(r.tipp.emp).toBe(1);
     expect(r.tipp.cd).toBeGreaterThan(200);
     expect(r.tipp.ereignis).toMatchObject({ type: 'emp_ausgeloest', owner: 'p2', radius: 70 });
-    expect(r.halten).toEqual({ granaten: 0, emp: 0, cd: 0 });
+    expect(r.halten).toMatchObject({ granaten: 0, emp: 0, ladungen: 1 });
     expect(r.nachHalten.granaten).toBe(0);
     expect(r.nachHalten.cd).toBeGreaterThan(200); // eine Mine wurde gelegt -> Cooldown nach dem Loslassen
   });
@@ -2087,10 +2091,10 @@ test.describe('Spectre-SR EMP online', () => {
     expect(r.ton).toBe(1);
   });
 
-  test('Protokollversion ist 12', async ({ page }) => {
+  test('Protokollversion ist 13', async ({ page }) => {
     await bereiteGranate(page);
     const v = await page.evaluate(async () => (await import('./js/netzkodierung.js')).PROTOKOLL_VERSION);
-    expect(v).toBe(12);
+    expect(v).toBe(13);
   });
 });
 
@@ -2107,7 +2111,7 @@ test.describe('Spectre-SR Bot: EMP', () => {
       Bot.resetBot();
       state.p2.x = 285; state.p2.y = 480;
       state.p2.botFireLaser = false; state.p2.botFireRakete = false;
-      state.p2.raketenCooldown = 0;
+      state.p2.raketenCooldown = 0; state.p2.sniperGranatenLadungen = 3;
       state.x = 40; state.y = 540;
       const mx = state.p2.x + 15;
       const my = state.p2.y + 15;
@@ -2142,7 +2146,7 @@ test.describe('Spectre-SR Bot: EMP', () => {
       state.p2BotDifficulty = 'hard';
       Bot.resetBot();
       state.p2.x = 285; state.p2.y = 480;
-      state.p2.raketenCooldown = 0;
+      state.p2.raketenCooldown = 0; state.p2.sniperGranatenLadungen = 3;
       state.x = 40; state.y = 540;
       Entities.erzeugeBossRakete(state.p2.x + 15, state.p2.y - 200, 1);
       const rk = arrays.bossRaketenArray[0];
@@ -2171,7 +2175,7 @@ async function bereiteMinen(page, optionen = {}) {
       eineMine() {
         G.halte(12);
         G.loslassen();
-        state.raketenCooldown = 0;
+        state.raketenCooldown = 0; state.sniperGranatenLadungen = 3;
         state.x = 0; state.y = 100;
         return arrays.sniperMinen[arrays.sniperMinen.length - 1];
       },
@@ -2207,7 +2211,7 @@ test.describe('Spectre-SR Haftminen', () => {
         window.__game.Loop.simulationsSchritt();
         anzahl.push(arrays.sniperMinen.length);
       }
-      const waehrend = { granaten: document.querySelectorAll('.sniper-granate').length, emp: document.querySelectorAll('.sniper-emp').length, cd: state.raketenCooldown };
+      const waehrend = { granaten: document.querySelectorAll('.sniper-granate').length, emp: document.querySelectorAll('.sniper-emp').length, ladungen: state.sniperGranatenLadungen };
       state.tastenGedrueckt.v = false;
       window.__game.Loop.simulationsSchritt();
       return {
@@ -2230,26 +2234,30 @@ test.describe('Spectre-SR Haftminen', () => {
     expect(r.owner.every(o => o === 'p1')).toBe(true);
     expect(r.els).toBe(5);
     expect(r.toene).toBe(5);
-    expect(r.waehrend).toEqual({ granaten: 0, emp: 0, cd: 0 });
+    expect(r.waehrend).toEqual({ granaten: 0, emp: 0, ladungen: 1 }); // fuenf Minen kosten zusammen genau eine Ladung
     expect(r.emp).toBe(0);
-    expect(r.cd).toBe(240);
+    expect(r.cd).toBeGreaterThan(150); // Nachladen laeuft seit der ersten Mine
+    expect(r.cd).toBeLessThan(240);
   });
 
-  test('Halten nur 12 Schritte legt 1 Mine; Halten im Cooldown legt keine und startet keinen neuen', async ({ page }) => {
+  test('Halten nur 12 Schritte legt 1 Mine (1 Ladung); Halten ohne Ladung legt keine', async ({ page }) => {
     await bereiteMinen(page);
     const r = await page.evaluate(() => {
       const { state, arrays } = window.__game;
       const G = window.__gr;
       G.halte(12);
       G.loslassen();
-      const eins = { minen: arrays.sniperMinen.length, cd: state.raketenCooldown };
+      const eins = { minen: arrays.sniperMinen.length, ladungen: state.sniperGranatenLadungen, cd: state.raketenCooldown };
+      state.sniperGranatenLadungen = 0;
       G.halte(40);
       G.loslassen();
-      return { eins, imCooldown: { minen: arrays.sniperMinen.length, cd: state.raketenCooldown } };
+      return { eins, ohneLadung: { minen: arrays.sniperMinen.length, ladungen: state.sniperGranatenLadungen, cd: state.raketenCooldown } };
     });
-    expect(r.eins).toEqual({ minen: 1, cd: 240 });
-    expect(r.imCooldown.minen).toBe(1);
-    expect(r.imCooldown.cd).toBeLessThan(240);
+    expect(r.eins).toMatchObject({ minen: 1, ladungen: 1 });
+    expect(r.eins.cd).toBeGreaterThan(230);
+    expect(r.ohneLadung.minen).toBe(1);
+    expect(r.ohneLadung.ladungen).toBe(0);
+    expect(r.ohneLadung.cd).toBeLessThan(r.eins.cd); // das laufende Nachladen wird nicht neu gestartet
   });
 
   test('maximal 8 aktive Minen pro Spieler, die aelteste faellt weg', async ({ page }) => {
@@ -2259,7 +2267,7 @@ test.describe('Spectre-SR Haftminen', () => {
       const G = window.__gr;
       const ids = [];
       for (let i = 0; i < 2; i++) {
-        state.raketenCooldown = 0;
+        state.raketenCooldown = 0; state.sniperGranatenLadungen = 3;
         G.halte(70);
         G.loslassen();
         ids.push(...arrays.sniperMinen.map(m => m.id));
@@ -2413,7 +2421,7 @@ test.describe('Spectre-SR Haftminen', () => {
       for (let stufe = 1; stufe <= 5; stufe++) {
         window.__sn.leeren();
         state.raketenStufe = stufe;
-        state.raketenCooldown = 0;
+        state.raketenCooldown = 0; state.sniperGranatenLadungen = 3;
         const m = M.eineMine();
         const f = M.setzeFeind(m.x, m.y + 40);
         M.bisHaftet(f, 0, -3);
@@ -2473,7 +2481,7 @@ test.describe('Spectre-SR Haftminen', () => {
     // An der Position von P2 gelegt (x 400, y 430), seitdem leicht nach oben gedriftet
     expect(r.p2.minen.map(m => [m[0], m[1]])).toEqual([['p2', 400], ['p2', 400]]);
     expect(r.p2.minen.every(m => m[2] <= 430 && m[2] > 430 - 0.6 * 30)).toBe(true);
-    expect(r.p2.cd).toBe(240);
+    expect(r.p2.cd).toBeGreaterThan(200); // Nachladen seit der ersten Mine
     expect(r.p2.cdP1).toBe(0);
     expect(r.el).toBe(2);
     const reset = await page.evaluate(async () => {
@@ -2502,7 +2510,7 @@ test.describe('Spectre-SR Bot: Minen', () => {
       state.p2BotDifficulty = 'hard';
       Bot.resetBot();
       state.p2.x = 285; state.p2.y = 480;
-      state.p2.raketenCooldown = 0;
+      state.p2.raketenCooldown = 0; state.p2.sniperGranatenLadungen = 3;
       state.x = 40; state.y = 540;
     });
   }
@@ -2513,6 +2521,7 @@ test.describe('Spectre-SR Bot: Minen', () => {
       const { state, arrays } = window.__game;
       const G = window.__gr;
       const f = G.feind(300, 480 + 15 - 148 - 15);
+      state.p2.sniperGranatenLadungen = 1; // eine Ladung: ein Halten (max. 5 Minen), danach ohne Ladung kein weiteres
       let maxMinen = 0;
       let gehalten = 0;
       let granaten = 0;
@@ -2587,5 +2596,196 @@ test.describe('Spectre-SR Haftminen online (Host)', () => {
     expect(r.haftet).toEqual([true, true]);
     expect(r.ereignis).toMatchObject({ type: 'mine_explodiert', owner: 'p2', radius: 30 });
     expect(r.hp).toBe(960); // beide Minen (an derselben Stelle) haften und explodieren
+  });
+});
+
+// ---------------------------------------------------------------------------------------------
+// Granaten-Ladungen: 2 (Raketen-Stufe 1-3) bzw. 3 (Stufe 4-5), raketenCooldown = Ladezeit der naechsten Ladung
+
+test.describe('Spectre-SR Granaten-Ladungen', () => {
+  test('Start/Reset: voll (2); zwei Granaten direkt nacheinander, die dritte nicht', async ({ page }) => {
+    await bereiteGranate(page);
+    const r = await page.evaluate(async () => {
+      const { state } = window.__game;
+      const Sniper = await import('./js/sniper.js');
+      const G = window.__gr;
+      state.sniperGranatenLadungen = 0; state.raketenCooldown = 99;
+      Sniper.setzeZurueck(state);
+      const start = { ladungen: state.sniperGranatenLadungen, cd: state.raketenCooldown, p2: state.p2.sniperGranatenLadungen };
+      G.wirf();
+      const nachEins = { granaten: document.querySelectorAll('.sniper-granate').length, ladungen: state.sniperGranatenLadungen };
+      G.wirf();
+      const nachZwei = { granaten: document.querySelectorAll('.sniper-granate').length, emp: document.querySelectorAll('.sniper-emp').length, ladungen: state.sniperGranatenLadungen };
+      G.wirf();
+      return { start, nachEins, nachZwei, nachDrei: { granaten: document.querySelectorAll('.sniper-granate').length, ladungen: state.sniperGranatenLadungen } };
+    });
+    expect(r.start).toEqual({ ladungen: 2, cd: 0, p2: 2 });
+    expect(r.nachEins).toEqual({ granaten: 1, ladungen: 1 });
+    expect(r.nachZwei).toEqual({ granaten: 2, emp: 2, ladungen: 0 });
+    expect(r.nachDrei).toEqual({ granaten: 2, ladungen: 0 });
+  });
+
+  test('Nachladen nacheinander: je Ladezeit der Stufe (240 auf Stufe 1, 210 auf Stufe 2), nur eine Ladezeit laeuft', async ({ page }) => {
+    await bereiteGranate(page);
+    const r = await page.evaluate(() => {
+      const { state } = window.__game;
+      const G = window.__gr;
+      const messe = (stufe) => {
+        state.raketenStufe = stufe; state.raketenCooldown = 0; state.sniperGranatenLadungen = 2;
+        G.frei(1);
+        G.wirf();
+        G.wirf();
+        let schritte = 0;
+        const zeiten = [];
+        let letzte = state.sniperGranatenLadungen;
+        while (state.sniperGranatenLadungen < 2 && schritte < 600) {
+          G.frei(1); schritte++;
+          if (state.sniperGranatenLadungen !== letzte) { zeiten.push(schritte); letzte = state.sniperGranatenLadungen; }
+        }
+        return { zeiten, ladungen: state.sniperGranatenLadungen, cd: state.raketenCooldown };
+      };
+      return { s1: messe(1), s2: messe(2) };
+    });
+    for (const [s, ladezeit] of [[r.s1, 240], [r.s2, 210]]) {
+      expect(s.zeiten).toHaveLength(2);
+      expect(s.zeiten[0]).toBeGreaterThan(ladezeit - 6);
+      expect(s.zeiten[0]).toBeLessThanOrEqual(ladezeit);
+      expect(s.zeiten[1] - s.zeiten[0]).toBe(ladezeit);
+      expect(s.ladungen).toBe(2);
+      expect(s.cd).toBe(0);
+    }
+  });
+
+  test('Stufe 4 hat Max 3: nach dem Upgrade laedt die dritte Ladung von selbst', async ({ page }) => {
+    await bereiteGranate(page);
+    const r = await page.evaluate(async () => {
+      const { state } = window.__game;
+      const Sniper = await import('./js/sniper.js');
+      const G = window.__gr;
+      const max = (s) => { state.raketenStufe = s; return Sniper.granatenMax(state); };
+      const maxe = [1, 2, 3, 4, 5].map(max);
+      state.raketenStufe = 1;
+      G.frei(2);
+      const vorher = state.sniperGranatenLadungen;
+      state.raketenStufe = 4;
+      G.frei(1);
+      const cdStart = state.raketenCooldown;
+      G.frei(200);
+      return { maxe, vorher, cdStart, ladungen: state.sniperGranatenLadungen, cd: state.raketenCooldown };
+    });
+    expect(r.maxe).toEqual([2, 2, 2, 3, 3]);
+    expect(r.vorher).toBe(2);
+    expect(r.cdStart).toBeGreaterThan(170);
+    expect(r.cdStart).toBeLessThanOrEqual(180);
+    expect(r.ladungen).toBe(3);
+    expect(r.cd).toBe(0);
+  });
+
+  test('Halten verbraucht genau 1 Ladung (weitere Minen kosten nichts); ohne Ladung keine Minen', async ({ page }) => {
+    await bereiteMinen(page);
+    const r = await page.evaluate(() => {
+      const { state, arrays } = window.__game;
+      const G = window.__gr;
+      G.halte(70);
+      const waehrend = { minen: arrays.sniperMinen.length, ladungen: state.sniperGranatenLadungen };
+      G.loslassen();
+      const danach = { ladungen: state.sniperGranatenLadungen, cd: state.raketenCooldown };
+      state.sniperGranatenLadungen = 0;
+      arrays.sniperMinen.forEach(m => m.el.remove());
+      arrays.sniperMinen.length = 0;
+      G.halte(70);
+      const ohne = { minen: arrays.sniperMinen.length, ladungen: state.sniperGranatenLadungen };
+      G.loslassen();
+      return { waehrend, danach, ohne };
+    });
+    expect(r.waehrend).toEqual({ minen: 5, ladungen: 1 });
+    expect(r.danach.ladungen).toBe(1);
+    expect(r.danach.cd).toBeGreaterThan(150);
+    expect(r.ohne).toEqual({ minen: 0, ladungen: 0 });
+  });
+
+  test('HUD: Punkte neben dem GRANATE-Balken (P1 und P2), Balken zeigt den Ladefortschritt, Mobil-Knopf zeigt die Anzahl', async ({ page }) => {
+    await bereiteGranate(page, { coop: true });
+    const r = await page.evaluate(() => {
+      const G = window.__gr;
+      const punkte = (id) => {
+        const el = document.getElementById(id);
+        return { sichtbar: getComputedStyle(el).display !== 'none', gesamt: el.querySelectorAll('.dash-ladung').length, voll: el.querySelectorAll('.dash-ladung.voll').length };
+      };
+      const zahl = document.getElementById('btn-rakete-ladungen');
+      const lies = () => ({ p1: punkte('dash-ladungen'), p2: punkte('dash-ladungen-p2'), zahl: zahl.textContent, zahlSichtbar: getComputedStyle(zahl).display !== 'none', balken: parseFloat(document.getElementById('raketen-cd-balken').style.width) });
+      G.frei(2);
+      const voll = lies();
+      G.wirf();
+      const eine = lies();
+      G.wirf();
+      const keine = lies();
+      G.wirf('ö');
+      const p2Eine = lies();
+      return { voll, eine, keine, p2Eine };
+    });
+    expect(r.voll).toMatchObject({ p1: { sichtbar: true, gesamt: 2, voll: 2 }, p2: { sichtbar: true, gesamt: 2, voll: 2 }, zahl: '2', zahlSichtbar: true, balken: 100 });
+    expect(r.eine).toMatchObject({ p1: { gesamt: 2, voll: 1 }, p2: { voll: 2 }, zahl: '1' });
+    expect(r.eine.balken).toBeLessThan(5);
+    expect(r.keine).toMatchObject({ p1: { voll: 0 }, zahl: '0' });
+    expect(r.p2Eine.p2.voll).toBe(1);
+    expect(r.p2Eine.p1.voll).toBe(0);
+  });
+
+  test('Host: Snapshot traegt sniperGranatenLadungen (nur Sniper, ganzzahlig, gerundet)', async ({ page }) => {
+    await bereiteOnlineHost(page);
+    const r = await page.evaluate(async () => {
+      const { state, Network } = window.__game;
+      const NK = await import('./js/netzkodierung.js');
+      state.p2.sniperGranatenLadungen = 1;
+      const voll = Network.serializeGameState();
+      const out = { p2: voll.p2.sniperGranatenLadungen, p1: voll.p1.sniperGranatenLadungen };
+      state.p2.sniperGranatenLadungen = 1.6;
+      const paket = new NK.SnapshotKodierer().kodiere(Network.serializeGameState(), 0);
+      const dek = new NK.SnapshotDekodierer().dekodiere(JSON.parse(JSON.stringify(paket)));
+      out.dekodiert = dek.p2.sniperGranatenLadungen;
+      state.p2.selectedShipModel = 'viper';
+      out.viper = 'sniperGranatenLadungen' in Network.serializeGameState().p2;
+      return out;
+    });
+    expect(r.p2).toBe(1);
+    expect(r.p1).toBe(2);
+    expect(r.dekodiert).toBe(2);
+    expect(r.viper).toBe(false);
+  });
+});
+
+test.describe('Spectre-SR Bot: Granaten-Ladungen', () => {
+  test('Bot tippt EMP bei naher Boss-Rakete nur mit Ladung', async ({ page }) => {
+    await bereiteEmp(page, { coop: true });
+    const r = await page.evaluate(async () => {
+      const Bot = await import('./js/bot.js');
+      const { state, arrays, Entities } = window.__game;
+      const G = window.__gr;
+      window.__sn.leeren();
+      state.p2IsBot = true;
+      state.p2BotDifficulty = 'hard';
+      Bot.resetBot();
+      state.p2.x = 285; state.p2.y = 480;
+      state.x = 40; state.y = 540;
+      const mx = state.p2.x + 15;
+      const my = state.p2.y + 15;
+      Entities.erzeugeBossRakete(mx, my - 50, 1);
+      const rk = arrays.bossRaketenArray[0];
+      rk.vx = 0; rk.vy = 0;
+      state.p2.sniperGranatenLadungen = 0; state.p2.raketenCooldown = 100;
+      let ohne = 0;
+      for (let i = 0; i < 12; i++) { rk.x = state.p2.x + 15; rk.y = state.p2.y - 35; G.frei(1); if (state.p2.botFireRakete) ohne++; }
+      const nochDa = arrays.bossRaketenArray.includes(rk);
+      state.p2.sniperGranatenLadungen = 1;
+      let mit = 0;
+      for (let i = 0; i < 6; i++) { rk.x = state.p2.x + 15; rk.y = state.p2.y - 35; G.frei(1); if (state.p2.botFireRakete) mit++; }
+      return { ohne, nochDa, mit, weg: !arrays.bossRaketenArray.includes(rk), ladungen: state.p2.sniperGranatenLadungen };
+    });
+    expect(r.ohne).toBe(0);
+    expect(r.nochDa).toBe(true);
+    expect(r.mit).toBeGreaterThan(0);
+    expect(r.weg).toBe(true);
+    expect(r.ladungen).toBe(0);
   });
 });

@@ -524,7 +524,7 @@ test('Online: Sniper-Felder gehen nur fuer Sniper in den Snapshot (Granatenliste
   expect(r.ohneSniper).toEqual([0, 0]);
   expect(r.granate).toEqual([{ id: 'string', owner: 'p1', rest: 30, hatPos: true }]);
   expect(r.dekodiert).toEqual([123.5, 99, 45, 18, 33, 1]);
-  expect(r.protokoll).toBe(12);
+  expect(r.protokoll).toBe(13);
 });
 
 test('Online-Client: Fadenkreuz an der Host-Position, Ladering bei Ladung, Strahl beim Schuss, Sounds nur fuers eigene Schiff', async ({ page }) => {
@@ -770,4 +770,32 @@ test('Online-Client: Haftminen aus dem Snapshot (Legen, Blinken, Haften, Ton), E
   expect(r.knall).toBe(1);
   expect(r.unsinn).toBe(1);
   expect(r.weg).toBe(0);
+});
+
+test('Online: Granaten-Ladungen des Sniper im Client: Punkte und Mobil-Zahl aus dem Snapshot', async ({ page }) => {
+  const r = await page.evaluate(() => {
+    const g = window.__game;
+    const { state } = g;
+    state.selectedShipModel = 'viper';
+    Object.assign(state.p2, { selectedShipModel: 'sniper', x: 300, y: 400, raketenStufe: 1, raketenCooldown: 0, isDead: false, hacks: [] });
+    g.Utils.updateSchiffHudLabels();
+    const punkte = () => {
+      const el = document.getElementById('dash-ladungen-p2');
+      return [el.querySelectorAll('.dash-ladung').length, el.querySelectorAll('.dash-ladung.voll').length];
+    };
+    const zeige = (n, cd) => {
+      const snap = window.__snapshot();
+      Object.assign(snap.p2, { raketenCooldown: cd, sniperGranatenLadungen: n, sniperZielX: 315, sniperZielY: 180, sniperLadung: 0, sniperVoll: false, sniperCooldown: 0 });
+      g.Network.applyGameStateSnapshot(snap);
+      return { ladungen: state.p2.sniperGranatenLadungen, punkte: punkte(), zahl: document.getElementById('btn-rakete-ladungen').textContent, balken: parseFloat(document.getElementById('raketen-cd-balken-p2').style.width) };
+    };
+    return { eine: zeige(1, 120), voll: zeige(2, 0) };
+  });
+  expect(r.eine.ladungen).toBe(1);
+  expect(r.eine.punkte).toEqual([2, 1]);
+  expect(r.eine.zahl).toBe('1');
+  expect(r.eine.balken).toBeCloseTo(50, 3);
+  expect(r.voll.punkte).toEqual([2, 2]);
+  expect(r.voll.zahl).toBe('2');
+  expect(r.voll.balken).toBe(100);
 });
