@@ -58,6 +58,8 @@ export const MINE_LEBEN = 360;
 export const MINE_BLINK = 60;
 export const MINE_ZUENDUNG = 30;
 export const MINE_RADIUS = 30;
+// Freie Minen driften langsam nach oben, den Gegnern entgegen (px pro Schritt)
+export const MINE_DRIFT = 0.6;
 const MINE_GROESSE = 12;
 const MINE_SCHADEN = [20, 25, 30, 35, 40];
 
@@ -671,7 +673,8 @@ function aktualisiereMinen(pKey) {
       if (m.zuender % 10 === 0) Audio.playMinePiep();
     } else {
       m.rest--;
-      if (m.rest <= 0) { entferneMine(m); continue; }
+      m.y -= MINE_DRIFT;
+      if (m.rest <= 0 || m.y < -MINE_GROESSE) { entferneMine(m); continue; }
       // Boss-Raketen und -Bomben loesen die Mine sofort aus (kein Haften an Geschossen)
       if (bossGeschossAnMine(m)) { explodiereMine(m); continue; }
       const box = mineBox(m);

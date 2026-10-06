@@ -2224,7 +2224,9 @@ test.describe('Spectre-SR Haftminen', () => {
     expect(r.anzahl[69]).toBe(5);
     expect(r.anzahl.filter((n, i) => i > 0 && n > r.anzahl[i - 1])).toHaveLength(5);
     expect(r.xs).toEqual([0, 1, 2, 3, 4].map(k => 100 + (9 + 12 * k) * 2 + 15));
-    expect(r.ys.every(y => y === 430)).toBe(true);
+    // Gelegt unter dem Schiff (y 430), seitdem nach oben gedriftet: aeltere Minen stehen hoeher
+    expect(r.ys.every(y => y <= 430 && y > 430 - 0.6 * 70)).toBe(true);
+    expect(r.ys.every((y, i) => i === 0 || y > r.ys[i - 1])).toBe(true);
     expect(r.owner.every(o => o === 'p1')).toBe(true);
     expect(r.els).toBe(5);
     expect(r.toene).toBe(5);
@@ -2271,7 +2273,7 @@ test.describe('Spectre-SR Haftminen', () => {
     expect(r.gesamt).toBeGreaterThanOrEqual(10);
   });
 
-  test('Mine bleibt stehen; Lebensdauer 360 Schritte, ab 300 blinkend, danach weg ohne Explosion', async ({ page }) => {
+  test('Mine driftet langsam nach oben; Lebensdauer 360 Schritte, ab 300 blinkend, danach weg ohne Explosion', async ({ page }) => {
     await bereiteMinen(page);
     const r = await page.evaluate(() => {
       const G = window.__gr;
@@ -2279,7 +2281,7 @@ test.describe('Spectre-SR Haftminen', () => {
       const m = M.eineMine();
       const x0 = m.x; const y0 = m.y;
       G.frei(100);
-      const stehen = [m.x === x0, m.y === y0];
+      const drift = { x: m.x - x0, y: m.y - y0 };
       G.frei(190); // gesamt 290 Schritte nach dem Legen
       const bei290 = m.el.classList.contains('blinkt');
       G.frei(15);
@@ -2287,9 +2289,11 @@ test.describe('Spectre-SR Haftminen', () => {
       G.frei(50);
       const bei355 = M.minen().includes(m);
       G.frei(10);
-      return { stehen, bei290, bei305, bei355, weg: !M.minen().includes(m), elWeg: !m.el.isConnected, explosion: document.querySelectorAll('.sniper-mine-explosion').length };
+      return { drift, bei290, bei305, bei355, weg: !M.minen().includes(m), elWeg: !m.el.isConnected, explosion: document.querySelectorAll('.sniper-mine-explosion').length };
     });
-    expect(r.stehen).toEqual([true, true]);
+    // 100 Schritte zu je 0,6 px nach oben, seitlich keine Bewegung
+    expect(r.drift.x).toBe(0);
+    expect(r.drift.y).toBeCloseTo(-60, 5);
     expect(r.bei290).toBe(false);
     expect(r.bei305).toBe(true);
     expect(r.bei355).toBe(true);
@@ -2464,7 +2468,9 @@ test.describe('Spectre-SR Haftminen', () => {
       const el = document.querySelectorAll('.sniper-mine-p2').length;
       return { p2, el };
     });
-    expect(r.p2.minen).toEqual([['p2', 400, 430], ['p2', 400, 430]]);
+    // An der Position von P2 gelegt (x 400, y 430), seitdem leicht nach oben gedriftet
+    expect(r.p2.minen.map(m => [m[0], m[1]])).toEqual([['p2', 400], ['p2', 400]]);
+    expect(r.p2.minen.every(m => m[2] <= 430 && m[2] > 430 - 0.6 * 30)).toBe(true);
     expect(r.p2.cd).toBe(240);
     expect(r.p2.cdP1).toBe(0);
     expect(r.el).toBe(2);
@@ -2560,9 +2566,10 @@ test.describe('Spectre-SR Haftminen online (Host)', () => {
       const liste = snap.sniperMinen.map(m => ({ id: typeof m.id, x: m.x, y: m.y, owner: m.owner, haftet: m.haftet, rest: m.rest > 300, blinkt: m.blinkt }));
       const k = new NK.SnapshotKodierer();
       const dek = new NK.SnapshotDekodierer().dekodiere(JSON.parse(JSON.stringify(k.kodiere(snap, 0))));
-      // Feind an die erste Mine -> haftet
+      // Schiff zur Seite, damit der Feind es nicht rammt; Feind mittig auf die erste Mine (Minen driften) -> haftet
+      E({ x: 100, y: 400 });
       const m0 = arrays.sniperMinen[0];
-      const f = G.feind(m0.x, m0.y + 20);
+      const f = G.feind(m0.x, m0.y);
       G.frei(2);
       const haftet = Network.serializeGameState().sniperMinen.find(m => m.id === m0.id);
       state.network.lastSentEvent = null;
@@ -2570,7 +2577,10 @@ test.describe('Spectre-SR Haftminen online (Host)', () => {
       return { liste, dekodiert: dek.sniperMinen.length, haftet: haftet && [haftet.haftet, haftet.zuender > 0], ereignis: state.network.lastSentEvent, hp: f.hp };
     });
     expect(r.liste).toHaveLength(2);
-    expect(r.liste[0]).toEqual({ id: 'string', x: 400, y: 430, owner: 'p2', haftet: false, rest: true, blinkt: false });
+    // y: unter P2 gelegt (430) und seitdem nach oben gedriftet
+    expect({ ...r.liste[0], y: undefined }).toEqual({ id: 'string', x: 400, y: undefined, owner: 'p2', haftet: false, rest: true, blinkt: false });
+    expect(r.liste[0].y).toBeLessThanOrEqual(430);
+    expect(r.liste[0].y).toBeGreaterThan(430 - 0.6 * 30);
     expect(r.dekodiert).toBe(2);
     expect(r.haftet).toEqual([true, true]);
     expect(r.ereignis).toMatchObject({ type: 'mine_explodiert', owner: 'p2', radius: 30 });
