@@ -2276,19 +2276,21 @@ test.describe('Spectre-SR Haftminen', () => {
   test('Mine driftet langsam nach oben; Lebensdauer 360 Schritte, ab 300 blinkend, danach weg ohne Explosion', async ({ page }) => {
     await bereiteMinen(page);
     const r = await page.evaluate(() => {
-      const G = window.__gr;
+      const { state, Loop } = window.__game;
       const M = window.__mi;
+      // Ohne natuerliche Spawns: die nach oben driftende Mine soll keinen zufaellig erscheinenden Gegner treffen
+      const frei = n => { for (let i = 0; i < n; i++) { state.frameZaehler = 1; Loop.simulationsSchritt(); } };
       const m = M.eineMine();
       const x0 = m.x; const y0 = m.y;
-      G.frei(100);
+      frei(100);
       const drift = { x: m.x - x0, y: m.y - y0 };
-      G.frei(190); // gesamt 290 Schritte nach dem Legen
+      frei(190); // gesamt 290 Schritte nach dem Legen
       const bei290 = m.el.classList.contains('blinkt');
-      G.frei(15);
+      frei(15);
       const bei305 = m.el.classList.contains('blinkt');
-      G.frei(50);
+      frei(50);
       const bei355 = M.minen().includes(m);
-      G.frei(10);
+      frei(10);
       return { drift, bei290, bei305, bei355, weg: !M.minen().includes(m), elWeg: !m.el.isConnected, explosion: document.querySelectorAll('.sniper-mine-explosion').length };
     });
     // 100 Schritte zu je 0,6 px nach oben, seitlich keine Bewegung
