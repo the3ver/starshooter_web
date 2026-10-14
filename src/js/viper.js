@@ -10,6 +10,7 @@
 import { state, dom, config, arrays, shipColors, isCoopMode } from './state.js';
 import * as Audio from './audio.js';
 import * as Hack from './hack.js';
+import { erzeugePartikel } from './partikel.js';
 
 export const ROLLE_FRAMES = 12;
 export const ROLLE_DISTANZ = 70;
@@ -242,15 +243,7 @@ export function pruefeNearMiss() {
 
 // Kleines Plus am Schiff (sparsam: ein Zeichen, steigt kurz auf)
 function zeigeNearMissPlus(p) {
-  const el = document.createElement('div');
-  el.classList.add('viper-nearmiss-plus');
-  el.textContent = '+';
-  const x = p.x + config.spielerGroesse / 2 - 4;
-  const y = p.y - 6;
-  el.style.left = x + 'px';
-  el.style.top = y + 'px';
-  dom.spielfeld.appendChild(el);
-  arrays.partikelArray.push({ el, x, y, vx: 0, vy: -1.5, leben: 0.8, zerfall: 0.06 });
+  erzeugePartikel({ sorte: 'nearMissPlus', x: p.x + config.spielerGroesse / 2 - 4, y: p.y - 6, vx: 0, vy: -1.5, leben: 0.8, zerfall: 0.06 });
 }
 
 // Tastenzustand eines Spielers fuer aktualisiereViper (Joystick nur, wenn er aktiv ist)
@@ -404,26 +397,12 @@ export function setzeZurueck(pState, schiffEl) {
 // Nachbild in Schiffsfarbe plus ein Funken-Partikel am Schiff
 function erzeugeNachbild(pState) {
   const farbe = schiffFarbe(pState);
-  const el = document.createElement('div');
-  el.classList.add('viper-nachbild');
-  el.style.backgroundColor = farbe;
-  el.style.left = pState.x + 'px';
-  el.style.top = pState.y + 'px';
-  dom.spielfeld.appendChild(el);
-  arrays.partikelArray.push({ el, x: pState.x, y: pState.y, vx: 0, vy: 0, leben: 0.6, zerfall: 0.08 });
+  erzeugePartikel({ sorte: 'viperNachbild', farbe, x: pState.x, y: pState.y, vx: 0, vy: 0, leben: 0.6, zerfall: 0.08 });
 
-  const pEl = document.createElement('div');
-  pEl.classList.add('partikel');
-  pEl.style.backgroundColor = '#ffffff';
-  const px = pState.x + 15 + (Math.random() * 12 - 6);
-  const py = pState.y + 15 + (Math.random() * 12 - 6);
-  pEl.style.left = px + 'px';
-  pEl.style.top = py + 'px';
-  dom.spielfeld.appendChild(pEl);
-  arrays.partikelArray.push({
-    el: pEl,
-    x: px,
-    y: py,
+  erzeugePartikel({
+    farbe: '#ffffff',
+    x: pState.x + 15 + (Math.random() * 12 - 6),
+    y: pState.y + 15 + (Math.random() * 12 - 6),
     vx: -(pState.viperRolleRichtung || 0) * 1.2,
     vy: 0,
     leben: 1.0,

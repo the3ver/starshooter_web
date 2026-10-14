@@ -8,13 +8,16 @@
 // - anzeigeX/Y      optionale Anzeigeposition (Online-Client: Interpolation zwischen Snapshots), sonst x/y
 // - rot             optionale Drehung in Grad (fehlt = keine Drehung schreiben)
 // - Partikel: leben (0..1) fuer Deckkraft und Skalierung
+// - Zustand: schildHp (Schild sichtbar > 0), hp/maxHp/traegtPowerup (Risse), istUnzerstoerbar (Magma),
+//   betaeubt (> 0), phase (Cling-on-Flammen), repulsorAktiv (Boss), towedBy + strahlX/strahlY (Schlepp-Strahl),
+//   harmlos (pariertes Geschoss), farbe (Laser), fortschritt (Bombenpuls, 1 -> 0)
 import * as DomAnzeige from './anzeige-dom.js';
 
 let backend = DomAnzeige;
 
-// Backend tauschen. Pflichtfunktionen: zeichneWelt(), entferne(obj).
+// Backend tauschen. Pflichtfunktionen: erzeuge(obj, art), zeichneWelt(), entferne(obj), blitze(obj, staerke).
 export function setzeBackend(neuesBackend) {
-  for (const name of ['zeichneWelt', 'entferne']) {
+  for (const name of ['erzeuge', 'zeichneWelt', 'entferne', 'blitze']) {
     if (typeof neuesBackend?.[name] !== 'function') throw new Error(`Anzeige-Backend ohne ${name}()`);
   }
   backend = neuesBackend;
@@ -22,6 +25,14 @@ export function setzeBackend(neuesBackend) {
 
 export function holeBackend() {
   return backend;
+}
+
+// Legt die Darstellung eines neuen Weltobjekts an und zeigt es an seiner Position. art bestimmt das
+// Aussehen: feind, asteroid, boss, powerup, laser, rakete, bombe, feindLaser, bossLaser, bossRakete,
+// bossBombe, hackProjektil, gleveWelle, partikel. Die noetigen Modellfelder je Art stehen in AGENTS.md (Anzeige-Schicht).
+export function erzeuge(obj, art) {
+  backend.erzeuge(obj, art);
+  return obj;
 }
 
 // Zeichnet alle Weltobjekte (Listen in arrays) aus ihren Modellfeldern. Laeuft einmal am Ende jedes
@@ -33,4 +44,9 @@ export function zeichneWelt() {
 // Entfernt die Darstellung eines Weltobjekts. Das Modell (Eintrag in arrays) entfernt der Aufrufer.
 export function entferne(obj) {
   if (obj) backend.entferne(obj);
+}
+
+// Treffer-Ereignis: Objekt kurz aufhellen (staerke ~2-3). Reine Anzeige, aendert kein Modellfeld.
+export function blitze(obj, staerke) {
+  if (obj) backend.blitze(obj, staerke);
 }

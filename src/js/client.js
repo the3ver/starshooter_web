@@ -4,7 +4,6 @@ import * as Network from './network.js';
 import * as Hack from './hack.js';
 import { animierenPartikel } from './partikel.js';
 import { bewegeSterne } from './loop.js';
-import { zeichneTraktorstrahl, entferneTraktorstrahl } from './powerups.js';
 import * as Gleve from './gleve.js';
 import * as Viper from './viper.js';
 import * as Sniper from './sniper.js';
@@ -117,8 +116,9 @@ function interpoliereObjekte() {
   if (interpoliere(p1Anzeige)) setzePosition(dom.spieler, p1Anzeige.anzeigeX, p1Anzeige.anzeigeY);
 }
 
-// Traktorstrahlen geschleppter Powerups mit derselben Darstellung wie beim Host zeichnen
-function zeichneTraktorstrahlen() {
+// Startpunkt der Traktorstrahlen geschleppter Powerups (P1 an seiner angezeigten Position); den Strahl
+// zeichnet die Anzeige aus towedBy und strahlX/strahlY
+function setzeStrahlStarts() {
   const ss = config.spielerGroesse;
   arrays.powerups.forEach(p => {
     let sx, sy;
@@ -129,13 +129,10 @@ function zeichneTraktorstrahlen() {
       sx = state.p2.x;
       sy = state.p2.y;
     } else {
-      entferneTraktorstrahl(p);
       return;
     }
-    const groesse = p.groesse || 24;
-    const px = p.anzeigeX !== undefined ? p.anzeigeX : p.x;
-    const py = p.anzeigeY !== undefined ? p.anzeigeY : p.y;
-    zeichneTraktorstrahl(p, sx + ss / 2, sy + ss, px + groesse / 2, py + groesse / 2);
+    p.strahlX = sx + ss / 2;
+    p.strahlY = sy + ss;
   });
 }
 
@@ -241,7 +238,7 @@ export function clientSchritt() {
   // Entfernte Objekte zwischen den Snapshots weiterbewegen
   extrapoliereProjektile();
   interpoliereObjekte();
-  zeichneTraktorstrahlen();
+  setzeStrahlStarts();
 
   // Partikel auf dem Client animieren und löschen
   animierenPartikel();

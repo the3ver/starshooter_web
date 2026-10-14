@@ -10,6 +10,7 @@ import * as Gleve from './gleve.js';
 import * as Sniper from './sniper.js';
 import * as Viper from './viper.js';
 import * as Anzeige from './anzeige.js';
+import { erzeugePartikel } from './partikel.js';
 
 
 // faktor: Punkte-Multiplikator (Viper-Kombo), Ergebnis gerundet
@@ -307,7 +308,7 @@ export function zerstoereZiel(ziel, killer = 'p1') {
         }
       }
     }
-    let farbe = ziel.istFeind ? '#9b59b6' : ziel.el.dataset.baseColor || ziel.el.style.backgroundColor || '#ffffff';
+    let farbe = ziel.istFeind ? '#9b59b6' : ziel.farbe || '#ffffff';
     erzeugeExplosion(ziel.x + ziel.groesse / 2, ziel.y + ziel.groesse / 2, farbe, 25);
     if (state.gameMode === 'online') {
       Network.sendNetworkEvent({
@@ -443,7 +444,7 @@ export function spielerGetroffen(kollisionsObjekt, explodiert = true, targetPlay
       }
       updateAktivePowerupsUI();
       if (explodiert && kollisionsObjekt) {
-        let c = kollisionsObjekt.istFeind ? '#9b59b6' : (kollisionsObjekt.el?.dataset?.baseColor || kollisionsObjekt.el?.style?.backgroundColor || '#7f8c8d');
+        let c = kollisionsObjekt.istFeind ? '#9b59b6' : (kollisionsObjekt.farbe || '#7f8c8d');
         erzeugeExplosion(kollisionsObjekt.x + (kollisionsObjekt.groesse || 4) / 2, kollisionsObjekt.y + (kollisionsObjekt.groesse || 15) / 2, c, 10);
       }
       addScore(10);
@@ -478,7 +479,7 @@ export function spielerGetroffen(kollisionsObjekt, explodiert = true, targetPlay
       dom.spielfeld.style.backgroundColor = '#0b1319';
     }, 150);
     if (explodiert && kollisionsObjekt && !kollisionsObjekt.istBoss) {
-      let c = kollisionsObjekt.istFeind ? '#9b59b6' : (kollisionsObjekt.el?.dataset?.baseColor || kollisionsObjekt.el?.style?.backgroundColor || '#7f8c8d');
+      let c = kollisionsObjekt.istFeind ? '#9b59b6' : (kollisionsObjekt.farbe || '#7f8c8d');
       erzeugeExplosion(kollisionsObjekt.x + (kollisionsObjekt.groesse || 4) / 2, kollisionsObjekt.y + (kollisionsObjekt.groesse || 15) / 2, c, 10);
     }
     if (state.leben <= 0) {
@@ -510,7 +511,7 @@ export function spielerGetroffen(kollisionsObjekt, explodiert = true, targetPlay
       }
       updateAktivePowerupsP2UI();
       if (explodiert && kollisionsObjekt) {
-        let c = kollisionsObjekt.istFeind ? '#9b59b6' : (kollisionsObjekt.el?.dataset?.baseColor || kollisionsObjekt.el?.style?.backgroundColor || '#7f8c8d');
+        let c = kollisionsObjekt.istFeind ? '#9b59b6' : (kollisionsObjekt.farbe || '#7f8c8d');
         erzeugeExplosion(kollisionsObjekt.x + (kollisionsObjekt.groesse || 4) / 2, kollisionsObjekt.y + (kollisionsObjekt.groesse || 15) / 2, c, 10);
       }
       addScore(10);
@@ -553,7 +554,7 @@ export function spielerGetroffen(kollisionsObjekt, explodiert = true, targetPlay
       Network.sendNetworkEvent({ type: 'player_hit', target: 'p2', shield: false, invulnerable: state.p2.invulnerableTimer });
     }
     if (explodiert && kollisionsObjekt && !kollisionsObjekt.istBoss) {
-      let c = kollisionsObjekt.istFeind ? '#9b59b6' : (kollisionsObjekt.el?.dataset?.baseColor || kollisionsObjekt.el?.style?.backgroundColor || '#7f8c8d');
+      let c = kollisionsObjekt.istFeind ? '#9b59b6' : (kollisionsObjekt.farbe || '#7f8c8d');
       erzeugeExplosion(kollisionsObjekt.x + (kollisionsObjekt.groesse || 4) / 2, kollisionsObjekt.y + (kollisionsObjekt.groesse || 15) / 2, c, 10);
     }
     if (state.p2.leben <= 0) {
@@ -1139,16 +1140,10 @@ export function checkAndCommitOnlineHighscore() {
 }
 export function erzeugeExplosion(x, y, farbe, anzahl = 15) {
   for (let i = 0; i < anzahl; i++) {
-    const el = document.createElement('div');
-    el.classList.add('partikel');
-    el.style.backgroundColor = farbe;
-    el.style.left = x + 'px';
-    el.style.top = y + 'px';
-    dom.spielfeld.appendChild(el);
     const winkel = Math.random() * Math.PI * 2;
     const tempo = Math.random() * 4 + 2;
-    arrays.partikelArray.push({
-      el: el,
+    erzeugePartikel({
+      farbe,
       x: x,
       y: y,
       vx: Math.cos(winkel) * tempo,
@@ -1158,7 +1153,6 @@ export function erzeugeExplosion(x, y, farbe, anzahl = 15) {
     });
   }
 }
-export const erzeugePartikel = erzeugeExplosion;
 
 export function erzeugeBombenDetonation(bcx, bcy, farbe = '#f39c12', radius = 150, stufe = 1, isMini = false) {
   const spielfeld = dom.spielfeld || document.getElementById('spielfeld');
@@ -1254,20 +1248,11 @@ export function erzeugeRaketenDetonation(rcx, rcy, radius = 70) {
 export function erzeugeRauchFunken(x, y, groesse) {
   // Rauch
   if (Math.random() < 0.5) {
-    const el = document.createElement('div');
-    el.classList.add('partikel');
-    el.style.backgroundColor = '#555';
-    el.style.width = '6px';
-    el.style.height = '6px';
-    const px = x + Math.random() * groesse;
-    const py = y + Math.random() * groesse;
-    el.style.left = px + 'px';
-    el.style.top = py + 'px';
-    dom.spielfeld.appendChild(el);
-    arrays.partikelArray.push({
-      el: el,
-      x: px,
-      y: py,
+    erzeugePartikel({
+      farbe: '#555',
+      groesse: 6,
+      x: x + Math.random() * groesse,
+      y: y + Math.random() * groesse,
       vx: (Math.random() - 0.5) * 2,
       vy: -Math.random() * 2 - 1,
       leben: 1.0,
@@ -1276,19 +1261,11 @@ export function erzeugeRauchFunken(x, y, groesse) {
   }
   // Funken
   if (Math.random() < 0.3) {
-    const el = document.createElement('div');
-    el.classList.add('partikel');
-    el.style.backgroundColor = '#f1c40f';
-    el.style.boxShadow = '0 0 5px #f1c40f';
-    const px = x + Math.random() * groesse;
-    const py = y + Math.random() * groesse;
-    el.style.left = px + 'px';
-    el.style.top = py + 'px';
-    dom.spielfeld.appendChild(el);
-    arrays.partikelArray.push({
-      el: el,
-      x: px,
-      y: py,
+    erzeugePartikel({
+      farbe: '#f1c40f',
+      glow: true,
+      x: x + Math.random() * groesse,
+      y: y + Math.random() * groesse,
       vx: (Math.random() - 0.5) * 4,
       vy: -Math.random() * 4,
       leben: 1.0,
@@ -1298,16 +1275,10 @@ export function erzeugeRauchFunken(x, y, groesse) {
 }
 export function erzeugeAntriebsRauch(x, y, vy = -1.5) {
   if (Math.random() < 0.6) {
-    const el = document.createElement('div');
-    el.classList.add('partikel');
-    el.style.backgroundColor = Math.random() < 0.3 ? '#e74c3c' : '#7f8c8d';
-    el.style.width = '4px';
-    el.style.height = '4px';
-    el.style.left = x + 'px';
-    el.style.top = y + 'px';
-    dom.spielfeld.appendChild(el);
-    arrays.partikelArray.push({
-      el: el,
+    const farbe = Math.random() < 0.3 ? '#e74c3c' : '#7f8c8d';
+    erzeugePartikel({
+      farbe,
+      groesse: 4,
       x: x,
       y: y,
       vx: (Math.random() - 0.5) * 1,
@@ -1659,29 +1630,13 @@ export function lokalesSchiffModell() {
 }
 
 export function erzeugeAbgeworfenenWerfer(x, y, vx, vy, vRot) {
-  const el = document.createElement('div');
-  el.classList.add('werfer-pod', 'werfer-abgeworfen');
-  el.style.position = 'absolute';
-  el.style.left = x + 'px';
-  el.style.top = y + 'px';
-  el.style.width = '7px';
-  el.style.height = '16px';
-  el.style.zIndex = '6';
-  el.innerHTML = `
-    <div class="werfer-body" style="border-color: #e67e22; box-shadow: 0 0 8px #e67e22;">
-      <div class="werfer-nozzle" style="background:#333;"></div>
-      <div class="werfer-core" style="background:#e74c3c;"></div>
-    </div>
-  `;
-  (dom.spielfeld || document.getElementById('spielfeld')).appendChild(el);
-
   // Kleine Funken/Rauchwolke am Abreißpunkt
   for (let i = 0; i < 3; i++) {
     erzeugeRauchFunken(x, y, 8);
   }
 
-  arrays.partikelArray.push({
-    el: el,
+  erzeugePartikel({
+    sorte: 'werfer',
     x: x,
     y: y,
     vx: vx,

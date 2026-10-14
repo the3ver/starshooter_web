@@ -4,7 +4,6 @@ import * as Utils from './utils.js';
 import * as Entities from './entities.js';
 import * as Audio from './audio.js';
 import { p1Anzeige, setzeInterpolationsZiel, leiteGeschwindigkeitAb, snapshotEmpfangen } from './client.js';
-import { entferneTraktorstrahl } from './powerups.js';
 import { beendePause, verarbeitePauseEvent } from './pause.js';
 import { GAME_VERSION } from './changelog.js';
 import { PROTOKOLL_VERSION, KEYFRAME_INTERVALL, SnapshotKodierer, SnapshotDekodierer, EingabeSender } from './netzkodierung.js';
@@ -898,12 +897,13 @@ export function serializeGameState() {
             x: a.x,
             y: a.y,
             groesse: a.groesse || 30,
-            istMagma: a.istMagma || (a.istUnzerstoerbar || (a.el && a.el.classList.contains('unzerstoerbar')) ? true : false),
+            istMagma: a.istMagma || a.istUnzerstoerbar || false,
             istUnzerstoerbar: a.istUnzerstoerbar || false,
             traegtPowerup: a.traegtPowerup || false,
-            background: a.el ? a.el.style.background : null,
-            baseColor: a.el ? (a.el.dataset.baseColor || null) : null,
-            clipPath: a.clipPath || (a.el ? a.el.style.clipPath : null),
+            farbe: a.farbe,
+            farbe2: a.farbe2,
+            form: a.form ? Entities.formAlsText(a.form) : null,
+            riss: a.riss,
             rot: a.rot || 0,
             hp: a.hp,
             maxHp: a.maxHp || a.hp
@@ -915,7 +915,7 @@ export function serializeGameState() {
             hp: b.hp,
             maxHp: b.maxHp,
             groesse: b.groesse || 100,
-            typ: b.typ || 1,
+            typ: b.bossTyp || b.typ || 1,
             enrage: b.enragePhaseAktiv || false,
             ...(b.betaeubt > 0 ? { betaeubt: b.betaeubt } : {})
         })),
@@ -927,7 +927,7 @@ export function serializeGameState() {
             vy: l.vy || 15,
             width: l.width || 4,
             height: l.height || 20,
-            color: l.el ? l.el.style.backgroundColor : (l.owner === 'p2' ? '#3498db' : '#00ffff'),
+            color: l.farbe || (l.owner === 'p2' ? '#3498db' : '#00ffff'),
             owner: l.owner || 'p1'
         })),
         raketen: arrays.raketenArray.map((r) => ({
@@ -1034,17 +1034,16 @@ function synchronisiereListe(liste, datenListe, erzeuge, aktualisiere) {
     neueListe.forEach(obj => liste.push(obj));
 }
 
-// Betaeubung (Sniper-Granate) aus dem Snapshot: Feld und Klasse 'betaeubt' setzen bzw. entfernen
+// Betaeubung (Sniper-Granate) aus dem Snapshot uebernehmen (die Anzeige zeigt betaeubt > 0)
 function zeigeBetaeubung(obj, daten) {
     obj.betaeubt = daten.betaeubt > 0 ? daten.betaeubt : 0;
-    if (obj.el) obj.el.classList.toggle('betaeubt', obj.betaeubt > 0);
 }
 
 // Von der Gleve weggeschleudert: orange einfaerben und in Flugrichtung drehen (einmalig)
 function uebernehmeHarmlos(obj, daten) {
     if (!daten.harmlos || obj.harmlos) return;
     obj.harmlos = true;
-    Gleve.zeigePariert(obj.el, daten.vx, daten.vy);
+    Gleve.zeigePariert(obj, daten.vx, daten.vy);
 }
 
 // Max-Cooldown fuer den Raketen-HUD-Balken (Gleve: Dash-Cooldown)
@@ -1290,32 +1289,27 @@ export function applyGameStateSnapshot(snapshot) {
             currentIds.add(fData.id);
             let existing = arrays.feinde.find(f => f.id === fData.id);
             if (!existing) {
-                const el = document.createElement('div');
-                el.className = 'feind-schiff';
-                el.style.width = (fData.groesse || 30) + 'px';
-                el.style.height = (fData.groesse || 30) + 'px';
-                el.style.left = fData.x + 'px';
-                el.style.top = fData.y + 'px';
-                el.innerHTML = Entities.getFeindSVGHtml(fData.muster || 'normal', fData.hatSchild || false);
-                el.dataset.baseColor = Entities.getFeindColor(fData.muster || 'normal');
-                spielfeld.appendChild(el);
-                existing = {
+                const muster = fData.muster || 'normal';
+                existing = Anzeige.erzeuge({
                     id: fData.id,
-                    el: el,
                     x: fData.x,
                     y: fData.y,
                     hp: fData.hp,
                     maxHp: fData.maxHp,
                     groesse: fData.groesse || 30,
                     typ: fData.typ || 1,
-                    muster: fData.muster || 'normal'
-                };
-                setzeInterpolationsZiel(existing, el, fData.x, fData.y);
+                    muster,
+                    hatSchild: fData.hatSchild || false,
+                    schildHp: fData.schildHp || 0,
+                    farbe: Entities.getFeindColor(muster)
+                }, 'feind');
+                setzeInterpolationsZiel(existing, existing.el, fData.x, fData.y);
                 arrays.feinde.push(existing);
             } else {
                 existing.x = fData.x;
                 existing.y = fData.y;
                 existing.hp = fData.hp;
+                existing.schildHp = fData.schildHp || 0;
                 setzeInterpolationsZiel(existing, existing.el, fData.x, fData.y);
             }
             zeigeBetaeubung(existing, fData);
@@ -1335,71 +1329,35 @@ export function applyGameStateSnapshot(snapshot) {
             currentIds.add(aData.id);
             let existing = arrays.asteroiden.find(a => a.id === aData.id);
             if (!existing) {
-                const el = document.createElement('div');
-                el.className = 'asteroid';
-                if (aData.istMagma) {
-                    if (aData.istUnzerstoerbar) {
-                        el.classList.add('unzerstoerbar');
-                    }
-                    if (aData.background) {
-                        el.style.background = aData.background;
-                    } else {
-                        let c = config.magmaBasisFarben[0];
-                        el.style.background = `radial-gradient(circle at 30% 30%, ${c.a}, ${c.b})`;
-                    }
-                } else {
-                    if (aData.background) {
-                        el.style.background = aData.background;
-                    } else {
-                        let c = config.asteroidenBasisFarben[0];
-                        el.style.background = `radial-gradient(circle at 30% 30%, ${c}, #2c3e50)`;
-                    }
-                }
-                if (aData.baseColor) el.dataset.baseColor = aData.baseColor;
-                if (aData.clipPath) {
-                    el.style.clipPath = aData.clipPath;
-                } else {
-                    el.style.clipPath = Entities.generiereAsteroidPolygon();
-                }
-                el.style.width = (aData.groesse || 30) + 'px';
-                el.style.height = (aData.groesse || 30) + 'px';
-                el.style.left = aData.x + 'px';
-                el.style.top = aData.y + 'px';
-
-                let rissEl = null;
-                if (!aData.istUnzerstoerbar) {
-                    rissEl = document.createElement('div');
-                    rissEl.classList.add('riss-layer');
-                    rissEl.style.backgroundImage = `url("${config.rissMuster[0]}")`;
-                    if (aData.traegtPowerup) rissEl.style.opacity = '0.5';
-                    el.appendChild(rissEl);
-                }
-
-                spielfeld.appendChild(el);
-                existing = {
+                // Fehlende Optikdaten (aeltere Snapshots in Tests) mit den Grundfarben auffuellen
+                const grund = aData.istMagma ? config.magmaBasisFarben[0] : { a: config.asteroidenBasisFarben[0], b: '#2c3e50' };
+                existing = Anzeige.erzeuge({
                     id: aData.id,
-                    el: el,
                     x: aData.x,
                     y: aData.y,
                     groesse: aData.groesse || 30,
                     istMagma: aData.istMagma,
                     istUnzerstoerbar: aData.istUnzerstoerbar,
                     traegtPowerup: aData.traegtPowerup,
-                    rissEl: rissEl,
+                    farbe: aData.farbe || grund.a,
+                    farbe2: aData.farbe2 || grund.b,
+                    form: aData.form ? Entities.formAusText(aData.form) : Entities.generiereAsteroidForm(),
+                    riss: aData.riss || 0,
+                    hp: aData.hp,
+                    maxHp: aData.maxHp,
                     rot: aData.rot || 0
-                };
-                setzeInterpolationsZiel(existing, el, aData.x, aData.y);
+                }, 'asteroid');
+                setzeInterpolationsZiel(existing, existing.el, aData.x, aData.y);
                 arrays.asteroiden.push(existing);
             } else {
                 existing.x = aData.x;
                 existing.y = aData.y;
+                existing.hp = aData.hp;
+                existing.maxHp = aData.maxHp;
                 setzeInterpolationsZiel(existing, existing.el, aData.x, aData.y);
                 if (aData.rot) existing.rot = aData.rot;
-                if (existing.rissEl && aData.maxHp) {
-                    let basisRiss = aData.traegtPowerup ? 0.5 : 0;
-                    let schadenProzent = basisRiss + (1 - basisRiss) * (1 - Math.max(0, aData.hp) / aData.maxHp);
-                    existing.rissEl.style.opacity = schadenProzent;
-                }
+                existing.istUnzerstoerbar = aData.istUnzerstoerbar;
+                existing.traegtPowerup = aData.traegtPowerup;
             }
         });
         for (let i = arrays.asteroiden.length - 1; i >= 0; i--) {
@@ -1417,27 +1375,18 @@ export function applyGameStateSnapshot(snapshot) {
             currentIds.add(bData.id);
             let existing = arrays.bosses.find(b => b.id === bData.id);
             if (!existing) {
-                const el = document.createElement('div');
-                el.className = 'boss-schiff';
-                el.style.width = (bData.groesse || 100) + 'px';
-                el.style.height = (bData.groesse || 100) + 'px';
-                el.style.left = bData.x + 'px';
-                el.style.top = bData.y + 'px';
-                const bossFarbe = Entities.getBossColor(state.level);
-                el.innerHTML = Entities.getBossSVGHtml(bData.typ || 1, state.level);
-                el.style.filter = `drop-shadow(0 10px 20px rgba(0,0,0,0.9)) drop-shadow(0 0 15px ${bossFarbe})`;
-                spielfeld.appendChild(el);
-                existing = {
+                existing = Anzeige.erzeuge({
                     id: bData.id,
-                    el: el,
                     x: bData.x,
                     y: bData.y,
                     hp: bData.hp,
                     maxHp: bData.maxHp,
                     groesse: bData.groesse || 100,
-                    typ: bData.typ || 1
-                };
-                setzeInterpolationsZiel(existing, el, bData.x, bData.y);
+                    typ: bData.typ || 1,
+                    bossTyp: bData.typ || 1,
+                    leuchtFarbe: Entities.getBossColor(state.level)
+                }, 'boss');
+                setzeInterpolationsZiel(existing, existing.el, bData.x, bData.y);
                 arrays.bosses.push(existing);
             } else {
                 existing.x = bData.x;
@@ -1457,29 +1406,18 @@ export function applyGameStateSnapshot(snapshot) {
 
     // 8. Replicate Lasers
     synchronisiereListe(arrays.laserArray, snapshot.laser, lData => {
-        const el = document.createElement('div');
-        el.classList.add('laser-projektil');
-        if (lData.owner === 'p2') el.classList.add('laser-p2');
-        el.style.backgroundColor = lData.color || (lData.owner === 'p2' ? '#3498db' : '#00ffff');
-        el.style.boxShadow = `0 0 10px ${lData.color || '#00ffff'}`;
-        el.style.width = (lData.width || 4) + 'px';
-        el.style.height = (lData.height || 20) + 'px';
-        el.style.left = lData.x + 'px';
-        el.style.top = lData.y + 'px';
-        if (lData.vx && lData.vx !== 0) {
-            let winkel = Math.atan2(-15, lData.vx) * 180 / Math.PI;
-            el.style.transform = `rotate(${winkel + 90}deg)`;
-        }
-        spielfeld.appendChild(el);
-        return {
+        return Anzeige.erzeuge({
             id: lData.id,
-            el: el,
             x: lData.x,
             y: lData.y,
             vx: lData.vx || 0,
             vy: lData.vy || 15,
+            width: lData.width || 4,
+            height: lData.height || 20,
+            farbe: lData.color || (lData.owner === 'p2' ? '#3498db' : '#00ffff'),
+            rot: lData.vx ? Math.atan2(-15, lData.vx) * 180 / Math.PI + 90 : undefined,
             owner: lData.owner
-        };
+        }, 'laser');
     }, (obj, lData) => {
         obj.x = lData.x;
         obj.y = lData.y;
@@ -1490,32 +1428,17 @@ export function applyGameStateSnapshot(snapshot) {
 
     // 9. Replicate Rockets
     synchronisiereListe(arrays.raketenArray, snapshot.raketen, rData => {
-        const el = document.createElement('div');
-        el.classList.add('raketen-projektil');
-        if (rData.stufe >= 2) el.classList.add('rakete-lvl-2');
-        if (rData.homing) el.classList.add('rakete-homing');
-        if (rData.owner === 'p2') el.classList.add('rakete-p2');
-        el.innerHTML = `
-            <div class="rakete-sensor"></div>
-            <div class="rakete-canards"></div>
-            <div class="rakete-rumpf"></div>
-            <div class="rakete-fluegel"></div>
-            <div class="rakete-feuer"></div>
-        `;
-        el.style.left = rData.x + 'px';
-        el.style.top = rData.y + 'px';
-        el.style.transform = `rotate(${rData.rot || 0}deg)`;
-        spielfeld.appendChild(el);
-        return {
+        return Anzeige.erzeuge({
             id: rData.id,
-            el: el,
             x: rData.x,
             y: rData.y,
             rot: rData.rot || 0,
             owner: rData.owner,
+            stufe: rData.stufe || 1,
+            homing: rData.homing || false,
             snapX: rData.x,
             snapY: rData.y
-        };
+        }, 'rakete');
     }, (obj, rData) => {
         leiteGeschwindigkeitAb(obj, rData.x, rData.y);
         obj.x = rData.x;
@@ -1525,31 +1448,17 @@ export function applyGameStateSnapshot(snapshot) {
 
     // 10. Replicate Bombs
     synchronisiereListe(arrays.bombenArray, snapshot.bomben, bData => {
-        const el = document.createElement('div');
-        el.classList.add('bomben-projektil', `bombe-lvl-${bData.stufe || 1}`);
-        if (bData.isMini) el.classList.add('bombe-mini');
-        if (bData.owner === 'p2') el.classList.add('bombe-p2');
-        el.innerHTML = `
-            <div class="bombe-aura"></div>
-            <div class="bombe-body"></div>
-            <div class="bombe-licht" style="top: 4px;"></div>
-            <div class="bombe-licht" style="top: 13px;"></div>
-            <div class="bombe-licht" style="top: 22px;"></div>
-        `;
-        el.style.left = bData.x + 'px';
-        el.style.top = bData.y + 'px';
-        el.style.transform = `rotate(${bData.rot || 0}deg)`;
-        spielfeld.appendChild(el);
-        return {
+        return Anzeige.erzeuge({
             id: bData.id,
-            el: el,
             x: bData.x,
             y: bData.y,
             rot: bData.rot || 0,
             owner: bData.owner,
+            stufe: bData.stufe || 1,
+            isMini: bData.isMini || false,
             snapX: bData.x,
             snapY: bData.y
-        };
+        }, 'bombe');
     }, (obj, bData) => {
         leiteGeschwindigkeitAb(obj, bData.x, bData.y);
         obj.x = bData.x;
@@ -1559,9 +1468,7 @@ export function applyGameStateSnapshot(snapshot) {
 
     // Klingenwellen der Gleve (keine Extrapolation, kommen mit jedem Snapshot)
     synchronisiereListe(arrays.gleveWellen, snapshot.gleveWellen, wData => {
-        const w = { id: wData.id, x: wData.x, y: wData.y, startY: wData.y, breite: wData.breite, hoehe: Gleve.WELLE_HOEHE, owner: wData.owner, el: null };
-        w.el = Gleve.erzeugeWellenElement(w, wData.owner === 'p2' ? state.p2 : state);
-        return w;
+        return Anzeige.erzeuge({ id: wData.id, x: wData.x, y: wData.y, startY: wData.y, breite: wData.breite, hoehe: Gleve.WELLE_HOEHE, owner: wData.owner, farbe: Gleve.welleFarbe(wData.owner) }, 'gleveWelle');
     }, (obj, wData) => {
         obj.x = wData.x;
         obj.y = wData.y;
@@ -1573,23 +1480,14 @@ export function applyGameStateSnapshot(snapshot) {
 
     // 11. Replicate Enemy Lasers
     synchronisiereListe(arrays.feindLaserArray, snapshot.feindLaser, flData => {
-        const el = document.createElement('div');
-        el.classList.add('feind-laser');
-        el.style.left = flData.x + 'px';
-        el.style.top = flData.y + 'px';
-        if (flData.vx && flData.vx !== 0) {
-            let winkel = Math.atan2(flData.vy || 7, flData.vx) * 180 / Math.PI;
-            el.style.transform = `rotate(${winkel - 90}deg)`;
-        }
-        spielfeld.appendChild(el);
-        const obj = {
+        const obj = Anzeige.erzeuge({
             id: flData.id,
-            el: el,
             x: flData.x,
             y: flData.y,
             vx: flData.vx,
-            vy: flData.vy
-        };
+            vy: flData.vy,
+            rot: flData.vx ? Math.atan2(flData.vy || 7, flData.vx) * 180 / Math.PI - 90 : undefined
+        }, 'feindLaser');
         uebernehmeHarmlos(obj, flData);
         return obj;
     }, (obj, flData) => {
@@ -1603,12 +1501,7 @@ export function applyGameStateSnapshot(snapshot) {
 
     // 11b. Replicate Hack-Projektile
     synchronisiereListe(arrays.hackProjektilArray, snapshot.hackProjektile, hpData => {
-        const el = document.createElement('div');
-        el.classList.add('hack-projektil');
-        el.style.left = hpData.x + 'px';
-        el.style.top = hpData.y + 'px';
-        spielfeld.appendChild(el);
-        const obj = { id: hpData.id, el: el, x: hpData.x, y: hpData.y, vx: 0, vy: 0, width: 12, height: 12, snapX: hpData.x, snapY: hpData.y };
+        const obj = Anzeige.erzeuge({ id: hpData.id, x: hpData.x, y: hpData.y, vx: 0, vy: 0, width: 12, height: 12, snapX: hpData.x, snapY: hpData.y }, 'hackProjektil');
         uebernehmeHarmlos(obj, hpData);
         return obj;
     }, (obj, hpData) => {
@@ -1620,23 +1513,14 @@ export function applyGameStateSnapshot(snapshot) {
 
     // 12. Replicate Boss Lasers
     synchronisiereListe(arrays.bossLaserArray, snapshot.bossLaser, blData => {
-        const el = document.createElement('div');
-        el.classList.add('boss-laser');
-        el.style.left = blData.x + 'px';
-        el.style.top = blData.y + 'px';
-        if (blData.vx && blData.vx !== 0) {
-            let winkel = Math.atan2(blData.vy || 6, blData.vx) * 180 / Math.PI;
-            el.style.transform = `rotate(${winkel - 90}deg)`;
-        }
-        spielfeld.appendChild(el);
-        const obj = {
+        const obj = Anzeige.erzeuge({
             id: blData.id,
-            el: el,
             x: blData.x,
             y: blData.y,
             vx: blData.vx,
-            vy: blData.vy
-        };
+            vy: blData.vy,
+            rot: blData.vx ? Math.atan2(blData.vy || 6, blData.vx) * 180 / Math.PI - 90 : undefined
+        }, 'bossLaser');
         uebernehmeHarmlos(obj, blData);
         return obj;
     }, (obj, blData) => {
@@ -1650,31 +1534,14 @@ export function applyGameStateSnapshot(snapshot) {
 
     // 13. Replicate Boss Rockets
     synchronisiereListe(arrays.bossRaketenArray, snapshot.bossRaketen, brData => {
-        const el = document.createElement('div');
-        el.classList.add('boss-rakete');
-        el.innerHTML = `
-            <svg viewBox="0 0 14 24" style="width: 100%; height: 100%;">
-                <path d="M7 0 L12 8 L11 20 L3 20 L2 8 Z" fill="#c0392b" stroke="#e74c3c" stroke-width="1"/>
-                <polygon points="7,1 11,8 3,8" fill="#e67e22"/>
-                <polygon points="2,14 0,22 3,20" fill="#d35400"/>
-                <polygon points="12,14 14,22 11,20" fill="#d35400"/>
-                <circle cx="7" cy="11" r="1.5" fill="#f1c40f"/>
-            </svg>
-            <div class="boss-rakete-flame"></div>
-        `;
-        el.style.left = brData.x + 'px';
-        el.style.top = brData.y + 'px';
-        el.style.transform = `rotate(${brData.rot || 0}deg)`;
-        spielfeld.appendChild(el);
-        return {
+        return Anzeige.erzeuge({
             id: brData.id,
-            el: el,
             x: brData.x,
             y: brData.y,
             vx: brData.vx || 0,
             vy: brData.vy || 0,
             rot: brData.rot || 0
-        };
+        }, 'bossRakete');
     }, (obj, brData) => {
         obj.x = brData.x;
         obj.y = brData.y;
@@ -1685,25 +1552,14 @@ export function applyGameStateSnapshot(snapshot) {
 
     // 14. Replicate Boss Bombs
     synchronisiereListe(arrays.bossBombenArray, snapshot.bossBomben, bbData => {
-        const el = document.createElement('div');
-        el.classList.add('boss-bombe');
-        el.innerHTML = `
-            <div class="boss-bombe-aura"></div>
-            <div class="boss-bombe-body"></div>
-            <div class="boss-bombe-core"></div>
-        `;
-        el.style.left = bbData.x + 'px';
-        el.style.top = bbData.y + 'px';
-        spielfeld.appendChild(el);
-        return {
+        return Anzeige.erzeuge({
             id: bbData.id,
-            el: el,
             x: bbData.x,
             y: bbData.y,
             groesse: bbData.groesse || 26,
             snapX: bbData.x,
             snapY: bbData.y
-        };
+        }, 'bossBombe');
     }, (obj, bbData) => {
         leiteGeschwindigkeitAb(obj, bbData.x, bbData.y);
         obj.x = bbData.x;
@@ -1717,40 +1573,28 @@ export function applyGameStateSnapshot(snapshot) {
             currentIds.add(pData.id);
             let existing = arrays.powerups.find(p => p.id === pData.id);
             if (!existing) {
-                const el = document.createElement('div');
-                Entities.setupPowerupVisuals(el, pData.type, pData.owner);
-                el.style.left = pData.x + 'px';
-                el.style.top = pData.y + 'px';
-                spielfeld.appendChild(el);
-                existing = {
+                existing = Anzeige.erzeuge({
                     id: pData.id,
-                    el: el,
                     x: pData.x,
                     y: pData.y,
                     groesse: 24,
                     type: pData.type,
+                    farbe: Entities.powerupFarbe(pData.type),
                     owner: pData.owner,
                     towedBy: null
-                };
-                setzeInterpolationsZiel(existing, el, pData.x, pData.y);
+                }, 'powerup');
+                setzeInterpolationsZiel(existing, existing.el, pData.x, pData.y);
                 arrays.powerups.push(existing);
             } else {
                 existing.x = pData.x;
                 existing.y = pData.y;
                 setzeInterpolationsZiel(existing, existing.el, pData.x, pData.y);
             }
-            // Schlepp-Zustand des Hosts uebernehmen; den Strahl zeichnet clientSchritt
-            const towedBy = pData.towedBy || null;
-            if (existing.towedBy !== towedBy) {
-                entferneTraktorstrahl(existing);
-                existing.towedBy = towedBy;
-                existing.el.classList.remove('powerup-towed', 'powerup-towed-p1', 'powerup-towed-p2');
-                if (towedBy) existing.el.classList.add('powerup-towed', `powerup-towed-${towedBy}`);
-            }
+            // Schlepp-Zustand des Hosts uebernehmen; Strahl-Start setzt clientSchritt, zeichnen tut die Anzeige
+            existing.towedBy = pData.towedBy || null;
         });
         for (let i = arrays.powerups.length - 1; i >= 0; i--) {
             if (!currentIds.has(arrays.powerups[i].id)) {
-                entferneTraktorstrahl(arrays.powerups[i]);
                 Anzeige.entferne(arrays.powerups[i]);
                 arrays.powerups.splice(i, 1);
             }

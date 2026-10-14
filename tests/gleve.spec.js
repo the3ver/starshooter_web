@@ -939,7 +939,9 @@ test.describe('Gleve-MR Laser-Sweep (Laser-Taste)', () => {
         bossLaser: arrays.bossLaserArray.length,
         spielerLaser: arrays.laserArray.length,
         owner: l && l.owner, schaden: l && l.schaden, vy: l && l.vy, vx: l && l.vx,
-        farbe: l && l.el.style.backgroundColor, gleichesEl: l && l.el === bl.el
+        farbe: l && l.el.style.backgroundColor,
+        // Der Boss-Laser verschwindet, an seiner Stelle entsteht ein zurueckgeworfener Spielerlaser
+        reflektiertEl: l && l.el.classList.contains('gleve-reflektiert') && !bl.el.isConnected
       };
       T.schritte(30);
       const ergebnis = { schaden: hpVorher - ziel.hp, spielerLaser: arrays.laserArray.length, leben: state.leben };
@@ -970,7 +972,7 @@ test.describe('Gleve-MR Laser-Sweep (Laser-Taste)', () => {
     expect(r.zurueck.vy).toBe(10);
     expect(r.zurueck.vx).toBe(0);
     expect(r.zurueck.farbe).toBe('rgb(230, 126, 34)');
-    expect(r.zurueck.gleichesEl).toBe(true);
+    expect(r.zurueck.reflektiertEl).toBe(true);
     expect(r.ergebnis.schaden).toBe(15);
     expect(r.ergebnis.spielerLaser).toBe(0);
     expect(r.ergebnis.leben).toBe(3);

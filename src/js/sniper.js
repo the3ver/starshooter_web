@@ -12,6 +12,7 @@ import * as Audio from './audio.js';
 import * as Hack from './hack.js';
 import * as Network from './network.js';
 import { schadeZiel, zeigeLadungenHud } from './gleve.js';
+import * as Anzeige from './anzeige.js';
 
 export const FADENKREUZ_ABSTAND = 220; // px ueber der Schiffsoberkante
 export const SCHUSS_ENERGIE = 6;
@@ -368,10 +369,6 @@ export function feuereSchuss(pState, pKey, ladung = 0) {
     erzeugeEinschlag(pState, m.x, m.y, anteil);
     if (voll && (z.schildHp || 0) > 0) {
       z.schildHp = 0;
-      if (z.schildEl) {
-        z.schildEl.remove();
-        z.schildEl = null;
-      }
     }
     schadeZiel(z, schaden, pKey);
   }
@@ -537,7 +534,6 @@ function explodiereGranate(g) {
     if (z.istFeind || z.istBoss) {
       const dauer = z.istBoss ? Math.round(w.betaeubung / 2) : w.betaeubung;
       z.betaeubt = Math.max(z.betaeubt || 0, dauer);
-      if (z.el) z.el.classList.add('betaeubt');
     }
   }
 
@@ -614,7 +610,6 @@ export function loeseEmpAus(pState, pKey) {
     if (f.hp !== undefined && f.hp <= 0) continue;
     if (!boxSchneidetKreis(zielBox(f), m.x, m.y, r)) continue;
     f.betaeubt = Math.max(f.betaeubt || 0, EMP_BETAEUBUNG);
-    if (f.el) f.el.classList.add('betaeubt');
   }
   if (state.gameMode === 'online' && state.network && state.network.isHost) {
     Network.sendNetworkEvent({ type: 'emp_ausgeloest', x: Math.round(m.x * 10) / 10, y: Math.round(m.y * 10) / 10, radius: r, owner: pKey });

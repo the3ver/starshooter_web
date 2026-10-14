@@ -5,6 +5,7 @@ import * as Entities from './entities.js';
 import * as Audio from './audio.js';
 import { naechsterSpielerMitte, tickBetaeubung } from './gegner.js';
 import * as Anzeige from './anzeige.js';
+import { erzeugePartikel } from './partikel.js';
 
 
 const BOSS_HACK_AB_LEVEL = 5;
@@ -17,12 +18,12 @@ export function aktualisiereBosse() {
     if (!b) break;
     const betaeubt = tickBetaeubung(b); // Sniper-Granate: keine Bewegung, keine Angriffe
     if (b.phase === 'einzug') {
-      if (!b.el.classList.contains('repulsor-aktiv')) b.el.classList.add('repulsor-aktiv');
+      b.repulsorAktiv = true;
       b.y += b.vy;
       if (b.y >= 20) {
         b.y = 20;
         b.phase = 'kampf';
-        b.el.classList.remove('repulsor-aktiv');
+        b.repulsorAktiv = false;
       }
 
       // Repulsor auf Projektile anwenden
@@ -308,18 +309,11 @@ export function aktualisiereBossRaketen() {
 
     // Partikel-Schweif
     if (Math.random() < 0.4) {
-      const pEl = document.createElement('div');
-      pEl.classList.add('partikel');
-      pEl.style.backgroundColor = Math.random() < 0.6 ? '#e74c3c' : '#f39c12';
-      let px = br.x + br.width / 2;
-      let py = br.y + br.height;
-      pEl.style.left = px + 'px';
-      pEl.style.top = py + 'px';
-      dom.spielfeld.appendChild(pEl);
-      arrays.partikelArray.push({
-        el: pEl,
-        x: px,
-        y: py,
+      const farbe = Math.random() < 0.6 ? '#e74c3c' : '#f39c12';
+      erzeugePartikel({
+        farbe,
+        x: br.x + br.width / 2,
+        y: br.y + br.height,
         vx: (Math.random() - 0.5) * 0.4,
         vy: 0.5 + Math.random() * 0.5,
         leben: 0.8,

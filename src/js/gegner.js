@@ -128,11 +128,10 @@ export function aktualisiereAsteroiden() {
 }
 
 // Betaeubung (Sniper-Granate): zaehlt pro Schritt herunter; true = das Ziel ist in diesem Schritt noch betaeubt
-// (keine Bewegung, kein Schiessen, keine Hacks, keine Boss-Angriffe). Die Klasse 'betaeubt' faellt mit dem letzten Schritt weg.
+// (keine Bewegung, kein Schiessen, keine Hacks, keine Boss-Angriffe). Die Anzeige zeigt betaeubt > 0 an.
 export function tickBetaeubung(z) {
   if (!(z.betaeubt > 0)) return false;
   z.betaeubt--;
-  if (z.betaeubt <= 0 && z.el) z.el.classList.remove('betaeubt');
   return true;
 }
 
@@ -177,10 +176,7 @@ export function aktualisiereFeinde() {
           f.phase = 'attack';
           f.vy = 2;
           f.schussTimer = 9999;
-          
-          let flames = f.el.querySelectorAll('.feind-flame');
-          flames.forEach(fl => fl.style.display = 'block');
-          
+                    
           const ziel = naechsterSpielerMitte(f);
           Entities.erzeugeFeindLaser(f.x + f.groesse / 2 - 2, f.y + f.groesse, ziel.x, ziel.y);
         } else {

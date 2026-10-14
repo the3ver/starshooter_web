@@ -12,6 +12,7 @@ import * as Audio from './audio.js';
 import * as Hack from './hack.js';
 import * as Entities from './entities.js';
 import * as Anzeige from './anzeige.js';
+import { erzeugePartikel } from './partikel.js';
 
 export const DASH_FRAMES = 8;
 export const DASH_NACHLAUF_FRAMES = 10; // Unverwundbar nach dem Dash
@@ -176,24 +177,11 @@ export function schadeZiel(z, schaden, pKey) {
     z.schildHp -= schaden;
     if (z.schildHp <= 0) {
       z.schildHp = 0;
-      if (z.schildEl) {
-        z.schildEl.remove();
-        z.schildEl = null;
-      }
     }
     return false;
   }
   z.hp -= schaden;
-  if (z.rissEl) {
-    let basisRiss = z.traegtPowerup ? 0.5 : 0;
-    z.rissEl.style.opacity = basisRiss + (1 - basisRiss) * (1 - z.hp / z.maxHp);
-  }
-  if (z.el) {
-    z.el.style.filter = 'brightness(2.5)';
-    setTimeout(() => {
-      if (z.el) z.el.style.filter = '';
-    }, 50);
-  }
+  Anzeige.blitze(z, 2.5);
   // Boss-Raketen und -Bomben raeumen sich bei hp <= 0 in boss.js selbst ab
   if (z.hp <= 0 && (arrays.feinde.includes(z) || arrays.asteroiden.includes(z) || arrays.bosses.includes(z))) {
     Utils.zerstoereZiel(z, pKey);
@@ -215,12 +203,6 @@ function belohneKill(pState, z) {
 function knackeMagma(z) {
   z.istUnzerstoerbar = false;
   z.traegtPowerup = true;
-  z.el.classList.remove('unzerstoerbar');
-  if (!z.rissEl) {
-    z.rissEl = document.createElement('div');
-    z.rissEl.classList.add('riss-layer');
-    z.el.appendChild(z.rissEl);
-  }
 }
 
 function ueberlappt(pState, z, padding = 0) {
@@ -500,7 +482,7 @@ export function zeigeGleveZustand(pState, pKey) {
 export const SWEEP_FRAMES = 10;
 const SWEEP_UMKEHR_TEMPO = 10; // zurueckgeworfene Geschosse fliegen mit vy 10 nach oben
 const SWEEP_UMKEHR_SCHADEN = 15;
-const SWEEP_PARADE_FARBE = '#e67e22';
+export const SWEEP_PARADE_FARBE = '#e67e22';
 
 // Werte pro Stufe (laserStufe 1-5). Bogen in Grad, symmetrisch um die Senkrechte;
 // Takt = Frames von einem Sweep-Start bis zum naechsten, solange die Taste gehalten wird
@@ -661,12 +643,6 @@ function sweepParade(pState, pKey, o, winkelA, winkelB, laenge) {
   }
 }
 
-function faerbeOrange(el) {
-  if (!el) return;
-  el.style.backgroundColor = SWEEP_PARADE_FARBE;
-  el.style.boxShadow = `0 0 10px ${SWEEP_PARADE_FARBE}`;
-}
-
 // Seitlich weg von der Schiffsmitte, harmlos (gegner.js / boss.js pruefen `harmlos`), verlaesst das Feld
 function schleudereWeg(p, o) {
   const b = zielBox(p);
@@ -676,34 +652,24 @@ function schleudereWeg(p, o) {
   p.lenkZeit = 0; // Hack-Projektile lenken nicht mehr nach
   p.vx = seite * 9;
   p.vy = -1.5;
-  zeigePariert(p.el, p.vx, p.vy);
+  zeigePariert(p, p.vx, p.vy);
 }
 
-// Darstellung eines weggeschleuderten Geschosses (auch beim Online-Client aus dem harmlos-Flag)
-export function zeigePariert(el, vx, vy) {
-  if (!el) return;
-  el.classList.add('gleve-pariert');
-  faerbeOrange(el);
+// Weggeschleudertes Geschoss (auch beim Online-Client aus dem harmlos-Flag): in Flugrichtung drehen.
+// Die Anzeige faerbt Geschosse mit harmlos orange.
+export function zeigePariert(p, vx, vy) {
   if (Number.isFinite(vx) && Number.isFinite(vy) && (vx || vy)) {
-    el.style.transform = `rotate(${Math.atan2(vy, vx) * 180 / Math.PI - 90}deg)`;
+    p.rot = Math.atan2(vy, vx) * 180 / Math.PI - 90;
   }
 }
 
 // Zurueckgeworfen: wird zum Spieler-Projektil in arrays.laserArray (Bewegung y -= vy)
 function wirfZurueck(p, pKey) {
-  const el = p.el || document.createElement('div');
-  el.className = 'laser-projektil gleve-reflektiert';
-  if (pKey === 'p2') el.classList.add('laser-p2');
-  faerbeOrange(el);
-  el.style.width = (p.width || 4) + 'px';
-  el.style.height = (p.height || 15) + 'px';
-  el.style.left = p.x + 'px';
-  el.style.top = p.y + 'px';
-  el.style.transform = 'rotate(0deg)';
-  if (!el.isConnected) dom.spielfeld.appendChild(el);
-  arrays.laserArray.push({
+  Anzeige.entferne(p);
+  arrays.laserArray.push(Anzeige.erzeuge({
     id: Entities.neueId('l'),
-    el,
+    farbe: SWEEP_PARADE_FARBE,
+    rot: 0,
     x: p.x,
     y: p.y,
     vx: 0,
@@ -713,7 +679,7 @@ function wirfZurueck(p, pKey) {
     schaden: SWEEP_UMKEHR_SCHADEN,
     owner: pKey,
     reflektiert: true
-  });
+  }, 'laser'));
 }
 
 // Pro Simulationsschritt fuer eine Gleve aufrufen (aus waffen.js; gestartet wird in steuereSweep)
@@ -774,25 +740,14 @@ function starteWelle(pState, pKey, o, laenge) {
     schritte: 0,
     schaden: sweepSchaden(pState) * WELLE_SCHADEN_ANTEIL,
     treffer: [],
-    el: null
+    farbe: schiffFarbe(pState)
   };
-  w.el = erzeugeWellenElement(w, pState);
-  arrays.gleveWellen.push(w);
+  arrays.gleveWellen.push(Anzeige.erzeuge(w, 'gleveWelle'));
 }
 
-// Darstellung (Host und Client): weisse Sichel mit Glow in Schiffsfarbe
-export function erzeugeWellenElement(w, pState) {
-  const farbe = schiffFarbe(pState);
-  const el = document.createElement('div');
-  el.classList.add('gleve-welle');
-  el.style.width = w.breite + 'px';
-  el.style.height = w.hoehe + 'px';
-  el.style.boxShadow = `0 -2px 6px #ffffff, 0 -3px 12px ${farbe}`;
-  el.style.borderTopColor = '#ffffff';
-  el.style.filter = `drop-shadow(0 0 4px ${farbe})`;
-  dom.spielfeld.appendChild(el);
-  w.el = el;
-  return el;
+// Glow-Farbe einer Klingenwelle (Schiffsfarbe des Besitzers, auch fuer den Online-Client)
+export function welleFarbe(pKey) {
+  return schiffFarbe(pKey === 'p2' ? state.p2 : state);
 }
 
 // Pro Simulationsschritt (Host/lokal, aus waffen.js): Wellen bewegen, Ziele einmal treffen, am Ende entfernen.
@@ -858,18 +813,7 @@ function erzeugeFaecherSpur(pState) {
   const laenge = sweepLaenge(pState);
   const farbe = schiffFarbe(pState);
   const bogen = sweepBogen(pState);
-  const el = document.createElement('div');
-  el.classList.add('gleve-faecher');
-  el.style.width = (laenge * 2) + 'px';
-  el.style.height = laenge + 'px';
-  el.style.borderRadius = `${laenge}px ${laenge}px 0 0`;
-  el.style.background = `conic-gradient(from ${-bogen / 2}deg at 50% 100%, ${farbe}99 0deg, rgba(255, 255, 255, 0.6) ${bogen / 2}deg, ${farbe}99 ${bogen}deg, transparent ${bogen}deg)`;
-  const x = o.x - laenge;
-  const y = o.y - laenge;
-  el.style.left = x + 'px';
-  el.style.top = y + 'px';
-  dom.spielfeld.appendChild(el);
-  arrays.partikelArray.push({ el, x, y, vx: 0, vy: 0, leben: 0.8, zerfall: 0.08 });
+  erzeugePartikel({ sorte: 'gleveFaecher', farbe, laenge, bogen, x: o.x - laenge, y: o.y - laenge, vx: 0, vy: 0, leben: 0.8, zerfall: 0.08 });
 }
 
 function erzeugeParadeFunken(p) {
@@ -883,39 +827,20 @@ function erzeugeParadeFunken(p) {
 function erzeugeStartBlitz(pState) {
   const cx = pState.x + config.spielerGroesse / 2;
   const cy = pState.y + config.spielerGroesse / 2;
-  const el = document.createElement('div');
-  el.classList.add('gleve-blitz');
-  el.style.left = (cx - 20) + 'px';
-  el.style.top = (cy - 20) + 'px';
-  dom.spielfeld.appendChild(el);
-  arrays.partikelArray.push({ el, x: cx - 20, y: cy - 20, vx: 0, vy: 0, leben: 1.0, zerfall: 0.2 });
+  erzeugePartikel({ sorte: 'gleveBlitz', x: cx - 20, y: cy - 20, vx: 0, vy: 0, leben: 1.0, zerfall: 0.2 });
   Utils.erzeugeExplosion(cx, cy, '#ffffff', 6);
 }
 
 // Nachbild in Schiffsfarbe plus Streifen-Partikel entlang der Strecke
 function erzeugeNachbild(pState) {
   const farbe = schiffFarbe(pState);
-  const el = document.createElement('div');
-  el.classList.add('gleve-nachbild');
-  el.style.backgroundColor = farbe;
-  el.style.left = pState.x + 'px';
-  el.style.top = pState.y + 'px';
-  dom.spielfeld.appendChild(el);
-  arrays.partikelArray.push({ el, x: pState.x, y: pState.y, vx: 0, vy: 0, leben: 0.7, zerfall: 0.08 });
+  erzeugePartikel({ sorte: 'gleveNachbild', farbe, x: pState.x, y: pState.y, vx: 0, vy: 0, leben: 0.7, zerfall: 0.08 });
 
   for (let i = 0; i < 2; i++) {
-    const pEl = document.createElement('div');
-    pEl.classList.add('partikel');
-    pEl.style.backgroundColor = i === 0 ? farbe : '#ffffff';
-    const px = pState.x + 15 + (Math.random() * 16 - 8);
-    const py = pState.y + 15 + (Math.random() * 16 - 8);
-    pEl.style.left = px + 'px';
-    pEl.style.top = py + 'px';
-    dom.spielfeld.appendChild(pEl);
-    arrays.partikelArray.push({
-      el: pEl,
-      x: px,
-      y: py,
+    erzeugePartikel({
+      farbe: i === 0 ? farbe : '#ffffff',
+      x: pState.x + 15 + (Math.random() * 16 - 8),
+      y: pState.y + 15 + (Math.random() * 16 - 8),
       vx: -pState.gleveDashVx * 0.15,
       vy: -pState.gleveDashVy * 0.15,
       leben: 1.0,

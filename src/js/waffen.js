@@ -9,6 +9,7 @@ import * as Gleve from './gleve.js';
 import * as Viper from './viper.js';
 import * as Sniper from './sniper.js';
 import * as Anzeige from './anzeige.js';
+import { erzeugePartikel } from './partikel.js';
 
 
 export function versteckeAlleLaser() {
@@ -84,25 +85,11 @@ function feuerLaserFuerSpieler(pKey, pState, isFiring) {
       }
     }
     strahlenDef.forEach(st => {
-      const el = document.createElement('div');
-      el.classList.add('laser-projektil');
-      if (pKey === 'p2') el.classList.add('laser-p2');
-      el.style.backgroundColor = st.color;
-      el.style.boxShadow = `0 0 10px ${st.color}`;
-      el.style.width = st.width + 'px';
-      el.style.height = '20px';
-      el.style.left = pState.x + st.offsetX + 'px';
-      el.style.top = pState.y + 'px';
-
-      // Rotiere den Laser leicht, wenn er seitlich fliegt
-      if (st.vx !== 0) {
-        let winkel = Math.atan2(-15, st.vx) * 180 / Math.PI;
-        el.style.transform = `rotate(${winkel + 90}deg)`;
-      }
-      dom.spielfeld.appendChild(el);
-      arrays.laserArray.push({
+      arrays.laserArray.push(Anzeige.erzeuge({
         id: Entities.neueId('l'),
-        el: el,
+        // Seitlich fliegende Laser leicht gedreht
+        rot: st.vx !== 0 ? Math.atan2(-15, st.vx) * 180 / Math.PI + 90 : undefined,
+        farbe: st.color,
         x: pState.x + st.offsetX,
         y: pState.y,
         vx: st.vx,
@@ -112,7 +99,7 @@ function feuerLaserFuerSpieler(pKey, pState, isFiring) {
         schaden: grundSchaden,
         owner: pKey,
         durchschlag: pState.laserDurchschlag || Viper.istOverdrive(pState)
-      });
+      }, 'laser'));
     });
   }
 }
@@ -244,27 +231,11 @@ function feuerRaketenFuerSpieler(pKey, pState) {
       }];
     }
     offsets.forEach(off => {
-      const el = document.createElement('div');
-      el.classList.add('raketen-projektil');
-      if (pState.raketenStufe >= 2) el.classList.add('rakete-lvl-2');
-      if (off.homing) el.classList.add('rakete-homing');
-      if (pKey === 'p2') el.classList.add('rakete-p2');
-      el.innerHTML = `
-                          <div class="rakete-sensor"></div>
-                          <div class="rakete-canards"></div>
-                          <div class="rakete-rumpf"></div>
-                          <div class="rakete-fluegel"></div>
-                          <div class="rakete-feuer"></div>
-                      `;
-      el.style.left = pState.x + off.ox + 'px';
-      el.style.top = pState.y + 'px';
       let vx = off.ejectVx + shipVx * 0.4;
-      let winkel = Math.atan2(-initVy, vx) * 180 / Math.PI;
-      el.style.transform = `rotate(${winkel + 90}deg)`;
-      dom.spielfeld.appendChild(el);
-      arrays.raketenArray.push({
+      arrays.raketenArray.push(Anzeige.erzeuge({
         id: Entities.neueId('r'),
-        el: el,
+        rot: Math.atan2(-initVy, vx) * 180 / Math.PI + 90,
+        stufe: pState.raketenStufe,
         x: pState.x + off.ox,
         y: pState.y,
         vx: vx,
@@ -275,7 +246,7 @@ function feuerRaketenFuerSpieler(pKey, pState) {
         owner: pKey,
         age: 0,
         detoniert: false
-      });
+      }, 'rakete'));
     });
   }
 }
@@ -323,31 +294,12 @@ function wirfBombeFuerSpieler(pKey, pState) {
     if (pKey === 'p2' && state.p2) state.p2.networkFireBombe = false;
     pState.bombenCooldown = maxBombenCd;
     Audio.playBomb();
-    const el = document.createElement('div');
-    el.classList.add('bomben-projektil', `bombe-lvl-${pState.bombenStufe}`);
-    if (pKey === 'p2') el.classList.add('bombe-p2');
-    el.innerHTML = `
-                      <div class="bombe-aura"></div>
-                      <div class="bombe-body"></div>
-                      <div class="bombe-licht" style="top: 4px;"></div>
-                      <div class="bombe-licht" style="top: 13px;"></div>
-                      <div class="bombe-licht" style="top: 22px;"></div>
-                  `;
-    el.style.left = pState.x + 8 + 'px';
-    el.style.top = pState.y + 'px';
-
-    // Alle Lichter animieren
-    Array.from(el.querySelectorAll('.bombe-licht')).forEach(l => {
-      l.style.animation = 'bombeBlink 1s infinite alternate';
-    });
-    dom.spielfeld.appendChild(el);
     let bSchaden = 100 + pState.bombenStufe * 50;
     let bRadius = 150 + pState.bombenStufe * 50;
     const stufeColors = { 1: '#e74c3c', 2: '#f39c12', 3: '#9b59b6', 4: '#00ffff', 5: '#f1c40f' };
     const stufeSpeeds = { 1: 1.5, 2: 1.8, 3: 2.0, 4: 2.3, 5: 2.6 };
-    arrays.bombenArray.push({
+    arrays.bombenArray.push(Anzeige.erzeuge({
       id: Entities.neueId('b'),
-      el: el,
       x: pState.x + 8,
       y: pState.y,
       targetX: config.spielfeldBreite / 2 - 7,
@@ -363,7 +315,7 @@ function wirfBombeFuerSpieler(pKey, pState) {
       isMini: false,
       beepTimer: 999,
       delayFrames: 0
-    });
+    }, 'bombe'));
   }
 }
 
@@ -422,22 +374,10 @@ export function aktualisiereWaffen(laserAktiv, laserAktivP2) {
           target.schildHp -= 1.5;
           if (target.schildHp <= 0) {
             target.schildHp = 0;
-            if (target.schildEl) {
-              target.schildEl.remove();
-              target.schildEl = null;
-            }
           }
         } else {
           target.hp -= 1.5;
-          if (target.rissEl) {
-            let basisRiss = target.traegtPowerup ? 0.5 : 0;
-            let schadenProzent = basisRiss + (1 - basisRiss) * (1 - target.hp / target.maxHp);
-            target.rissEl.style.opacity = schadenProzent;
-          }
-          target.el.style.filter = 'brightness(2.5)';
-          setTimeout(() => {
-            if (target.el) target.el.style.filter = '';
-          }, 50);
+          Anzeige.blitze(target, 2.5);
           if (target.hp <= 0) Utils.zerstoereZiel(target, 'p1');
         }
       }
@@ -476,22 +416,10 @@ export function aktualisiereWaffen(laserAktiv, laserAktivP2) {
           target.schildHp -= 5;
           if (target.schildHp <= 0) {
             target.schildHp = 0;
-            if (target.schildEl) {
-              target.schildEl.remove();
-              target.schildEl = null;
-            }
           }
         } else {
           target.hp -= 5;
-          if (target.rissEl) {
-            let basisRiss = target.traegtPowerup ? 0.5 : 0;
-            let schadenProzent = basisRiss + (1 - basisRiss) * (1 - target.hp / target.maxHp);
-            target.rissEl.style.opacity = schadenProzent;
-          }
-          target.el.style.filter = 'brightness(3)';
-          setTimeout(() => {
-            if (target.el) target.el.style.filter = '';
-          }, 50);
+          Anzeige.blitze(target, 3);
           if (target.hp <= 0) Utils.zerstoereZiel(target, 'p1');
         }
       }
@@ -542,29 +470,14 @@ export function aktualisiereWaffen(laserAktiv, laserAktivP2) {
           getroffenZiel.schildHp -= l.schaden;
           if (getroffenZiel.schildHp <= 0) {
             getroffenZiel.schildHp = 0;
-            if (getroffenZiel.schildEl) {
-              getroffenZiel.schildEl.remove();
-              getroffenZiel.schildEl = null;
-            }
             for (let k = 0; k < 5; k++) {
               Utils.erzeugeRauchFunken(getroffenZiel.x + 15, getroffenZiel.y + 15, 10);
             }
           }
-          getroffenZiel.el.style.filter = 'brightness(2.2)';
-          setTimeout(() => {
-            if (getroffenZiel.el) getroffenZiel.el.style.filter = '';
-          }, 50);
+          Anzeige.blitze(getroffenZiel, 2.2);
         } else {
           getroffenZiel.hp -= l.schaden;
-          if (getroffenZiel.rissEl) {
-            let basisRiss = getroffenZiel.traegtPowerup ? 0.5 : 0;
-            let schadenProzent = basisRiss + (1 - basisRiss) * (1 - getroffenZiel.hp / getroffenZiel.maxHp);
-            getroffenZiel.rissEl.style.opacity = schadenProzent;
-          }
-          getroffenZiel.el.style.filter = 'brightness(2.5)';
-          setTimeout(() => {
-            if (getroffenZiel.el) getroffenZiel.el.style.filter = '';
-          }, 50);
+          Anzeige.blitze(getroffenZiel, 2.5);
           if (getroffenZiel.hp <= 0) Utils.zerstoereZiel(getroffenZiel, l.owner || 'p1');
         }
         // Durchschlag: Flag des Projektils (Powerup oder Viper-Overdrive), sonst wie bisher das globale Powerup (z. B. Gleve-Rueckwurf)
@@ -583,8 +496,7 @@ export function aktualisiereWaffen(laserAktiv, laserAktivP2) {
         l.isDeflected = true;
         l.ignoreTarget = getroffenZiel; // Verhindert endloses Kollidieren im selben Frame
         l.schaden = Math.max(1, l.schaden / 2); // Schaden wird halbiert
-        l.el.style.backgroundColor = '#e67e22'; // Orange/Rötlich einfärben
-        l.el.style.boxShadow = `0 0 10px #e67e22`;
+        l.farbe = '#e67e22'; // Orange/Rötlich einfärben
       }
     } else if (l.isDeflected) {
       // Kollision mit Spieler, falls abgelenkt: nur der Schuetze selbst, kein Friendly Fire im Coop
@@ -684,24 +596,18 @@ export function aktualisiereWaffen(laserAktiv, laserAktivP2) {
     // Partikelschweif (Rauch beim Ausklinken, Vollfeuer in Phase 3)
     let flameProb = r.age > 18 ? 0.85 : (r.age > 10 ? 0.45 : 0.2);
     if (Math.random() < flameProb) {
-      const pEl = document.createElement('div');
-      pEl.classList.add('partikel');
+      let farbe;
       if (r.homing && r.age > 18) {
-        pEl.style.backgroundColor = Math.random() < 0.5 ? '#00ffff' : '#3498db';
+        farbe = Math.random() < 0.5 ? '#00ffff' : '#3498db';
       } else if (r.age > 18) {
-        pEl.style.backgroundColor = Math.random() < 0.6 ? '#f1c40f' : '#e74c3c';
+        farbe = Math.random() < 0.6 ? '#f1c40f' : '#e74c3c';
       } else {
-        pEl.style.backgroundColor = '#7f8c8d'; // Rauch beim Abwurf
+        farbe = '#7f8c8d'; // Rauch beim Abwurf
       }
-      let px = r.x + 2 + Math.random() * 4;
-      let py = r.y + 20;
-      pEl.style.left = px + 'px';
-      pEl.style.top = py + 'px';
-      dom.spielfeld.appendChild(pEl);
-      arrays.partikelArray.push({
-        el: pEl,
-        x: px,
-        y: py,
+      erzeugePartikel({
+        farbe,
+        x: r.x + 2 + Math.random() * 4,
+        y: r.y + 20,
         vx: (Math.random() - 0.5) * 0.5,
         vy: 0.5 + Math.random(),
         leben: 1.0,
@@ -757,22 +663,12 @@ export function aktualisiereWaffen(laserAktiv, laserAktivP2) {
                 z.schildHp -= r.schaden;
                 if (z.schildHp <= 0) {
                   z.schildHp = 0;
-                  if (z.schildEl) { z.schildEl.remove(); z.schildEl = null; }
                   for (let k = 0; k < 5; k++) Utils.erzeugeRauchFunken(z.x + 15, z.y + 15, 10);
                 }
-                z.el.style.filter = 'brightness(2.2)';
-                setTimeout(() => { if (z.el) z.el.style.filter = ''; }, 50);
+                Anzeige.blitze(z, 2.2);
               } else {
                 z.hp -= r.schaden;
-                if (z.rissEl) {
-                  let basisRiss = z.traegtPowerup ? 0.5 : 0;
-                  let schadenProzent = basisRiss + (1 - basisRiss) * (1 - z.hp / z.maxHp);
-                  z.rissEl.style.opacity = schadenProzent;
-                }
-                z.el.style.filter = 'brightness(2.5)';
-                setTimeout(() => {
-                  if (z.el) z.el.style.filter = '';
-                }, 50);
+                Anzeige.blitze(z, 2.5);
                 if (z.hp <= 0) Utils.zerstoereZiel(z, r.owner || 'p1');
               }
             }
@@ -841,16 +737,8 @@ export function aktualisiereWaffen(laserAktiv, laserAktivP2) {
       b.rot += b.isMini ? 5 : 2;
 
       // Blink- & Aura-Puls-Geschwindigkeit erhöhen je näher am Ziel
-      let progress = dist / (b.startDist || 1);
-      let blinkSpeed = Math.max(0.08, progress * 1.0);
-      let auraPulseSpeed = Math.max(0.06, progress * 0.8);
-      Array.from(b.el.querySelectorAll('.bombe-licht')).forEach(l => {
-        l.style.animationDuration = blinkSpeed + 's';
-      });
-      const aura = b.el.querySelector('.bombe-aura');
-      if (aura) {
-        aura.style.animationDuration = auraPulseSpeed + 's';
-      }
+      // Fortschritt 1 -> 0 zum Ziel (Bombenpuls in der Anzeige, Beep-Takt)
+      const progress = b.fortschritt = dist / (b.startDist || 1);
 
       // Beep-Takt beschleunigen je näher am Ziel
       let urgency = 1.0 - progress;
@@ -876,25 +764,8 @@ export function aktualisiereWaffen(laserAktiv, laserAktivP2) {
         ];
 
         offsets.forEach(off => {
-          const miniEl = document.createElement('div');
-          miniEl.classList.add('bomben-projektil', 'bombe-mini', 'bombe-lvl-5');
-          miniEl.innerHTML = `
-            <div class="bombe-aura"></div>
-            <div class="bombe-body"></div>
-            <div class="bombe-licht" style="top: 3px;"></div>
-            <div class="bombe-licht" style="top: 8px;"></div>
-            <div class="bombe-licht" style="top: 13px;"></div>
-          `;
-          miniEl.style.left = bcx - 5 + 'px';
-          miniEl.style.top = bcy - 10 + 'px';
-          Array.from(miniEl.querySelectorAll('.bombe-licht')).forEach(l => {
-            l.style.animation = 'bombeBlink 0.4s infinite alternate';
-          });
-          dom.spielfeld.appendChild(miniEl);
-
-          arrays.bombenArray.push({
+          arrays.bombenArray.push(Anzeige.erzeuge({
             id: Entities.neueId('b'),
-            el: miniEl,
             x: bcx - 5,
             y: bcy - 10,
             targetX: Math.max(20, Math.min(config.spielfeldBreite - 20, bcx + off.ox)),
@@ -908,7 +779,7 @@ export function aktualisiereWaffen(laserAktiv, laserAktivP2) {
             color: '#f1c40f',
             isMini: true,
             delayFrames: off.delay
-          });
+          }, 'bombe'));
         });
 
         Anzeige.entferne(b);
@@ -942,31 +813,13 @@ export function aktualisiereWaffen(laserAktiv, laserAktivP2) {
               // Bomben zerstören Magma-Asteroiden (werden zu Powerup-Trägern)
               z.istUnzerstoerbar = false;
               z.traegtPowerup = true;
-              z.el.classList.remove('unzerstoerbar');
-              if (!z.rissEl) {
-                z.rissEl = document.createElement('div');
-                z.rissEl.classList.add('riss-layer');
-                z.el.appendChild(z.rissEl);
-              }
             }
             if (!z.istUnzerstoerbar) {
               if ((z.schildHp || 0) > 0) {
                 z.schildHp = 0;
-                if (z.schildEl) {
-                  z.schildEl.remove();
-                  z.schildEl = null;
-                }
               }
               z.hp -= b.schaden;
-              if (z.rissEl) {
-                let basisRiss = z.traegtPowerup ? 0.5 : 0;
-                let schadenProzent = basisRiss + (1 - basisRiss) * (1 - z.hp / z.maxHp);
-                z.rissEl.style.opacity = schadenProzent;
-              }
-              z.el.style.filter = 'brightness(3)';
-              setTimeout(() => {
-                if (z.el) z.el.style.filter = '';
-              }, 50);
+              Anzeige.blitze(z, 3);
               if (z.hp <= 0) Utils.zerstoereZiel(z, b.owner || 'p1');
             }
           }

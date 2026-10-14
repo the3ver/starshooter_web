@@ -8,6 +8,7 @@ import { versteckeAlleLaser } from './waffen.js';
 import * as Gleve from './gleve.js';
 import * as Viper from './viper.js';
 import * as Sniper from './sniper.js';
+import { erzeugePartikel } from './partikel.js';
 
 // Laser-Taste von P1 (bei der Gleve: Sweep)
 function laserTasteP1() {
@@ -180,18 +181,11 @@ function setzeFlammen(idLinks, idRechts, scale) {
 // Abgas-Partikel hinter dem Schiff (zufällig eine der beiden Farben)
 function erzeugeAbgas(s, flammenScale, farbe1, farbe2) {
   if (flammenScale > 0.5 && Math.random() < (flammenScale > 1.0 ? 0.6 : 0.2)) {
-    const pEl = document.createElement('div');
-    pEl.classList.add('partikel');
-    pEl.style.backgroundColor = Math.random() < 0.5 ? farbe1 : farbe2;
-    let px = s.x + 15 + (Math.random() * 8 - 4);
-    let py = s.y + 28;
-    pEl.style.left = px + 'px';
-    pEl.style.top = py + 'px';
-    dom.spielfeld.appendChild(pEl);
-    arrays.partikelArray.push({
-      el: pEl,
-      x: px,
-      y: py,
+    const farbe = Math.random() < 0.5 ? farbe1 : farbe2;
+    erzeugePartikel({
+      farbe,
+      x: s.x + 15 + (Math.random() * 8 - 4),
+      y: s.y + 28,
       vx: (Math.random() - 0.5) * 0.5,
       vy: 1 + Math.random() * flammenScale,
       leben: 1.0,

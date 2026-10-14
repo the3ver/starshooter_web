@@ -1,6 +1,16 @@
-export const GAME_VERSION = '1.15.1';
+export const GAME_VERSION = '1.15.2';
 
 export const changelogData = {
+  '1.15.2': {
+    version: '1.15.2',
+    intro: 'Hey, es ist jetzt Version 1.15.2 rausgekommen, folgendes wurde aktualisiert:',
+    highlights: [
+      '🐛 Online-Modus: Der zweite Spieler sieht jetzt den richtigen Boss. Bisher erschien bei ihm immer das Aussehen des ersten Bosses',
+      '🐛 Online-Modus: Bricht das Schild eines Gegners, verschwindet es jetzt auch beim zweiten Spieler',
+      '🛠️ Weiterer Umbau unter der Haube für eine neue Grafik-Engine: Gegner, Geschosse und Effekte entstehen jetzt an einer zentralen Stelle',
+      '🔄 Für den Online-Modus brauchen beide Spieler Version 1.15.2, sonst bitte die Seite neu laden (Strg+F5)'
+    ]
+  },
   '1.15.1': {
     version: '1.15.1',
     intro: 'Hey, es ist jetzt Version 1.15.1 rausgekommen, folgendes wurde aktualisiert:',

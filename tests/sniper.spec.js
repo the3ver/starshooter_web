@@ -1932,7 +1932,8 @@ test.describe('Spectre-SR Granaten-Taste und EMP', () => {
 
   test('EMP betaeubt Feinde im Radius 30 Schritte (Maximum, keine Verkuerzung), Boss und Asteroid nicht, kein Schaden', async ({ page }) => {
     await bereiteEmp(page);
-    const r = await page.evaluate(() => {
+    const r = await page.evaluate(async () => {
+      const Anzeige = await import('./js/anzeige.js');
       const { state, arrays, Entities } = window.__game;
       const E = window.__emp;
       const T = window.__sn;
@@ -1948,6 +1949,7 @@ test.describe('Spectre-SR Granaten-Taste und EMP', () => {
       Object.assign(boss, { x: m.x - 40, y: m.y - 80, hp: 1e6, maxHp: 1e6 });
       const hp = [nah.hp, lang.hp, ast.hp, boss.hp];
       E.Sn.loeseEmpAus(state, 'p1');
+      Anzeige.zeichneWelt(); // die Klasse 'betaeubt' setzt die Anzeige aus dem Feld betaeubt
       return {
         nah: nah.betaeubt, lang: lang.betaeubt, fern: fern.betaeubt || 0, ast: ast.betaeubt || 0, boss: boss.betaeubt || 0,
         klasse: nah.el.classList.contains('betaeubt'), hpGleich: [nah.hp, lang.hp, ast.hp, boss.hp].every((h, i) => h === hp[i])
@@ -2091,10 +2093,10 @@ test.describe('Spectre-SR EMP online', () => {
     expect(r.ton).toBe(1);
   });
 
-  test('Protokollversion ist 13', async ({ page }) => {
+  test('Protokollversion ist 14', async ({ page }) => {
     await bereiteGranate(page);
     const v = await page.evaluate(async () => (await import('./js/netzkodierung.js')).PROTOKOLL_VERSION);
-    expect(v).toBe(13);
+    expect(v).toBe(14);
   });
 });
 
