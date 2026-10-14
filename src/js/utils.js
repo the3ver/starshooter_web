@@ -231,10 +231,8 @@ export function zerstoereZiel(ziel, killer = 'p1') {
         state.leben = 1;
         state.energie = state.maxEnergie / 2;
         state.invulnerableTimer = 180;
-        if (dom.spieler) {
-          dom.spieler.style.display = 'block';
-          dom.spieler.classList.add('spieler-blink');
-        }
+        state.schiffSichtbar = true;
+        Anzeige.zeichneSpieler();
         updateLebenUI();
       }
       if (state.p2 && state.p2.isDead) {
@@ -242,10 +240,8 @@ export function zerstoereZiel(ziel, killer = 'p1') {
         state.p2.leben = 1;
         state.p2.energie = state.p2.maxEnergie / 2;
         state.p2.invulnerableTimer = 180;
-        if (dom.spieler2) {
-          dom.spieler2.style.display = 'block';
-          dom.spieler2.classList.add('spieler-blink');
-        }
+        state.p2.schiffSichtbar = true;
+        Anzeige.zeichneSpieler();
         updateLebenP2UI();
       }
     }
@@ -426,19 +422,22 @@ export function istDashUnverwundbar(pState) {
   return !!pState && ((pState.gleveUnverwundbar || 0) > 0 || (pState.viperRolleTimer || 0) > 0);
 }
 
+// Treffer am Spieler; das Schiff (Blinken, Schild, Sichtbarkeit) wird sofort neu gezeichnet
 export function spielerGetroffen(kollisionsObjekt, explodiert = true, targetPlayer = 'p1') {
+  trefferAmSpieler(kollisionsObjekt, explodiert, targetPlayer);
+  Anzeige.zeichneSpieler();
+}
+
+function trefferAmSpieler(kollisionsObjekt, explodiert, targetPlayer) {
   if (targetPlayer === 'p1') {
     if (state.godMode || state.invulnerableTimer > 0 || state.isDead || istDashUnverwundbar(state)) return;
     
     Audio.playHit('player');
     Viper.setzeKomboZurueck(state);
     state.invulnerableTimer = 45;
-    if (dom.spieler) dom.spieler.classList.add('spieler-blink');
 
     if (state.schildStufe > 0) {
-      if (dom.spieler) dom.spieler.classList.remove(`schild-aktiv-${state.schildStufe}`);
       state.schildStufe--;
-      if (state.schildStufe > 0 && dom.spieler) dom.spieler.classList.add(`schild-aktiv-${state.schildStufe}`);
       if (state.schildStufe === 0 && state.selectedShipModel === 'phantom') {
         state.phantomSchildRegenTimer = 0;
       }
@@ -484,7 +483,7 @@ export function spielerGetroffen(kollisionsObjekt, explodiert = true, targetPlay
     }
     if (state.leben <= 0) {
       state.isDead = true;
-      if (dom.spieler) dom.spieler.style.display = 'none';
+      state.schiffSichtbar = false;
       erzeugeExplosion(state.x + 15, state.y + 15, '#e74c3c', 40);
 
       const isOtherAlive = isCoopMode() && state.p2 && !state.p2.isDead && state.p2.leben > 0;
@@ -498,14 +497,11 @@ export function spielerGetroffen(kollisionsObjekt, explodiert = true, targetPlay
     Audio.playHit('player');
     Viper.setzeKomboZurueck(state.p2);
     state.p2.invulnerableTimer = 45;
-    if (dom.spieler2) dom.spieler2.classList.add('spieler-blink');
 
     const isOnline = state.gameMode === 'online' || (state.network && state.network.isOnline);
 
     if (state.p2.schildStufe > 0) {
-      if (dom.spieler2) dom.spieler2.classList.remove(`schild-aktiv-${state.p2.schildStufe}`);
       state.p2.schildStufe--;
-      if (state.p2.schildStufe > 0 && dom.spieler2) dom.spieler2.classList.add(`schild-aktiv-${state.p2.schildStufe}`);
       if (state.p2.schildStufe === 0 && state.p2.selectedShipModel === 'phantom') {
         state.p2.phantomSchildRegenTimer = 0;
       }
@@ -559,7 +555,7 @@ export function spielerGetroffen(kollisionsObjekt, explodiert = true, targetPlay
     }
     if (state.p2.leben <= 0) {
       state.p2.isDead = true;
-      if (dom.spieler2) dom.spieler2.style.display = 'none';
+      state.p2.schiffSichtbar = false;
       erzeugeExplosion(state.p2.x + 15, state.p2.y + 15, '#3498db', 40);
 
       const isOtherAlive = !state.isDead && state.leben > 0;
@@ -626,10 +622,6 @@ export function restartGame() {
   state.phantomSchildRegenTimer = 0;
   const currentShip = shipModels && shipModels[state.selectedShipModel || 'viper'];
   state.schildStufe = (currentShip && currentShip.startShield) || 0;
-  dom.spieler.classList.remove('schild-aktiv-1', 'schild-aktiv-2', 'schild-aktiv-3');
-  if (state.schildStufe > 0) {
-    dom.spieler.classList.add(`schild-aktiv-${state.schildStufe}`);
-  }
   state.score = 0;
   addScore(0);
   state.level = 1;
@@ -654,11 +646,11 @@ export function restartGame() {
   updateLevelUI();
   state.x = 185;
   state.y = 285;
-  dom.spieler.style.left = state.x + 'px';
-  dom.spieler.style.top = state.y + 'px';
-  dom.spieler.style.display = 'none';
-  dom.spieler.setAttribute('data-rotate', '0');
-  dom.spieler.style.transform = 'rotate(0deg)';
+  state.schiffSichtbar = false;
+  state.drehung = 0;
+  // Interpolierte Anzeigeposition eines frueheren Online-Clients gilt nicht mehr
+  delete state.anzeigeX;
+  delete state.anzeigeY;
 
   if (state.p2) {
     state.p2.leben = 3;
@@ -682,19 +674,13 @@ export function restartGame() {
     state.p2.isDead = false;
     const p2Ship = shipModels && shipModels[state.p2.selectedShipModel || 'phantom'];
     state.p2.schildStufe = (p2Ship && p2Ship.startShield) || 0;
-    if (dom.spieler2) {
-      dom.spieler2.classList.remove('schild-aktiv-1', 'schild-aktiv-2', 'schild-aktiv-3');
-      if (state.p2.schildStufe > 0) dom.spieler2.classList.add(`schild-aktiv-${state.p2.schildStufe}`);
-      state.p2.x = 370;
-      state.p2.y = 285;
-      dom.spieler2.style.left = state.p2.x + 'px';
-      dom.spieler2.style.top = state.p2.y + 'px';
-      dom.spieler2.style.display = 'none';
-      dom.spieler2.setAttribute('data-rotate', '0');
-      dom.spieler2.style.transform = 'rotate(0deg)';
-    }
+    state.p2.x = 370;
+    state.p2.y = 285;
+    state.p2.schiffSichtbar = false;
+    state.p2.drehung = 0;
     updateP2UI();
   }
+  Anzeige.zeichneSpieler();
   
   const clearArray = (arr) => {
     if (arr) {

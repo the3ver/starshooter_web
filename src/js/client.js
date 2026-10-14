@@ -34,6 +34,12 @@ export const p1Anzeige = {};
 
 let schritteSeitSnapshot = 0;
 
+// Angezeigte Position des Host-Schiffs ins Modell (state.anzeigeX/Y), die Anzeige zeichnet P1 dort
+export function uebernehmeP1Anzeige() {
+  state.anzeigeX = p1Anzeige.anzeigeX;
+  state.anzeigeY = p1Anzeige.anzeigeY;
+}
+
 export function snapshotEmpfangen() {
   schritteSeitSnapshot = 0;
 }
@@ -43,15 +49,9 @@ function glaettungAktiv() {
   return Boolean(state.network && state.network.isClient && state.network.connected && !state.pausiert);
 }
 
-function setzePosition(el, x, y) {
-  if (!el) return;
-  el.style.left = x + 'px';
-  el.style.top = y + 'px';
-}
-
 // Neue Snapshot-Position (x, y) fuer ein entferntes Objekt merken. Das Objekt gleitet in
-// INTERPOLATION_SCHRITTE Schritten von seiner angezeigten Position dorthin.
-export function setzeInterpolationsZiel(obj, el, x, y) {
+// INTERPOLATION_SCHRITTE Schritten von seiner angezeigten Position (anzeigeX/Y) dorthin.
+export function setzeInterpolationsZiel(obj, x, y) {
   const distanz = Math.hypot(x - obj.anzeigeX, y - obj.anzeigeY); // NaN beim ersten Mal
   obj.zielX = x;
   obj.zielY = y;
@@ -59,7 +59,6 @@ export function setzeInterpolationsZiel(obj, el, x, y) {
     obj.anzeigeX = x;
     obj.anzeigeY = y;
     obj.ipSchritte = 0;
-    setzePosition(el, x, y);
     return;
   }
   obj.ipDx = (x - obj.anzeigeX) / INTERPOLATION_SCHRITTE;
@@ -67,10 +66,9 @@ export function setzeInterpolationsZiel(obj, el, x, y) {
   obj.ipSchritte = INTERPOLATION_SCHRITTE;
 }
 
-// Schiebt die Anzeigeposition (anzeigeX/Y) einen Schritt weiter; true, wenn sie sich geaendert hat.
-// Weltobjekte zeichnet danach die Anzeige (anzeige.js), das Host-Schiff zeichnet interpoliereObjekte.
+// Schiebt die Anzeigeposition (anzeigeX/Y) einen Schritt weiter; gezeichnet wird danach ueber die Anzeige
 function interpoliere(obj) {
-  if (!obj.ipSchritte) return false;
+  if (!obj.ipSchritte) return;
   obj.ipSchritte--;
   if (obj.ipSchritte === 0) {
     obj.anzeigeX = obj.zielX;
@@ -79,7 +77,6 @@ function interpoliere(obj) {
     obj.anzeigeX += obj.ipDx;
     obj.anzeigeY += obj.ipDy;
   }
-  return true;
 }
 
 // Fuer Projektile ohne Geschwindigkeit im Snapshot: aus zwei Snapshots ableiten
@@ -113,7 +110,8 @@ function interpoliereObjekte() {
   [arrays.feinde, arrays.asteroiden, arrays.bosses, arrays.powerups].forEach(liste => {
     liste.forEach(o => interpoliere(o));
   });
-  if (interpoliere(p1Anzeige)) setzePosition(dom.spieler, p1Anzeige.anzeigeX, p1Anzeige.anzeigeY);
+  interpoliere(p1Anzeige);
+  uebernehmeP1Anzeige();
 }
 
 // Startpunkt der Traktorstrahlen geschleppter Powerups (P1 an seiner angezeigten Position); den Strahl
@@ -140,20 +138,14 @@ export function clientSchritt() {
   // I-Frames / Blink-Timer auf Client dekrementieren
   if (state.invulnerableTimer > 0) {
     state.invulnerableTimer--;
-    if (state.invulnerableTimer === 0 && dom.spieler) {
-      dom.spieler.classList.remove('spieler-blink');
-    }
   }
   if (state.p2 && state.p2.invulnerableTimer > 0) {
     state.p2.invulnerableTimer--;
-    if (state.p2.invulnerableTimer === 0 && dom.spieler2) {
-      dom.spieler2.classList.remove('spieler-blink');
-    }
   }
 
   bewegeSterne();
 
-  if (state.p2 && dom.spieler2 && !state.p2.isDead) {
+  if (state.p2 && !state.p2.isDead) {
     let baseFlameScaleP2 = 1.0;
     let targetRotateP2 = 0;
     const p2Speed = (shipModels && shipModels[state.p2.selectedShipModel]?.speed) || config.geschwindigkeit;
@@ -215,14 +207,8 @@ export function clientSchritt() {
     if (state.p2.y > config.spielfeldHoehe - config.spielerGroesse) state.p2.y = config.spielfeldHoehe - config.spielerGroesse;
 
     state.p2.rotate = targetRotateP2;
-    dom.spieler2.style.left = state.p2.x + 'px';
-    dom.spieler2.style.top = state.p2.y + 'px';
-    dom.spieler2.style.transform = `rotate(${targetRotateP2}deg)`;
-
-    const fLeftP2 = document.getElementById('flame-left-p2');
-    const fRightP2 = document.getElementById('flame-right-p2');
-    if (fLeftP2) fLeftP2.style.transform = `scaleY(${baseFlameScaleP2})`;
-    if (fRightP2) fRightP2.style.transform = `scaleY(${baseFlameScaleP2})`;
+    state.p2.drehung = targetRotateP2;
+    state.p2.flammenSkala = baseFlameScaleP2;
   }
 
   // Gleve-Effekte beider Schiffe (Dash-Klasse, Nachbilder, Sweep-Klinge)

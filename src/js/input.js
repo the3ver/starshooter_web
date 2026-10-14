@@ -123,8 +123,6 @@ export function setupInput() {
           state.laserDurchschlag = true;
           state.durchschlagTimer = 999999;
           state.schildStufe = 3;
-          dom.spieler.classList.remove('schild-aktiv-1', 'schild-aktiv-2');
-          dom.spieler.classList.add('schild-aktiv-3');
           state.unbegrenzteEnergie = true;
           resetAllCooldowns();
           Utils.updateAktivePowerupsUI();

@@ -3,7 +3,7 @@ import * as Cutscene from './cutscene.js';
 import * as Utils from './utils.js';
 import * as Entities from './entities.js';
 import * as Audio from './audio.js';
-import { p1Anzeige, setzeInterpolationsZiel, leiteGeschwindigkeitAb, snapshotEmpfangen } from './client.js';
+import { p1Anzeige, setzeInterpolationsZiel, leiteGeschwindigkeitAb, snapshotEmpfangen, uebernehmeP1Anzeige } from './client.js';
 import { beendePause, verarbeitePauseEvent } from './pause.js';
 import { GAME_VERSION } from './changelog.js';
 import { PROTOKOLL_VERSION, KEYFRAME_INTERVALL, SnapshotKodierer, SnapshotDekodierer, EingabeSender } from './netzkodierung.js';
@@ -454,8 +454,6 @@ export function startOnlineGame() {
     if (state.network.isHost) setzeNetzEingabenZurueck();
     // HUD-Beschriftungen (Gleve: SWEEP/DASH) fuer beide Schiffe, Mobile-Button fuer den lokalen Spieler
     Utils.updateSchiffHudLabels();
-    if (dom.spieler) dom.spieler.classList.remove('spieler-blink');
-    if (dom.spieler2) dom.spieler2.classList.remove('spieler-blink');
 
     Cutscene.startCutscene();
 }
@@ -638,9 +636,9 @@ export function handleNetworkEvent(data, peerId = null) {
         }
         if (data.type === 'player_hit' && data.target === 'p2') {
             Audio.playHit('player');
-            if (dom.spieler2) dom.spieler2.classList.add('spieler-blink');
             // I-Frames wie auf dem Host setzen, damit clientSchritt() das Blinken wieder beendet
             if (state.p2) state.p2.invulnerableTimer = Number.isFinite(data.invulnerable) && data.invulnerable > 0 ? data.invulnerable : 45;
+            Anzeige.zeichneSpieler();
             const spielfeld = dom.spielfeld || document.getElementById('spielfeld');
             if (spielfeld) {
                 spielfeld.style.backgroundColor = data.shield ? 'rgba(52, 152, 219, 0.3)' : '#900';
@@ -822,7 +820,7 @@ export function serializeGameState() {
         p1: {
             x: state.x,
             y: state.y,
-            rotate: state.rotate || 0,
+            rotate: state.drehung || 0,
             leben: state.leben,
             energie: state.energie,
             maxEnergie: state.maxEnergie,
@@ -1123,17 +1121,10 @@ export function applyGameStateSnapshot(snapshot) {
         Viper.uebernehmeSnapshot(state, snapshot.p1, false);
         Sniper.uebernehmeSnapshot(state, snapshot.p1, 'p1', false);
 
-        if (dom.spieler) {
-            setzeInterpolationsZiel(p1Anzeige, dom.spieler, state.x, state.y);
-            dom.spieler.style.display = state.isDead ? 'none' : 'block';
-            dom.spieler.style.transform = `rotate(${snapshot.p1.rotate || 0}deg)`;
-            
-            // Schild-Visuals
-            dom.spieler.classList.remove('schild-aktiv-1', 'schild-aktiv-2', 'schild-aktiv-3');
-            if (state.schildStufe > 0) {
-                dom.spieler.classList.add(`schild-aktiv-${state.schildStufe}`);
-            }
-        }
+        setzeInterpolationsZiel(p1Anzeige, state.x, state.y);
+        uebernehmeP1Anzeige();
+        state.schiffSichtbar = !state.isDead;
+        state.drehung = snapshot.p1.rotate || 0;
 
         if (dom.energieBalken) {
             dom.energieBalken.style.width = (state.energie / (state.absMaxEnergie || 100)) * 100 + '%';
@@ -1197,13 +1188,7 @@ export function applyGameStateSnapshot(snapshot) {
         Viper.uebernehmeSnapshot(state.p2, snapshot.p2, true);
         Sniper.uebernehmeSnapshot(state.p2, snapshot.p2, 'p2', true);
 
-        if (dom.spieler2) {
-            dom.spieler2.classList.remove('schild-aktiv-1', 'schild-aktiv-2', 'schild-aktiv-3');
-            if (state.p2.schildStufe > 0) {
-                dom.spieler2.classList.add(`schild-aktiv-${state.p2.schildStufe}`);
-            }
-            dom.spieler2.style.display = state.p2.isDead ? 'none' : 'block';
-        }
+        state.p2.schiffSichtbar = !state.p2.isDead;
 
         if (dom.energieBalkenP2) {
             dom.energieBalkenP2.style.width = (state.p2.energie / (state.p2.absMaxEnergie || 100)) * 100 + '%';
@@ -1303,14 +1288,14 @@ export function applyGameStateSnapshot(snapshot) {
                     schildHp: fData.schildHp || 0,
                     farbe: Entities.getFeindColor(muster)
                 }, 'feind');
-                setzeInterpolationsZiel(existing, existing.el, fData.x, fData.y);
+                setzeInterpolationsZiel(existing, fData.x, fData.y);
                 arrays.feinde.push(existing);
             } else {
                 existing.x = fData.x;
                 existing.y = fData.y;
                 existing.hp = fData.hp;
                 existing.schildHp = fData.schildHp || 0;
-                setzeInterpolationsZiel(existing, existing.el, fData.x, fData.y);
+                setzeInterpolationsZiel(existing, fData.x, fData.y);
             }
             zeigeBetaeubung(existing, fData);
         });
@@ -1347,14 +1332,14 @@ export function applyGameStateSnapshot(snapshot) {
                     maxHp: aData.maxHp,
                     rot: aData.rot || 0
                 }, 'asteroid');
-                setzeInterpolationsZiel(existing, existing.el, aData.x, aData.y);
+                setzeInterpolationsZiel(existing, aData.x, aData.y);
                 arrays.asteroiden.push(existing);
             } else {
                 existing.x = aData.x;
                 existing.y = aData.y;
                 existing.hp = aData.hp;
                 existing.maxHp = aData.maxHp;
-                setzeInterpolationsZiel(existing, existing.el, aData.x, aData.y);
+                setzeInterpolationsZiel(existing, aData.x, aData.y);
                 if (aData.rot) existing.rot = aData.rot;
                 existing.istUnzerstoerbar = aData.istUnzerstoerbar;
                 existing.traegtPowerup = aData.traegtPowerup;
@@ -1386,13 +1371,13 @@ export function applyGameStateSnapshot(snapshot) {
                     bossTyp: bData.typ || 1,
                     leuchtFarbe: Entities.getBossColor(state.level)
                 }, 'boss');
-                setzeInterpolationsZiel(existing, existing.el, bData.x, bData.y);
+                setzeInterpolationsZiel(existing, bData.x, bData.y);
                 arrays.bosses.push(existing);
             } else {
                 existing.x = bData.x;
                 existing.y = bData.y;
                 existing.hp = bData.hp;
-                setzeInterpolationsZiel(existing, existing.el, bData.x, bData.y);
+                setzeInterpolationsZiel(existing, bData.x, bData.y);
             }
             zeigeBetaeubung(existing, bData);
         });
@@ -1583,12 +1568,12 @@ export function applyGameStateSnapshot(snapshot) {
                     owner: pData.owner,
                     towedBy: null
                 }, 'powerup');
-                setzeInterpolationsZiel(existing, existing.el, pData.x, pData.y);
+                setzeInterpolationsZiel(existing, pData.x, pData.y);
                 arrays.powerups.push(existing);
             } else {
                 existing.x = pData.x;
                 existing.y = pData.y;
-                setzeInterpolationsZiel(existing, existing.el, pData.x, pData.y);
+                setzeInterpolationsZiel(existing, pData.x, pData.y);
             }
             // Schlepp-Zustand des Hosts uebernehmen; Strahl-Start setzt clientSchritt, zeichnen tut die Anzeige
             existing.towedBy = pData.towedBy || null;
@@ -1686,11 +1671,6 @@ export function applyPlayerInput(input) {
         state.p2.networkFireBombe = true;
     }
 
-    if (dom.spieler2) {
-        dom.spieler2.style.left = state.p2.x + 'px';
-        dom.spieler2.style.top = state.p2.y + 'px';
-        dom.spieler2.style.transform = `rotate(${state.p2.rotate}deg)`;
-        dom.spieler2.setAttribute('data-rotate', state.p2.rotate);
-    }
+    state.p2.drehung = state.p2.rotate;
 }
 

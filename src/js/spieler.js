@@ -119,9 +119,6 @@ function steuerRichtungP2() {
 export function aktualisiereUnverwundbarkeit() {
   if (state.invulnerableTimer > 0) {
     state.invulnerableTimer--;
-    if (state.invulnerableTimer === 0) {
-      dom.spieler.classList.remove('spieler-blink');
-    }
   }
 }
 
@@ -161,21 +158,12 @@ function begrenzeUndMerkePosition(s) {
   s.prevY = s.y;
 }
 
-// Schiffs-Element positionieren und weich zur Ziel-Rotation drehen
-function setzeSchiffElement(el, s, targetRotate) {
-  el.style.left = s.x + 'px';
-  el.style.top = s.y + 'px';
-  let currentRotate = parseFloat(el.getAttribute('data-rotate') || 0);
-  currentRotate += (targetRotate - currentRotate) * 0.15; // Smooth rotation
-  el.setAttribute('data-rotate', currentRotate);
-  el.style.transform = `rotate(${currentRotate}deg)`;
-}
-
-function setzeFlammen(idLinks, idRechts, scale) {
-  const fLeft = document.getElementById(idLinks);
-  const fRight = document.getElementById(idRechts);
-  if (fLeft) fLeft.style.transform = `scaleY(${scale})`;
-  if (fRight) fRight.style.transform = `scaleY(${scale})`;
+// Angezeigte Neigung weich zur Ziel-Rotation fuehren und Triebwerksflammen setzen (Modellfelder
+// drehung/flammenSkala, die Anzeige zeichnet das Schiff daraus)
+function setzeSchiffZustand(s, targetRotate, flammenSkala) {
+  const aktuell = s.drehung || 0;
+  s.drehung = aktuell + (targetRotate - aktuell) * 0.15; // Smooth rotation
+  s.flammenSkala = flammenSkala;
 }
 
 // Abgas-Partikel hinter dem Schiff (zufällig eine der beiden Farben)
@@ -234,8 +222,7 @@ export function bewegeSpieler() {
     ({ flamme: baseFlameScale, rotation: targetRotate } = bewegeInRichtung(state, b, currentSpeed));
   }
   begrenzeUndMerkePosition(state);
-  if (dom.spieler) setzeSchiffElement(dom.spieler, state, targetRotate);
-  setzeFlammen('flame-left', 'flame-right', baseFlameScale);
+  setzeSchiffZustand(state, targetRotate, baseFlameScale);
   Viper.zeigeRollenHud('p1', state);
 
   if (!state.isDead) erzeugeAbgas(state, baseFlameScale, '#f1c40f', '#e74c3c');
@@ -244,9 +231,6 @@ export function bewegeSpieler() {
   if (isCoopMode() && state.p2 && dom.spieler2) {
     if (state.p2.invulnerableTimer > 0) {
       state.p2.invulnerableTimer--;
-      if (state.p2.invulnerableTimer === 0) {
-        dom.spieler2.classList.remove('spieler-blink');
-      }
     }
 
     if (!state.p2.isDead) {
@@ -290,8 +274,7 @@ export function bewegeSpieler() {
       }
 
       begrenzeUndMerkePosition(state.p2);
-      setzeSchiffElement(dom.spieler2, state.p2, targetRotateP2);
-      setzeFlammen('flame-left-p2', 'flame-right-p2', baseFlameScaleP2);
+      setzeSchiffZustand(state.p2, targetRotateP2, baseFlameScaleP2);
       Viper.zeigeRollenHud('p2', state.p2);
       erzeugeAbgas(state.p2, baseFlameScaleP2, '#74b9ff', '#0984e3');
     }
@@ -411,10 +394,6 @@ export function aktualisiereEnergie() {
         state.p2.schildStufe = 1;
         state.p2.phantomSchildRegenTimer = 0;
         Audio.playShieldRegen();
-        if (dom.spieler2) {
-          dom.spieler2.classList.remove('schild-aktiv-1', 'schild-aktiv-2', 'schild-aktiv-3');
-          dom.spieler2.classList.add('schild-aktiv-1');
-        }
         Utils.updateAktivePowerupsP2UI();
       }
     }
@@ -434,8 +413,6 @@ export function regeneriereSchild() {
       state.schildStufe = 1;
       state.phantomSchildRegenTimer = 0;
       Audio.playShieldRegen();
-      dom.spieler.classList.remove('schild-aktiv-1', 'schild-aktiv-2', 'schild-aktiv-3');
-      dom.spieler.classList.add('schild-aktiv-1');
       Utils.updateAktivePowerupsUI();
     }
   } else if (state.schildStufe > 0 && state.phantomSchildRegenTimer > 0) {

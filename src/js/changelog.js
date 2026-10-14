@@ -1,6 +1,14 @@
-export const GAME_VERSION = '1.15.2';
+export const GAME_VERSION = '1.15.3';
 
 export const changelogData = {
+  '1.15.3': {
+    version: '1.15.3',
+    intro: 'Hey, es ist jetzt Version 1.15.3 rausgekommen, folgendes wurde aktualisiert:',
+    highlights: [
+      '🐛 Online-Modus: Das Schiff des ersten Spielers neigt sich jetzt auch beim zweiten Spieler in die Flugrichtung',
+      '🛠️ Weiterer Umbau unter der Haube für eine neue Grafik-Engine: Die Spielerschiffe werden jetzt an einer zentralen Stelle gezeichnet'
+    ]
+  },
   '1.15.2': {
     version: '1.15.2',
     intro: 'Hey, es ist jetzt Version 1.15.2 rausgekommen, folgendes wurde aktualisiert:',

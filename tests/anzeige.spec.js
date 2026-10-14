@@ -33,6 +33,7 @@ test('Test-Backend: zeichneWelt einmal pro Schritt, Logik schreibt keine Positio
     Anzeige.setzeBackend({
       erzeuge() {},
       blitze() {},
+      zeichneSpieler() {},
       zeichneWelt() { protokoll.zeichne++; },
       entferne(o) { protokoll.entfernt.push(o.id); }
     });
@@ -86,8 +87,9 @@ test('setzeBackend lehnt ein Backend ohne Pflichtfunktionen ab', async ({ page }
     const Anzeige = await import('./js/anzeige.js');
     const meldungen = [];
     const f = () => {};
-    for (const b of [null, {}, { zeichneWelt: f, entferne: f, blitze: f }, { erzeuge: f, entferne: f, blitze: f },
-      { erzeuge: f, zeichneWelt: f, blitze: f }, { erzeuge: f, zeichneWelt: f, entferne: f }]) {
+    const voll = { erzeuge: f, zeichneWelt: f, zeichneSpieler: f, entferne: f, blitze: f };
+    const ohne = name => { const b = { ...voll }; delete b[name]; return b; };
+    for (const b of [null, {}, ...Object.keys(voll).map(ohne)]) {
       try { Anzeige.setzeBackend(b); meldungen.push(null); } catch (e) { meldungen.push(e.message); }
     }
     return meldungen;
@@ -102,7 +104,7 @@ test('Spiellogik erzeugt Weltobjekte nur ueber die Anzeige: Test-Backend bekommt
     const Entities = await import('./js/entities.js');
     const domBackend = Anzeige.holeBackend();
     const erzeugt = [];
-    Anzeige.setzeBackend({ erzeuge(o, art) { erzeugt.push(art); }, zeichneWelt() {}, entferne() {}, blitze() {} });
+    Anzeige.setzeBackend({ erzeuge(o, art) { erzeugt.push(art); }, zeichneWelt() {}, zeichneSpieler() {}, entferne() {}, blitze() {} });
     const vorher = document.querySelectorAll('#spielfeld *').length;
     try {
       state.level = 1;
@@ -272,6 +274,60 @@ test('Treffer melden einen Blitz an die Anzeige, ohne Element-Zugriff der Logik'
     return { blitze, id: a.id };
   });
   expect(r.blitze).toEqual([[r.id, 2.5]]);
+});
+
+// Bugfix: Der Snapshot schickte state.rotate, das nie gesetzt wurde (die Neigung lag nur im DOM), der
+// Online-Client sah P1 daher nie geneigt
+test('Snapshot traegt die angezeigte Neigung von P1', async ({ page }) => {
+  const rotate = await page.evaluate(async () => {
+    const { state } = await import('./js/state.js');
+    const { bewegeSpieler } = await import('./js/spieler.js');
+    const Network = await import('./js/network.js');
+    state.spielLaeuft = true;
+    state.isDead = false;
+    state.tastenGedrueckt.d = true;
+    for (let i = 0; i < 20; i++) bewegeSpieler();
+    state.tastenGedrueckt.d = false;
+    return Network.serializeGameState().p1.rotate;
+  });
+  expect(rotate).toBeGreaterThan(10);
+});
+
+test('Spielerschiff aus dem Zustand: Position, Neigung, Flammen, Sichtbarkeit, Blinken, Schild', async ({ page }) => {
+  const r = await page.evaluate(async () => {
+    const { state, dom } = await import('./js/state.js');
+    const Anzeige = await import('./js/anzeige.js');
+    Object.assign(state, { x: 40, y: 50, drehung: 12, flammenSkala: 1.8, schiffSichtbar: true, invulnerableTimer: 10, schildStufe: 2 });
+    Anzeige.zeichneSpieler();
+    const el = dom.spieler;
+    const an = {
+      pos: [el.style.left, el.style.top], transform: el.style.transform, display: el.style.display,
+      flamme: document.getElementById('flame-left').style.transform,
+      blink: el.classList.contains('spieler-blink'),
+      schild: Array.from(el.classList).filter(k => k.startsWith('schild-aktiv-'))
+    };
+    // Online-Client: P1 an der interpolierten Anzeigeposition
+    Object.assign(state, { anzeigeX: 70, anzeigeY: 80, schiffSichtbar: false, invulnerableTimer: 0, schildStufe: 0 });
+    Anzeige.zeichneSpieler();
+    const aus = { pos: [el.style.left, el.style.top], display: el.style.display, blink: el.classList.contains('spieler-blink'),
+      schild: Array.from(el.classList).filter(k => k.startsWith('schild-aktiv-')) };
+    delete state.anzeigeX;
+    delete state.anzeigeY;
+    return { an, aus };
+  });
+  expect(r.an).toEqual({ pos: ['40px', '50px'], transform: 'rotate(12deg)', display: 'block', flamme: 'scaleY(1.8)', blink: true, schild: ['schild-aktiv-2'] });
+  expect(r.aus).toEqual({ pos: ['70px', '80px'], display: 'none', blink: false, schild: [] });
+});
+
+test('Spielerschiffe: Logik schreibt nicht in #spieler / #spieler-2', () => {
+  const module = ['spieler.js', 'client.js', 'network.js', 'powerups.js', 'input.js', 'main.js', 'cutscene.js', 'loop.js'];
+  const verboten = /dom\.spieler2?\.(style|classList|setAttribute)|flame-(left|right)/;
+  const funde = [];
+  for (const datei of module) {
+    const zeilen = fs.readFileSync(path.join(__dirname, '..', 'src', 'js', datei), 'utf8').split('\n');
+    zeilen.forEach((zeile, i) => { if (verboten.test(zeile)) funde.push(`${datei}:${i + 1}: ${zeile.trim()}`); });
+  }
+  expect(funde).toEqual([]);
 });
 
 // Waechter: Diese Module laufen ueber die Anzeige-Schnittstelle. Positionen und Entfernen von Weltobjekten

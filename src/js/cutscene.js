@@ -2,6 +2,7 @@ import { state, dom, config, arrays, shipModels } from './state.js';
 import * as Utils from './utils.js';
 import * as Audio from './audio.js';
 import * as Network from './network.js';
+import * as Anzeige from './anzeige.js';
 
 let cutsceneContainer = null;
 let cutsceneAnimationId = null;
@@ -117,7 +118,8 @@ export function startCutscene(callback) {
     const spielfeld = dom.spielfeld || document.getElementById('spielfeld');
     if (!spielfeld) return;
 
-    if (dom.spieler) dom.spieler.style.display = 'none';
+    state.schiffSichtbar = false;
+    Anzeige.zeichneSpieler();
     const orphanSelectors = '.boss-rakete, .boss-bombe, .boss-laser, .feind-laser, .laser, .rakete, .bombe, .powerup, .feind, .asteroid, .boss, .partikel, .werfer-abgeworfen, .shockwave, .schockwelle, .cutscene-fireball, .cutscene-shockwave, .cutscene-debris';
     spielfeld.querySelectorAll(orphanSelectors).forEach(el => el.remove());
 
@@ -654,16 +656,13 @@ function endCutsceneAndStartGame(instant = false) {
     const currentShip = shipModels && shipModels[state.selectedShipModel || 'viper'];
     if (currentShip && currentShip.startShield > 0) {
         state.schildStufe = currentShip.startShield;
-        dom.spieler.classList.add(`schild-aktiv-${state.schildStufe}`);
         Utils.updateAktivePowerupsUI();
     }
 
     state.isDead = false;
     state.x = isCoop ? 200 : 185;
-    dom.spieler.style.left = state.x + 'px';
-    dom.spieler.style.display = 'block';
-    dom.spieler.style.transform = 'rotate(0deg)';
-    dom.spieler.setAttribute('data-rotate', '0');
+    state.schiffSichtbar = true;
+    state.drehung = 0;
 
     // P2 Setup
     if (isCoop && dom.spieler2 && state.p2) {
@@ -671,15 +670,11 @@ function endCutsceneAndStartGame(instant = false) {
         const p2Ship = shipModels && shipModels[state.p2.selectedShipModel || 'phantom'];
         if (p2Ship && p2Ship.startShield > 0) {
             state.p2.schildStufe = p2Ship.startShield;
-            dom.spieler2.classList.add(`schild-aktiv-${state.p2.schildStufe}`);
         }
         state.p2.x = 370;
         state.p2.y = instant ? 285 : config.spielfeldHoehe + 40;
-        dom.spieler2.style.left = state.p2.x + 'px';
-        dom.spieler2.style.top = state.p2.y + 'px';
-        dom.spieler2.style.display = 'block';
-        dom.spieler2.style.transform = 'rotate(0deg)';
-        dom.spieler2.setAttribute('data-rotate', '0');
+        state.p2.schiffSichtbar = true;
+        state.p2.drehung = 0;
 
         const tagP1 = document.querySelector('.tag-p1');
         if (tagP1) tagP1.style.display = 'block';
@@ -687,7 +682,7 @@ function endCutsceneAndStartGame(instant = false) {
         if (dom.uiContainerP2) dom.uiContainerP2.style.display = 'flex';
         Utils.updateP2UI();
     } else {
-        if (dom.spieler2) dom.spieler2.style.display = 'none';
+        if (state.p2) state.p2.schiffSichtbar = false;
         if (dom.uiContainerP2) dom.uiContainerP2.style.display = 'none';
         const tagP1 = document.querySelector('.tag-p1');
         if (tagP1) tagP1.style.display = 'none';
@@ -695,18 +690,14 @@ function endCutsceneAndStartGame(instant = false) {
 
     if (instant) {
         state.y = 285;
-        dom.spieler.style.top = state.y + 'px';
         if (isCoop && state.p2 && dom.spieler2) {
             state.p2.y = 285;
-            dom.spieler2.style.top = state.p2.y + 'px';
         }
     } else {
         // Smooth entry: Player ship enters from bottom into play position
         state.y = config.spielfeldHoehe + 40;
-        dom.spieler.style.top = state.y + 'px';
         if (isCoop && state.p2 && dom.spieler2) {
             state.p2.y = config.spielfeldHoehe + 40;
-            dom.spieler2.style.top = state.p2.y + 'px';
         }
 
         let entryY = config.spielfeldHoehe + 40;
@@ -721,11 +712,9 @@ function endCutsceneAndStartGame(instant = false) {
                 entryY -= 6 * (dt / 16.6);
                 if (entryY < targetY) entryY = targetY;
                 state.y = entryY;
-                dom.spieler.style.top = state.y + 'px';
                 Utils.erzeugeAntriebsRauch(state.x + 15, state.y + 30, 2);
                 if (isCoop && state.p2 && dom.spieler2 && !state.p2.isDead) {
                     state.p2.y = entryY;
-                    dom.spieler2.style.top = state.p2.y + 'px';
                     Utils.erzeugeAntriebsRauch(state.p2.x + 15, state.p2.y + 30, 2);
                 }
                 requestAnimationFrame(flyInStep);
@@ -733,6 +722,8 @@ function endCutsceneAndStartGame(instant = false) {
         }
         requestAnimationFrame(flyInStep);
     }
+
+    Anzeige.zeichneSpieler();
 
     // Clear initial keypresses
     state.tastenGedrueckt[' '] = false;

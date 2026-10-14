@@ -15,9 +15,10 @@ import * as DomAnzeige from './anzeige-dom.js';
 
 let backend = DomAnzeige;
 
-// Backend tauschen. Pflichtfunktionen: erzeuge(obj, art), zeichneWelt(), entferne(obj), blitze(obj, staerke).
+// Backend tauschen. Pflichtfunktionen: erzeuge(obj, art), zeichneWelt(), zeichneSpieler(), entferne(obj),
+// blitze(obj, staerke).
 export function setzeBackend(neuesBackend) {
-  for (const name of ['erzeuge', 'zeichneWelt', 'entferne', 'blitze']) {
+  for (const name of ['erzeuge', 'zeichneWelt', 'zeichneSpieler', 'entferne', 'blitze']) {
     if (typeof neuesBackend?.[name] !== 'function') throw new Error(`Anzeige-Backend ohne ${name}()`);
   }
   backend = neuesBackend;
@@ -39,6 +40,14 @@ export function erzeuge(obj, art) {
 // Simulationsschritts (Host, Solo, Online-Client) und nach einem uebernommenen Snapshot.
 export function zeichneWelt() {
   backend.zeichneWelt();
+}
+
+// Zeichnet nur die beiden Spielerschiffe aus state / state.p2 (zeichneWelt tut das ebenfalls). Fuer Stellen
+// ausserhalb des Simulationsschritts, die ein Schiff sofort zeigen oder verstecken (Menue, Cutszene, Neustart).
+// Felder: x, y, anzeigeX/Y (Online-Client: P1 interpoliert), drehung, flammenSkala, schiffSichtbar,
+// invulnerableTimer (Blinken), schildStufe (Schild-Ring)
+export function zeichneSpieler() {
+  backend.zeichneSpieler();
 }
 
 // Entfernt die Darstellung eines Weltobjekts. Das Modell (Eintrag in arrays) entfernt der Aufrufer.

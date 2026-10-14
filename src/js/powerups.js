@@ -17,16 +17,13 @@ function wendePowerupAn(p, targetKey = 'p1') {
     pState.leben++;
     if (isCoopMode()) {
       const otherState = isP1 ? state.p2 : state;
-      const otherDom = isP1 ? dom.spieler2 : dom.spieler;
       if (otherState && otherState.isDead) {
         otherState.isDead = false;
         otherState.leben = 1;
         otherState.energie = otherState.maxEnergie / 2;
         otherState.invulnerableTimer = 180;
-        if (otherDom) {
-          otherDom.style.display = 'block';
-          otherDom.classList.add('spieler-blink');
-        }
+        otherState.schiffSichtbar = true;
+        Anzeige.zeichneSpieler();
         if (isP1) Utils.updateLebenP2UI();
         else Utils.updateLebenUI();
       }
@@ -92,16 +89,13 @@ function wendePowerupAn(p, targetKey = 'p1') {
       pState.leben++;
       if (isCoopMode()) {
         const otherState = isP1 ? state.p2 : state;
-        const otherDom = isP1 ? dom.spieler2 : dom.spieler;
         if (otherState && otherState.isDead) {
           otherState.isDead = false;
           otherState.leben = 1;
           otherState.energie = otherState.maxEnergie / 2;
           otherState.invulnerableTimer = 180;
-          if (otherDom) {
-            otherDom.style.display = 'block';
-            otherDom.classList.add('spieler-blink');
-          }
+          otherState.schiffSichtbar = true;
+          Anzeige.zeichneSpieler();
           if (isP1) Utils.updateLebenP2UI();
           else Utils.updateLebenUI();
         }

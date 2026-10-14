@@ -1,7 +1,7 @@
 // DOM-Backend der Anzeige (siehe anzeige.js): Weltobjekte sind absolut positionierte Elemente in
 // #spielfeld, das Modell traegt sein Element in obj.el. Nur dieses Modul schreibt Position, Drehung,
 // Deckkraft und Zustandsanzeigen (Schild, Risse, Betaeubung, Schlepp-Strahl ...) der Weltobjekte ins DOM.
-import { arrays, dom } from './state.js';
+import { arrays, dom, state } from './state.js';
 import { WELLE_TEMPO, WELLE_SCHRITTE, SWEEP_PARADE_FARBE } from './gleve.js';
 import { ERZEUGER } from './anzeige-dom-objekte.js';
 
@@ -210,7 +210,38 @@ export function erzeuge(obj, art) {
   ZEICHNER_JE_ART[art](obj);
 }
 
+// Spielerschiffe: feste Elemente #spieler / #spieler-2 mit Triebwerksflammen
+const SCHIFFE = [
+  { el: () => dom.spieler, zustand: () => state, flammen: ['flame-left', 'flame-right'] },
+  { el: () => dom.spieler2, zustand: () => state.p2, flammen: ['flame-left-p2', 'flame-right-p2'] }
+];
+
+// Ein Schiff aus seinem Zustand: Sichtbarkeit (schiffSichtbar), Position (anzeigeX/Y oder x/y), Neigung
+// (drehung), Flammen (flammenSkala), Blinken waehrend der Unverwundbarkeit, Schild-Ring je schildStufe
+function zeichneSchiff(s, el, flammenIds) {
+  if (typeof s.schiffSichtbar === 'boolean') el.style.display = s.schiffSichtbar ? 'block' : 'none';
+  setzePosition({ el, x: s.x, y: s.y, anzeigeX: s.anzeigeX, anzeigeY: s.anzeigeY });
+  if (typeof s.drehung === 'number') el.style.transform = `rotate(${s.drehung}deg)`;
+  if (typeof s.flammenSkala === 'number') {
+    for (const id of flammenIds) {
+      const flamme = document.getElementById(id);
+      if (flamme) flamme.style.transform = `scaleY(${s.flammenSkala})`;
+    }
+  }
+  el.classList.toggle('spieler-blink', s.invulnerableTimer > 0);
+  for (let stufe = 1; stufe <= 3; stufe++) el.classList.toggle(`schild-aktiv-${stufe}`, s.schildStufe === stufe);
+}
+
+export function zeichneSpieler() {
+  for (const schiff of SCHIFFE) {
+    const el = schiff.el();
+    const s = schiff.zustand();
+    if (el && s) zeichneSchiff(s, el, schiff.flammen);
+  }
+}
+
 export function zeichneWelt() {
+  zeichneSpieler();
   for (const name in ZEICHNER) {
     const zeichne = ZEICHNER[name];
     for (const o of arrays[name]) {

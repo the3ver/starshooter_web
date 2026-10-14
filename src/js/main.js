@@ -9,6 +9,7 @@ import * as Network from './network.js';
 import * as Cutscene from './cutscene.js';
 import * as Gleve from './gleve.js';
 import * as Sniper from './sniper.js';
+import * as Anzeige from './anzeige.js';
 
 export { state, dom, config, arrays, shipModels, Utils, Entities, Audio, Network, Cutscene };
 
@@ -104,20 +105,15 @@ document.addEventListener('DOMContentLoaded', () => {
     resizeGame();
 
     state.spielLaeuft = false;
-    if (dom.spieler) dom.spieler.style.display = 'none';
-    if (dom.spieler2) dom.spieler2.style.display = 'none';
+    state.schiffSichtbar = false;
+    state.p2.schiffSichtbar = false;
 
     // UI & Hangar initialisieren
     Utils.updateMaxEnergieMarker();
     Utils.updateLebenUI();
     Utils.updateAktivePowerupsUI();
     Utils.updatePlayerShipVisuals();
-    if (!state.spielLaeuft && dom.spieler) {
-        dom.spieler.style.display = 'none';
-    }
-    if (!state.spielLaeuft && dom.spieler2) {
-        dom.spieler2.style.display = 'none';
-    }
+    Anzeige.zeichneSpieler();
 
     // Gamemode Selection Event Listeners
     const btnSingle = document.getElementById('gamemode-btn-single');
