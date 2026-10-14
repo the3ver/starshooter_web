@@ -4,6 +4,7 @@ import * as Utils from './utils.js';
 import * as Entities from './entities.js';
 import * as Audio from './audio.js';
 import { naechsterSpielerMitte, tickBetaeubung } from './gegner.js';
+import * as Anzeige from './anzeige.js';
 
 
 const BOSS_HACK_AB_LEVEL = 5;
@@ -39,8 +40,6 @@ export function aktualisiereBosse() {
           l.vx += dx > 0 ? kraft : -kraft;
         }
       });
-      b.el.style.left = b.x + 'px';
-      b.el.style.top = b.y + 'px';
       dom.bossHpBalken.style.width = Math.max(0, b.hp / b.maxHp * 100) + '%';
       continue; // Überspringt Kampf-Bewegungen und Schießen
     } else {
@@ -156,8 +155,6 @@ export function aktualisiereBosse() {
         b.raketenTimer = Math.max(180, 360 - (state.level - 1) * 25);
       }
     }
-    b.el.style.left = b.x + 'px';
-    b.el.style.top = b.y + 'px';
     let bossPadding = b.groesse * 0.15;
     if (!state.isDead && !Utils.istDashUnverwundbar(state) && state.x < b.x + b.groesse - bossPadding && state.x + config.spielerGroesse > b.x + bossPadding && state.y < b.y + b.groesse - bossPadding && state.y + config.spielerGroesse > b.y + bossPadding) {
       Utils.spielerGetroffen(b, false, 'p1');
@@ -171,10 +168,8 @@ export function aktualisiereBosse() {
     if (!bl) break;
     bl.x += bl.vx || 0;
     bl.y += bl.vy;
-    bl.el.style.left = bl.x + 'px';
-    bl.el.style.top = bl.y + 'px';
     if (bl.y > config.spielfeldHoehe || bl.y < -bl.height || bl.x < -10 || bl.x > config.spielfeldBreite + 10) {
-      bl.el.remove();
+      Anzeige.entferne(bl);
       arrays.bossLaserArray.splice(i, 1);
       continue;
     }
@@ -182,13 +177,13 @@ export function aktualisiereBosse() {
     if (bl.harmlos) continue;
     if (!state.isDead && !Utils.istDashUnverwundbar(state) && state.x < bl.x + bl.width && state.x + config.spielerGroesse > bl.x && state.y < bl.y + bl.height && state.y + config.spielerGroesse > bl.y) {
       Utils.spielerGetroffen(bl, false, 'p1');
-      bl.el.remove();
+      Anzeige.entferne(bl);
       arrays.bossLaserArray.splice(i, 1);
       continue;
     }
     if (isCoopMode() && state.p2 && !state.p2.isDead && !Utils.istDashUnverwundbar(state.p2) && state.p2.x < bl.x + bl.width && state.p2.x + config.spielerGroesse > bl.x && state.p2.y < bl.y + bl.height && state.p2.y + config.spielerGroesse > bl.y) {
       Utils.spielerGetroffen(bl, false, 'p2');
-      bl.el.remove();
+      Anzeige.entferne(bl);
       arrays.bossLaserArray.splice(i, 1);
       continue;
     }
@@ -201,8 +196,6 @@ export function aktualisiereBossBomben() {
     if (!bb) break;
     bb.x += bb.vx;
     bb.y += bb.vy;
-    bb.el.style.left = bb.x + 'px';
-    bb.el.style.top = bb.y + 'px';
     bb.timer--;
 
     // Beep-Takt beschleunigen je näher an der Detonation
@@ -218,13 +211,13 @@ export function aktualisiereBossBomben() {
     if (bb.hp <= 0) {
       Utils.addScore(150);
       Utils.erzeugeExplosion(bb.x + 13, bb.y + 13, '#2ecc71', 25);
-      bb.el.remove();
+      Anzeige.entferne(bb);
       arrays.bossBombenArray.splice(i, 1);
       continue;
     }
 
     if (bb.y > config.spielfeldHoehe + 40 || bb.x < -40 || bb.x > config.spielfeldBreite + 40) {
-      bb.el.remove();
+      Anzeige.entferne(bb);
       arrays.bossBombenArray.splice(i, 1);
       continue;
     }
@@ -265,7 +258,7 @@ export function aktualisiereBossBomben() {
         }
       }
 
-      bb.el.remove();
+      Anzeige.entferne(bb);
       arrays.bossBombenArray.splice(i, 1);
       continue;
     }
@@ -311,10 +304,7 @@ export function aktualisiereBossRaketen() {
 
     br.x += br.vx;
     br.y += br.vy;
-    br.el.style.left = br.x + 'px';
-    br.el.style.top = br.y + 'px';
-    let rotDeg = Math.atan2(br.vy, br.vx) * 180 / Math.PI + 90;
-    br.el.style.transform = `rotate(${rotDeg}deg)`;
+    br.rot = Math.atan2(br.vy, br.vx) * 180 / Math.PI + 90;
 
     // Partikel-Schweif
     if (Math.random() < 0.4) {
@@ -342,14 +332,14 @@ export function aktualisiereBossRaketen() {
       Utils.addScore(100);
       Audio.playMissileExplosion();
       Utils.erzeugeExplosion(br.x + br.width / 2, br.y + br.height / 2, '#e67e22', 20);
-      br.el.remove();
+      Anzeige.entferne(br);
       arrays.bossRaketenArray.splice(i, 1);
       continue;
     }
 
     // Bildschirm weit verlassen
     if (br.y > config.spielfeldHoehe + 60 || br.x < -80 || br.x > config.spielfeldBreite + 80 || br.y < -100) {
-      br.el.remove();
+      Anzeige.entferne(br);
       arrays.bossRaketenArray.splice(i, 1);
       continue;
     }
@@ -359,7 +349,7 @@ export function aktualisiereBossRaketen() {
       Utils.spielerGetroffen(br, false, 'p1');
       Audio.playMissileExplosion();
       Utils.erzeugeExplosion(br.x + br.width / 2, br.y + br.height / 2, '#e74c3c', 25);
-      br.el.remove();
+      Anzeige.entferne(br);
       arrays.bossRaketenArray.splice(i, 1);
       continue;
     }
@@ -367,7 +357,7 @@ export function aktualisiereBossRaketen() {
       Utils.spielerGetroffen(br, false, 'p2');
       Audio.playMissileExplosion();
       Utils.erzeugeExplosion(br.x + br.width / 2, br.y + br.height / 2, '#e74c3c', 25);
-      br.el.remove();
+      Anzeige.entferne(br);
       arrays.bossRaketenArray.splice(i, 1);
       continue;
     }

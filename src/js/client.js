@@ -3,6 +3,7 @@ import { state, dom, config, arrays, shipModels } from './state.js';
 import * as Network from './network.js';
 import * as Hack from './hack.js';
 import { animierenPartikel } from './partikel.js';
+import { bewegeSterne } from './loop.js';
 import { zeichneTraktorstrahl, entferneTraktorstrahl } from './powerups.js';
 import * as Gleve from './gleve.js';
 import * as Viper from './viper.js';
@@ -67,8 +68,10 @@ export function setzeInterpolationsZiel(obj, el, x, y) {
   obj.ipSchritte = INTERPOLATION_SCHRITTE;
 }
 
-function interpoliere(obj, el) {
-  if (!obj.ipSchritte) return;
+// Schiebt die Anzeigeposition (anzeigeX/Y) einen Schritt weiter; true, wenn sie sich geaendert hat.
+// Weltobjekte zeichnet danach die Anzeige (anzeige.js), das Host-Schiff zeichnet interpoliereObjekte.
+function interpoliere(obj) {
+  if (!obj.ipSchritte) return false;
   obj.ipSchritte--;
   if (obj.ipSchritte === 0) {
     obj.anzeigeX = obj.zielX;
@@ -77,7 +80,7 @@ function interpoliere(obj, el) {
     obj.anzeigeX += obj.ipDx;
     obj.anzeigeY += obj.ipDy;
   }
-  setzePosition(el, obj.anzeigeX, obj.anzeigeY);
+  return true;
 }
 
 // Fuer Projektile ohne Geschwindigkeit im Snapshot: aus zwei Snapshots ableiten
@@ -94,7 +97,6 @@ function bewegeProjektil(o, vx, vy) {
   if (!vx && !vy) return;
   o.x += vx || 0;
   o.y += vy || 0;
-  setzePosition(o.el, o.x, o.y);
 }
 
 function extrapoliereProjektile() {
@@ -110,9 +112,9 @@ function extrapoliereProjektile() {
 
 function interpoliereObjekte() {
   [arrays.feinde, arrays.asteroiden, arrays.bosses, arrays.powerups].forEach(liste => {
-    liste.forEach(o => interpoliere(o, o.el));
+    liste.forEach(o => interpoliere(o));
   });
-  interpoliere(p1Anzeige, dom.spieler);
+  if (interpoliere(p1Anzeige)) setzePosition(dom.spieler, p1Anzeige.anzeigeX, p1Anzeige.anzeigeY);
 }
 
 // Traktorstrahlen geschleppter Powerups mit derselben Darstellung wie beim Host zeichnen
@@ -152,15 +154,7 @@ export function clientSchritt() {
     }
   }
 
-  arrays.sterne.forEach(stern => {
-    stern.y += stern.speed;
-    if (stern.y > config.spielfeldHoehe) {
-      stern.y = -5;
-      stern.x = Math.random() * config.spielfeldBreite;
-    }
-    stern.el.style.top = stern.y + 'px';
-    stern.el.style.left = stern.x + 'px';
-  });
+  bewegeSterne();
 
   if (state.p2 && dom.spieler2 && !state.p2.isDead) {
     let baseFlameScaleP2 = 1.0;

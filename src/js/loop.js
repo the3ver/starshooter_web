@@ -7,6 +7,7 @@ import * as Cutscene from './cutscene.js';
 import * as Network from './network.js';
 import * as Hack from './hack.js';
 import * as Viper from './viper.js';
+import * as Anzeige from './anzeige.js';
 import { animierenPartikel } from './partikel.js';
 import { verwalteFeindSpawns, aktualisiereAsteroiden, aktualisiereFeinde, aktualisiereFeindLaser, aktualisiereHackProjektile } from './gegner.js';
 import { aktualisiereBosse, aktualisiereBossBomben, aktualisiereBossRaketen } from './boss.js';
@@ -29,7 +30,24 @@ function sendeHostSnapshot() {
   }
 }
 
+// Sterne fallen und erscheinen oben neu (alle Spielphasen, auch auf dem Online-Client)
+export function bewegeSterne() {
+  arrays.sterne.forEach(stern => {
+    stern.y += stern.speed;
+    if (stern.y > config.spielfeldHoehe) {
+      stern.y = -5;
+      stern.x = Math.random() * config.spielfeldBreite;
+    }
+  });
+}
+
+// Ein fester Schritt: erst die Simulation, dann die Anzeige der Welt (anzeige.js)
 export function simulationsSchritt() {
+  simuliere();
+  Anzeige.zeichneWelt();
+}
+
+function simuliere() {
   if (state.pausiert) {
     pruefePause();
     return;
@@ -61,16 +79,8 @@ export function simulationsSchritt() {
         return;
       }
     } else {
-      // Nur Sterne und Spieler rendern
-      arrays.sterne.forEach(stern => {
-        stern.y += stern.speed;
-        if (stern.y > config.spielfeldHoehe) {
-          stern.y = -5;
-          stern.x = Math.random() * config.spielfeldBreite;
-        }
-        stern.el.style.top = stern.y + 'px';
-        stern.el.style.left = stern.x + 'px';
-      });
+      // Vor dem Start bewegen sich nur die Sterne
+      bewegeSterne();
       return;
     }
   }
@@ -82,30 +92,14 @@ export function simulationsSchritt() {
       dom.warningOverlay.style.display = 'none';
       Entities.erzeugeBoss();
     }
-    arrays.sterne.forEach(stern => {
-      stern.y += stern.speed;
-      if (stern.y > config.spielfeldHoehe) {
-        stern.y = -5;
-        stern.x = Math.random() * config.spielfeldBreite;
-      }
-      stern.el.style.top = stern.y + 'px';
-      stern.el.style.left = stern.x + 'px';
-    });
+    bewegeSterne();
     // Auch waehrend der Warnung senden, damit der Client sie sicher sieht (und danach den Boss)
     if (state.bossWarningTimer % 2 === 0) sendeHostSnapshot();
     return;
   }
   if (state.gameOverAktiv) {
     // Nur Sterne fliegen weiter
-    arrays.sterne.forEach(stern => {
-      stern.y += stern.speed;
-      if (stern.y > config.spielfeldHoehe) {
-        stern.y = -5;
-        stern.x = Math.random() * config.spielfeldBreite;
-      }
-      stern.el.style.top = stern.y + 'px';
-      stern.el.style.left = stern.x + 'px';
-    });
+    bewegeSterne();
     return;
   }
 
@@ -135,15 +129,7 @@ export function simulationsSchritt() {
   Hack.zeigeHackStatus();
 
   // --- 9.2 STERNE BEWEGUNG & SPARTIKEL ---
-  arrays.sterne.forEach(stern => {
-    stern.y += stern.speed;
-    if (stern.y > config.spielfeldHoehe) {
-      stern.y = -5;
-      stern.x = Math.random() * config.spielfeldBreite;
-    }
-    stern.el.style.top = stern.y + 'px';
-    stern.el.style.left = stern.x + 'px';
-  });
+  bewegeSterne();
 
   // --- 9.3 SPAWNS & DIFFICULTY CURVE (Skaliert mit Level!) ---
   state.frameZaehler++;

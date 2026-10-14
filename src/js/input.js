@@ -8,6 +8,7 @@ import * as Cutscene from './cutscene.js';
 import * as Network from './network.js';
 import * as Sniper from './sniper.js';
 import { schaltePause, behandleEscape, initPauseMenue } from './pause.js';
+import * as Anzeige from './anzeige.js';
 
 
 export function setupInput() {
@@ -68,19 +69,19 @@ export function setupInput() {
           if (dom.bossHpContainer) dom.bossHpContainer.style.display = 'none';
           state.frameZaehler = 0;
           if (arrays.bosses) {
-            arrays.bosses.forEach(b => b.el.remove());
+            arrays.bosses.forEach(Anzeige.entferne);
             arrays.bosses.length = 0;
           }
           if (arrays.bossLaserArray) {
-            arrays.bossLaserArray.forEach(bl => bl.el.remove());
+            arrays.bossLaserArray.forEach(Anzeige.entferne);
             arrays.bossLaserArray.length = 0;
           }
           if (arrays.bossBombenArray) {
-            arrays.bossBombenArray.forEach(bb => bb.el.remove());
+            arrays.bossBombenArray.forEach(Anzeige.entferne);
             arrays.bossBombenArray.length = 0;
           }
           if (arrays.bossRaketenArray) {
-            arrays.bossRaketenArray.forEach(br => br.el.remove());
+            arrays.bossRaketenArray.forEach(Anzeige.entferne);
             arrays.bossRaketenArray.length = 0;
           }
           resetAllCooldowns();

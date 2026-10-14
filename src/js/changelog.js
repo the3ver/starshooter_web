@@ -1,6 +1,13 @@
-export const GAME_VERSION = '1.15.0';
+export const GAME_VERSION = '1.15.1';
 
 export const changelogData = {
+  '1.15.1': {
+    version: '1.15.1',
+    intro: 'Hey, es ist jetzt Version 1.15.1 rausgekommen, folgendes wurde aktualisiert:',
+    highlights: [
+      '🛠️ Umbau unter der Haube: Spiellogik und Grafik sind jetzt getrennt. Das bereitet eine neue Grafik-Engine vor, am Spielgefühl ändert sich nichts'
+    ]
+  },
   '1.15.0': {
     version: '1.15.0',
     intro: 'Hey, es ist jetzt Version 1.15.0 rausgekommen, folgendes wurde aktualisiert:',

@@ -11,6 +11,7 @@ import { PROTOKOLL_VERSION, KEYFRAME_INTERVALL, SnapshotKodierer, SnapshotDekodi
 import * as Gleve from './gleve.js';
 import * as Viper from './viper.js';
 import * as Sniper from './sniper.js';
+import * as Anzeige from './anzeige.js';
 
 let room = null;
 let sendStateAction = null;
@@ -1026,7 +1027,7 @@ function synchronisiereListe(liste, datenListe, erzeuge, aktualisiere) {
     });
     liste.forEach(obj => {
         if (obj.id === undefined || vorhanden.get(obj.id) === obj) {
-            if (obj.el) obj.el.remove();
+            Anzeige.entferne(obj);
         }
     });
     liste.length = 0;
@@ -1321,7 +1322,7 @@ export function applyGameStateSnapshot(snapshot) {
         });
         for (let i = arrays.feinde.length - 1; i >= 0; i--) {
             if (!currentIds.has(arrays.feinde[i].id)) {
-                if (arrays.feinde[i].el) arrays.feinde[i].el.remove();
+                Anzeige.entferne(arrays.feinde[i]);
                 arrays.feinde.splice(i, 1);
             }
         }
@@ -1393,9 +1394,7 @@ export function applyGameStateSnapshot(snapshot) {
                 existing.x = aData.x;
                 existing.y = aData.y;
                 setzeInterpolationsZiel(existing, existing.el, aData.x, aData.y);
-                if (aData.rot) {
-                    existing.el.style.transform = `rotate(${aData.rot}deg)`;
-                }
+                if (aData.rot) existing.rot = aData.rot;
                 if (existing.rissEl && aData.maxHp) {
                     let basisRiss = aData.traegtPowerup ? 0.5 : 0;
                     let schadenProzent = basisRiss + (1 - basisRiss) * (1 - Math.max(0, aData.hp) / aData.maxHp);
@@ -1405,7 +1404,7 @@ export function applyGameStateSnapshot(snapshot) {
         });
         for (let i = arrays.asteroiden.length - 1; i >= 0; i--) {
             if (!currentIds.has(arrays.asteroiden[i].id)) {
-                if (arrays.asteroiden[i].el) arrays.asteroiden[i].el.remove();
+                Anzeige.entferne(arrays.asteroiden[i]);
                 arrays.asteroiden.splice(i, 1);
             }
         }
@@ -1450,7 +1449,7 @@ export function applyGameStateSnapshot(snapshot) {
         });
         for (let i = arrays.bosses.length - 1; i >= 0; i--) {
             if (!currentIds.has(arrays.bosses[i].id)) {
-                if (arrays.bosses[i].el) arrays.bosses[i].el.remove();
+                Anzeige.entferne(arrays.bosses[i]);
                 arrays.bosses.splice(i, 1);
             }
         }
@@ -1486,12 +1485,7 @@ export function applyGameStateSnapshot(snapshot) {
         obj.y = lData.y;
         obj.vx = lData.vx || 0;
         obj.vy = lData.vy || 15;
-        obj.el.style.left = lData.x + 'px';
-        obj.el.style.top = lData.y + 'px';
-        if (lData.vx && lData.vx !== 0) {
-            let winkel = Math.atan2(-15, lData.vx) * 180 / Math.PI;
-            obj.el.style.transform = `rotate(${winkel + 90}deg)`;
-        }
+        if (lData.vx && lData.vx !== 0) obj.rot = Math.atan2(-15, lData.vx) * 180 / Math.PI + 90;
     });
 
     // 9. Replicate Rockets
@@ -1527,9 +1521,6 @@ export function applyGameStateSnapshot(snapshot) {
         obj.x = rData.x;
         obj.y = rData.y;
         obj.rot = rData.rot || 0;
-        obj.el.style.left = rData.x + 'px';
-        obj.el.style.top = rData.y + 'px';
-        obj.el.style.transform = `rotate(${obj.rot}deg)`;
     });
 
     // 10. Replicate Bombs
@@ -1564,9 +1555,6 @@ export function applyGameStateSnapshot(snapshot) {
         obj.x = bData.x;
         obj.y = bData.y;
         obj.rot = bData.rot || 0;
-        obj.el.style.left = bData.x + 'px';
-        obj.el.style.top = bData.y + 'px';
-        obj.el.style.transform = `rotate(${obj.rot}deg)`;
     });
 
     // Klingenwellen der Gleve (keine Extrapolation, kommen mit jedem Snapshot)
@@ -1577,7 +1565,6 @@ export function applyGameStateSnapshot(snapshot) {
     }, (obj, wData) => {
         obj.x = wData.x;
         obj.y = wData.y;
-        Gleve.zeigeWelle(obj);
     });
 
     // Granaten des Sniper-Hosts/-Clients im Flug
@@ -1610,12 +1597,7 @@ export function applyGameStateSnapshot(snapshot) {
         obj.y = flData.y;
         obj.vx = flData.vx;
         obj.vy = flData.vy;
-        obj.el.style.left = flData.x + 'px';
-        obj.el.style.top = flData.y + 'px';
-        if (flData.vx && flData.vx !== 0) {
-            let winkel = Math.atan2(flData.vy || 7, flData.vx) * 180 / Math.PI;
-            obj.el.style.transform = `rotate(${winkel - 90}deg)`;
-        }
+        if (flData.vx && flData.vx !== 0) obj.rot = Math.atan2(flData.vy || 7, flData.vx) * 180 / Math.PI - 90;
         uebernehmeHarmlos(obj, flData);
     });
 
@@ -1633,8 +1615,6 @@ export function applyGameStateSnapshot(snapshot) {
         leiteGeschwindigkeitAb(obj, hpData.x, hpData.y);
         obj.x = hpData.x;
         obj.y = hpData.y;
-        obj.el.style.left = hpData.x + 'px';
-        obj.el.style.top = hpData.y + 'px';
         uebernehmeHarmlos(obj, hpData);
     });
 
@@ -1664,12 +1644,7 @@ export function applyGameStateSnapshot(snapshot) {
         obj.y = blData.y;
         obj.vx = blData.vx;
         obj.vy = blData.vy;
-        obj.el.style.left = blData.x + 'px';
-        obj.el.style.top = blData.y + 'px';
-        if (blData.vx && blData.vx !== 0) {
-            let winkel = Math.atan2(blData.vy || 6, blData.vx) * 180 / Math.PI;
-            obj.el.style.transform = `rotate(${winkel - 90}deg)`;
-        }
+        if (blData.vx && blData.vx !== 0) obj.rot = Math.atan2(blData.vy || 6, blData.vx) * 180 / Math.PI - 90;
         uebernehmeHarmlos(obj, blData);
     });
 
@@ -1706,9 +1681,6 @@ export function applyGameStateSnapshot(snapshot) {
         obj.vx = brData.vx || 0;
         obj.vy = brData.vy || 0;
         obj.rot = brData.rot || 0;
-        obj.el.style.left = brData.x + 'px';
-        obj.el.style.top = brData.y + 'px';
-        obj.el.style.transform = `rotate(${obj.rot}deg)`;
     });
 
     // 14. Replicate Boss Bombs
@@ -1736,8 +1708,6 @@ export function applyGameStateSnapshot(snapshot) {
         leiteGeschwindigkeitAb(obj, bbData.x, bbData.y);
         obj.x = bbData.x;
         obj.y = bbData.y;
-        obj.el.style.left = bbData.x + 'px';
-        obj.el.style.top = bbData.y + 'px';
     });
 
     // 15. Replicate Powerups with full styling & owner badges
@@ -1781,11 +1751,14 @@ export function applyGameStateSnapshot(snapshot) {
         for (let i = arrays.powerups.length - 1; i >= 0; i--) {
             if (!currentIds.has(arrays.powerups[i].id)) {
                 entferneTraktorstrahl(arrays.powerups[i]);
-                if (arrays.powerups[i].el) arrays.powerups[i].el.remove();
+                Anzeige.entferne(arrays.powerups[i]);
                 arrays.powerups.splice(i, 1);
             }
         }
     }
+
+    // Uebernommene Positionen sofort zeigen (zwischen den Snapshots zeichnet simulationsSchritt)
+    Anzeige.zeichneWelt();
 }
 
 export function serializePlayerInput() {

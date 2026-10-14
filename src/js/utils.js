@@ -9,6 +9,7 @@ import * as Network from './network.js';
 import * as Gleve from './gleve.js';
 import * as Sniper from './sniper.js';
 import * as Viper from './viper.js';
+import * as Anzeige from './anzeige.js';
 
 
 // faktor: Punkte-Multiplikator (Viper-Kombo), Ergebnis gerundet
@@ -328,7 +329,7 @@ export function zerstoereZiel(ziel, killer = 'p1') {
     }
   }
   Viper.registriereKill(komboZustand);
-  ziel.el.remove();
+  Anzeige.entferne(ziel);
   if (fIndex > -1) arrays.feinde.splice(fIndex, 1);
   if (aIndex > -1) arrays.asteroiden.splice(aIndex, 1);
   if (bIndex > -1) arrays.bosses.splice(bIndex, 1);
@@ -696,7 +697,7 @@ export function restartGame() {
   
   const clearArray = (arr) => {
     if (arr) {
-      arr.forEach(item => { if (item && item.el) item.el.remove(); });
+      arr.forEach(Anzeige.entferne);
       arr.length = 0;
     }
   };
@@ -1258,13 +1259,15 @@ export function erzeugeRauchFunken(x, y, groesse) {
     el.style.backgroundColor = '#555';
     el.style.width = '6px';
     el.style.height = '6px';
-    el.style.left = x + Math.random() * groesse + 'px';
-    el.style.top = y + Math.random() * groesse + 'px';
+    const px = x + Math.random() * groesse;
+    const py = y + Math.random() * groesse;
+    el.style.left = px + 'px';
+    el.style.top = py + 'px';
     dom.spielfeld.appendChild(el);
     arrays.partikelArray.push({
       el: el,
-      x: parseFloat(el.style.left),
-      y: parseFloat(el.style.top),
+      x: px,
+      y: py,
       vx: (Math.random() - 0.5) * 2,
       vy: -Math.random() * 2 - 1,
       leben: 1.0,
@@ -1277,13 +1280,15 @@ export function erzeugeRauchFunken(x, y, groesse) {
     el.classList.add('partikel');
     el.style.backgroundColor = '#f1c40f';
     el.style.boxShadow = '0 0 5px #f1c40f';
-    el.style.left = x + Math.random() * groesse + 'px';
-    el.style.top = y + Math.random() * groesse + 'px';
+    const px = x + Math.random() * groesse;
+    const py = y + Math.random() * groesse;
+    el.style.left = px + 'px';
+    el.style.top = py + 'px';
     dom.spielfeld.appendChild(el);
     arrays.partikelArray.push({
       el: el,
-      x: parseFloat(el.style.left),
-      y: parseFloat(el.style.top),
+      x: px,
+      y: py,
       vx: (Math.random() - 0.5) * 4,
       vy: -Math.random() * 4,
       leben: 1.0,

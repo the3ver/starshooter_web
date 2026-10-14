@@ -3,6 +3,7 @@ import { state, config, arrays, isCoopMode } from './state.js';
 import * as Utils from './utils.js';
 import * as Entities from './entities.js';
 import * as Hack from './hack.js';
+import * as Anzeige from './anzeige.js';
 
 
 export function verwalteFeindSpawns() {
@@ -105,26 +106,21 @@ export function aktualisiereAsteroiden() {
     if (ast.immune > 0) ast.immune--;
     ast.x += ast.vx;
     ast.y += ast.vy;
-    if (ast.vRot) {
-      ast.rot += ast.vRot;
-      ast.el.style.transform = `rotate(${ast.rot}deg)`;
-    }
-    ast.el.style.left = ast.x + 'px';
-    ast.el.style.top = ast.y + 'px';
+    if (ast.vRot) ast.rot += ast.vRot;
     if (ast.y > config.spielfeldHoehe || ast.x < -ast.groesse || ast.x > config.spielfeldBreite) {
-      ast.el.remove();
+      Anzeige.entferne(ast);
       arrays.asteroiden.splice(i, 1);
       continue;
     }
     if (!state.isDead && !Utils.istDashUnverwundbar(state) && state.x < ast.x + ast.groesse && state.x + config.spielerGroesse > ast.x && state.y < ast.y + ast.groesse && state.y + config.spielerGroesse > ast.y) {
       Utils.spielerGetroffen(ast, true, 'p1');
-      ast.el.remove();
+      Anzeige.entferne(ast);
       arrays.asteroiden.splice(i, 1);
       continue;
     }
     if (isCoopMode() && state.p2 && !state.p2.isDead && !Utils.istDashUnverwundbar(state.p2) && state.p2.x < ast.x + ast.groesse && state.p2.x + config.spielerGroesse > ast.x && state.p2.y < ast.y + ast.groesse && state.p2.y + config.spielerGroesse > ast.y) {
       Utils.spielerGetroffen(ast, true, 'p2');
-      ast.el.remove();
+      Anzeige.entferne(ast);
       arrays.asteroiden.splice(i, 1);
       continue;
     }
@@ -173,7 +169,7 @@ export function aktualisiereFeinde() {
     } else if (f.muster === 'swoop' || f.muster === 'crossfire') {
       f.x += f.vx;
       f.y += f.vy * 1.5;
-      f.el.style.transform = `rotate(${Math.atan2(f.vy * 1.5, f.vx) * 180 / Math.PI - 90}deg)`;
+      f.rot = Math.atan2(f.vy * 1.5, f.vx) * 180 / Math.PI - 90;
     } else if (f.muster === 'clingOn') {
       if (f.phase === 'attached') {
         let asteroidExists = arrays.asteroiden.includes(f.attachedAsteroid);
@@ -203,7 +199,7 @@ export function aktualisiereFeinde() {
         }
         f.x += f.vx;
         f.y += f.vy;
-        f.el.style.transform = `rotate(${Math.atan2(f.vy, f.vx) * 180 / Math.PI - 90}deg)`;
+        f.rot = Math.atan2(f.vy, f.vx) * 180 / Math.PI - 90;
       }
     } else if (f.muster === 'hacker') {
       aktualisiereHacker(f);
@@ -212,10 +208,8 @@ export function aktualisiereFeinde() {
       f.zeit += 0.05;
       f.x = f.basisX + Math.sin(f.zeit) * 30;
     }
-    f.el.style.left = f.x + 'px';
-    f.el.style.top = f.y + 'px';
     if (f.y > config.spielfeldHoehe || f.x < -f.groesse - 50 || f.x > config.spielfeldBreite + 50 || (f.phase === 'flucht' && f.y < -f.groesse - 10)) {
-      f.el.remove();
+      Anzeige.entferne(f);
       arrays.feinde.splice(i, 1);
       continue;
     }
@@ -244,13 +238,13 @@ export function aktualisiereFeinde() {
     }
     if (!state.isDead && !Utils.istDashUnverwundbar(state) && state.x < f.x + f.groesse && state.x + config.spielerGroesse > f.x && state.y < f.y + f.groesse && state.y + config.spielerGroesse > f.y) {
       Utils.spielerGetroffen(f, true, 'p1');
-      f.el.remove();
+      Anzeige.entferne(f);
       arrays.feinde.splice(i, 1);
       continue;
     }
     if (isCoopMode() && state.p2 && !state.p2.isDead && !Utils.istDashUnverwundbar(state.p2) && state.p2.x < f.x + f.groesse && state.p2.x + config.spielerGroesse > f.x && state.p2.y < f.y + f.groesse && state.p2.y + config.spielerGroesse > f.y) {
       Utils.spielerGetroffen(f, true, 'p2');
-      f.el.remove();
+      Anzeige.entferne(f);
       arrays.feinde.splice(i, 1);
       continue;
     }
@@ -263,10 +257,8 @@ export function aktualisiereFeindLaser() {
     if (!fl) break;
     fl.y += fl.vy;
     if (fl.vx) fl.x += fl.vx;
-    fl.el.style.top = fl.y + 'px';
-    fl.el.style.left = fl.x + 'px';
     if (fl.y > config.spielfeldHoehe || fl.y < -fl.height || fl.x < -fl.width || fl.x > config.spielfeldBreite) {
-      fl.el.remove();
+      Anzeige.entferne(fl);
       arrays.feindLaserArray.splice(i, 1);
       continue;
     }
@@ -274,13 +266,13 @@ export function aktualisiereFeindLaser() {
     if (fl.harmlos) continue;
     if (!state.isDead && !Utils.istDashUnverwundbar(state) && state.x < fl.x + fl.width && state.x + config.spielerGroesse > fl.x && state.y < fl.y + fl.height && state.y + config.spielerGroesse > fl.y) {
       Utils.spielerGetroffen(fl, false, 'p1');
-      fl.el.remove();
+      Anzeige.entferne(fl);
       arrays.feindLaserArray.splice(i, 1);
       continue;
     }
     if (isCoopMode() && state.p2 && !state.p2.isDead && !Utils.istDashUnverwundbar(state.p2) && state.p2.x < fl.x + fl.width && state.p2.x + config.spielerGroesse > fl.x && state.p2.y < fl.y + fl.height && state.p2.y + config.spielerGroesse > fl.y) {
       Utils.spielerGetroffen(fl, false, 'p2');
-      fl.el.remove();
+      Anzeige.entferne(fl);
       arrays.feindLaserArray.splice(i, 1);
       continue;
     }
@@ -305,10 +297,8 @@ export function aktualisiereHackProjektile() {
     }
     hp.x += hp.vx;
     hp.y += hp.vy;
-    hp.el.style.left = hp.x + 'px';
-    hp.el.style.top = hp.y + 'px';
     if (hp.y > config.spielfeldHoehe || hp.y < -hp.height || hp.x < -hp.width || hp.x > config.spielfeldBreite) {
-      hp.el.remove();
+      Anzeige.entferne(hp);
       arrays.hackProjektilArray.splice(i, 1);
       continue;
     }
@@ -326,7 +316,7 @@ export function aktualisiereHackProjektile() {
         Hack.hackeSpieler(getroffen);
         if (hp.quelle) hp.quelle.hackGelandet = true;
       }
-      hp.el.remove();
+      Anzeige.entferne(hp);
       arrays.hackProjektilArray.splice(i, 1);
     }
   }

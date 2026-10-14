@@ -8,6 +8,7 @@ import * as Hack from './hack.js';
 import * as Gleve from './gleve.js';
 import * as Viper from './viper.js';
 import * as Sniper from './sniper.js';
+import * as Anzeige from './anzeige.js';
 
 
 export function versteckeAlleLaser() {
@@ -515,16 +516,9 @@ export function aktualisiereWaffen(laserAktiv, laserAktivP2) {
     let l = arrays.laserArray[i];
     l.x += l.vx;
     l.y -= l.vy;
-    l.el.style.left = l.x + 'px';
-    l.el.style.top = l.y + 'px';
-    if (l.vx !== 0) {
-      let winkel = Math.atan2(-l.vy, l.vx) * 180 / Math.PI;
-      l.el.style.transform = `rotate(${winkel + 90}deg)`;
-    } else {
-      l.el.style.transform = 'rotate(0deg)';
-    }
+    l.rot = l.vx !== 0 ? Math.atan2(-l.vy, l.vx) * 180 / Math.PI + 90 : 0;
     if (l.y < -30 || l.x < -30 || l.x > config.spielfeldBreite + 30) {
-      l.el.remove();
+      Anzeige.entferne(l);
       arrays.laserArray.splice(i, 1);
       continue;
     }
@@ -575,7 +569,7 @@ export function aktualisiereWaffen(laserAktiv, laserAktivP2) {
         }
         // Durchschlag: Flag des Projektils (Powerup oder Viper-Overdrive), sonst wie bisher das globale Powerup (z. B. Gleve-Rueckwurf)
         if (!l.durchschlag && !state.laserDurchschlag) {
-          l.el.remove();
+          Anzeige.entferne(l);
           arrays.laserArray.splice(i, 1);
         }
       } else {
@@ -598,7 +592,7 @@ export function aktualisiereWaffen(laserAktiv, laserAktivP2) {
       const trifftSchuetzen = (l.owner !== 'p2' || isCoopMode()) && schuetze && !schuetze.isDead;
       if (trifftSchuetzen && !Utils.istDashUnverwundbar(schuetze) && l.x < schuetze.x + config.spielerGroesse && l.x + l.width > schuetze.x && l.y < schuetze.y + config.spielerGroesse && l.y + l.height > schuetze.y) {
         Utils.spielerGetroffen(l, false, l.owner === 'p2' ? 'p2' : 'p1');
-        l.el.remove();
+        Anzeige.entferne(l);
         arrays.laserArray.splice(i, 1);
       }
     }
@@ -684,11 +678,8 @@ export function aktualisiereWaffen(laserAktiv, laserAktivP2) {
       r.y -= r.vy;
     }
 
-    // Raketenausrichtung & DOM-Position aktualisieren
-    let flightAngle = Math.atan2(-r.vy, r.vx || 0.0001) * 180 / Math.PI + 90;
-    r.el.style.transform = `rotate(${flightAngle}deg)`;
-    r.el.style.top = r.y + 'px';
-    r.el.style.left = r.x + 'px';
+    // Raketenausrichtung (Flugrichtung)
+    r.rot = Math.atan2(-r.vy, r.vx || 0.0001) * 180 / Math.PI + 90;
 
     // Partikelschweif (Rauch beim Ausklinken, Vollfeuer in Phase 3)
     let flameProb = r.age > 18 ? 0.85 : (r.age > 10 ? 0.45 : 0.2);
@@ -719,7 +710,7 @@ export function aktualisiereWaffen(laserAktiv, laserAktivP2) {
     }
 
     if (r.y < -40 || r.x < -50 || r.x > config.spielfeldBreite + 50 || r.y > config.spielfeldHoehe + 50) {
-      r.el.remove();
+      Anzeige.entferne(r);
       arrays.raketenArray.splice(i, 1);
       continue;
     }
@@ -788,7 +779,7 @@ export function aktualisiereWaffen(laserAktiv, laserAktivP2) {
           }
         }
       }
-      r.el.remove();
+      Anzeige.entferne(r);
       arrays.raketenArray.splice(i, 1);
     }
   }
@@ -811,13 +802,13 @@ export function aktualisiereWaffen(laserAktiv, laserAktivP2) {
       for (let l = arrays.feindLaserArray.length - 1; l >= 0; l--) {
         let fl = arrays.feindLaserArray[l];
         Utils.erzeugeExplosion(fl.x, fl.y, b.color, 2);
-        fl.el.remove();
+        Anzeige.entferne(fl);
         arrays.feindLaserArray.splice(l, 1);
       }
       for (let l = arrays.bossLaserArray.length - 1; l >= 0; l--) {
         let bl = arrays.bossLaserArray[l];
         Utils.erzeugeExplosion(bl.x, bl.y, b.color, 2);
-        bl.el.remove();
+        Anzeige.entferne(bl);
         arrays.bossLaserArray.splice(l, 1);
       }
     }
@@ -840,8 +831,6 @@ export function aktualisiereWaffen(laserAktiv, laserAktivP2) {
         if (pullDist > 5 && pullDist < 160) {
           z.x += (pullDx / pullDist) * 1.5;
           z.y += (pullDy / pullDist) * 1.5;
-          z.el.style.left = z.x + 'px';
-          z.el.style.top = z.y + 'px';
         }
       });
     }
@@ -850,9 +839,6 @@ export function aktualisiereWaffen(laserAktiv, laserAktivP2) {
       b.x += dx / dist * b.speed;
       b.y += dy / dist * b.speed;
       b.rot += b.isMini ? 5 : 2;
-      b.el.style.left = b.x + 'px';
-      b.el.style.top = b.y + 'px';
-      b.el.style.transform = `rotate(${b.rot}deg)`;
 
       // Blink- & Aura-Puls-Geschwindigkeit erhöhen je näher am Ziel
       let progress = dist / (b.startDist || 1);
@@ -925,7 +911,7 @@ export function aktualisiereWaffen(laserAktiv, laserAktivP2) {
           });
         });
 
-        b.el.remove();
+        Anzeige.entferne(b);
         arrays.bombenArray.splice(i, 1);
         continue;
       }
@@ -986,7 +972,7 @@ export function aktualisiereWaffen(laserAktiv, laserAktivP2) {
           }
         }
       }
-      b.el.remove();
+      Anzeige.entferne(b);
       arrays.bombenArray.splice(i, 1);
     }
   }

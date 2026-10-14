@@ -797,10 +797,6 @@ function aktualisiereStoesse(pKey) {
     if (z.basisX !== undefined) z.basisX += ddx;
     if (z.festX !== undefined) z.festX += ddx;
     if (z.festY !== undefined) z.festY += ddy;
-    if (z.el) {
-      z.el.style.left = z.x + 'px';
-      z.el.style.top = z.y + 'px';
-    }
     if (s.rest === 0) stoesse.splice(i, 1);
   }
 }

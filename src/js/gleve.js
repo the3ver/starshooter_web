@@ -11,6 +11,7 @@ import * as Utils from './utils.js';
 import * as Audio from './audio.js';
 import * as Hack from './hack.js';
 import * as Entities from './entities.js';
+import * as Anzeige from './anzeige.js';
 
 export const DASH_FRAMES = 8;
 export const DASH_NACHLAUF_FRAMES = 10; // Unverwundbar nach dem Dash
@@ -791,17 +792,7 @@ export function erzeugeWellenElement(w, pState) {
   el.style.filter = `drop-shadow(0 0 4px ${farbe})`;
   dom.spielfeld.appendChild(el);
   w.el = el;
-  zeigeWelle(w);
   return el;
-}
-
-// Position und Verblassen (Deckkraft aus der zurueckgelegten Strecke, damit der Client nichts extra braucht)
-export function zeigeWelle(w) {
-  if (!w.el) return;
-  const strecke = Math.max(0, (w.startY === undefined ? w.y : w.startY) - w.y);
-  w.el.style.left = w.x + 'px';
-  w.el.style.top = w.y + 'px';
-  w.el.style.opacity = String(Math.max(0.2, 1 - 0.8 * strecke / (WELLE_TEMPO * WELLE_SCHRITTE)));
 }
 
 // Pro Simulationsschritt (Host/lokal, aus waffen.js): Wellen bewegen, Ziele einmal treffen, am Ende entfernen.
@@ -822,10 +813,8 @@ export function aktualisiereWellen() {
       if (schadeZiel(z, w.schaden, w.owner)) belohneSweepKill(pState, z);
     }
     if (w.schritte >= WELLE_SCHRITTE) {
-      if (w.el) w.el.remove();
+      Anzeige.entferne(w);
       arrays.gleveWellen.splice(i, 1);
-    } else {
-      zeigeWelle(w);
     }
   }
 }

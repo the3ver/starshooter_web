@@ -3,6 +3,7 @@ import { state, dom, config, arrays, isCoopMode } from './state.js';
 import * as Utils from './utils.js';
 import * as Audio from './audio.js';
 import * as Network from './network.js';
+import * as Anzeige from './anzeige.js';
 
 
 function wendePowerupAn(p, targetKey = 'p1') {
@@ -216,8 +217,6 @@ export function aktualisierePowerups() {
 
         p.x += (targetX - p.x) * 0.28;
         p.y += (targetY - p.y) * 0.28;
-        p.el.style.left = p.x + 'px';
-        p.el.style.top = p.y + 'px';
 
         updateTractorBeam(p, state.x + config.spielerGroesse / 2, state.y + config.spielerGroesse);
 
@@ -227,7 +226,7 @@ export function aktualisierePowerups() {
             state.p2.y < p.y + p.groesse && state.p2.y + config.spielerGroesse > p.y) {
           if (p.beamEl) { p.beamEl.remove(); p.beamEl = null; }
           wendePowerupAn(p, 'p2');
-          p.el.remove();
+          Anzeige.entferne(p);
           arrays.powerups.splice(i, 1);
           continue;
         }
@@ -252,8 +251,6 @@ export function aktualisierePowerups() {
 
         p.x += (targetX - p.x) * 0.28;
         p.y += (targetY - p.y) * 0.28;
-        p.el.style.left = p.x + 'px';
-        p.el.style.top = p.y + 'px';
 
         updateTractorBeam(p, state.p2.x + config.spielerGroesse / 2, state.p2.y + config.spielerGroesse);
 
@@ -263,7 +260,7 @@ export function aktualisierePowerups() {
             state.y < p.y + p.groesse && state.y + config.spielerGroesse > p.y) {
           if (p.beamEl) { p.beamEl.remove(); p.beamEl = null; }
           wendePowerupAn(p, 'p1');
-          p.el.remove();
+          Anzeige.entferne(p);
           arrays.powerups.splice(i, 1);
           continue;
         }
@@ -273,10 +270,9 @@ export function aktualisierePowerups() {
 
     // --- CASE C: Freies Powerup ---
     p.y += p.vy;
-    p.el.style.top = p.y + 'px';
     if (p.y > config.spielfeldHoehe) {
       if (p.beamEl) p.beamEl.remove();
-      p.el.remove();
+      Anzeige.entferne(p);
       arrays.powerups.splice(i, 1);
       continue;
     }
@@ -294,7 +290,7 @@ export function aktualisierePowerups() {
     if (p1Col) {
       if (!p.owner || p.owner === 'p1') {
         wendePowerupAn(p, 'p1');
-        p.el.remove();
+        Anzeige.entferne(p);
         arrays.powerups.splice(i, 1);
         continue;
       } else if (isCoopMode() && p.owner === 'p2') {
@@ -309,7 +305,7 @@ export function aktualisierePowerups() {
     } else if (p2Col) {
       if (!p.owner || p.owner === 'p2') {
         wendePowerupAn(p, 'p2');
-        p.el.remove();
+        Anzeige.entferne(p);
         arrays.powerups.splice(i, 1);
         continue;
       } else if (isCoopMode() && p.owner === 'p1') {

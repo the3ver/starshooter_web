@@ -20,6 +20,8 @@ Das Projekt ist in modular gegliederte ES-Module strukturiert:
   - `viper.js`: Schiff Viper-X: Ausweichrolle (`aktualisiereViper` aus `spieler.js`/`client.js`, Doppeltipp-/Wisch-Erkennung, Unverwundbarkeit, Online-Vorhersage `netzEingabe`/`uebernehmeSnapshot`/`zeigeViperZustand`, Bereitschafts-HUD).
   - `sniper.js`: Schiff Spectre-SR (`sniper`): Fadenkreuz-Laser, Aufladen und Betaeubungsgranate (komplett: Fadenkreuz, Schuss, Aufladen, Granate, Online, Bot).
   - `partikel.js`: `animierenPartikel()` für Partikel-Bewegung und -Zerfall.
+  - `anzeige.js`: Anzeige-Schnittstelle (engine-neutral): `zeichneWelt()`, `entferne(obj)`, `setzeBackend()`/`holeBackend()`. Siehe Abschnitt "Anzeige-Schicht".
+  - `anzeige-dom.js`: DOM-Backend der Anzeige; einzige Stelle, die Position, Drehung und Deckkraft der Weltobjekte ins DOM schreibt.
   - `entities.js`: Spawnen und Verhalten von Feinden, Bossen (Typ 1–4), Asteroiden, Magma-Brocken und Powerups.
   - `input.js`: Tastatur- & Touch-Steuerung (Joystick, Buttons), Cheatcode-Erkennung.
   - `utils.js`: Hilfsfunktionen (UI-Updates, Kollisionen, Partikel, Highscores, Spielmodi).
@@ -30,6 +32,13 @@ Das Projekt ist in modular gegliederte ES-Module strukturiert:
   - `network.js`: Serverloser P2P-Multiplayer via WebRTC/Trystero (State-Serialisierung, Input-Handling, Event-Broadcasts).
   - `netzkodierung.js`: Reine Kodierung ohne DOM: `SnapshotKodierer`/`SnapshotDekodierer` (Delta-Snapshots mit Rundung, Dead Reckoning, Keyframes), `EingabeSender` (Client-Eingaben nur bei Aenderung) und `PROTOKOLL_VERSION`.
   - `changelog.js`: In-Game Versionsanzeige und Dialog für neue Features ("Was gibt's Neues?").
+
+## Anzeige-Schicht (Vorbereitung fuer eine andere Engine)
+- **Trennung:** Die Spiellogik aendert bei Weltobjekten (Listen in `arrays`) nur Modellfelder. Gezeichnet wird ueber `anzeige.js`, das an ein Backend weiterreicht (Standard `anzeige-dom.js`). Eine andere Engine (Canvas, WebGL, PixiJS) implementiert `zeichneWelt()` und `entferne(obj)` und wird per `Anzeige.setzeBackend()` eingesetzt.
+- **Zeichenphase:** `simulationsSchritt()` = `simuliere()` + `Anzeige.zeichneWelt()`, also einmal am Ende jedes Schritts (Host, Solo, Online-Client); `applyGameStateSnapshot()` zeichnet nach dem Uebernehmen ebenfalls. Tests, die Schritte direkt ausfuehren, sehen dadurch weiter aktuelle DOM-Positionen.
+- **Modellfelder fuer Backends:** `x`/`y` (linke obere Ecke), optional `anzeigeX`/`anzeigeY` (Online-Client: interpolierte Anzeigeposition, `client.js` schreibt nur diese Felder), optional `rot` (Grad; fehlt = keine Drehung schreiben). Partikel: `leben` (Deckkraft, Skalierung), `vRot`/`rot`. Gleve-Wellen: Deckkraft aus `startY - y`.
+- **Regeln:** In der Logik kein `obj.el.style.left/top/transform/opacity = ...` und kein `obj.el.remove()`; stattdessen Modellfeld setzen bzw. `Anzeige.entferne(obj)` vor dem `splice`. Drehungen als `obj.rot` speichern (Laser, Raketen, Boss-Raketen, Feinde im Sturzflug, Asteroiden, Bomben). Neue Weltlisten bekommen einen Eintrag in `ZEICHNER` (`anzeige-dom.js`). Der Waechtertest in `tests/anzeige.spec.js` prueft die Regeln fuer `loop`, `client`, `gegner`, `boss`, `waffen`, `powerups`, `partikel`, `gleve`, `input`, `utils`, `network`.
+- **Noch direkt im DOM (naechste Schritte):** Erzeugen der Elemente (`document.createElement` in `entities.js`, `waffen.js`, `network.js` ...), Zustandsklassen (`betaeubt`, `powerup-towed`, Treffer-Blitz per `style.filter`), Spielerschiffe und HUD (`utils.js`, `spieler.js`, `dom` in `state.js`), Effekte mit eigenen Listen in `sniper.js` (Granaten, Druckwellen, EMP, Strahlen, Minen inkl. `arrays.sniperMinen`), Gleve-Klinge, Viper-Nachbilder, Cutszene und Menues.
 
 ## Game-Loop, Kollisionen & Spielmodi
 - **Game-Loop:** `gameLoop(zeitstempel)` läuft per `requestAnimationFrame` und führt über einen Zeit-Akkumulator (`berechneSchritte`) feste 60-Hz-Simulationsschritte (`simulationsSchritt()`) aus, maximal 5 pro Frame (Rückstand nach Tab-Wechsel wird verworfen). Das Spieltempo ist dadurch unabhängig von der Monitor-Bildrate. `simulationsSchritt()` plant selbst keinen Frame ein; Tests rufen ihn direkt auf.
