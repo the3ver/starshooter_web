@@ -319,9 +319,43 @@ test('Spielerschiff aus dem Zustand: Position, Neigung, Flammen, Sichtbarkeit, B
   expect(r.aus).toEqual({ pos: ['70px', '80px'], display: 'none', blink: false, schild: [] });
 });
 
+test('Schiffsaussehen und -zustand aus dem Modell: SVG, Werfer-Pods, Dash/Rolle/Overdrive/Hack, Strahlen', async ({ page }) => {
+  const r = await page.evaluate(async () => {
+    const { state, dom } = await import('./js/state.js');
+    const Anzeige = await import('./js/anzeige.js');
+    const el = dom.spieler;
+    const pods = () => ['.werfer-links', '.werfer-rechts', '.werfer-center'].map(sel => el.querySelector(sel).style.display);
+    Object.assign(state, { isDead: false, selectedShipModel: 'gleve', selectedShipColor: 'green', raketenStufe: 5, gleveDashTimer: 4 });
+    Anzeige.zeichneSpieler();
+    const gleve = { klasse: el.classList.contains('schiff-gleve'), dash: el.classList.contains('gleve-dash'), pods: pods(),
+      svgGruen: el.querySelector('svg').innerHTML.includes('#2ecc71') };
+    Object.assign(state, { selectedShipModel: 'viper', selectedShipColor: 'red', raketenStufe: 5, gleveDashTimer: 0,
+      viperRolleTimer: 3, viperOverdriveTimer: 10, hacks: [{ typ: 'invertiert', timer: 90 }],
+      autolaserStrahl: { x: 100, y: 300, laenge: 50, winkel: 20 }, hitscanStrahl: { x: 100, y: 300, laenge: 300 } });
+    Anzeige.zeichneSpieler();
+    const label = document.getElementById('hack-label-p1');
+    const auto = dom.autolaserEl;
+    const hitscan = document.getElementById('hitscan-laser');
+    const viper = { klasse: el.classList.contains('schiff-gleve'), dash: el.classList.contains('gleve-dash'), pods: pods(),
+      rolle: el.classList.contains('viper-rolle'), overdrive: el.classList.contains('viper-overdrive'),
+      gehackt: el.classList.contains('spieler-gehackt'), label: label && label.style.display, labelText: label && label.textContent,
+      auto: [auto.style.display, auto.style.top, auto.style.transform], hitscan: [hitscan.style.display, hitscan.style.top] };
+    Object.assign(state, { raketenStufe: 1, viperRolleTimer: 0, viperOverdriveTimer: 0, hacks: [], autolaserStrahl: null, hitscanStrahl: null });
+    Anzeige.zeichneSpieler();
+    const aus = { pods: pods(), rolle: el.classList.contains('viper-rolle'), gehackt: el.classList.contains('spieler-gehackt'),
+      label: label.style.display, auto: auto.style.display, hitscan: hitscan.style.display };
+    return { gleve, viper, aus };
+  });
+  expect(r.gleve).toEqual({ klasse: true, dash: true, pods: ['none', 'none', 'none'], svgGruen: true });
+  expect(r.viper).toEqual({ klasse: false, dash: false, pods: ['block', 'block', 'block'], rolle: true, overdrive: true,
+    gehackt: true, label: 'block', labelText: 'INVERTED', auto: ['block', '250px', 'rotate(20deg)'], hitscan: ['block', '0px'] });
+  expect(r.aus).toEqual({ pods: ['block', 'none', 'none'], rolle: false, gehackt: false, label: 'none', auto: 'none', hitscan: 'none' });
+});
+
 test('Spielerschiffe: Logik schreibt nicht in #spieler / #spieler-2', () => {
-  const module = ['spieler.js', 'client.js', 'network.js', 'powerups.js', 'input.js', 'main.js', 'cutscene.js', 'loop.js'];
-  const verboten = /dom\.spieler2?\.(style|classList|setAttribute)|flame-(left|right)/;
+  const module = ['spieler.js', 'client.js', 'network.js', 'powerups.js', 'input.js', 'main.js', 'cutscene.js', 'loop.js',
+    'utils.js', 'gleve.js', 'viper.js', 'hack.js', 'waffen.js'];
+  const verboten = /dom\.spieler2?\.(style|classList|setAttribute|querySelector)|flame-(left|right)|autolaserEl|hitscan-laser|schiffElement/;
   const funde = [];
   for (const datei of module) {
     const zeilen = fs.readFileSync(path.join(__dirname, '..', 'src', 'js', datei), 'utf8').split('\n');

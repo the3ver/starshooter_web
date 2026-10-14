@@ -611,8 +611,9 @@ test.describe('Viper-X Ausweichrolle: Online', () => {
     expect(r.p2).toEqual([0, 33]);
     expect(r.phantomFelder).toBe(false);
     expect(r.draht).toEqual([7, -1, 61, 33]);
-    // 7 Restschritte aus dem Snapshot: Klasse in den ersten 7 Client-Schritten, dann weg
-    expect(r.klassen).toEqual([true, true, true, true, true, true, true, false, false]);
+    // 7 Restschritte aus dem Snapshot: gezeichnet wird nach jedem Schritt (nach dem Herunterzaehlen, wie beim Host),
+    // die Klasse steht daher 6 Client-Schritte, dann weg
+    expect(r.klassen).toEqual([true, true, true, true, true, true, false, false, false]);
     expect(r.cooldownClient).toBe(33);
     // Der Client zaehlt den uebernommenen Cooldown selbst weiter herunter
     expect(r.cooldownNachSchritten).toBe(24);

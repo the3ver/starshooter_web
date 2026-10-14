@@ -10,6 +10,9 @@ import * as Gleve from './gleve.js';
 import * as Sniper from './sniper.js';
 import * as Viper from './viper.js';
 import * as Anzeige from './anzeige.js';
+import { getShipSVGContent } from './anzeige-dom-objekte.js';
+// Schiffs-SVG fuer Hangar und Cutszene (gleiche Vorlage wie im Spiel)
+export { getShipSVGContent };
 import { erzeugePartikel } from './partikel.js';
 
 
@@ -336,14 +339,17 @@ export function zerstoereZiel(ziel, killer = 'p1') {
 // Nach dem Game Over laeuft keine Simulation mehr, die sie selbst abraeumen wuerde.
 function entferneGleveEffekte() {
   Sniper.entferneEffekte();
+  // Laufende Dashs und Rollen enden mit dem Spiel (die Anzeige leitet die Schiffsklassen daraus ab)
+  for (const s of [state, state.p2]) {
+    if (!s) continue;
+    s.gleveDashTimer = 0;
+    s.gleveAbprallTimer = 0;
+    s.viperRolleTimer = 0;
+    s.viperOverdriveTimer = 0;
+  }
+  Anzeige.zeichneSpieler();
   document.querySelectorAll('.gleve-klinge, .gleve-welle').forEach(el => el.remove());
   arrays.gleveWellen.length = 0;
-  if (dom.spieler) dom.spieler.classList.remove('gleve-dash');
-  if (dom.spieler2) dom.spieler2.classList.remove('gleve-dash');
-  if (dom.spieler) dom.spieler.classList.remove('viper-rolle');
-  if (dom.spieler2) dom.spieler2.classList.remove('viper-rolle');
-  if (dom.spieler) dom.spieler.classList.remove('viper-overdrive');
-  if (dom.spieler2) dom.spieler2.classList.remove('viper-overdrive');
 }
 
 export function triggerGameOver(finalScoreFromHost = null) {
@@ -581,7 +587,7 @@ export function updateMobileControlsVisibility() {
 }
 
 // Gleve-Dash- und Sweep-Zustand eines Spielers zuruecksetzen (Felder siehe gleve.js)
-function setzeGleveDashZurueck(pState, schiffEl) {
+function setzeGleveDashZurueck(pState) {
   pState.gleveDashTimer = 0;
   pState.gleveDashVx = 0;
   pState.gleveDashVy = 0;
@@ -601,7 +607,6 @@ function setzeGleveDashZurueck(pState, schiffEl) {
   pState.netzRichtung = null;
   pState.netzDashAnfrage = false;
   pState.botDashRichtung = null;
-  if (schiffEl) schiffEl.classList.remove('gleve-dash');
 }
 
 export function restartGame() {
@@ -631,10 +636,10 @@ export function restartGame() {
   state.isDead = false;
   state.hacks = [];
   if (state.p2) state.p2.hacks = [];
-  setzeGleveDashZurueck(state, dom.spieler);
-  if (state.p2) setzeGleveDashZurueck(state.p2, dom.spieler2);
-  Viper.setzeZurueck(state, dom.spieler);
-  if (state.p2) Viper.setzeZurueck(state.p2, dom.spieler2);
+  setzeGleveDashZurueck(state);
+  if (state.p2) setzeGleveDashZurueck(state.p2);
+  Viper.setzeZurueck(state);
+  if (state.p2) Viper.setzeZurueck(state.p2);
   Sniper.setzeZurueck(state);
   if (state.p2) Sniper.setzeZurueck(state.p2);
   entferneGleveEffekte();
@@ -723,7 +728,8 @@ export function restartGame() {
   
   state.bossKampfAktiv = false;
   state.autolaserAktiv = false;
-  dom.autolaserEl.style.display = 'none';
+  state.autolaserStrahl = null;
+  state.hitscanStrahl = null;
   
   state.spielerSchussCooldown = 0;
   state.raketenCooldown = 0;
@@ -1276,66 +1282,6 @@ export function erzeugeAntriebsRauch(x, y, vy = -1.5) {
 }
 
 // --- SCHIFFS-AUSWAHL & VISUALS ---
-export function getShipSVGContent(model, colorId) {
-  const c = shipColors[colorId] || shipColors.red;
-  if (model === 'phantom') {
-    return `
-      <!-- Phantom-NX: Forward-Swept Outer Wings -->
-      <path d="M15 8 L2 2 L0 18 L6 26 L10 22 L15 25 L20 22 L24 26 L30 18 L28 2 Z" fill="${c.sec}"/>
-      <!-- Twin-Nose & Armored Fuselage -->
-      <path d="M10 2 L10 18 L15 27 L20 18 L20 2 L17 12 L15 6 L13 12 Z" fill="${c.prim}"/>
-      <!-- Twin Cockpit Visors -->
-      <polygon points="11,6 13,11 11,14 9,10" fill="#87CEEB"/>
-      <polygon points="19,6 17,11 19,14 21,10" fill="#87CEEB"/>
-      <!-- Energy Core -->
-      <polygon points="15,13 17,17 15,21 13,17" fill="${c.accent}"/>
-      <!-- Thruster Nozzles -->
-      <rect x="5" y="24" width="4" height="4" fill="#7f8c8d"/>
-      <rect x="21" y="24" width="4" height="4" fill="#7f8c8d"/>
-    `;
-  }
-  if (model === 'gleve') {
-    return `
-      <!-- Gleve-MR: Manta-Fluegel -->
-      <path d="M15 6 Q5 6 1 18 Q8 16 11 22 L15 26 L19 22 Q22 16 29 18 Q25 6 15 6 Z" fill="${c.sec}"/>
-      <!-- Kopfflossen -->
-      <path d="M10 7 L8 1 L12 6 Z" fill="${c.accent}"/>
-      <path d="M20 7 L22 1 L18 6 Z" fill="${c.accent}"/>
-      <!-- Rumpf -->
-      <path d="M15 6 L12 13 L15 24 L18 13 Z" fill="${c.prim}"/>
-      <!-- Cockpit -->
-      <path d="M15 10 L13.6 13 L15 15 L16.4 13 Z" fill="#87CEEB"/>
-      <!-- Triebwerk -->
-      <rect x="13" y="24" width="4" height="4" fill="#7f8c8d"/>
-    `;
-  }
-  if (model === 'sniper') {
-    return `
-      <!-- Spectre-SR: Railgun -->
-      <rect x="11" y="0" width="2" height="15" fill="#7f8c8d"/>
-      <rect x="17" y="0" width="2" height="15" fill="#7f8c8d"/>
-      <rect x="12.5" y="1" width="5" height="1.5" fill="${c.accent}"/>
-      <rect x="12.5" y="5" width="5" height="1.5" fill="${c.accent}" opacity="0.7"/>
-      <path d="M15 10 L9 14 L1 20 L3 24 L10 21 L15 27 L20 21 L27 24 L29 20 L21 14 Z" fill="${c.sec}"/>
-      <path d="M15 12 L12 17 L15 25 L18 17 Z" fill="${c.prim}"/>
-      <path d="M15 15 L13.8 18 L15 20 L16.2 18 Z" fill="#87CEEB"/>
-      <rect x="9" y="22" width="3" height="4" fill="#7f8c8d"/>
-      <rect x="18" y="22" width="3" height="4" fill="#7f8c8d"/>
-    `;
-  }
-  // Default: Viper-X Interceptor
-  return `
-    <!-- Viper-X: Delta Wings -->
-    <path d="M15 2 L2 20 L5 25 L15 22 L25 25 L28 20 Z" fill="${c.sec}"/>
-    <!-- Main Fuselage -->
-    <path d="M15 0 L9 20 L15 27 L21 20 Z" fill="${c.prim}"/>
-    <!-- Cockpit -->
-    <path d="M15 8 L12 16 L15 19 L18 16 Z" fill="#87CEEB"/>
-    <!-- Engine Nozzles -->
-    <rect x="7" y="23" width="4" height="4" fill="#7f8c8d"/>
-    <rect x="19" y="23" width="4" height="4" fill="#7f8c8d"/>
-  `;
-}
 
 // Menuebreite (Einzelspieler-Feld), gilt solange der Startbildschirm sichtbar ist
 export const MENUE_BREITE = 400;
@@ -1491,23 +1437,8 @@ export function updatePlayerShipVisuals() {
   const activeHangarModel = isP2Hangar ? modelP2 : modelP1;
   const activeHangarColor = isP2Hangar ? colorIdP2 : colorIdP1;
 
-  // In-Game Schiff 1 SVG aktualisieren
-  const spielerSvg = dom.spieler ? dom.spieler.querySelector('svg') : document.querySelector('#spieler svg');
-  if (spielerSvg) {
-    spielerSvg.innerHTML = getShipSVGContent(modelP1, colorIdP1);
-  }
-
-  // In-Game Schiff 2 SVG aktualisieren
-  const spieler2Svg = dom.spieler2 ? dom.spieler2.querySelector('svg') : document.querySelector('#spieler-2 svg');
-  if (spieler2Svg) {
-    spieler2Svg.innerHTML = getShipSVGContent(modelP2, colorIdP2);
-  }
-
-  // Gleve hat nur ein Mittel-Triebwerk: Flammen per Klasse zentrieren
-  const spielerEl = dom.spieler || document.getElementById('spieler');
-  if (spielerEl) spielerEl.classList.toggle('schiff-gleve', modelP1 === 'gleve');
-  const spieler2El = dom.spieler2 || document.getElementById('spieler-2');
-  if (spieler2El) spieler2El.classList.toggle('schiff-gleve', modelP2 === 'gleve');
+  // Schiffe im Spiel (SVG nach Modell/Farbe, Werfer-Pods) zeichnet die Anzeige aus dem Zustand
+  Anzeige.zeichneSpieler();
 
   // Hangar Preview im Startscreen aktualisieren
   const previewSvg = document.getElementById('hangar-preview-svg');
@@ -1637,81 +1568,41 @@ export function erzeugeAbgeworfenenWerfer(x, y, vx, vy, vRot) {
 let prevWerferStatesP1 = null;
 let prevWerferStatesP2 = null;
 
-function updateWerferForShip(spielerEl, pState, prevKey) {
-  if (!spielerEl || !pState) return;
-
+// Sichtbare Raketenwerfer-Pods eines Schiffs nach Modell und Raketen-Stufe (die Anzeige zeichnet sie)
+export function werferBelegung(pState) {
   const model = pState.selectedShipModel || 'viper';
   const lvl = pState.raketenStufe || 1;
-
-  const werferLinks = spielerEl.querySelector('.werfer-links');
-  const werferRechts = spielerEl.querySelector('.werfer-rechts');
-  const werferCenter = spielerEl.querySelector('.werfer-center');
-
-  if (!werferLinks || !werferRechts || !werferCenter) return;
-
-  let showLeft = false;
-  let showRight = false;
-  let showCenter = false;
-
   if (model === 'gleve' || Sniper.istSniper(pState)) {
-    // Gleve (Dash) und Sniper (Granate) haben keine Raketenwerfer: alle Pods aus
-  } else if (lvl <= 2) {
-    if (model === 'phantom') {
-      showRight = true;
-    } else {
-      showLeft = true;
-    }
-  } else if (lvl <= 4) {
-    showLeft = true;
-    showRight = true;
-  } else {
-    // lvl >= 5
-    showLeft = true;
-    showRight = true;
-    showCenter = true;
+    // Gleve (Dash) und Sniper (Granate) haben keine Raketenwerfer
+    return { links: false, rechts: false, mitte: false };
   }
+  if (lvl <= 2) return { links: model !== 'phantom', rechts: model === 'phantom', mitte: false };
+  if (lvl <= 4) return { links: true, rechts: true, mitte: false };
+  return { links: true, rechts: true, mitte: true };
+}
 
-  const prevStates = (prevKey === 'p1') ? prevWerferStatesP1 : prevWerferStatesP2;
-
-  // Prüfen, ob Werfer durch Downgrade verloren gingen (Gleve: nie Abwurf-Effekt)
-  if (prevStates && state.spielLaeuft && !pState.isDead && model !== 'gleve' && !Sniper.istSniper(pState)) {
-    if (prevStates.left && !showLeft) {
+// Abwurf-Effekt, wenn ein Pod durch ein Downgrade wegfaellt (Gleve/Sniper haben keine Pods)
+function pruefeWerferAbwurf(pState, prevKey) {
+  if (!pState) return;
+  const jetzt = werferBelegung(pState);
+  const vorher = (prevKey === 'p1') ? prevWerferStatesP1 : prevWerferStatesP2;
+  if (vorher && state.spielLaeuft && !pState.isDead) {
+    if (vorher.links && !jetzt.links) {
       erzeugeAbgeworfenenWerfer(pState.x - 8, pState.y + 7, -3 - Math.random() * 2, 2 + Math.random() * 2, -10);
     }
-    if (prevStates.right && !showRight) {
+    if (vorher.rechts && !jetzt.rechts) {
       erzeugeAbgeworfenenWerfer(pState.x + 31, pState.y + 7, 3 + Math.random() * 2, 2 + Math.random() * 2, 10);
     }
-    if (prevStates.center && !showCenter) {
+    if (vorher.mitte && !jetzt.mitte) {
       erzeugeAbgeworfenenWerfer(pState.x + 11.5, pState.y + 18, (Math.random() - 0.5) * 2, 3 + Math.random() * 2, (Math.random() - 0.5) * 12);
     }
   }
-
-  const currentStates = {
-    left: showLeft,
-    right: showRight,
-    center: showCenter
-  };
-
-  if (prevKey === 'p1') {
-    prevWerferStatesP1 = currentStates;
-  } else {
-    prevWerferStatesP2 = currentStates;
-  }
-
-  werferLinks.style.display = showLeft ? 'block' : 'none';
-  werferRechts.style.display = showRight ? 'block' : 'none';
-  werferCenter.style.display = showCenter ? 'block' : 'none';
-
-  // Stufen-Klassen für Visuals aktualisieren
-  [werferLinks, werferRechts, werferCenter].forEach(w => {
-    w.classList.remove('werfer-lvl-1', 'werfer-lvl-2', 'werfer-lvl-3', 'werfer-lvl-4', 'werfer-lvl-5');
-    w.classList.add(`werfer-lvl-${Math.min(5, Math.max(1, lvl))}`);
-  });
+  if (prevKey === 'p1') prevWerferStatesP1 = jetzt;
+  else prevWerferStatesP2 = jetzt;
 }
 
 export function updateRaketenWerferVisuals() {
-  updateWerferForShip(dom.spieler || document.getElementById('spieler'), state, 'p1');
-  if (state.p2) {
-    updateWerferForShip(dom.spieler2 || document.getElementById('spieler-2'), state.p2, 'p2');
-  }
+  pruefeWerferAbwurf(state, 'p1');
+  if (state.p2) pruefeWerferAbwurf(state.p2, 'p2');
+  Anzeige.zeichneSpieler();
 }

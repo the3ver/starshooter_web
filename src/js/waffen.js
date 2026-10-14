@@ -12,12 +12,6 @@ import * as Anzeige from './anzeige.js';
 import { erzeugePartikel } from './partikel.js';
 
 
-export function versteckeAlleLaser() {
-  dom.laser1.style.display = 'none';
-  dom.laser2.style.display = 'none';
-  dom.laserDiagLinks.style.display = 'none';
-  dom.laserDiagRechts.style.display = 'none';
-}
 
 // --- 9.10 MANUELLE LASER (Projektile) ---
 function feuerLaserFuerSpieler(pKey, pState, isFiring) {
@@ -364,11 +358,7 @@ export function aktualisiereWaffen(laserAktiv, laserAktivP2) {
       let dy = ty - sy;
       let dist = Math.hypot(dx, dy);
       let angle = Math.atan2(dx, -dy) * 180 / Math.PI;
-      dom.autolaserEl.style.display = 'block';
-      dom.autolaserEl.style.height = dist + 'px';
-      dom.autolaserEl.style.top = sy - dist + 'px';
-      dom.autolaserEl.style.left = sx - 2 + 'px';
-      dom.autolaserEl.style.transform = `rotate(${angle}deg)`;
+      state.autolaserStrahl = { x: sx, y: sy, laenge: dist, winkel: angle };
       if (!target.istUnzerstoerbar) {
         if ((target.schildHp || 0) > 0) {
           target.schildHp -= 1.5;
@@ -382,14 +372,13 @@ export function aktualisiereWaffen(laserAktiv, laserAktivP2) {
         }
       }
     } else {
-      dom.autolaserEl.style.display = 'none';
+      state.autolaserStrahl = null;
     }
   } else {
-    dom.autolaserEl.style.display = 'none';
+    state.autolaserStrahl = null;
   }
 
   // --- 9.12 HITSCAN LASER (Level 5) ---
-  const hitscanLaserEl = document.getElementById('hitscan-laser');
   if (laserAktiv && state.laserStufe >= 5) {
     let target = null;
     let closestDist = Infinity;
@@ -407,10 +396,7 @@ export function aktualisiereWaffen(laserAktiv, laserAktivP2) {
       }
     }
     if (target) {
-      hitscanLaserEl.style.display = 'block';
-      hitscanLaserEl.style.height = closestDist + 'px';
-      hitscanLaserEl.style.top = (sy - closestDist) + 'px';
-      hitscanLaserEl.style.left = (sx - 3) + 'px';
+      state.hitscanStrahl = { x: sx, y: sy, laenge: closestDist };
       if (!target.istUnzerstoerbar) {
         if ((target.schildHp || 0) > 0) {
           target.schildHp -= 5;
@@ -424,13 +410,10 @@ export function aktualisiereWaffen(laserAktiv, laserAktivP2) {
         }
       }
     } else {
-      hitscanLaserEl.style.display = 'block';
-      hitscanLaserEl.style.height = sy + 'px'; // Bis ganz nach oben
-      hitscanLaserEl.style.top = '0px';
-      hitscanLaserEl.style.left = sx - 3 + 'px';
+      state.hitscanStrahl = { x: sx, y: sy, laenge: sy }; // Bis ganz nach oben
     }
   } else {
-    hitscanLaserEl.style.display = 'none';
+    state.hitscanStrahl = null;
   }
 
   // --- 9.10 MANUELLE LASER (Projektile) ---

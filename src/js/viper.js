@@ -85,9 +85,6 @@ function tickKombo(p) {
   }
 }
 
-function schiffElement(pKey) {
-  return pKey === 'p2' ? dom.spieler2 : dom.spieler;
-}
 
 function schiffFarbe(pState) {
   const c = shipColors[pState.selectedShipColor];
@@ -162,16 +159,11 @@ export function aktualisiereViper(pState, pKey, eingabe, anfrage = 0) {
   tickOverdrive(pState);
   if (!(state.network && state.network.isOnline && !state.network.isHost)) tickKombo(pState);
 
-  const el = schiffElement(pKey);
   if (pState.isDead) {
     pState.viperRolleTimer = 0;
     pState.viperOverdriveTimer = 0;
     pState.viperOverdriveLeiste = 0;
     setzeKomboZurueck(pState);
-    if (el) {
-      el.classList.remove('viper-rolle');
-      el.classList.remove('viper-overdrive');
-    }
     return false;
   }
 
@@ -181,10 +173,6 @@ export function aktualisiereViper(pState, pKey, eingabe, anfrage = 0) {
 
   const rollt = istRolleAktiv(pState);
   if (rollt) rolleSchritt(pState);
-  if (el) {
-    el.classList.toggle('viper-rolle', rollt);
-    el.classList.toggle('viper-overdrive', istOverdrive(pState));
-  }
   return rollt;
 }
 
@@ -294,16 +282,12 @@ export function uebernehmeSnapshot(pState, daten, eigenes) {
   pState.viperRolleCooldown = cooldown;
 }
 
-// Pro Client-Schritt: Klasse, Nachbilder und Bereitschaftsanzeige. Fremde Schiffe (P1 des Hosts) zaehlen den
-// Timer zwischen den Snapshots selbst herunter, das eigene Schiff macht aktualisiereViper.
+// Pro Client-Schritt: Nachbilder und Bereitschaftsanzeige (Klassen viper-rolle/-overdrive leitet die Anzeige ab).
+// Fremde Schiffe (P1 des Hosts) zaehlen den Timer zwischen den Snapshots selbst herunter, das eigene Schiff macht
+// aktualisiereViper.
 export function zeigeViperZustand(pState, pKey, eigenes) {
-  const el = schiffElement(pKey);
   const viper = istViper(pState) && !pState.isDead;
   const rollt = viper && istRolleAktiv(pState);
-  if (el) {
-    el.classList.toggle('viper-rolle', rollt);
-    el.classList.toggle('viper-overdrive', viper && istOverdrive(pState));
-  }
   // Fremdes Schiff (P1 des Hosts): Overdrive-Zeit zwischen den Snapshots selbst herunterzaehlen
   if (!eigenes && viper) tickOverdrive(pState);
   if (rollt && !eigenes) {
@@ -373,11 +357,10 @@ function zeigeOverdriveHud(pKey, pState, zeigen) {
   if (balken) balken.style.width = leiste + '%';
 }
 
-export function setzeZurueck(pState, schiffEl) {
+export function setzeZurueck(pState) {
   pState.viperOverdriveLeiste = 0;
   pState.viperOverdriveTimer = 0;
   setzeKomboZurueck(pState);
-  if (schiffEl) schiffEl.classList.remove('viper-overdrive');
   pState.viperRolleTimer = 0;
   pState.viperRolleRichtung = 0;
   pState.viperRolleCooldown = 0;
@@ -391,7 +374,6 @@ export function setzeZurueck(pState, schiffEl) {
   // Bot und Online-Host: gemerkte Rollenwuensche
   pState.botRolleAnfrage = 0;
   pState.netzRolleAnfrage = 0;
-  if (schiffEl) schiffEl.classList.remove('viper-rolle');
 }
 
 // Nachbild in Schiffsfarbe plus ein Funken-Partikel am Schiff

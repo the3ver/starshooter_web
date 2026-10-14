@@ -13,12 +13,12 @@ import { verwalteFeindSpawns, aktualisiereAsteroiden, aktualisiereFeinde, aktual
 import { aktualisiereBosse, aktualisiereBossBomben, aktualisiereBossRaketen } from './boss.js';
 import { aktualisierePowerups } from './powerups.js';
 import { aktualisiereUnverwundbarkeit, bewegeSpieler, aktualisiereEnergie, regeneriereSchild } from './spieler.js';
-import { aktualisiereWaffen, versteckeAlleLaser } from './waffen.js';
+import { aktualisiereWaffen } from './waffen.js';
 import { clientSchritt } from './client.js';
 import { pruefePause } from './pause.js';
 
 // Bestehende Exporte bleiben ueber loop.js erreichbar
-export { verwalteFeindSpawns, versteckeAlleLaser, animierenPartikel };
+export { verwalteFeindSpawns, animierenPartikel };
 
 // Zaehlt die Schritte, in denen sich die Welt bewegt. Die Netzkodierung sagt damit
 // Projektilpositionen voraus (Dead Reckoning); in der Boss-Warnung steht die Welt still.

@@ -67,46 +67,24 @@ export function entferneHacks(pState) {
   pState.hacks = [];
 }
 
-// Aktualisiert die sichtbaren Hack-Anzeigen beider Spieler
+// Hack-Ton und HUD-Glitch beider Spieler; Schiffsklasse spieler-gehackt und das Label ueber dem Schiff
+// zeichnet die Anzeige aus pState.hacks
 export function zeigeHackStatus() {
-  zeigeFuerSpieler(state, 'p1', dom.spieler, dom.uiContainerP1);
-  if (state.p2) zeigeFuerSpieler(state.p2, 'p2', dom.spieler2, dom.uiContainerP2);
+  zeigeFuerSpieler(state, dom.uiContainerP1);
+  if (state.p2) zeigeFuerSpieler(state.p2, dom.uiContainerP2);
 }
 
-const HACK_NAMEN = {
+export const HACK_NAMEN = {
   invertiert: 'INVERTED',
   waffenOffline: 'WEAPONS OFFLINE',
   tastenVertauscht: 'KEYS SCRAMBLED',
   hudGlitch: 'HUD GLITCH'
 };
 
-function zeigeFuerSpieler(pState, pKey, schiffEl, hudEl) {
+function zeigeFuerSpieler(pState, hudEl) {
   const hacks = pState.hacks || [];
-  const aktiv = hacks.length > 0 && !pState.isDead;
   // Sound bei neuem Hack (funktioniert auch auf dem Online-Client, der nur Snapshots sieht)
   if (hacks.length > (pState.angezeigteHacks || 0)) Audio.playHack();
   pState.angezeigteHacks = hacks.length;
   if (hudEl) hudEl.classList.toggle('hud-glitch', hatHack(pState, 'hudGlitch'));
-  if (schiffEl) schiffEl.classList.toggle('spieler-gehackt', aktiv);
-
-  let label = document.getElementById('hack-label-' + pKey);
-  if (!aktiv) {
-    if (label) label.style.display = 'none';
-    return;
-  }
-  if (!label) {
-    label = document.createElement('div');
-    label.id = 'hack-label-' + pKey;
-    label.classList.add('hack-label');
-    label.innerHTML = '<div class="hack-text"></div><div class="hack-restzeit-rahmen"><div class="hack-restzeit"></div></div>';
-    dom.spielfeld.appendChild(label);
-  }
-  const text = hacks.map(h => HACK_NAMEN[h.typ]).join(' + ');
-  const textEl = label.querySelector('.hack-text');
-  if (textEl.textContent !== text) textEl.textContent = text;
-  const restMax = Math.max(...hacks.map(h => h.timer));
-  label.querySelector('.hack-restzeit').style.width = (restMax / HACK_DAUER * 100) + '%';
-  label.style.display = 'block';
-  label.style.left = (pState.x + 15) + 'px';
-  label.style.top = (pState.y - 22) + 'px';
 }

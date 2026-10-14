@@ -1,6 +1,13 @@
-export const GAME_VERSION = '1.15.3';
+export const GAME_VERSION = '1.15.4';
 
 export const changelogData = {
+  '1.15.4': {
+    version: '1.15.4',
+    intro: 'Hey, es ist jetzt Version 1.15.4 rausgekommen, folgendes wurde aktualisiert:',
+    highlights: [
+      '🛠️ Weiterer Umbau unter der Haube für eine neue Grafik-Engine: Schiffsmodelle, Raketenwerfer, Dash, Rolle, Hack-Anzeige sowie Auto- und Hitscan-Laser werden jetzt zentral gezeichnet'
+    ]
+  },
   '1.15.3': {
     version: '1.15.3',
     intro: 'Hey, es ist jetzt Version 1.15.3 rausgekommen, folgendes wurde aktualisiert:',

@@ -125,9 +125,6 @@ export function istDashAktiv(pState) {
   return (pState.gleveDashTimer || 0) > 0 || (pState.gleveAbprallTimer || 0) > 0;
 }
 
-function schiffElement(pKey) {
-  return pKey === 'p2' ? dom.spieler2 : dom.spieler;
-}
 
 function schiffFarbe(pState) {
   const c = shipColors[pState.selectedShipColor];
@@ -317,11 +314,9 @@ export function aktualisiereGleve(pState, pKey, tasteGedrueckt, richtung) {
   const flanke = !!tasteGedrueckt && !pState.gleveDashTasteGehalten;
   pState.gleveDashTasteGehalten = !!tasteGedrueckt;
 
-  const el = schiffElement(pKey);
   if (pState.isDead) {
     pState.gleveDashTimer = 0;
     pState.gleveAbprallTimer = 0;
-    if (el) el.classList.remove('gleve-dash');
     return false;
   }
 
@@ -335,7 +330,6 @@ export function aktualisiereGleve(pState, pKey, tasteGedrueckt, richtung) {
     abprallSchritt(pState);
     uebernommen = true;
   }
-  if (el) el.classList.toggle('gleve-dash', istDashAktiv(pState));
   return uebernommen;
 }
 
@@ -454,12 +448,11 @@ export function uebernehmeSnapshot(pState, daten, eigenes) {
   }
 }
 
-// Pro Client-Schritt fuer beide Schiffe: Dash-Darstellung und Sweep-Klinge zwischen den Snapshots
+// Pro Client-Schritt fuer beide Schiffe: Dash-Nachbilder und Sweep-Klinge zwischen den Snapshots
+// (Klasse gleve-dash leitet die Anzeige aus dem Zustand ab)
 export function zeigeGleveZustand(pState, pKey) {
-  const el = schiffElement(pKey);
   const gleve = istGleve(pState) && !pState.isDead;
   const dash = gleve && istDashAktiv(pState);
-  if (el) el.classList.toggle('gleve-dash', dash);
   if (dash) erzeugeNachbild(pState);
 
   if (gleve && istSweepAktiv(pState)) {

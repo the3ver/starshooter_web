@@ -4,7 +4,6 @@ import * as Utils from './utils.js';
 import * as Audio from './audio.js';
 import * as Bot from './bot.js';
 import * as Hack from './hack.js';
-import { versteckeAlleLaser } from './waffen.js';
 import * as Gleve from './gleve.js';
 import * as Viper from './viper.js';
 import * as Sniper from './sniper.js';
@@ -332,10 +331,8 @@ export function aktualisiereEnergie() {
   let laserAktiv = false;
   if (Sniper.istSniper(state)) {
     steuereSniper(state, 'p1', Boolean(laserTasteP1() || state.sniperLadeKnopf) && !state.isDead, sniperAutofeuerP1());
-    versteckeAlleLaser();
   } else if (Gleve.istGleve(state)) {
     steuereGleveSweep(state, 'p1', laserTasteP1() && !state.isDead);
-    versteckeAlleLaser();
   } else {
     steuereLaserZuendung(state, laserTasteP1() && !state.isDead);
     laserAktiv = state.laserSchiesst && state.energie > 0 && !state.isDead && !Hack.hatHack(state, 'waffenOffline');
@@ -345,7 +342,6 @@ export function aktualisiereEnergie() {
       }
     } else {
       ladeEnergie(state);
-      versteckeAlleLaser();
     }
   }
   begrenzeEnergie(state);

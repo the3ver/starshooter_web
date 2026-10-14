@@ -1,6 +1,6 @@
 // DOM-Backend: Aufbau der Elemente je Objektart (aus den Modellfeldern, Host und Online-Client gleich).
 // Jeder Erzeuger liefert das Element; anzeige-dom.js haengt es ins Spielfeld und zeichnet es.
-import { config } from './state.js';
+import { config, shipColors } from './state.js';
 
 function getFeindSVGHtml(muster = 'normal', hatSchild = false) {
   let schildHtml = hatSchild ? '<div class="feind-schild"></div>' : '';
@@ -361,3 +361,65 @@ export const ERZEUGER = {
   hackProjektil: klassenElement('hack-projektil'),
   gleveWelle: welleElement
 };
+
+// Schiffs-SVG nach Modell und Farbe (Spiel, Hangar-Vorschau, Cutszene)
+export function getShipSVGContent(model, colorId) {
+  const c = shipColors[colorId] || shipColors.red;
+  if (model === 'phantom') {
+    return `
+      <!-- Phantom-NX: Forward-Swept Outer Wings -->
+      <path d="M15 8 L2 2 L0 18 L6 26 L10 22 L15 25 L20 22 L24 26 L30 18 L28 2 Z" fill="${c.sec}"/>
+      <!-- Twin-Nose & Armored Fuselage -->
+      <path d="M10 2 L10 18 L15 27 L20 18 L20 2 L17 12 L15 6 L13 12 Z" fill="${c.prim}"/>
+      <!-- Twin Cockpit Visors -->
+      <polygon points="11,6 13,11 11,14 9,10" fill="#87CEEB"/>
+      <polygon points="19,6 17,11 19,14 21,10" fill="#87CEEB"/>
+      <!-- Energy Core -->
+      <polygon points="15,13 17,17 15,21 13,17" fill="${c.accent}"/>
+      <!-- Thruster Nozzles -->
+      <rect x="5" y="24" width="4" height="4" fill="#7f8c8d"/>
+      <rect x="21" y="24" width="4" height="4" fill="#7f8c8d"/>
+    `;
+  }
+  if (model === 'gleve') {
+    return `
+      <!-- Gleve-MR: Manta-Fluegel -->
+      <path d="M15 6 Q5 6 1 18 Q8 16 11 22 L15 26 L19 22 Q22 16 29 18 Q25 6 15 6 Z" fill="${c.sec}"/>
+      <!-- Kopfflossen -->
+      <path d="M10 7 L8 1 L12 6 Z" fill="${c.accent}"/>
+      <path d="M20 7 L22 1 L18 6 Z" fill="${c.accent}"/>
+      <!-- Rumpf -->
+      <path d="M15 6 L12 13 L15 24 L18 13 Z" fill="${c.prim}"/>
+      <!-- Cockpit -->
+      <path d="M15 10 L13.6 13 L15 15 L16.4 13 Z" fill="#87CEEB"/>
+      <!-- Triebwerk -->
+      <rect x="13" y="24" width="4" height="4" fill="#7f8c8d"/>
+    `;
+  }
+  if (model === 'sniper') {
+    return `
+      <!-- Spectre-SR: Railgun -->
+      <rect x="11" y="0" width="2" height="15" fill="#7f8c8d"/>
+      <rect x="17" y="0" width="2" height="15" fill="#7f8c8d"/>
+      <rect x="12.5" y="1" width="5" height="1.5" fill="${c.accent}"/>
+      <rect x="12.5" y="5" width="5" height="1.5" fill="${c.accent}" opacity="0.7"/>
+      <path d="M15 10 L9 14 L1 20 L3 24 L10 21 L15 27 L20 21 L27 24 L29 20 L21 14 Z" fill="${c.sec}"/>
+      <path d="M15 12 L12 17 L15 25 L18 17 Z" fill="${c.prim}"/>
+      <path d="M15 15 L13.8 18 L15 20 L16.2 18 Z" fill="#87CEEB"/>
+      <rect x="9" y="22" width="3" height="4" fill="#7f8c8d"/>
+      <rect x="18" y="22" width="3" height="4" fill="#7f8c8d"/>
+    `;
+  }
+  // Default: Viper-X Interceptor
+  return `
+    <!-- Viper-X: Delta Wings -->
+    <path d="M15 2 L2 20 L5 25 L15 22 L25 25 L28 20 Z" fill="${c.sec}"/>
+    <!-- Main Fuselage -->
+    <path d="M15 0 L9 20 L15 27 L21 20 Z" fill="${c.prim}"/>
+    <!-- Cockpit -->
+    <path d="M15 8 L12 16 L15 19 L18 16 Z" fill="#87CEEB"/>
+    <!-- Engine Nozzles -->
+    <rect x="7" y="23" width="4" height="4" fill="#7f8c8d"/>
+    <rect x="19" y="23" width="4" height="4" fill="#7f8c8d"/>
+  `;
+}
