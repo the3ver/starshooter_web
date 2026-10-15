@@ -1111,14 +1111,17 @@ test.describe('Viper-X Kill-Kombo', () => {
       const T = window.__viperTest;
       const { state } = window.__game;
       const out = {};
+      // Asteroiden spawnen bei frameZaehler % 120 === 0 und koennten das Schiff treffen (Kombo -> 0):
+      // Zaehler vor jedem Block zuruecksetzen, damit kein Block die 120 erreicht
+      const schritte = (n) => { state.frameZaehler = 1; T.schritte(n); };
       T.killFeind();
       out.erster = state.viperKombo;
-      T.schritte(100); T.killFeind();
-      T.schritte(100); T.killFeind();
+      schritte(100); T.killFeind();
+      schritte(100); T.killFeind();
       out.drei = [state.viperKombo, state.viperKomboTimer];
-      T.schritte(119);
+      schritte(119);
       out.nochDa = state.viperKombo;
-      T.schritte(2);
+      schritte(2);
       out.abgelaufen = [state.viperKombo, state.viperKomboTimer];
       return out;
     });
