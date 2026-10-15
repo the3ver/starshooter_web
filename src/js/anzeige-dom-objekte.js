@@ -345,8 +345,78 @@ function partikelElement(p) {
   return el;
 }
 
+// Effekte mit Lebensdauer (arrays.effekte): Kreis um die Mitte, waechst bis skala und blendet aus
+const BOMBEN_WELLE_FARBE = {
+  '#00ffff': 'rgba(0, 255, 255, 0.4)',
+  '#9b59b6': 'rgba(155, 89, 182, 0.4)',
+  '#f1c40f': 'rgba(241, 196, 15, 0.45)'
+};
+
+export const EFFEKT_STIL = {
+  bombenWelle: { hintergrund: e => BOMBEN_WELLE_FARBE[e.farbe] || 'rgba(231, 76, 60, 0.4)', schatten: e => `0 0 45px ${e.farbe}`, skala: 1.2 },
+  bombenWelle2: { hintergrund: () => 'rgba(155, 89, 182, 0.3)', schatten: () => '0 0 30px #9b59b6', skala: 1.3 },
+  raketenWelle: { klasse: 'schockwelle', hintergrund: () => 'rgba(231, 76, 60, 0.4)', schatten: () => '0 0 20px #e74c3c', skala: 1.2 },
+  bossWelle: { klasse: 'boss-shockwave', hintergrund: () => 'rgba(231, 76, 60, 0.45)', schatten: () => '0 0 30px #e74c3c', skala: 1.25 }
+};
+
+// Sniper-Effekte: Klasse (Aussehen in style.css), Groesse und Deckkraft rechnet zeichneEffekt je Art
+const SNIPER_EFFEKT_KLASSE = {
+  sniperStrahl: 'sniper-strahl',
+  sniperDruckwelle: 'sniper-druckwelle',
+  sniperMinenExplosion: 'sniper-mine-explosion',
+  sniperEmp: 'sniper-emp'
+};
+
+// Strahl: Hoehe = Laenge, Spitze an der Schiffsnase (x/y), Drehung um den Startpunkt, dreifacher Schein aus glow (0..1)
+function sniperStrahlElement(e) {
+  const el = document.createElement('div');
+  el.classList.add('sniper-strahl');
+  el.style.height = e.laenge + 'px';
+  el.style.top = (e.y - e.laenge) + 'px';
+  el.style.width = e.breite + 'px';
+  el.style.left = (e.x - e.breite / 2) + 'px';
+  el.style.transform = `rotate(${e.winkel}deg)`;
+  el.style.boxShadow = `0 0 ${4 + 6 * e.glow}px #ffffff, 0 0 ${8 + 10 * e.glow}px ${e.farbe}, 0 0 ${14 + 18 * e.glow}px ${e.farbe}`;
+  return el;
+}
+
+function effektElement(e) {
+  if (e.art === 'sniperStrahl') return sniperStrahlElement(e);
+  if (SNIPER_EFFEKT_KLASSE[e.art]) {
+    const ring = document.createElement('div');
+    ring.classList.add(SNIPER_EFFEKT_KLASSE[e.art]);
+    ring.style.left = e.x + 'px';
+    ring.style.top = e.y + 'px';
+    ring.style.width = '0px';
+    ring.style.height = '0px';
+    return ring;
+  }
+  const stil = EFFEKT_STIL[e.art];
+  if (!stil) throw new Error(`Unbekannte Effektart fuer die Anzeige: ${e.art}`);
+  const el = document.createElement('div');
+  if (stil.klasse) el.classList.add(stil.klasse);
+  Object.assign(el.style, {
+    position: 'absolute',
+    width: (e.radius * 2) + 'px',
+    height: (e.radius * 2) + 'px',
+    borderRadius: '50%',
+    backgroundColor: stil.hintergrund(e),
+    boxShadow: stil.schatten(e),
+    zIndex: '9',
+    pointerEvents: 'none'
+  });
+  return el;
+}
+
 export const ERZEUGER = {
   partikel: partikelElement,
+  stern: s => {
+    const el = document.createElement('div');
+    el.className = 'stern';
+    el.style.width = s.groesse + 'px';
+    el.style.height = s.groesse + 'px';
+    return el;
+  },
   feind: feindElement,
   asteroid: asteroidElement,
   boss: bossElement,
@@ -359,7 +429,14 @@ export const ERZEUGER = {
   bossRakete: klassenElement('boss-rakete', BOSS_RAKETE_HTML),
   bossBombe: klassenElement('boss-bombe', BOSS_BOMBE_HTML),
   hackProjektil: klassenElement('hack-projektil'),
-  gleveWelle: welleElement
+  gleveWelle: welleElement,
+  effekt: effektElement,
+  sniperGranate: klassenElement('sniper-granate'),
+  sniperMine: m => {
+    const el = document.createElement('div');
+    el.classList.add('sniper-mine', 'sniper-mine-' + m.pKey);
+    return el;
+  }
 };
 
 // Schiffs-SVG nach Modell und Farbe (Spiel, Hangar-Vorschau, Cutszene)

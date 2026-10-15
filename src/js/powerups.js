@@ -123,12 +123,7 @@ function wendePowerupAn(p, targetKey = 'p1') {
   Utils.addScore(50);
   const isOnline = state.gameMode === 'online' || (state.network && state.network.isOnline);
   if (!isOnline || isP1) {
-    if (dom.spielfeld) {
-      dom.spielfeld.style.backgroundColor = p.farbe;
-      setTimeout(() => {
-        if (dom.spielfeld) dom.spielfeld.style.backgroundColor = '#0b1319';
-      }, 100);
-    }
+    Anzeige.blitzeSpielfeld(p.farbe, 100);
   } else if (isOnline && !isP1) {
     Network.sendNetworkEvent({ type: 'powerup_collected', target: 'p2', farbe: p.farbe });
   }

@@ -8,6 +8,13 @@
 // - anzeigeX/Y      optionale Anzeigeposition (Online-Client: Interpolation zwischen Snapshots), sonst x/y
 // - rot             optionale Drehung in Grad (fehlt = keine Drehung schreiben)
 // - Partikel: leben (0..1) fuer Deckkraft und Skalierung
+// - Effekte (arrays.effekte, Art + Felder): bombenWelle (x/y Mitte, radius, farbe), bombenWelle2, raketenWelle,
+//   bossWelle (x/y Mitte, radius); gemeinsam rest/dauer (Schritte; t = 1 - rest/dauer) und optional verzoegerung
+//   (Schritte, in denen der Effekt noch unsichtbar ist und zur Lebensdauer zaehlt)
+//   Sniper: sniperStrahl (x/y Nase, laenge, winkel, breite, glow, farbe), sniperDruckwelle, sniperMinenExplosion, sniperEmp (x/y Mitte, radius); alle mit pKey
+// - stern (arrays.sterne): x/y, groesse (px, quadratisch), speed
+// - sniperGranate (arrays.sniperGranaten): x/y Mitte (14 px gross), rot (Grad), rest (Flugschritte)
+// - sniperMine (arrays.sniperMinen): x/y Mitte (12 px gross), pKey, haftet, blinkt (Booleans)
 // - Zustand: schildHp (Schild sichtbar > 0), hp/maxHp/traegtPowerup (Risse), istUnzerstoerbar (Magma),
 //   betaeubt (> 0), phase (Cling-on-Flammen), repulsorAktiv (Boss), towedBy + strahlX/strahlY (Schlepp-Strahl),
 //   harmlos (pariertes Geschoss), farbe (Laser), fortschritt (Bombenpuls, 1 -> 0)
@@ -16,9 +23,9 @@ import * as DomAnzeige from './anzeige-dom.js';
 let backend = DomAnzeige;
 
 // Backend tauschen. Pflichtfunktionen: erzeuge(obj, art), zeichneWelt(), zeichneSpieler(), entferne(obj),
-// blitze(obj, staerke).
+// blitze(obj, staerke), blitzeSpielfeld(farbe, ms).
 export function setzeBackend(neuesBackend) {
-  for (const name of ['erzeuge', 'zeichneWelt', 'zeichneSpieler', 'entferne', 'blitze']) {
+  for (const name of ['erzeuge', 'zeichneWelt', 'zeichneSpieler', 'entferne', 'blitze', 'blitzeSpielfeld']) {
     if (typeof neuesBackend?.[name] !== 'function') throw new Error(`Anzeige-Backend ohne ${name}()`);
   }
   backend = neuesBackend;
@@ -30,7 +37,7 @@ export function holeBackend() {
 
 // Legt die Darstellung eines neuen Weltobjekts an und zeigt es an seiner Position. art bestimmt das
 // Aussehen: feind, asteroid, boss, powerup, laser, rakete, bombe, feindLaser, bossLaser, bossRakete,
-// bossBombe, hackProjektil, gleveWelle, partikel. Die noetigen Modellfelder je Art stehen in AGENTS.md (Anzeige-Schicht).
+// bossBombe, hackProjektil, gleveWelle, partikel, effekt, stern, sniperGranate, sniperMine. Die noetigen Modellfelder je Art stehen in AGENTS.md (Anzeige-Schicht).
 export function erzeuge(obj, art) {
   backend.erzeuge(obj, art);
   return obj;
@@ -58,4 +65,9 @@ export function entferne(obj) {
 // Treffer-Ereignis: Objekt kurz aufhellen (staerke ~2-3). Reine Anzeige, aendert kein Modellfeld.
 export function blitze(obj, staerke) {
   if (obj) backend.blitze(obj, staerke);
+}
+
+// Bildschirm-Blitz: Spielfeldhintergrund kurz in farbe (CSS-Farbe), nach ms Millisekunden zurueck zur Grundfarbe.
+export function blitzeSpielfeld(farbe, ms) {
+  backend.blitzeSpielfeld(farbe, ms);
 }

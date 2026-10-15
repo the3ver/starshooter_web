@@ -9,6 +9,7 @@ import * as Hack from './hack.js';
 import * as Viper from './viper.js';
 import * as Anzeige from './anzeige.js';
 import { animierenPartikel } from './partikel.js';
+import { aktualisiereEffekte } from './effekte.js';
 import { verwalteFeindSpawns, aktualisiereAsteroiden, aktualisiereFeinde, aktualisiereFeindLaser, aktualisiereHackProjektile } from './gegner.js';
 import { aktualisiereBosse, aktualisiereBossBomben, aktualisiereBossRaketen } from './boss.js';
 import { aktualisierePowerups } from './powerups.js';
@@ -202,6 +203,7 @@ function simuliere() {
 
   // --- 9.11 PARTIKEL ANIMIEREN ---
   animierenPartikel();
+  aktualisiereEffekte();
 
 
   // Network Syncing in Online Mode (der Client sendet seine Eingaben in clientSchritt)

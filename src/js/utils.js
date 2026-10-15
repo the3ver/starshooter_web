@@ -14,6 +14,7 @@ import { getShipSVGContent } from './anzeige-dom-objekte.js';
 // Schiffs-SVG fuer Hangar und Cutszene (gleiche Vorlage wie im Spiel)
 export { getShipSVGContent };
 import { erzeugePartikel } from './partikel.js';
+import { erzeugeEffekt, entferneEffekte } from './effekte.js';
 
 
 // faktor: Punkte-Multiplikator (Viper-Kombo), Ergebnis gerundet
@@ -335,20 +336,22 @@ export function zerstoereZiel(ziel, killer = 'p1') {
   if (bIndex > -1) arrays.bosses.splice(bIndex, 1);
 }
 
-// Laufende Sweep-Klingen und Dash-Darstellung entfernen (Darstellung aus gleve.js).
+// Laufende Sweeps, Dashs und Klingenwellen beenden (die Anzeige leitet die Klinge aus dem Zustand ab).
 // Nach dem Game Over laeuft keine Simulation mehr, die sie selbst abraeumen wuerde.
 function entferneGleveEffekte() {
   Sniper.entferneEffekte();
+  entferneEffekte();
   // Laufende Dashs und Rollen enden mit dem Spiel (die Anzeige leitet die Schiffsklassen daraus ab)
   for (const s of [state, state.p2]) {
     if (!s) continue;
     s.gleveDashTimer = 0;
     s.gleveAbprallTimer = 0;
+    s.gleveSweepTimer = 0;
     s.viperRolleTimer = 0;
     s.viperOverdriveTimer = 0;
   }
   Anzeige.zeichneSpieler();
-  document.querySelectorAll('.gleve-klinge, .gleve-welle').forEach(el => el.remove());
+  for (const w of arrays.gleveWellen) Anzeige.entferne(w);
   arrays.gleveWellen.length = 0;
 }
 
@@ -453,10 +456,7 @@ function trefferAmSpieler(kollisionsObjekt, explodiert, targetPlayer) {
         erzeugeExplosion(kollisionsObjekt.x + (kollisionsObjekt.groesse || 4) / 2, kollisionsObjekt.y + (kollisionsObjekt.groesse || 15) / 2, c, 10);
       }
       addScore(10);
-      dom.spielfeld.style.backgroundColor = 'rgba(52, 152, 219, 0.3)';
-      setTimeout(() => {
-        dom.spielfeld.style.backgroundColor = '#0b1319';
-      }, 150);
+      Anzeige.blitzeSpielfeld('rgba(52, 152, 219, 0.3)', 150);
       return;
     }
     state.leben--;
@@ -479,10 +479,7 @@ function trefferAmSpieler(kollisionsObjekt, explodiert, targetPlayer) {
     }
     updateLebenUI();
     updateAktivePowerupsUI();
-    dom.spielfeld.style.backgroundColor = '#900';
-    setTimeout(() => {
-      dom.spielfeld.style.backgroundColor = '#0b1319';
-    }, 150);
+    Anzeige.blitzeSpielfeld('#900', 150);
     if (explodiert && kollisionsObjekt && !kollisionsObjekt.istBoss) {
       let c = kollisionsObjekt.istFeind ? '#9b59b6' : (kollisionsObjekt.farbe || '#7f8c8d');
       erzeugeExplosion(kollisionsObjekt.x + (kollisionsObjekt.groesse || 4) / 2, kollisionsObjekt.y + (kollisionsObjekt.groesse || 15) / 2, c, 10);
@@ -518,10 +515,7 @@ function trefferAmSpieler(kollisionsObjekt, explodiert, targetPlayer) {
       }
       addScore(10);
       if (!isOnline) {
-        dom.spielfeld.style.backgroundColor = 'rgba(52, 152, 219, 0.3)';
-        setTimeout(() => {
-          dom.spielfeld.style.backgroundColor = '#0b1319';
-        }, 150);
+        Anzeige.blitzeSpielfeld('rgba(52, 152, 219, 0.3)', 150);
       } else {
         Network.sendNetworkEvent({ type: 'player_hit', target: 'p2', shield: true, invulnerable: state.p2.invulnerableTimer });
       }
@@ -548,10 +542,7 @@ function trefferAmSpieler(kollisionsObjekt, explodiert, targetPlayer) {
     updateLebenP2UI();
     updateAktivePowerupsP2UI();
     if (!isOnline) {
-      dom.spielfeld.style.backgroundColor = '#900';
-      setTimeout(() => {
-        dom.spielfeld.style.backgroundColor = '#0b1319';
-      }, 150);
+      Anzeige.blitzeSpielfeld('#900', 150);
     } else {
       Network.sendNetworkEvent({ type: 'player_hit', target: 'p2', shield: false, invulnerable: state.p2.invulnerableTimer });
     }
@@ -708,6 +699,8 @@ export function restartGame() {
   clearArray(arrays.raketenArray);
   clearArray(arrays.bombenArray);
   clearArray(arrays.explosionenArray);
+  clearArray(arrays.effekte);
+  clearArray(arrays.sniperGranaten);
 
   // Verwaiste Spiel-Entitäten und Projektile aus dem DOM entfernen
   const orphanSelectors = '.boss-rakete, .boss-bombe, .boss-laser, .feind-laser, .laser, .rakete, .bombe, .powerup, .feind, .asteroid, .boss, .partikel, .werfer-abgeworfen, .shockwave, .schockwelle, .cutscene-fireball, .cutscene-shockwave, .cutscene-debris, .tractor-beam-svg';
@@ -1158,51 +1151,10 @@ export function erzeugeBombenDetonation(bcx, bcy, farbe = '#f39c12', radius = 15
     Audio.playExplosion(isMini ? 'medium' : 'large');
   }
 
-  // 3. Schockwelle
-  const shockwave = document.createElement('div');
-  shockwave.style.position = 'absolute';
-  shockwave.style.width = (radius * 2) + 'px';
-  shockwave.style.height = (radius * 2) + 'px';
-  shockwave.style.left = (bcx - radius) + 'px';
-  shockwave.style.top = (bcy - radius) + 'px';
-  shockwave.style.borderRadius = '50%';
-  shockwave.style.backgroundColor = farbe === '#00ffff' ? 'rgba(0, 255, 255, 0.4)' : (farbe === '#9b59b6' ? 'rgba(155, 89, 182, 0.4)' : (farbe === '#f1c40f' ? 'rgba(241, 196, 15, 0.45)' : 'rgba(231, 76, 60, 0.4)'));
-  shockwave.style.boxShadow = `0 0 45px ${farbe || '#f39c12'}`;
-  shockwave.style.zIndex = '9';
-  shockwave.style.pointerEvents = 'none';
-  shockwave.style.transition = 'all 0.5s ease-out';
-  spielfeld.appendChild(shockwave);
-
-  setTimeout(() => {
-    shockwave.style.opacity = '0';
-    shockwave.style.transform = 'scale(1.2)';
-  }, 10);
-  setTimeout(() => {
-    shockwave.remove();
-  }, 500);
-
-  // 4. Stufe 3 Vortex: Zweite Schockwelle leicht verzögert
+  // 3. Schockwelle (Effekt im Simulationstakt; Stufe 3 Vortex: zweite, leicht verzoegert und violett)
+  erzeugeEffekt({ art: 'bombenWelle', x: bcx, y: bcy, radius, farbe: farbe || '#f39c12', rest: 30 });
   if (stufe === 3 && !isMini) {
-    setTimeout(() => {
-      const sw2 = document.createElement('div');
-      sw2.style.position = 'absolute';
-      sw2.style.width = (radius * 1.5) + 'px';
-      sw2.style.height = (radius * 1.5) + 'px';
-      sw2.style.left = (bcx - (radius * 0.75)) + 'px';
-      sw2.style.top = (bcy - (radius * 0.75)) + 'px';
-      sw2.style.borderRadius = '50%';
-      sw2.style.backgroundColor = 'rgba(155, 89, 182, 0.3)';
-      sw2.style.boxShadow = '0 0 30px #9b59b6';
-      sw2.style.zIndex = '9';
-      sw2.style.pointerEvents = 'none';
-      sw2.style.transition = 'all 0.4s ease-out';
-      spielfeld.appendChild(sw2);
-      setTimeout(() => {
-        sw2.style.opacity = '0';
-        sw2.style.transform = 'scale(1.3)';
-      }, 10);
-      setTimeout(() => sw2.remove(), 400);
-    }, 150);
+    erzeugeEffekt({ art: 'bombenWelle2', x: bcx, y: bcy, radius: radius * 0.75, rest: 24 + 9, verzoegerung: 9 });
   }
 }
 
@@ -1216,26 +1168,7 @@ export function erzeugeRaketenDetonation(rcx, rcy, radius = 70) {
   erzeugeExplosion(rcx, rcy, '#e67e22', 25);
   erzeugeExplosion(rcx, rcy, '#f1c40f', 15);
 
-  const shockwave = document.createElement('div');
-  shockwave.classList.add('schockwelle');
-  shockwave.style.position = 'absolute';
-  shockwave.style.width = (radius * 2) + 'px';
-  shockwave.style.height = (radius * 2) + 'px';
-  shockwave.style.left = (rcx - radius) + 'px';
-  shockwave.style.top = (rcy - radius) + 'px';
-  shockwave.style.borderRadius = '50%';
-  shockwave.style.backgroundColor = 'rgba(231, 76, 60, 0.4)';
-  shockwave.style.boxShadow = '0 0 20px #e74c3c';
-  shockwave.style.zIndex = '9';
-  shockwave.style.pointerEvents = 'none';
-  shockwave.style.transition = 'all 0.3s ease-out';
-  spielfeld.appendChild(shockwave);
-
-  setTimeout(() => {
-    shockwave.style.opacity = '0';
-    shockwave.style.transform = 'scale(1.2)';
-  }, 10);
-  setTimeout(() => shockwave.remove(), 300);
+  erzeugeEffekt({ art: 'raketenWelle', x: rcx, y: rcy, radius, rest: 18 });
 }
 export function erzeugeRauchFunken(x, y, groesse) {
   // Rauch

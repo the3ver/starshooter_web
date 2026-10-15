@@ -268,7 +268,8 @@ test('Online: Gleve-Zustand und harmlos-Flag gehen in den Snapshot, Client zeigt
   expect(r.harmlos).toEqual([true, false]);
   expect(r.dekodiert).toEqual([5, -9, 1, true]);
   expect(r.client.dashKlasse).toBe(true);
-  expect(r.client.klinge).toBe('rotate(-18deg)');
+  // Die Anzeige zeichnet am Ende des Schritts (nach dem Weiterdrehen des Winkels), die Klinge steht also schon beim Winkel danach
+  expect(r.client.klinge).toBe('rotate(-9deg)');
   // Stufe 1: 90-Grad-Bogen in 10 Frames, 9 Grad pro Schritt
   expect(r.client.winkelDanach).toBeCloseTo(-9, 5);
   expect(r.client.sounds).toEqual(['dash', 'sweep']);

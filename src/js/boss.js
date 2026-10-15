@@ -6,6 +6,7 @@ import * as Audio from './audio.js';
 import { naechsterSpielerMitte, tickBetaeubung } from './gegner.js';
 import * as Anzeige from './anzeige.js';
 import { erzeugePartikel } from './partikel.js';
+import { erzeugeEffekt } from './effekte.js';
 
 
 const BOSS_HACK_AB_LEVEL = 5;
@@ -228,25 +229,7 @@ export function aktualisiereBossBomben() {
       let cy = bb.y + 13;
       Utils.erzeugeExplosion(cx, cy, '#e74c3c', 40);
 
-      const sw = document.createElement('div');
-      sw.classList.add('boss-shockwave');
-      sw.style.position = 'absolute';
-      sw.style.width = bb.radius * 2 + 'px';
-      sw.style.height = bb.radius * 2 + 'px';
-      sw.style.left = cx - bb.radius + 'px';
-      sw.style.top = cy - bb.radius + 'px';
-      sw.style.borderRadius = '50%';
-      sw.style.backgroundColor = 'rgba(231, 76, 60, 0.45)';
-      sw.style.boxShadow = '0 0 30px #e74c3c';
-      sw.style.zIndex = '9';
-      sw.style.pointerEvents = 'none';
-      sw.style.transition = 'all 0.4s ease-out';
-      dom.spielfeld.appendChild(sw);
-      setTimeout(() => {
-        sw.style.opacity = '0';
-        sw.style.transform = 'scale(1.25)';
-      }, 10);
-      setTimeout(() => sw.remove(), 400);
+      erzeugeEffekt({ art: 'bossWelle', x: cx, y: cy, radius: bb.radius, rest: 24 });
 
       let distP1 = Math.hypot((state.x + config.spielerGroesse / 2) - cx, (state.y + config.spielerGroesse / 2) - cy);
       if (!state.isDead && distP1 <= bb.radius) {

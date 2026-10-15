@@ -1,6 +1,14 @@
-export const GAME_VERSION = '1.15.4';
+export const GAME_VERSION = '1.15.5';
 
 export const changelogData = {
+  '1.15.5': {
+    version: '1.15.5',
+    intro: 'Hey, es ist jetzt Version 1.15.5 rausgekommen, folgendes wurde aktualisiert:',
+    highlights: [
+      '🛠️ Umbau für eine neue Grafik-Engine abgeschlossen: Explosionen, Druckwellen, Granaten, Minen, Fadenkreuz, Gleve-Klinge und Bildschirm-Blitze laufen jetzt über eine zentrale Anzeige',
+      '💥 Druckwellen und Explosionsringe halten in der Pause jetzt an, statt weiterzulaufen'
+    ]
+  },
   '1.15.4': {
     version: '1.15.4',
     intro: 'Hey, es ist jetzt Version 1.15.4 rausgekommen, folgendes wurde aktualisiert:',

@@ -1,12 +1,13 @@
 // DOM-Backend der Anzeige (siehe anzeige.js): Weltobjekte sind absolut positionierte Elemente in
 // #spielfeld, das Modell traegt sein Element in obj.el. Nur dieses Modul schreibt Position, Drehung,
 // Deckkraft und Zustandsanzeigen (Schild, Risse, Betaeubung, Schlepp-Strahl ...) der Weltobjekte ins DOM.
-import { arrays, dom, state } from './state.js';
-import { WELLE_TEMPO, WELLE_SCHRITTE, SWEEP_PARADE_FARBE, istGleve, istDashAktiv } from './gleve.js';
+import { arrays, dom, state, shipColors } from './state.js';
+import { MINE_GROESSE, istSniper, trefferRadius, radiusFaktor, istVoll, ladeAnteil, LADEN_AB } from './sniper.js';
+import { WELLE_TEMPO, WELLE_SCHRITTE, SWEEP_PARADE_FARBE, istGleve, istDashAktiv, istSweepAktiv, sweepUrsprung, sweepLaenge } from './gleve.js';
 import { istViper, istRolleAktiv, istOverdrive } from './viper.js';
 import { HACK_NAMEN, HACK_DAUER } from './hack.js';
 import { werferBelegung } from './utils.js';
-import { ERZEUGER, getShipSVGContent } from './anzeige-dom-objekte.js';
+import { ERZEUGER, EFFEKT_STIL, getShipSVGContent } from './anzeige-dom-objekte.js';
 
 function setzePosition(o) {
   const x = o.anzeigeX !== undefined ? o.anzeigeX : o.x;
@@ -168,9 +169,61 @@ function zeichneWelle(w) {
   w.el.style.opacity = String(Math.max(0.2, 1 - 0.8 * strecke / (WELLE_TEMPO * WELLE_SCHRITTE)));
 }
 
+// Sniper-Effekte, je Art eigene Rechnung aus t = 1 - rest / dauer. Ringe wachsen aus der Mitte (x/y) auf den Durchmesser d,
+// der Strahl bleibt stehen und blendet nur aus.
+function zeichneSniperRing(e, d, deckkraft) {
+  e.el.style.width = d + 'px';
+  e.el.style.height = d + 'px';
+  e.el.style.left = (e.x - d / 2) + 'px';
+  e.el.style.top = (e.y - d / 2) + 'px';
+  e.el.style.opacity = deckkraft;
+}
+
+const SNIPER_EFFEKT_ZEICHNER = {
+  sniperStrahl: e => { e.el.style.opacity = e.rest / e.dauer; },
+  // schnell am Anfang, gegen Ende auslaufend
+  sniperDruckwelle: e => { const t = 1 - e.rest / e.dauer; zeichneSniperRing(e, e.radius * 2 * Math.sqrt(t), 1 - t * 0.85); },
+  sniperMinenExplosion: e => { const t = 1 - e.rest / e.dauer; zeichneSniperRing(e, e.radius * 2 * Math.sqrt(t), 1 - t * 0.85); },
+  sniperEmp: e => { const t = 1 - e.rest / e.dauer; zeichneSniperRing(e, e.radius * 2 * t, 1 - t * 0.8); }
+};
+
+// Effekt mit Lebensdauer: Fortschritt t aus rest/dauer (nach einer Verzoegerung unsichtbar), Mitte x/y,
+// Groesse waechst bis skala und die Deckkraft sinkt auf 0
+function zeichneEffekt(e) {
+  const sniper = SNIPER_EFFEKT_ZEICHNER[e.art];
+  if (sniper) {
+    sniper(e);
+    return;
+  }
+  const stil = EFFEKT_STIL[e.art];
+  const verz = e.verzoegerung || 0;
+  const vergangen = e.dauer - e.rest;
+  const sichtbar = vergangen >= verz;
+  const t = sichtbar ? (vergangen - verz) / (e.dauer - verz) : 0;
+  e.el.style.left = (e.x - e.radius) + 'px';
+  e.el.style.top = (e.y - e.radius) + 'px';
+  e.el.style.opacity = sichtbar ? String(1 - t) : '0';
+  e.el.style.transform = `scale(${1 + (stil.skala - 1) * t})`;
+}
+
+// Sniper-Granate im Flug: x/y = Mitte, 14 px gross, Drehung aus rot
+function zeichneSniperGranate(g) {
+  g.el.style.left = (g.x - 7) + 'px';
+  g.el.style.top = (g.y - 7) + 'px';
+  g.el.style.transform = `rotate(${g.rot}deg)`;
+}
+
+// Haftmine: x/y = Mitte, 12 px gross (MINE_GROESSE), Klassen haftet/blinkt aus dem Modell
+function zeichneSniperMine(m) {
+  m.el.style.left = (m.x - MINE_GROESSE / 2) + 'px';
+  m.el.style.top = (m.y - MINE_GROESSE / 2) + 'px';
+  m.el.classList.toggle('haftet', !!m.haftet);
+  m.el.classList.toggle('blinkt', !!m.blinkt);
+}
+
 // Zeichner je Objektart (beim Erzeugen) und je Liste (jeder Schritt).
-// Listen ohne Eintrag zeichnet ihr Modul noch selbst (sniperMinen).
 const ZEICHNER_JE_ART = {
+  stern: setzePosition,
   feind: zeichneFeind,
   asteroid: zeichneAsteroid,
   boss: zeichneBoss,
@@ -184,7 +237,10 @@ const ZEICHNER_JE_ART = {
   bossBombe: zeichneObjekt,
   hackProjektil: zeichneGeschoss,
   gleveWelle: zeichneWelle,
-  partikel: zeichnePartikel
+  partikel: zeichnePartikel,
+  effekt: zeichneEffekt,
+  sniperGranate: zeichneSniperGranate,
+  sniperMine: zeichneSniperMine
 };
 
 const ZEICHNER = {
@@ -202,7 +258,10 @@ const ZEICHNER = {
   bossBombenArray: zeichneObjekt,
   hackProjektilArray: zeichneGeschoss,
   partikelArray: zeichnePartikel,
-  gleveWellen: zeichneWelle
+  gleveWellen: zeichneWelle,
+  effekte: zeichneEffekt,
+  sniperGranaten: zeichneSniperGranate,
+  sniperMinen: zeichneSniperMine
 };
 
 export function erzeuge(obj, art) {
@@ -272,6 +331,90 @@ function zeichneHackLabel(s, pKey, aktiv) {
   label.style.top = (s.y - 22) + 'px';
 }
 
+// Sniper-Fadenkreuz (Kreis mit vier Strichen) samt Ladering aus sniperZielX/Y, Laser-Stufe, sniperLadung und sniperGehalten.
+// Sichtbar nur fuer lebende Sniper bei laufendem Spiel und gesetztem Ziel.
+function zeichneFadenkreuz(s, pKey) {
+  const id = 'fadenkreuz-' + pKey;
+  let el = document.getElementById(id);
+  const sichtbar = istSniper(s) && !s.isDead && state.spielLaeuft && s.sniperZielX != null;
+  if (!sichtbar) {
+    if (el) el.remove();
+    return;
+  }
+  if (!el) {
+    el = document.createElement('div');
+    el.id = id;
+    el.classList.add('sniper-fadenkreuz', 'sniper-fadenkreuz-' + pKey);
+    for (const seite of ['o', 'u', 'l', 'r']) {
+      const strich = document.createElement('i');
+      strich.classList.add('sniper-strich', 'sniper-strich-' + seite);
+      el.appendChild(strich);
+    }
+    dom.spielfeld.appendChild(el);
+  }
+  const r = trefferRadius(s);
+  const c = shipColors[s.selectedShipColor];
+  const farbe = c ? c.prim : '#ffffff';
+  zeichneLadering(el, s);
+  el.style.width = (r * 2) + 'px';
+  el.style.height = (r * 2) + 'px';
+  el.style.left = (s.sniperZielX - r) + 'px';
+  el.style.top = (s.sniperZielY - r) + 'px';
+  el.style.color = farbe;
+  el.style.borderColor = farbe;
+  el.style.boxShadow = `0 0 6px ${farbe}, inset 0 0 4px ${farbe}`;
+}
+
+// Ladering im Fadenkreuz: zeigt den aktuellen Trefferkreis, waechst mit der Ladung, Klasse voll bei voller Ladung
+function zeichneLadering(el, s) {
+  let ring = el.querySelector('.sniper-ladering');
+  if (!ring) {
+    ring = document.createElement('div');
+    ring.classList.add('sniper-ladering');
+    el.appendChild(ring);
+  }
+  const ladung = s.sniperLadung || 0;
+  const sichtbar = !!s.sniperGehalten && ladung >= LADEN_AB;
+  ring.style.display = sichtbar ? 'block' : 'none';
+  ring.classList.toggle('voll', sichtbar && istVoll(ladung));
+  if (!sichtbar) return;
+  const d = trefferRadius(s) * 2 * radiusFaktor(ladung);
+  const anteil = ladeAnteil(ladung);
+  ring.style.width = d + 'px';
+  ring.style.height = d + 'px';
+  ring.style.opacity = 0.45 + 0.55 * anteil;
+  ring.style.borderWidth = (1.5 + 2.5 * anteil) + 'px';
+}
+
+// Gleve-Sweep-Klinge aus gleveSweepTimer, -Winkel und -Richtung; sichtbar nur fuer lebende Gleve mit laufendem Sweep.
+// Ursprung und Laenge kommen aus der Spiellogik (sweepUrsprung, sweepLaenge), Farbe aus der Schiffsfarbe.
+function zeichneKlinge(s, pKey) {
+  const id = 'gleve-klinge-' + pKey;
+  let el = document.getElementById(id);
+  if (!(istGleve(s) && !s.isDead && istSweepAktiv(s))) {
+    if (el) el.remove();
+    return;
+  }
+  if (!el) {
+    el = document.createElement('div');
+    el.id = id;
+    el.classList.add('gleve-klinge');
+    dom.spielfeld.appendChild(el);
+  }
+  const o = sweepUrsprung(s);
+  const laenge = sweepLaenge(s);
+  const c = shipColors[s.selectedShipColor];
+  const farbe = c ? c.prim : '#ffffff';
+  el.style.height = laenge + 'px';
+  el.style.left = (o.x - 2) + 'px';
+  el.style.top = (o.y - laenge) + 'px';
+  el.style.boxShadow = `0 0 4px #ffffff, 0 0 8px ${farbe}, 0 0 14px ${farbe}`;
+  el.style.borderColor = farbe;
+  // Leicht gebogen: Neigung gegen die Laufrichtung
+  el.style.borderRadius = (s.gleveSweepRichtung || 1) > 0 ? '0 100% 0 0 / 0 100% 0 0' : '100% 0 0 0 / 100% 0 0 0';
+  el.style.transform = `rotate(${s.gleveSweepWinkel}deg)`;
+}
+
 // Ein Schiff aus seinem Zustand: Sichtbarkeit (schiffSichtbar), Position (anzeigeX/Y oder x/y), Neigung
 // (drehung), Flammen (flammenSkala), Blinken waehrend der Unverwundbarkeit, Schild-Ring je schildStufe
 function zeichneSchiff(s, el, flammenIds, pKey) {
@@ -284,6 +427,8 @@ function zeichneSchiff(s, el, flammenIds, pKey) {
   const gehackt = lebt && (s.hacks || []).length > 0;
   el.classList.toggle('spieler-gehackt', gehackt);
   zeichneHackLabel(s, pKey, gehackt);
+  zeichneFadenkreuz(s, pKey);
+  zeichneKlinge(s, pKey);
   if (typeof s.schiffSichtbar === 'boolean') el.style.display = s.schiffSichtbar ? 'block' : 'none';
   setzePosition({ el, x: s.x, y: s.y, anzeigeX: s.anzeigeX, anzeigeY: s.anzeigeY });
   if (typeof s.drehung === 'number') el.style.transform = `rotate(${s.drehung}deg)`;
@@ -351,4 +496,13 @@ export function blitze(obj, staerke) {
   if (!el) return;
   el.style.filter = `brightness(${staerke})`;
   setTimeout(() => { el.style.filter = ''; }, 50);
+}
+
+// Bildschirm-Blitz: Spielfeldhintergrund kurz faerben, nach ms zurueck zur Grundfarbe. Jeder Blitz setzt seinen
+// eigenen Timer (wie bisher in der Logik): ein zweiter Blitz im ersten setzt die Grundfarbe beim Ablauf des ersten.
+export function blitzeSpielfeld(farbe, ms) {
+  const el = dom.spielfeld || document.getElementById('spielfeld');
+  if (!el) return;
+  el.style.backgroundColor = farbe;
+  setTimeout(() => { el.style.backgroundColor = '#0b1319'; }, ms);
 }

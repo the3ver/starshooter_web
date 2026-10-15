@@ -639,22 +639,10 @@ export function handleNetworkEvent(data, peerId = null) {
             // I-Frames wie auf dem Host setzen, damit clientSchritt() das Blinken wieder beendet
             if (state.p2) state.p2.invulnerableTimer = Number.isFinite(data.invulnerable) && data.invulnerable > 0 ? data.invulnerable : 45;
             Anzeige.zeichneSpieler();
-            const spielfeld = dom.spielfeld || document.getElementById('spielfeld');
-            if (spielfeld) {
-                spielfeld.style.backgroundColor = data.shield ? 'rgba(52, 152, 219, 0.3)' : '#900';
-                setTimeout(() => {
-                    if (spielfeld) spielfeld.style.backgroundColor = '#0b1319';
-                }, 150);
-            }
+            Anzeige.blitzeSpielfeld(data.shield ? 'rgba(52, 152, 219, 0.3)' : '#900', 150);
         }
         if (data.type === 'powerup_collected' && data.target === 'p2') {
-            const spielfeld = dom.spielfeld || document.getElementById('spielfeld');
-            if (spielfeld) {
-                spielfeld.style.backgroundColor = data.farbe || '#f1c40f';
-                setTimeout(() => {
-                    if (spielfeld) spielfeld.style.backgroundColor = '#0b1319';
-                }, 100);
-            }
+            Anzeige.blitzeSpielfeld(data.farbe || '#f1c40f', 100);
         }
         if (data.type === 'highscore_name') {
             Utils.receiveOnlineHighscoreName(data.role, data.name);

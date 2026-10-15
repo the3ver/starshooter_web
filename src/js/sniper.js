@@ -6,13 +6,14 @@
 // sniperCooldown (Schritte bis zum naechsten Schuss), sniperGehalten (Laser-Taste im Schritt davor = Ladevorgang laeuft),
 // sniperLadung (Ladeschritte 0-90), sniperVoll (Voll-Ton fuer diesen Ladevorgang schon gespielt).
 
-import { state, dom, config, arrays, shipColors } from './state.js';
+import { state, config, arrays, shipColors } from './state.js';
 import * as Utils from './utils.js';
 import * as Audio from './audio.js';
 import * as Hack from './hack.js';
 import * as Network from './network.js';
 import { schadeZiel, zeigeLadungenHud } from './gleve.js';
 import * as Anzeige from './anzeige.js';
+import { erzeugeEffekt, entferneEffekte as entferneAlleEffekte } from './effekte.js';
 
 export const FADENKREUZ_ABSTAND = 220; // px ueber der Schiffsoberkante
 export const SCHUSS_ENERGIE = 6;
@@ -61,7 +62,7 @@ export const MINE_ZUENDUNG = 30;
 export const MINE_RADIUS = 30;
 // Freie Minen driften langsam nach oben, den Gegnern entgegen (px pro Schritt)
 export const MINE_DRIFT = 0.6;
-const MINE_GROESSE = 12;
+export const MINE_GROESSE = 12;
 const MINE_SCHADEN = [20, 25, 30, 35, 40];
 
 function stufenIndex(pState) {
@@ -131,7 +132,7 @@ export function empRadius(pState) { return EMP_RADIUS[raketenIndex(pState)]; }
 export function minenSchaden(pState) { return MINE_SCHADEN[raketenIndex(pState)]; }
 
 // Ladeanteil 0-1 (unter 10 Schritten Haltedauer = Normalschuss, also 0)
-function ladeAnteil(ladung) {
+export function ladeAnteil(ladung) {
   return ladung < LADEN_AB ? 0 : Math.min(1, ladung / LADUNG_VOLL);
 }
 export function schadensFaktor(ladung) { return 1 + (MAX_SCHADENSFAKTOR - 1) * ladeAnteil(ladung); }
@@ -239,98 +240,16 @@ function aktualisiereFadenkreuz(pState) {
 }
 
 // --- DARSTELLUNG ---
-
-const fadenkreuze = { p1: null, p2: null };
-const strahlen = []; // { el, rest }
-
-function holeFadenkreuz(pKey) {
-  let el = fadenkreuze[pKey];
-  if (!el || !el.isConnected) {
-    el = document.createElement('div');
-    el.classList.add('sniper-fadenkreuz', 'sniper-fadenkreuz-' + pKey);
-    for (const seite of ['o', 'u', 'l', 'r']) {
-      const strich = document.createElement('i');
-      strich.classList.add('sniper-strich', 'sniper-strich-' + seite);
-      el.appendChild(strich);
-    }
-    dom.spielfeld.appendChild(el);
-    fadenkreuze[pKey] = el;
-  }
-  return el;
-}
-
-function zeigeLadering(el, pState) {
-  let ring = el.querySelector('.sniper-ladering');
-  if (!ring) {
-    ring = document.createElement('div');
-    ring.classList.add('sniper-ladering');
-    el.appendChild(ring);
-  }
-  const ladung = pState.sniperLadung || 0;
-  const sichtbar = !!pState.sniperGehalten && ladung >= LADEN_AB;
-  ring.style.display = sichtbar ? 'block' : 'none';
-  ring.classList.toggle('voll', sichtbar && istVoll(ladung));
-  if (!sichtbar) return;
-  // Der Ring zeigt den aktuellen Trefferkreis: waechst von Radius x1 auf x1,5; Deckkraft und Randstaerke steigen mit der Ladung
-  const d = trefferRadius(pState) * 2 * radiusFaktor(ladung);
-  const anteil = ladeAnteil(ladung);
-  ring.style.width = d + 'px';
-  ring.style.height = d + 'px';
-  ring.style.opacity = 0.45 + 0.55 * anteil;
-  ring.style.borderWidth = (1.5 + 2.5 * anteil) + 'px';
-}
-
-function zeigeFadenkreuz(pState, pKey) {
-  const el = holeFadenkreuz(pKey);
-  const r = trefferRadius(pState);
-  const farbe = schiffFarbe(pState);
-  zeigeLadering(el, pState);
-  el.style.width = (r * 2) + 'px';
-  el.style.height = (r * 2) + 'px';
-  el.style.left = (pState.sniperZielX - r) + 'px';
-  el.style.top = (pState.sniperZielY - r) + 'px';
-  el.style.color = farbe;
-  el.style.borderColor = farbe;
-  el.style.boxShadow = `0 0 6px ${farbe}, inset 0 0 4px ${farbe}`;
-}
-
-function entferneFadenkreuz(pKey) {
-  if (fadenkreuze[pKey]) {
-    fadenkreuze[pKey].remove();
-    fadenkreuze[pKey] = null;
-  }
-}
+// Das Fadenkreuz samt Ladering zeichnet das Anzeige-Backend aus dem Spielerzustand (zeichneFadenkreuz in anzeige-dom.js).
 
 function erzeugeStrahl(pState, anteil = 0) {
   const n = schiffsNase(pState);
-  const breite = 3 + 9 * anteil;
   const dx = pState.sniperZielX - n.x;
   const dy = pState.sniperZielY - n.y;
-  const dist = Math.hypot(dx, dy);
-  const farbe = schiffFarbe(pState);
-  const el = document.createElement('div');
-  el.classList.add('sniper-strahl');
-  el.style.height = dist + 'px';
-  el.style.top = (n.y - dist) + 'px';
-  el.style.width = breite + 'px';
-  el.style.left = (n.x - breite / 2) + 'px';
-  el.style.transform = `rotate(${Math.atan2(dx, -dy) * 180 / Math.PI}deg)`;
-  el.style.boxShadow = `0 0 ${4 + 6 * anteil}px #ffffff, 0 0 ${8 + 10 * anteil}px ${farbe}, 0 0 ${14 + 18 * anteil}px ${farbe}`;
-  dom.spielfeld.appendChild(el);
-  strahlen.push({ el, rest: STRAHL_SCHRITTE });
-}
-
-function aktualisiereStrahlen() {
-  for (let i = strahlen.length - 1; i >= 0; i--) {
-    const s = strahlen[i];
-    s.rest--;
-    if (s.rest <= 0 || !s.el.isConnected) {
-      s.el.remove();
-      strahlen.splice(i, 1);
-    } else {
-      s.el.style.opacity = s.rest / STRAHL_SCHRITTE;
-    }
-  }
+  erzeugeEffekt({
+    art: 'sniperStrahl', x: n.x, y: n.y, laenge: Math.hypot(dx, dy), winkel: Math.atan2(dx, -dy) * 180 / Math.PI,
+    breite: 3 + 9 * anteil, glow: anteil, farbe: schiffFarbe(pState), pKey: pState === state ? 'p1' : 'p2', rest: STRAHL_SCHRITTE
+  });
 }
 
 function erzeugeEinschlag(pState, cx, cy, anteil = 0) {
@@ -410,11 +329,10 @@ function versuche(pState, pKey, ladung) {
 
 // --- GRANATE ---
 
-const granaten = []; // { id, el, pKey, x, y, startX, startY, zielX, zielY, rest, rot, werte }
+// Granaten im Flug: arrays.sniperGranaten, { id, pKey, x, y (Mitte), startX, startY, zielX, zielY, rest, rot, werte }
+// (Client: nur id, pKey, x, y, rest, rot aus dem Snapshot)
 let granatenId = 0;
 const stoesse = []; // { z, vx, vy, rest, pKey } laufendes Wegstossen
-const wellen = []; // { el, pKey, cx, cy, radius, rest }
-const netzGranaten = []; // Online-Client: { id, el, pKey } nach Snapshot der Granaten des Hosts
 
 // Wurf zum Fadenkreuz (Position beim Wurf), Flug in GRANATE_FLUG Schritten im Bogen; die Werte der Stufe gelten ab dem Wurf.
 export function werfeGranate(pState, pKey) {
@@ -422,29 +340,24 @@ export function werfeGranate(pState, pKey) {
   const grund = grundPosition(pState);
   const zx = pState.sniperZielX != null ? pState.sniperZielX : grund.x;
   const zy = pState.sniperZielY != null ? pState.sniperZielY : grund.y;
-  const el = document.createElement('div');
-  el.classList.add('sniper-granate');
-  el.style.left = (n.x - 7) + 'px';
-  el.style.top = (n.y - 7) + 'px';
-  dom.spielfeld.appendChild(el);
-  granaten.push({
-    id: 'sg_' + (++granatenId), el, pKey, x: n.x, y: n.y, startX: n.x, startY: n.y, zielX: zx, zielY: zy, rest: GRANATE_FLUG, rot: 0,
+  arrays.sniperGranaten.push(Anzeige.erzeuge({
+    id: 'sg_' + (++granatenId), pKey, x: n.x, y: n.y, startX: n.x, startY: n.y, zielX: zx, zielY: zy, rest: GRANATE_FLUG, rot: 0,
     werte: {
       radius: granatenRadius(pState), stoss: granatenStoss(pState), betaeubung: granatenBetaeubung(pState),
       schaden: granatenSchaden(pState), loescht: (pState.raketenStufe || 1) >= 5
     }
-  });
+  }, 'sniperGranate'));
 }
 
 function aktualisiereGranaten(pKey) {
-  for (let i = granaten.length - 1; i >= 0; i--) {
-    const g = granaten[i];
+  for (let i = arrays.sniperGranaten.length - 1; i >= 0; i--) {
+    const g = arrays.sniperGranaten[i];
     if (g.pKey !== pKey) continue;
     g.rest--;
-    if (g.rest <= 0 || !g.el.isConnected) {
-      g.el.remove();
-      granaten.splice(i, 1);
-      if (g.rest <= 0) explodiereGranate(g);
+    if (g.rest <= 0) {
+      Anzeige.entferne(g);
+      arrays.sniperGranaten.splice(i, 1);
+      explodiereGranate(g);
       continue;
     }
     const t = 1 - g.rest / GRANATE_FLUG;
@@ -453,41 +366,11 @@ function aktualisiereGranaten(pKey) {
     g.rot += 24;
     g.x = x;
     g.y = y;
-    g.el.style.left = (x - 7) + 'px';
-    g.el.style.top = (y - 7) + 'px';
-    g.el.style.transform = 'rotate(' + g.rot + 'deg)';
   }
 }
 
-function erzeugeDruckwelle(cx, cy, radius, pKey, klasse = 'sniper-druckwelle') {
-  const el = document.createElement('div');
-  el.classList.add(klasse);
-  el.style.left = cx + 'px';
-  el.style.top = cy + 'px';
-  el.style.width = '0px';
-  el.style.height = '0px';
-  dom.spielfeld.appendChild(el);
-  wellen.push({ el, pKey, cx, cy, radius, rest: WELLE_SCHRITTE });
-}
-
-function aktualisiereWellen(pKey) {
-  for (let i = wellen.length - 1; i >= 0; i--) {
-    const w = wellen[i];
-    if (pKey && w.pKey !== pKey) continue;
-    w.rest--;
-    if (w.rest <= 0 || !w.el.isConnected) {
-      w.el.remove();
-      wellen.splice(i, 1);
-      continue;
-    }
-    const t = 1 - w.rest / WELLE_SCHRITTE;
-    const d = w.radius * 2 * Math.sqrt(t); // schnell am Anfang, gegen Ende auslaufend
-    w.el.style.width = d + 'px';
-    w.el.style.height = d + 'px';
-    w.el.style.left = (w.cx - d / 2) + 'px';
-    w.el.style.top = (w.cy - d / 2) + 'px';
-    w.el.style.opacity = 1 - t * 0.85;
-  }
+function erzeugeDruckwelle(cx, cy, radius, pKey, art = 'sniperDruckwelle') {
+  erzeugeEffekt({ art, x: cx, y: cy, radius, pKey, rest: WELLE_SCHRITTE });
 }
 
 function wegstossZiele() {
@@ -500,7 +383,7 @@ function loescheGeschosse(array, cx, cy, r) {
     const b = { x1: p.x, y1: p.y, x2: p.x + (p.width || p.groesse || 4), y2: p.y + (p.height || p.groesse || 4) };
     if (boxSchneidetKreis(b, cx, cy, r)) {
       Utils.erzeugeExplosion((b.x1 + b.x2) / 2, (b.y1 + b.y2) / 2, '#ffffff', 3);
-      if (p.el) p.el.remove();
+      Anzeige.entferne(p);
       array.splice(i, 1);
     }
   }
@@ -546,42 +429,13 @@ function explodiereGranate(g) {
 
 // --- GRANATEN-TASTE (Tippen / Halten) und EMP ---
 
-const emps = []; // { el, pKey, cx, cy, radius, rest }
-
 // Mittelpunkt des Schiffs (EMP-Ursprung)
 function schiffsMitte(pState) {
   return { x: pState.x + config.spielerGroesse / 2, y: pState.y + config.spielerGroesse / 2 };
 }
 
 function erzeugeEmpRing(cx, cy, radius, pKey) {
-  const el = document.createElement('div');
-  el.classList.add('sniper-emp');
-  el.style.left = cx + 'px';
-  el.style.top = cy + 'px';
-  el.style.width = '0px';
-  el.style.height = '0px';
-  dom.spielfeld.appendChild(el);
-  emps.push({ el, pKey, cx, cy, radius, rest: EMP_SCHRITTE });
-}
-
-function aktualisiereEmps(pKey) {
-  for (let i = emps.length - 1; i >= 0; i--) {
-    const e = emps[i];
-    if (pKey && e.pKey !== pKey) continue;
-    e.rest--;
-    if (e.rest <= 0 || !e.el.isConnected) {
-      e.el.remove();
-      emps.splice(i, 1);
-      continue;
-    }
-    const t = 1 - e.rest / EMP_SCHRITTE;
-    const d = e.radius * 2 * t;
-    e.el.style.width = d + 'px';
-    e.el.style.height = d + 'px';
-    e.el.style.left = (e.cx - d / 2) + 'px';
-    e.el.style.top = (e.cy - d / 2) + 'px';
-    e.el.style.opacity = 1 - t * 0.8;
-  }
+  erzeugeEffekt({ art: 'sniperEmp', x: cx, y: cy, radius, pKey, rest: EMP_SCHRITTE });
 }
 
 // Feindliche Geschosse im Radius entfernen (mit kleinem Funken); Bomben ohne Detonation
@@ -591,7 +445,7 @@ function zerstoereGeschosse(array, cx, cy, r) {
     const b = { x1: p.x, y1: p.y, x2: p.x + (p.width || p.groesse || 4), y2: p.y + (p.height || p.groesse || 4) };
     if (boxSchneidetKreis(b, cx, cy, r)) {
       Utils.erzeugeExplosion((b.x1 + b.x2) / 2, (b.y1 + b.y2) / 2, '#4fc3f7', 4);
-      if (p.el) p.el.remove();
+      Anzeige.entferne(p);
       array.splice(i, 1);
     }
   }
@@ -633,17 +487,15 @@ function minenZiele() {
 }
 
 let minenId = 0;
-const netzMinen = []; // Online-Client: { id, el, pKey, haftet } nach Snapshot der Minen des Hosts
 
-function zeigeMine(m) {
-  m.el.style.left = (m.x - MINE_GROESSE / 2) + 'px';
-  m.el.style.top = (m.y - MINE_GROESSE / 2) + 'px';
-  m.el.classList.toggle('haftet', !!m.ziel);
-  m.el.classList.toggle('blinkt', !m.ziel && m.rest <= MINE_BLINK);
+// Darstellungsfelder haftet/blinkt aus dem Zustand ableiten (Host); der Client uebernimmt sie aus dem Snapshot
+function setzeMineAnzeige(m) {
+  m.haftet = !!m.ziel;
+  m.blinkt = !m.ziel && m.rest <= MINE_BLINK;
 }
 
 function entferneMine(m) {
-  if (m.el) m.el.remove();
+  Anzeige.entferne(m);
   const i = arrays.sniperMinen.indexOf(m);
   if (i >= 0) arrays.sniperMinen.splice(i, 1);
 }
@@ -652,15 +504,11 @@ function entferneMine(m) {
 function legeMine(pState, pKey) {
   const eigene = arrays.sniperMinen.filter(m => m.pKey === pKey);
   while (eigene.length >= MINE_MAX_AKTIV) entferneMine(eigene.shift());
-  const el = document.createElement('div');
-  el.classList.add('sniper-mine', 'sniper-mine-' + pKey);
-  dom.spielfeld.appendChild(el);
   const m = {
-    id: 'sm_' + (++minenId), el, pKey, x: pState.x + config.spielerGroesse / 2, y: pState.y + config.spielerGroesse,
-    rest: MINE_LEBEN, ziel: null, offX: 0, offY: 0, zuender: -1, schaden: minenSchaden(pState)
+    id: 'sm_' + (++minenId), pKey, x: pState.x + config.spielerGroesse / 2, y: pState.y + config.spielerGroesse,
+    rest: MINE_LEBEN, ziel: null, offX: 0, offY: 0, zuender: -1, schaden: minenSchaden(pState), haftet: false, blinkt: false
   };
-  arrays.sniperMinen.push(m);
-  zeigeMine(m);
+  arrays.sniperMinen.push(Anzeige.erzeuge(m, 'sniperMine'));
   Audio.playMineLegen();
 }
 
@@ -668,7 +516,7 @@ function erzeugeMinenExplosion(cx, cy, pKey) {
   Audio.playMineExplosion();
   Utils.erzeugeExplosion(cx, cy, '#ffffff', 6);
   Utils.erzeugeExplosion(cx, cy, '#ff9800', 8);
-  erzeugeDruckwelle(cx, cy, MINE_RADIUS, pKey, 'sniper-mine-explosion');
+  erzeugeDruckwelle(cx, cy, MINE_RADIUS, pKey, 'sniperMinenExplosion');
 }
 
 // Explosion an der aktuellen Position: jedes Ziel im Radius genau einmal (Schild zuerst)
@@ -725,7 +573,7 @@ function aktualisiereMinen(pKey) {
         Audio.playMinePiep();
       }
     }
-    zeigeMine(m);
+    setzeMineAnzeige(m);
   }
 }
 
@@ -797,15 +645,18 @@ function aktualisiereStoesse(pKey) {
 }
 
 function entferneGranatenEffekte(pKey) {
+  entferneAlleEffekte(pKey);
   for (let i = arrays.sniperMinen.length - 1; i >= 0; i--) {
     if (!pKey || arrays.sniperMinen[i].pKey === pKey) entferneMine(arrays.sniperMinen[i]);
   }
-  for (const liste of [granaten, wellen, stoesse, netzGranaten, netzMinen, emps]) {
-    for (let i = liste.length - 1; i >= 0; i--) {
-      if (pKey && liste[i].pKey !== pKey) continue;
-      if (liste[i].el) liste[i].el.remove();
-      liste.splice(i, 1);
-    }
+  for (let i = arrays.sniperGranaten.length - 1; i >= 0; i--) {
+    if (pKey && arrays.sniperGranaten[i].pKey !== pKey) continue;
+    Anzeige.entferne(arrays.sniperGranaten[i]);
+    arrays.sniperGranaten.splice(i, 1);
+  }
+  for (let i = stoesse.length - 1; i >= 0; i--) {
+    if (pKey && stoesse[i].pKey !== pKey) continue;
+    stoesse.splice(i, 1);
   }
 }
 
@@ -817,14 +668,10 @@ function entferneGranatenEffekte(pKey) {
 // Gibt zurueck, ob in diesem Schritt geschossen wurde.
 export function aktualisiereSniper(pState, pKey, gehalten, auto = false) {
   if (!istSniper(pState)) return false;
-  aktualisiereStrahlen();
   aktualisiereGranaten(pKey);
   aktualisiereMinen(pKey);
   aktualisiereStoesse(pKey);
-  aktualisiereWellen(pKey);
-  aktualisiereEmps(pKey);
   if (pState.isDead || !state.spielLaeuft) {
-    entferneFadenkreuz(pKey);
     pState.sniperGehalten = false;
     pState.sniperGepuffert = null;
     setzeLadungZurueck(pState);
@@ -859,7 +706,6 @@ export function aktualisiereSniper(pState, pKey, gehalten, auto = false) {
     }
     pState.sniperGehalten = haelt;
   }
-  zeigeFadenkreuz(pState, pKey);
   return geschossen;
 }
 
@@ -881,7 +727,7 @@ export function netzZustand(pState) {
 
 // Host: fliegende Granaten fuer den Snapshot (id, Position, Besitzer, Restschritte des Flugs)
 export function netzGranatenListe() {
-  return granaten.map(g => ({ id: g.id, x: g.x, y: g.y, owner: g.pKey, rest: g.rest }));
+  return arrays.sniperGranaten.map(g => ({ id: g.id, x: g.x, y: g.y, owner: g.pKey, rest: g.rest }));
 }
 
 // Host: aktive Minen fuer den Snapshot (id, Position, Besitzer, haftet, Restzuendzeit, Restlebensdauer, blinkt)
@@ -897,7 +743,9 @@ export function netzMinenListe() {
 export function uebernehmeSnapshot(pState, daten, pKey, eigenes) {
   if (!pState) return;
   if (!istSniper(pState) || !daten || daten.sniperZielX === undefined || daten.isDead) {
-    entferneFadenkreuz(pKey);
+    // Kein Sniper-Zustand im Snapshot: Fadenkreuz ausblenden (die Anzeige zeichnet es nur bei gesetztem Ziel)
+    pState.sniperZielX = null;
+    pState.sniperZielY = null;
     pState.sniperGehalten = false;
     pState.sniperLadung = 0;
     pState.sniperCooldown = 0;
@@ -924,60 +772,58 @@ export function uebernehmeSnapshot(pState, daten, pKey, eigenes) {
     if (eigenes) Audio.playSniperSchuss(pState.laserStufe || 1, anteil);
   }
   if (eigenes && pState.sniperVoll && !warVoll) Audio.playSniperVoll();
-  zeigeFadenkreuz(pState, pKey);
 }
 
-// Client: Granaten des Hosts abgleichen (Element pro Id, Position und Drehung aus dem Snapshot)
+// Client: Granaten des Hosts abgleichen (Modell pro Id in arrays.sniperGranaten, Position und Drehung aus dem Snapshot;
+// auf dem Client laeuft aktualisiereGranaten nicht, die Liste gehoert allein dem Snapshot)
 export function synchronisiereGranaten(liste) {
   const daten = liste || [];
   const ids = new Set(daten.map(d => d.id));
-  for (let i = netzGranaten.length - 1; i >= 0; i--) {
-    if (!ids.has(netzGranaten[i].id)) {
-      netzGranaten[i].el.remove();
-      netzGranaten.splice(i, 1);
+  const gran = arrays.sniperGranaten;
+  for (let i = gran.length - 1; i >= 0; i--) {
+    if (!ids.has(gran[i].id)) {
+      Anzeige.entferne(gran[i]);
+      gran.splice(i, 1);
     }
   }
   for (const d of daten) {
-    let g = netzGranaten.find(n => n.id === d.id);
+    let g = gran.find(n => n.id === d.id);
     if (!g) {
-      const el = document.createElement('div');
-      el.classList.add('sniper-granate');
-      dom.spielfeld.appendChild(el);
-      g = { id: d.id, el, pKey: d.owner };
-      netzGranaten.push(g);
+      g = Anzeige.erzeuge({ id: d.id, pKey: d.owner, x: d.x, y: d.y, rest: d.rest || 0, rot: (GRANATE_FLUG - (d.rest || 0)) * 24 }, 'sniperGranate');
+      gran.push(g);
     }
-    g.el.style.left = (d.x - 7) + 'px';
-    g.el.style.top = (d.y - 7) + 'px';
-    g.el.style.transform = 'rotate(' + (GRANATE_FLUG - (d.rest || 0)) * 24 + 'deg)';
+    g.x = d.x;
+    g.y = d.y;
+    g.rest = d.rest || 0;
+    g.rot = (GRANATE_FLUG - g.rest) * 24;
   }
 }
 
-// Client: Minen des Hosts abgleichen (Element pro Id; Legen-, Haft- und Piep-Ton)
+// Client: Minen des Hosts abgleichen (Modell pro Id in arrays.sniperMinen; aktualisiereMinen laeuft dort nicht, die
+// Liste gehoert allein dem Snapshot). Legen-, Haft- und Piep-Ton bleiben hier.
 export function synchronisiereMinen(liste) {
   const daten = liste || [];
   const ids = new Set(daten.map(d => d.id));
-  for (let i = netzMinen.length - 1; i >= 0; i--) {
-    if (!ids.has(netzMinen[i].id)) {
-      netzMinen[i].el.remove();
-      netzMinen.splice(i, 1);
+  const minen = arrays.sniperMinen;
+  for (let i = minen.length - 1; i >= 0; i--) {
+    if (!ids.has(minen[i].id)) {
+      Anzeige.entferne(minen[i]);
+      minen.splice(i, 1);
     }
   }
   for (const d of daten) {
-    let m = netzMinen.find(n => n.id === d.id);
+    let m = minen.find(n => n.id === d.id);
     if (!m) {
-      const el = document.createElement('div');
-      el.classList.add('sniper-mine', 'sniper-mine-' + (d.owner === 'p2' ? 'p2' : 'p1'));
-      dom.spielfeld.appendChild(el);
-      m = { id: d.id, el, pKey: d.owner, haftet: false };
-      netzMinen.push(m);
+      m = Anzeige.erzeuge({ id: d.id, pKey: d.owner === 'p2' ? 'p2' : 'p1', x: d.x, y: d.y, rest: d.rest || 0, haftet: !!d.haftet, blinkt: !d.haftet && !!d.blinkt }, 'sniperMine');
+      minen.push(m);
       Audio.playMineLegen();
     }
     if (d.haftet && !m.haftet) Audio.playMinePiep();
+    m.x = d.x;
+    m.y = d.y;
+    m.rest = d.rest || 0;
     m.haftet = !!d.haftet;
-    m.el.style.left = (d.x - MINE_GROESSE / 2) + 'px';
-    m.el.style.top = (d.y - MINE_GROESSE / 2) + 'px';
-    m.el.classList.toggle('haftet', m.haftet);
-    m.el.classList.toggle('blinkt', !m.haftet && !!d.blinkt);
+    m.blinkt = !m.haftet && !!d.blinkt;
   }
 }
 
@@ -1003,12 +849,9 @@ export function zeigeEmp(daten) {
   erzeugeEmpRing(daten.x, daten.y, daten.radius, daten.owner === 'p2' ? 'p2' : 'p1');
 }
 
-// Client, jeden Schritt: Strahlen und Druckwellen animieren; das eigene Fadenkreuz folgt dem vorhergesagten Schiff
+// Client, jeden Schritt: das eigene Fadenkreuz folgt dem vorhergesagten Schiff
 // (ohne Auto-Zielen liegt es auf der Grundposition, mit Auto-Zielen gilt der Host-Wert)
 export function clientSchritt() {
-  aktualisiereStrahlen();
-  aktualisiereWellen();
-  aktualisiereEmps();
   const p = state.p2;
   if (p && istSniper(p) && !p.isDead && p.sniperZielX != null) {
     if (autoZielTempo(p) === 0) {
@@ -1016,7 +859,6 @@ export function clientSchritt() {
       p.sniperZielX = grund.x;
       p.sniperZielY = grund.y;
     }
-    zeigeFadenkreuz(p, 'p2');
   }
 }
 
@@ -1034,16 +876,16 @@ export function setzeZurueck(pState) {
   pState.granateGehalten = false;
   pState.granateSchritte = 0;
   pState.granateMinen = 0;
-  entferneFadenkreuz(pState === state ? 'p1' : 'p2');
   entferneGranatenEffekte(pState === state ? 'p1' : 'p2');
   return true;
 }
 
 // Alle Sniper-Darstellungen entfernen (Game Over: danach laeuft keine Simulation mehr, die sie abraeumen wuerde)
 export function entferneEffekte() {
-  entferneFadenkreuz('p1');
-  entferneFadenkreuz('p2');
-  strahlen.forEach(s => s.el.remove());
-  strahlen.length = 0;
+  for (const s of [state, state.p2]) {
+    if (!s) continue;
+    s.sniperZielX = null;
+    s.sniperZielY = null;
+  }
   entferneGranatenEffekte();
 }

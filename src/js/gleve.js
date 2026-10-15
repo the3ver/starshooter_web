@@ -6,7 +6,7 @@
 // positiv = rechts), gleveSweepRichtung (+1 links->rechts, -1 rechts->links; wechselt bei jedem Start),
 // gleveSweepTreffer (Ziele dieses Sweeps), gleveSweepTakt (Frames bis zum naechsten moeglichen Start).
 
-import { state, dom, config, arrays, shipModels, shipColors } from './state.js';
+import { state, config, arrays, shipModels, shipColors } from './state.js';
 import * as Utils from './utils.js';
 import * as Audio from './audio.js';
 import * as Hack from './hack.js';
@@ -456,17 +456,13 @@ export function zeigeGleveZustand(pState, pKey) {
   if (dash) erzeugeNachbild(pState);
 
   if (gleve && istSweepAktiv(pState)) {
-    zeigeKlinge(pState, pKey);
     // Strahl bis zum naechsten Snapshot weiterdrehen
     pState.gleveSweepWinkel += (pState.gleveSweepRichtung || 1) * sweepBogen(pState) / SWEEP_FRAMES;
     pState.gleveSweepTimer--;
     if (pState.gleveSweepTimer <= 0) {
       pState.gleveSweepTimer = 0;
-      entferneKlinge(pKey);
       erzeugeFaecherSpur(pState);
     }
-  } else if (klingen[pKey]) {
-    entferneKlinge(pKey);
   }
 }
 
@@ -500,7 +496,7 @@ export function istSweepAktiv(pState) {
 }
 
 // Ursprung des Strahls: Schiffsmitte oben
-function sweepUrsprung(pState) {
+export function sweepUrsprung(pState) {
   return { x: pState.x + config.spielerGroesse / 2, y: pState.y + 5 };
 }
 
@@ -570,7 +566,6 @@ export function starteSweep(pState, pKey) {
   pState.gleveSweepTimer = SWEEP_FRAMES;
   pState.gleveSweepTreffer = [];
   Audio.playSweep(pState.laserStufe);
-  zeigeKlinge(pState, pKey);
   return true;
 }
 
@@ -587,11 +582,10 @@ export function steuereSweep(pState, pKey, gehalten) {
   return true;
 }
 
-// Sweep abbrechen (Tod, Neustart): Klinge entfernen
+// Sweep abbrechen (Tod, Neustart): die Anzeige blendet die Klinge ueber den Timer aus
 export function beendeSweep(pState, pKey) {
   pState.gleveSweepTimer = 0;
   pState.gleveSweepTreffer = [];
-  entferneKlinge(pKey);
 }
 
 // Schaden fuer alle in diesem Frame ueberstrichenen Ziele (je einmal pro Sweep)
@@ -697,11 +691,8 @@ export function aktualisiereSweep(pState, pKey) {
   if (pState.gleveSweepTimer <= 0) {
     pState.gleveSweepTimer = 0;
     pState.gleveSweepTreffer = [];
-    entferneKlinge(pKey);
     erzeugeFaecherSpur(pState);
     starteWelle(pState, pKey, o, laenge);
-  } else {
-    zeigeKlinge(pState, pKey);
   }
 }
 
@@ -768,37 +759,6 @@ export function aktualisiereWellen() {
 }
 
 // --- EFFEKTE ---
-
-// Klingen-Element pro Spieler (nur Darstellung, nicht im State)
-const klingen = { p1: null, p2: null };
-
-function zeigeKlinge(pState, pKey) {
-  let el = klingen[pKey];
-  if (!el || !el.isConnected) {
-    el = document.createElement('div');
-    el.classList.add('gleve-klinge');
-    dom.spielfeld.appendChild(el);
-    klingen[pKey] = el;
-  }
-  const o = sweepUrsprung(pState);
-  const laenge = sweepLaenge(pState);
-  const farbe = schiffFarbe(pState);
-  el.style.height = laenge + 'px';
-  el.style.left = (o.x - 2) + 'px';
-  el.style.top = (o.y - laenge) + 'px';
-  el.style.boxShadow = `0 0 4px #ffffff, 0 0 8px ${farbe}, 0 0 14px ${farbe}`;
-  el.style.borderColor = farbe;
-  // Leicht gebogen: Neigung gegen die Laufrichtung
-  el.style.borderRadius = (pState.gleveSweepRichtung || 1) > 0 ? '0 100% 0 0 / 0 100% 0 0' : '100% 0 0 0 / 100% 0 0 0';
-  el.style.transform = `rotate(${pState.gleveSweepWinkel}deg)`;
-}
-
-function entferneKlinge(pKey) {
-  if (klingen[pKey]) {
-    klingen[pKey].remove();
-    klingen[pKey] = null;
-  }
-}
 
 // Kurz verblassende Faecher-Spur ueber den ganzen Bogen (Kreissektor ueber dem Ursprung)
 function erzeugeFaecherSpur(pState) {

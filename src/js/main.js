@@ -43,25 +43,17 @@ document.addEventListener('DOMContentLoaded', () => {
     
     // Initialisiere Sterne
     for (let i = 0; i < 60; i++) {
-        let stern = document.createElement('div');
-        stern.className = 'stern';
         let x = Math.random() * config.spielfeldBreite;
         let y = Math.random() * config.spielfeldHoehe;
         let size = Math.random() * 2 + 1;
         let speed = Math.random() * 2 + 0.5;
-        
-        stern.style.left = x + 'px';
-        stern.style.top = y + 'px';
-        stern.style.width = size + 'px';
-        stern.style.height = size + 'px';
-        
-        dom.spielfeld.appendChild(stern);
-        arrays.sterne.push({
-            el: stern,
+
+        arrays.sterne.push(Anzeige.erzeuge({
             x: x,
             y: y,
+            groesse: size,
             speed: speed
-        });
+        }, 'stern'));
     }
 
     // Start Game Loop

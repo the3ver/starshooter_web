@@ -3,6 +3,7 @@ import { state, dom, config, arrays, shipModels } from './state.js';
 import * as Network from './network.js';
 import * as Hack from './hack.js';
 import { animierenPartikel } from './partikel.js';
+import { aktualisiereEffekte } from './effekte.js';
 import { bewegeSterne } from './loop.js';
 import * as Gleve from './gleve.js';
 import * as Viper from './viper.js';
@@ -228,6 +229,7 @@ export function clientSchritt() {
 
   // Partikel auf dem Client animieren und löschen
   animierenPartikel();
+  aktualisiereEffekte();
   Hack.zeigeHackStatus();
 
   // Eingaben nur bei Aenderung, Bewegung (jeden 2. Schritt) oder als Heartbeat senden

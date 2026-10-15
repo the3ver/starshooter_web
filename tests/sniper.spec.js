@@ -2076,15 +2076,17 @@ test.describe('Spectre-SR EMP online', () => {
     await bereiteGranate(page);
     const r = await page.evaluate(async () => {
       const Sn = await import('./js/sniper.js');
+      const { aktualisiereEffekte } = await import('./js/effekte.js');
+      const Anzeige = await import('./js/anzeige.js');
       const { Audio } = window.__game;
       Audio.clearAudioHistory();
       Sn.zeigeEmp({ x: 300, y: 300, radius: 90, owner: 'p1' });
       Sn.zeigeEmp({ x: NaN, y: 1, radius: 90 });
       Sn.zeigeEmp(null);
       const ring = document.querySelectorAll('.sniper-emp').length;
-      for (let i = 0; i < 6; i++) Sn.clientSchritt();
+      for (let i = 0; i < 6; i++) { aktualisiereEffekte(); Anzeige.zeichneWelt(); }
       const breite = parseFloat(document.querySelector('.sniper-emp').style.width);
-      for (let i = 0; i < 6; i++) Sn.clientSchritt();
+      for (let i = 0; i < 6; i++) { aktualisiereEffekte(); Anzeige.zeichneWelt(); }
       return { ring, breite, weg: document.querySelectorAll('.sniper-emp').length, ton: Audio.audioHistory.filter(e => e.name === 'emp').length };
     });
     expect(r.ring).toBe(1);
