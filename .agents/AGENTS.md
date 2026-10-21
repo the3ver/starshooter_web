@@ -2,6 +2,10 @@
 
 Dieses Projekt ist ein "Space Shooter"-Browserspiel, das komplett **ohne HTML5-Canvas** auskommt und stattdessen die Positionierung und Transformation von DOM-Elementen (via `CSS position: absolute`, `transform` und Inline-SVGs) nutzt.
 
+## Zielplattformen
+- **Desktop-Browser** (Tastatur) und **Tablets**, mit und ohne Tastatur. Die Touch-Steuerung (Joystick, Knoepfe in `#mobile-controls`, `#btn-laden`, Wisch-Rolle der Viper) bleibt deshalb erhalten; neue Features brauchen eine Bedienung per Tastatur und per Touch.
+- **Handys sind keine Zielplattform mehr** (Steuerung auf kleinen Bildschirmen macht keinen Spass). Layout, Leistung und Bedienung muessen nicht mehr fuer Handy-Bildschirme ausgelegt werden; Leistungsgrenze ist ein aktuelles Tablet.
+
 ## Architektur & Projektstruktur
 Das Projekt ist in modular gegliederte ES-Module strukturiert:
 - **Toplevel / Infrastruktur:** Konfigurationsdateien (`package.json`, `playwright.config.js`), CI/CD-Pipelines (`.github/workflows/deploy.yml`) und E2E-Tests (`tests/game.spec.js`).
