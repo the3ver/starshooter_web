@@ -8,7 +8,8 @@
     "start": "http-server src -p 8080 -c-1",
     "test": "playwright test",
     "screenshot": "playwright test -c playwright.screenshot.config.js",
-    "balancing": "playwright test -c playwright.balancing.config.js"
+    "balancing": "playwright test -c playwright.balancing.config.js",
+    "release": "node scripts/version.mjs"
   },
   "repository": {
     "type": "git",
