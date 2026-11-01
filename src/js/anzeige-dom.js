@@ -325,7 +325,7 @@ function zeichneHackLabel(s, pKey, aktiv) {
   const textEl = label.querySelector('.hack-text');
   if (textEl.textContent !== text) textEl.textContent = text;
   const restMax = Math.max(...s.hacks.map(h => h.timer));
-  label.querySelector('.hack-restzeit').style.width = (restMax / HACK_DAUER * 100) + '%';
+  /** @type {HTMLElement} */ (label.querySelector('.hack-restzeit')).style.width = (restMax / HACK_DAUER * 100) + '%';
   label.style.display = 'block';
   label.style.left = (s.x + 15) + 'px';
   label.style.top = (s.y - 22) + 'px';

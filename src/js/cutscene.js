@@ -676,7 +676,7 @@ function endCutsceneAndStartGame(instant = false) {
         state.p2.schiffSichtbar = true;
         state.p2.drehung = 0;
 
-        const tagP1 = document.querySelector('.tag-p1');
+        const tagP1 = /** @type {HTMLElement} */ (document.querySelector('.tag-p1'));
         if (tagP1) tagP1.style.display = 'block';
 
         if (dom.uiContainerP2) dom.uiContainerP2.style.display = 'flex';
@@ -684,7 +684,7 @@ function endCutsceneAndStartGame(instant = false) {
     } else {
         if (state.p2) state.p2.schiffSichtbar = false;
         if (dom.uiContainerP2) dom.uiContainerP2.style.display = 'none';
-        const tagP1 = document.querySelector('.tag-p1');
+        const tagP1 = /** @type {HTMLElement} */ (document.querySelector('.tag-p1'));
         if (tagP1) tagP1.style.display = 'none';
     }
 

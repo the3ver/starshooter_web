@@ -14,7 +14,7 @@ import * as Anzeige from './anzeige.js';
 export function setupInput() {
   initPauseMenue();
   window.addEventListener('keydown', e => {
-    if (e.target && e.target.tagName === 'INPUT') return;
+    if (e.target instanceof HTMLInputElement) return;
     Audio.initAudio();
 
     if (e.key === 'Escape' || e.key === 'Esc') {
@@ -154,7 +154,7 @@ export function setupInput() {
     }
   });
   window.addEventListener('keyup', e => {
-    if (e.target && e.target.tagName === 'INPUT') return;
+    if (e.target instanceof HTMLInputElement) return;
     const k = e.key ? e.key.toLowerCase() : '';
     if (state.tastenGedrueckt.hasOwnProperty(k)) state.tastenGedrueckt[k] = false;
     if (e.code === 'Quote') state.tastenGedrueckt['ä'] = false;
@@ -215,8 +215,8 @@ export function setupInput() {
     if (isStartScreenVisible) {
       // Wenn der Tap auf ein Element im Startscreen erfolgt (Buttons, Hangar, Infos, Selektoren),
       // darf das Spiel AUF KEINEN FALL gestartet werden – außer bei direktem Tippen auf den Start-Text!
-      if (e.target.closest('#start-screen')) {
-        if (e.target.closest('#start-text')) {
+      if (/** @type {Element} */ (e.target).closest('#start-screen')) {
+        if (/** @type {Element} */ (e.target).closest('#start-text')) {
           if (state.gameMode === 'online') {
             if (state.network && state.network.isHost && state.network.connected) {
               Network.hostStartGame();
@@ -237,7 +237,7 @@ export function setupInput() {
     }
     
     // Ignoriere Klicks auf alle UI-Elemente / Overlays
-    if (e.target.closest('button, input, select, textarea, a, .gamemode-selector, #online-lobby-container, #hangar-container, #whats-new-overlay, #steuerung-overlay, #btn-open-steuerung, #btn-open-whats-new, #btn-sound-toggle, #game-over-screen, .highscore-tab, .credits')) return;
+    if (/** @type {Element} */ (e.target).closest('button, input, select, textarea, a, .gamemode-selector, #online-lobby-container, #hangar-container, #whats-new-overlay, #steuerung-overlay, #btn-open-steuerung, #btn-open-whats-new, #btn-sound-toggle, #game-over-screen, .highscore-tab, .credits')) return;
     const whatsNew = document.getElementById('whats-new-overlay');
     if (whatsNew && whatsNew.style.display !== 'none') return;
     const steuerungOv = document.getElementById('steuerung-overlay');
@@ -246,7 +246,7 @@ export function setupInput() {
     if (!state.spielLaeuft || state.gameOverAktiv) return;
     
     // Ignore if clicking mobile controls
-    if (e.target.closest('#mobile-controls')) return; 
+    if (/** @type {Element} */ (e.target).closest('#mobile-controls')) return; 
 
     // If tap is in the upper 30% of the screen, pause
     if (e.touches.length > 0) {

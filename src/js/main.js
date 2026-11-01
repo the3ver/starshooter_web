@@ -144,7 +144,7 @@ document.addEventListener('DOMContentLoaded', () => {
     if (btnOnlineJoin) {
         btnOnlineJoin.addEventListener('click', (e) => {
             e.stopPropagation();
-            const input = document.getElementById('online-room-input');
+            const input = /** @type {HTMLInputElement} */ (document.getElementById('online-room-input'));
             const code = input ? input.value : '';
             Network.joinOnlineRoom(code);
         });

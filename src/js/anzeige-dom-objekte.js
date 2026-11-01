@@ -252,7 +252,7 @@ function bombeElement(b) {
     ${lichter.map(top => `<div class="bombe-licht" style="top: ${top}px;"></div>`).join('')}
   `;
   const takt = b.isMini ? '0.4s' : '1s';
-  el.querySelectorAll('.bombe-licht').forEach(l => { l.style.animation = `bombeBlink ${takt} infinite alternate`; });
+  /** @type {NodeListOf<HTMLElement>} */ (el.querySelectorAll('.bombe-licht')).forEach(l => { l.style.animation = `bombeBlink ${takt} infinite alternate`; });
   return el;
 }
 

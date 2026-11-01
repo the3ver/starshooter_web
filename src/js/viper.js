@@ -317,7 +317,7 @@ export function zeigeRollenHud(pKey, pState, sichtbar = true) {
   hudZustand[pKey] = signatur;
   el.style.display = zeigen ? 'block' : 'none';
   el.classList.toggle('bereit', bereit);
-  const balken = el.firstElementChild;
+  const balken = /** @type {HTMLElement} */ (el.firstElementChild);
   if (balken) balken.style.width = Math.max(0, Math.min(100, fuell)) + '%';
 }
 
@@ -353,7 +353,7 @@ function zeigeOverdriveHud(pKey, pState, zeigen) {
   odHudZustand[pKey] = signatur;
   el.style.display = zeigen ? 'block' : 'none';
   el.classList.toggle('aktiv', aktiv);
-  const balken = el.firstElementChild;
+  const balken = /** @type {HTMLElement} */ (el.firstElementChild);
   if (balken) balken.style.width = leiste + '%';
 }
 

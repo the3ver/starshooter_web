@@ -23,11 +23,8 @@
   },
   "homepage": "https://github.com/the3ver/starshooter_web#readme",
   "devDependencies": {
-    "@babel/core": "^8.0.6",
-    "@babel/generator": "^8.0.6",
-    "@babel/parser": "^8.0.6",
-    "@babel/traverse": "^8.0.6",
     "@playwright/test": "^1.63.0",
-    "http-server": "^14.1.1"
+    "http-server": "^14.1.1",
+    "typescript": "^5.9.3"
   }
 }

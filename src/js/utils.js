@@ -367,7 +367,7 @@ export function triggerGameOver(finalScoreFromHost = null) {
   if (startScreen) startScreen.style.display = 'none';
 
   const finalScoreEl = document.getElementById('final-score');
-  if (finalScoreEl) finalScoreEl.innerText = state.finalerScore;
+  if (finalScoreEl) finalScoreEl.innerText = String(state.finalerScore);
   const gameOverScreen = document.getElementById('game-over-screen');
   if (gameOverScreen) gameOverScreen.style.display = 'flex';
   
@@ -383,8 +383,8 @@ export function triggerGameOver(finalScoreFromHost = null) {
   }
 
   let hs = getHighscores(currentMode);
-  const hsInput = document.getElementById('highscore-name');
-  const hsBtn = document.getElementById('btn-save-score');
+  const hsInput = /** @type {HTMLInputElement} */ (document.getElementById('highscore-name'));
+  const hsBtn = /** @type {HTMLButtonElement} */ (document.getElementById('btn-save-score'));
   const waitingMsg = document.getElementById('highscore-waiting-msg');
   if (waitingMsg) {
     waitingMsg.style.display = 'none';
@@ -964,7 +964,7 @@ export async function fetchGlobalHighscores(mode) {
     const data = await res.json();
 
     if (data && data.success && Array.isArray(data.highscores)) {
-      if (!state.globalHighscoresCache) state.globalHighscoresCache = {};
+      if (!state.globalHighscoresCache) state.globalHighscoresCache = /** @type {any} */ ({});
       state.globalHighscoresCache[normMode] = data.highscores;
       state.highscoreError = false;
 
@@ -1032,8 +1032,8 @@ export function renderHighscores(targetMode = null) {
 
 export function submitHighscore() {
   const isOnline = state.gameMode === 'online' || (state.network && state.network.isOnline);
-  const hsInput = document.getElementById('highscore-name');
-  const hsBtn = document.getElementById('btn-save-score');
+  const hsInput = /** @type {HTMLInputElement} */ (document.getElementById('highscore-name'));
+  const hsBtn = /** @type {HTMLButtonElement} */ (document.getElementById('btn-save-score'));
   let rawName = (hsInput ? hsInput.value : '').trim().toUpperCase();
 
   if (!isOnline) {
@@ -1089,8 +1089,8 @@ export function checkAndCommitOnlineHighscore() {
   const myRole = isHost ? 'p1' : 'p2';
   const otherRole = isHost ? 'p2' : 'p1';
 
-  const hsInput = document.getElementById('highscore-name');
-  const hsBtn = document.getElementById('btn-save-score');
+  const hsInput = /** @type {HTMLInputElement} */ (document.getElementById('highscore-name'));
+  const hsBtn = /** @type {HTMLButtonElement} */ (document.getElementById('btn-save-score'));
   const waitingMsg = document.getElementById('highscore-waiting-msg');
 
   if (state.onlineHighscoreNames[myRole] && !state.onlineHighscoreNames[otherRole]) {
@@ -1271,7 +1271,7 @@ export function setGameMode(mode) {
   const uiP2 = dom.uiContainerP2 || document.getElementById('ui-container-p2');
   if (uiP2) uiP2.style.display = (isMultiplayer && state.spielLaeuft) ? 'flex' : 'none';
 
-  const tagP1 = document.querySelector('.tag-p1');
+  const tagP1 = /** @type {HTMLElement} */ (document.querySelector('.tag-p1'));
   if (tagP1) tagP1.style.display = isMultiplayer ? 'block' : 'none';
 
   const startText = document.getElementById('start-text');

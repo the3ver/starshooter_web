@@ -89,6 +89,7 @@ function gleich(a, b) {
 
 // Delta von alt nach neu (null = keine Aenderung). Felder in 'ohne' werden nicht verglichen.
 function objektDelta(alt, neu, ohne) {
+    /** @type {any} */
     let delta = null;
     for (const k of Object.keys(neu)) {
         if (ohne && ohne.has(k)) continue;
