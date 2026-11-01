@@ -1,0 +1,2 @@
+# Shell-Skripte brauchen LF, sonst bricht bash bei CRLF
+*.sh text eol=lf
