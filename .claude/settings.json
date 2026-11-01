@@ -1,0 +1,32 @@
+{
+  "permissions": {
+    "deny": [
+      "Read(./node_modules/**)",
+      "Read(./playwright-report/**)",
+      "Read(./test-results/**)",
+      "Read(./balancing/ergebnisse/**)",
+      "Read(./.claude/worktrees/**)",
+      "Read(./.wrangler/**)",
+      "Read(./worker/.wrangler/**)",
+      "Read(./package-lock.json)",
+      "Read(./.env)"
+    ]
+  },
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Bash|PowerShell",
+        "hooks": [
+          { "type": "command", "command": "node \"$CLAUDE_PROJECT_DIR/.claude/hooks/git-schutz.mjs\"" }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "hooks": [
+          { "type": "command", "command": "node \"$CLAUDE_PROJECT_DIR/.claude/hooks/stop-check.mjs\"", "timeout": 180 }
+        ]
+      }
+    ]
+  }
+}

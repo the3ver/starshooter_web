@@ -8,3 +8,4 @@ dump*.py
 .wrangler/
 worker/.wrangler/
 balancing/ergebnisse/
+.claude/.check-stand.json
