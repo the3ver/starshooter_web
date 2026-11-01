@@ -7,7 +7,7 @@ Browser-Space-Shooter ohne HTML5-Canvas: Weltobjekte sind DOM-Elemente (`positio
 - **Handys** sind keine Zielplattform; Leistungsgrenze ist ein aktuelles Tablet.
 
 ## Pruefen und Release
-- **Pruefen:** `npm run check` (ESLint, `tsc --checkJs`, alle Tests; gruen eine Zeile). Der Stop-Hook ruft ihn bei geaenderten Dateien auf, ein Edit-Hook laesst ESLint `--fix` auf jede geaenderte JS-Datei laufen. Vor jedem Push gruen. Typfehler mit JSDoc-Casts beheben, Browser-Erweiterungen in `types/globals.d.ts`.
+- **Pruefen:** `npm run check` (Prettier, ESLint, `tsc --checkJs`, alle Tests; gruen eine Zeile). Der Stop-Hook ruft ihn bei geaenderten Dateien auf, ein Edit-Hook laesst ESLint `--fix` und Prettier auf jede geaenderte Datei laufen; `npm run fmt` formatiert alles. Vor jedem Push gruen. Typfehler mit JSDoc-Casts beheben, Browser-Erweiterungen in `types/globals.d.ts`.
 - **Version:** bei Aenderungen an Spiel-Logik/UI `npm run release -- X.Y.Z` (setzt alle Versionsstellen und ein Changelog-Geruest), danach die Highlights statt `TODO` in `src/js/changelog.js` eintragen. `tests/version.spec.js` prueft alle Stellen.
 - **Tests sind deterministisch:** Zeit vergeht ueber `simulationsSchritt()` in einem `page.evaluate` oder ueber die Fake-Uhr aus `tests/helfer.js` (`installiereUhr`, `spuleVor`). `tests/regeln.spec.js` laesst die Zahl der Echtzeit-Wartezeiten je Datei nur sinken.
 - **Testhelfer:** `setzeSpielstand(page)` aus `tests/helfer.js` vor `page.goto`; Versions-, Changelog- und Protokollwerte im Test aus dem Spielcode lesen (`GAME_VERSION`, `changelogData`, `PROTOKOLL_VERSION`).

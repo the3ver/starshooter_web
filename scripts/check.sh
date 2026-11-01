@@ -1,11 +1,17 @@
 #!/usr/bin/env bash
-# Leiser Gesamtcheck fuer Agenten, Stop-Hook und CI: ESLint, Typen (tsc --checkJs), dann alle Tests.
+# Leiser Gesamtcheck fuer Agenten, Stop-Hook und CI: Prettier, ESLint, Typen (tsc --checkJs), dann alle Tests.
 # Gruen = eine Zeile. Rot = nur die Fehler (Testname + Fehlerblock), Abbruch beim ersten Fehler.
 # Retries kommen aus playwright.config.js (lokal 0, CI 2).
 cd "$(dirname "$0")/.." || exit 1
 start=$(date +%s)
 log=$(mktemp)
 trap 'rm -f "$log"' EXIT
+
+if ! npx prettier --check --log-level warn . > "$log" 2>&1; then
+  echo "CHECK ROT: prettier (npm run fmt formatiert)"
+  cat "$log"
+  exit 1
+fi
 
 if ! npx eslint . > "$log" 2>&1; then
   echo "CHECK ROT: eslint"
@@ -27,4 +33,4 @@ if ! npx playwright test --reporter=line --max-failures=1 > "$log" 2>&1; then
 fi
 
 anzahl=$(grep -oE '[0-9]+ passed' "$log" | grep -oE '[0-9]+')
-echo "CHECK OK: eslint, tsc, ${anzahl:-?} Tests, $(( $(date +%s) - start )) s"
+echo "CHECK OK: prettier, eslint, tsc, ${anzahl:-?} Tests, $(( $(date +%s) - start )) s"
