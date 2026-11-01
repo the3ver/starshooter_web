@@ -5,11 +5,12 @@ process.stdin.on('data', d => { eingabe += d; });
 process.stdin.on('end', () => {
   let befehl = '';
   try { befehl = JSON.parse(eingabe).tool_input?.command || ''; } catch { process.exit(0); }
+  // [^\n;&|]* bleibt innerhalb eines Teilbefehls, damit Text in Heredocs oder Folgebefehlen nicht mitzaehlt
   const verboten = [
-    /git\s+push\b.*(--force\b|--force-with-lease\b|\s-f\b|\s\+\S)/,
-    /git\s+reset\s+.*--hard\b/,
-    /git\s+clean\s+.*-\w*f/,
-    /git\s+branch\s+.*-D\b/,
+    /git\s+push\b[^\n;&|]*(--force\b|--force-with-lease\b|\s-f\b|\s\+\S)/,
+    /git\s+reset\s+[^\n;&|]*--hard\b/,
+    /git\s+clean\s+[^\n;&|]*-\w*f/,
+    /git\s+branch\s+[^\n;&|]*-D\b/,
     /git\s+(checkout|restore)\s+(--\s+)?\.(\s|$)/,
     /git\s+stash\s+(drop|clear)\b/,
   ];
