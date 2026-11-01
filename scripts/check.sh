@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 # Leiser Gesamtcheck fuer Agenten, Stop-Hook und CI: ESLint, Typen (tsc --checkJs), dann alle Tests.
 # Gruen = eine Zeile. Rot = nur die Fehler (Testname + Fehlerblock), Abbruch beim ersten Fehler.
+# Retries kommen aus playwright.config.js (lokal 0, CI 2).
 cd "$(dirname "$0")/.." || exit 1
 start=$(date +%s)
 log=$(mktemp)
@@ -18,7 +19,7 @@ if ! npx tsc -p jsconfig.json > "$log" 2>&1; then
   exit 1
 fi
 
-if ! npx playwright test --reporter=line --retries=0 --max-failures=1 > "$log" 2>&1; then
+if ! npx playwright test --reporter=line --max-failures=1 > "$log" 2>&1; then
   echo "CHECK ROT: Tests"
   # Nur den ersten Fehlerblock ausgeben (abgebrochene Parallel-Tests sind kein Befund)
   awk '/^  1\) /{p=1} /^  2\) |^Testing stopped early/{p=0} p' "$log" | grep -v '^\[[0-9]*/[0-9]*\]' | head -60
