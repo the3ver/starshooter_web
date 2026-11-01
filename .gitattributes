@@ -1,2 +1,11 @@
-# Shell-Skripte brauchen LF, sonst bricht bash bei CRLF
+# Alle Textdateien mit LF im Repo und in der Arbeitskopie (auch bei core.autocrlf=true)
+* text=auto eol=lf
+*.js text eol=lf
+*.mjs text eol=lf
+*.json text eol=lf
+*.md text eol=lf
+*.html text eol=lf
+*.css text eol=lf
+*.yml text eol=lf
 *.sh text eol=lf
+*.png binary

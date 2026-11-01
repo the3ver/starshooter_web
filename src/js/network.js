@@ -1661,4 +1661,3 @@ export function applyPlayerInput(input) {
 
     state.p2.drehung = state.p2.rotate;
 }
-

@@ -521,4 +521,3 @@ test('Protokoll: ohne hallo vom Mitspieler endet die Sitzung nach dem Timeout', 
   }));
   expect(r).toEqual({ online: false, text: 'Unterschiedliche Spielversionen, bitte Seite neu laden (Strg+F5)' });
 });
-

@@ -1536,4 +1536,4 @@ export function updateRaketenWerferVisuals() {
   pruefeWerferAbwurf(state, 'p1');
   if (state.p2) pruefeWerferAbwurf(state.p2, 'p2');
   Anzeige.zeichneSpieler();
-}
+}
