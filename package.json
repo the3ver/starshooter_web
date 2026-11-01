@@ -7,6 +7,7 @@
     "dev": "http-server src -p 8080 -c-1",
     "start": "http-server src -p 8080 -c-1",
     "test": "playwright test",
+    "check": "bash scripts/check.sh",
     "screenshot": "playwright test -c playwright.screenshot.config.js",
     "balancing": "playwright test -c playwright.balancing.config.js",
     "release": "node scripts/version.mjs"
