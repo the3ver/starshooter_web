@@ -1,4 +1,3 @@
-
 import { state, dom, config, arrays, shipModels, isCoopMode } from './state.js';
 import * as Entities from './entities.js';
 import * as Audio from './audio.js';
@@ -13,7 +12,6 @@ import { getShipSVGContent } from './anzeige-dom-objekte.js';
 export { getShipSVGContent };
 import { erzeugePartikel } from './partikel.js';
 import { erzeugeEffekt, entferneEffekte } from './effekte.js';
-
 
 // faktor: Punkte-Multiplikator (Viper-Kombo), Ergebnis gerundet
 export function addScore(punkte, faktor = 1) {
@@ -36,17 +34,19 @@ function zeigeMitVerlustAnimation(container, html, lostHtml) {
 function zeichneLeben(leben, prevWert, container, stilAttr) {
   // Unveränderte Lebenszahl, Herzen schon im DOM und keine Animationsreste: nichts neu aufbauen
   // (der Online-Client ruft das pro Snapshot auf). Reste (pu-anim-new/-lost) räumt genau ein Neuaufbau weg.
-  if (leben === prevWert
-      && container.querySelectorAll('.leben-herz').length === leben
-      && !container.querySelector('.pu-anim-new, .pu-anim-lost')) {
+  if (
+    leben === prevWert &&
+    container.querySelectorAll('.leben-herz').length === leben &&
+    !container.querySelector('.pu-anim-new, .pu-anim-lost')
+  ) {
     return;
   }
 
-  let html = "";
-  let lostHtml = "";
+  let html = '';
+  let lostHtml = '';
 
   for (let i = 0; i < leben; i++) {
-    let animClass = (i >= prevWert) ? 'pu-anim-new' : '';
+    let animClass = i >= prevWert ? 'pu-anim-new' : '';
     html += `<span class="leben-herz ${animClass}"${stilAttr}>&hearts;</span>`;
   }
 
@@ -73,7 +73,7 @@ export function updateLevelUI() {
   dom.levelAnzeige.innerText = 'LEVEL ' + state.level;
 }
 export function updateMaxEnergieMarker() {
-  dom.maxEnergieMarker.style.left = state.maxEnergie / state.absMaxEnergie * 100 + '%';
+  dom.maxEnergieMarker.style.left = (state.maxEnergie / state.absMaxEnergie) * 100 + '%';
 }
 // Powerup-Icons eines Spielers (s = state oder state.p2); prev merkt sich den
 // letzten Stand für Animationen und wird am Ende aktualisiert
@@ -102,9 +102,15 @@ function zeichneAktivePowerups(s, prev, container) {
     }
   }
 
-  buildIcon('laserStufe', s.laserStufe, 1, 'L', false, 'rgba(155,89,182,0.2)', val => val === 5 ? '#e056fd' : '#9b59b6');
-  buildIcon('raketenStufe', s.raketenStufe, 1, 'R', false, 'rgba(230,126,34,0.2)', val => val === 5 ? '#f39c12' : '#e67e22');
-  buildIcon('bombenStufe', s.bombenStufe, 1, 'B', false, 'rgba(192,57,43,0.2)', val => val === 5 ? '#e74c3c' : '#c0392b');
+  buildIcon('laserStufe', s.laserStufe, 1, 'L', false, 'rgba(155,89,182,0.2)', val =>
+    val === 5 ? '#e056fd' : '#9b59b6',
+  );
+  buildIcon('raketenStufe', s.raketenStufe, 1, 'R', false, 'rgba(230,126,34,0.2)', val =>
+    val === 5 ? '#f39c12' : '#e67e22',
+  );
+  buildIcon('bombenStufe', s.bombenStufe, 1, 'B', false, 'rgba(192,57,43,0.2)', val =>
+    val === 5 ? '#e74c3c' : '#c0392b',
+  );
   buildIcon('laserDurchschlag', s.laserDurchschlag, false, '&uarr;', true, 'rgba(0,255,255,0.2)', '#00ffff');
   if (s.schildStufe > 0) {
     buildIcon('schildStufe', s.schildStufe, 0, 'O', false, 'rgba(52,152,219,0.2)', '#3498db');
@@ -151,7 +157,7 @@ export function updateLebenP2UI() {
 
 export function updateMaxEnergieMarkerP2() {
   if (dom.maxEnergieMarkerP2 && state.p2) {
-    dom.maxEnergieMarkerP2.style.left = (state.p2.maxEnergie / state.p2.absMaxEnergie * 100) + '%';
+    dom.maxEnergieMarkerP2.style.left = (state.p2.maxEnergie / state.p2.absMaxEnergie) * 100 + '%';
   }
 }
 
@@ -207,7 +213,7 @@ export function zerstoereZiel(ziel, killer = 'p1') {
   if (fIndex === -1 && aIndex === -1 && bIndex === -1) return;
 
   // Viper-Kill-Kombo: Punkte dieses Kills zaehlen mit dem Faktor VOR dem Kill, danach waechst die Kombo
-  const komboZustand = (killer === 'p2' && state.p2) ? state.p2 : state;
+  const komboZustand = killer === 'p2' && state.p2 ? state.p2 : state;
   const komboFaktor = Viper.komboFaktor(komboZustand);
 
   // Boss Logik beim Zerstören
@@ -222,7 +228,7 @@ export function zerstoereZiel(ziel, killer = 'p1') {
         y: ziel.y + ziel.groesse / 2,
         farbe: '#f1c40f',
         anzahl: 50,
-        soundType: 'boss'
+        soundType: 'boss',
       });
     }
 
@@ -261,11 +267,19 @@ export function zerstoereZiel(ziel, killer = 'p1') {
     });
 
     // 3 garantierte Splitter nur fallen lassen wenn ein Viper-Schiff beteiligt ist
-    const killerShipModel = killer === 'p2' ? (state.p2 && state.p2.selectedShipModel) : state.selectedShipModel;
-    const partnerShipModel = killer === 'p2' ? state.selectedShipModel : (state.p2 && state.p2.selectedShipModel);
+    const killerShipModel = killer === 'p2' ? state.p2 && state.p2.selectedShipModel : state.selectedShipModel;
+    const partnerShipModel = killer === 'p2' ? state.selectedShipModel : state.p2 && state.p2.selectedShipModel;
     const shardTarget = isCoopMode()
-      ? (killerShipModel === 'viper' ? killer : (partnerShipModel === 'viper' ? (killer === 'p2' ? 'p1' : 'p2') : null))
-      : (state.selectedShipModel === 'viper' ? 'solo' : null);
+      ? killerShipModel === 'viper'
+        ? killer
+        : partnerShipModel === 'viper'
+          ? killer === 'p2'
+            ? 'p1'
+            : 'p2'
+          : null
+      : state.selectedShipModel === 'viper'
+        ? 'solo'
+        : null;
 
     if (shardTarget) {
       const shardOwner = shardTarget === 'solo' ? null : shardTarget;
@@ -282,22 +296,26 @@ export function zerstoereZiel(ziel, killer = 'p1') {
     state.frameZaehler = 0; // Setzt Level-Timer zurück
   } else {
     Audio.playExplosion(ziel.groesse >= 35 ? 'medium' : 'small');
-    addScore(ziel.istFeind ? (ziel.muster === 'hacker' ? 200 : 100) : ziel.traegtPowerup ? 50 : ziel.groesse >= 35 ? 20 : 10, komboFaktor);
+    addScore(
+      ziel.istFeind ? (ziel.muster === 'hacker' ? 200 : 100) : ziel.traegtPowerup ? 50 : ziel.groesse >= 35 ? 20 : 10,
+      komboFaktor,
+    );
     if (ziel.istFeind) {
-      const killerShipModel = killer === 'p2' ? (state.p2 && state.p2.selectedShipModel) : state.selectedShipModel;
+      const killerShipModel = killer === 'p2' ? state.p2 && state.p2.selectedShipModel : state.selectedShipModel;
       const currentShip = shipModels && shipModels[killerShipModel || 'viper'];
       const energyGain = (currentShip && currentShip.energyPerKill) || 0;
       if (energyGain > 0) {
         if (killer === 'p2' && state.p2) {
           state.p2.energie = Math.min(state.p2.maxEnergie, state.p2.energie + energyGain);
-          if (dom.energieBalkenP2) dom.energieBalkenP2.style.width = state.p2.energie / state.p2.absMaxEnergie * 100 + '%';
+          if (dom.energieBalkenP2)
+            dom.energieBalkenP2.style.width = (state.p2.energie / state.p2.absMaxEnergie) * 100 + '%';
         } else {
           state.energie = Math.min(state.maxEnergie, state.energie + energyGain);
-          if (dom.energieBalken) dom.energieBalken.style.width = state.energie / state.absMaxEnergie * 100 + '%';
+          if (dom.energieBalken) dom.energieBalken.style.width = (state.energie / state.absMaxEnergie) * 100 + '%';
         }
       }
       if (killerShipModel === 'viper') {
-        const killerState = (killer === 'p2' && state.p2) ? state.p2 : state;
+        const killerState = killer === 'p2' && state.p2 ? state.p2 : state;
         killerState.viperKillCount = (killerState.viperKillCount || 0) + 1;
         if (killerState.viperKillCount % 10 === 0) {
           const shardType = Math.random() < 0.5 ? 'splitterRot' : 'splitterWeiss';
@@ -315,7 +333,7 @@ export function zerstoereZiel(ziel, killer = 'p1') {
         y: ziel.y + ziel.groesse / 2,
         farbe: farbe,
         anzahl: 25,
-        soundType: ziel.groesse >= 35 ? 'medium' : 'small'
+        soundType: ziel.groesse >= 35 ? 'medium' : 'small',
       });
     }
     if (ziel.traegtPowerup) {
@@ -357,8 +375,8 @@ export function triggerGameOver(finalScoreFromHost = null) {
   Audio.playGameOver();
   state.gameOverAktiv = true;
   entferneGleveEffekte();
-  state.finalerScore = finalScoreFromHost !== null ? finalScoreFromHost : (state.cheatUsed ? 0 : state.score);
-  
+  state.finalerScore = finalScoreFromHost !== null ? finalScoreFromHost : state.cheatUsed ? 0 : state.score;
+
   state.onlineHighscoreNames = { p1: null, p2: null };
 
   const startScreen = document.getElementById('start-screen');
@@ -368,15 +386,15 @@ export function triggerGameOver(finalScoreFromHost = null) {
   if (finalScoreEl) finalScoreEl.innerText = String(state.finalerScore);
   const gameOverScreen = document.getElementById('game-over-screen');
   if (gameOverScreen) gameOverScreen.style.display = 'flex';
-  
+
   const isOnline = state.gameMode === 'online' || (state.network && state.network.isOnline);
   const isCoop = state.gameMode === 'coop';
-  const currentMode = isOnline ? 'online' : (isCoop ? 'coop_bot' : 'single');
+  const currentMode = isOnline ? 'online' : isCoop ? 'coop_bot' : 'single';
 
   if (isOnline && state.network && state.network.isHost && finalScoreFromHost === null) {
     Network.sendNetworkEvent({
       type: 'game_over',
-      finalScore: state.finalerScore
+      finalScore: state.finalerScore,
     });
   }
 
@@ -396,7 +414,7 @@ export function triggerGameOver(finalScoreFromHost = null) {
   if (hsInput) {
     hsInput.disabled = false;
     if (isOnline) {
-      hsInput.placeholder = (state.network && state.network.isHost) ? 'P1' : 'P2';
+      hsInput.placeholder = state.network && state.network.isHost ? 'P1' : 'P2';
       hsInput.maxLength = 3;
     } else if (isCoop) {
       hsInput.placeholder = 'TEAM';
@@ -438,7 +456,7 @@ export function spielerGetroffen(kollisionsObjekt, explodiert = true, targetPlay
 function trefferAmSpieler(kollisionsObjekt, explodiert, targetPlayer) {
   if (targetPlayer === 'p1') {
     if (state.godMode || state.invulnerableTimer > 0 || state.isDead || istDashUnverwundbar(state)) return;
-    
+
     Audio.playHit('player');
     Viper.setzeKomboZurueck(state);
     state.invulnerableTimer = 45;
@@ -450,8 +468,13 @@ function trefferAmSpieler(kollisionsObjekt, explodiert, targetPlayer) {
       }
       updateAktivePowerupsUI();
       if (explodiert && kollisionsObjekt) {
-        let c = kollisionsObjekt.istFeind ? '#9b59b6' : (kollisionsObjekt.farbe || '#7f8c8d');
-        erzeugeExplosion(kollisionsObjekt.x + (kollisionsObjekt.groesse || 4) / 2, kollisionsObjekt.y + (kollisionsObjekt.groesse || 15) / 2, c, 10);
+        let c = kollisionsObjekt.istFeind ? '#9b59b6' : kollisionsObjekt.farbe || '#7f8c8d';
+        erzeugeExplosion(
+          kollisionsObjekt.x + (kollisionsObjekt.groesse || 4) / 2,
+          kollisionsObjekt.y + (kollisionsObjekt.groesse || 15) / 2,
+          c,
+          10,
+        );
       }
       addScore(10);
       Anzeige.blitzeSpielfeld('rgba(52, 152, 219, 0.3)', 150);
@@ -479,8 +502,13 @@ function trefferAmSpieler(kollisionsObjekt, explodiert, targetPlayer) {
     updateAktivePowerupsUI();
     Anzeige.blitzeSpielfeld('#900', 150);
     if (explodiert && kollisionsObjekt && !kollisionsObjekt.istBoss) {
-      let c = kollisionsObjekt.istFeind ? '#9b59b6' : (kollisionsObjekt.farbe || '#7f8c8d');
-      erzeugeExplosion(kollisionsObjekt.x + (kollisionsObjekt.groesse || 4) / 2, kollisionsObjekt.y + (kollisionsObjekt.groesse || 15) / 2, c, 10);
+      let c = kollisionsObjekt.istFeind ? '#9b59b6' : kollisionsObjekt.farbe || '#7f8c8d';
+      erzeugeExplosion(
+        kollisionsObjekt.x + (kollisionsObjekt.groesse || 4) / 2,
+        kollisionsObjekt.y + (kollisionsObjekt.groesse || 15) / 2,
+        c,
+        10,
+      );
     }
     if (state.leben <= 0) {
       state.isDead = true;
@@ -494,7 +522,7 @@ function trefferAmSpieler(kollisionsObjekt, explodiert, targetPlayer) {
     }
   } else if (targetPlayer === 'p2' && isCoopMode() && state.p2) {
     if (state.godMode || state.p2.invulnerableTimer > 0 || state.p2.isDead || istDashUnverwundbar(state.p2)) return;
-    
+
     Audio.playHit('player');
     Viper.setzeKomboZurueck(state.p2);
     state.p2.invulnerableTimer = 45;
@@ -508,14 +536,24 @@ function trefferAmSpieler(kollisionsObjekt, explodiert, targetPlayer) {
       }
       updateAktivePowerupsP2UI();
       if (explodiert && kollisionsObjekt) {
-        let c = kollisionsObjekt.istFeind ? '#9b59b6' : (kollisionsObjekt.farbe || '#7f8c8d');
-        erzeugeExplosion(kollisionsObjekt.x + (kollisionsObjekt.groesse || 4) / 2, kollisionsObjekt.y + (kollisionsObjekt.groesse || 15) / 2, c, 10);
+        let c = kollisionsObjekt.istFeind ? '#9b59b6' : kollisionsObjekt.farbe || '#7f8c8d';
+        erzeugeExplosion(
+          kollisionsObjekt.x + (kollisionsObjekt.groesse || 4) / 2,
+          kollisionsObjekt.y + (kollisionsObjekt.groesse || 15) / 2,
+          c,
+          10,
+        );
       }
       addScore(10);
       if (!isOnline) {
         Anzeige.blitzeSpielfeld('rgba(52, 152, 219, 0.3)', 150);
       } else {
-        Network.sendNetworkEvent({ type: 'player_hit', target: 'p2', shield: true, invulnerable: state.p2.invulnerableTimer });
+        Network.sendNetworkEvent({
+          type: 'player_hit',
+          target: 'p2',
+          shield: true,
+          invulnerable: state.p2.invulnerableTimer,
+        });
       }
       return;
     }
@@ -542,11 +580,21 @@ function trefferAmSpieler(kollisionsObjekt, explodiert, targetPlayer) {
     if (!isOnline) {
       Anzeige.blitzeSpielfeld('#900', 150);
     } else {
-      Network.sendNetworkEvent({ type: 'player_hit', target: 'p2', shield: false, invulnerable: state.p2.invulnerableTimer });
+      Network.sendNetworkEvent({
+        type: 'player_hit',
+        target: 'p2',
+        shield: false,
+        invulnerable: state.p2.invulnerableTimer,
+      });
     }
     if (explodiert && kollisionsObjekt && !kollisionsObjekt.istBoss) {
-      let c = kollisionsObjekt.istFeind ? '#9b59b6' : (kollisionsObjekt.farbe || '#7f8c8d');
-      erzeugeExplosion(kollisionsObjekt.x + (kollisionsObjekt.groesse || 4) / 2, kollisionsObjekt.y + (kollisionsObjekt.groesse || 15) / 2, c, 10);
+      let c = kollisionsObjekt.istFeind ? '#9b59b6' : kollisionsObjekt.farbe || '#7f8c8d';
+      erzeugeExplosion(
+        kollisionsObjekt.x + (kollisionsObjekt.groesse || 4) / 2,
+        kollisionsObjekt.y + (kollisionsObjekt.groesse || 15) / 2,
+        c,
+        10,
+      );
     }
     if (state.p2.leben <= 0) {
       state.p2.isDead = true;
@@ -675,14 +723,14 @@ export function restartGame() {
     updateP2UI();
   }
   Anzeige.zeichneSpieler();
-  
-  const clearArray = (arr) => {
+
+  const clearArray = arr => {
     if (arr) {
       arr.forEach(Anzeige.entferne);
       arr.length = 0;
     }
   };
-  
+
   clearArray(arrays.asteroiden);
   clearArray(arrays.feinde);
   clearArray(arrays.feindLaserArray);
@@ -701,7 +749,8 @@ export function restartGame() {
   clearArray(arrays.sniperGranaten);
 
   // Verwaiste Spiel-Entitäten und Projektile aus dem DOM entfernen
-  const orphanSelectors = '.boss-rakete, .boss-bombe, .boss-laser, .feind-laser, .laser, .rakete, .bombe, .powerup, .feind, .asteroid, .boss, .partikel, .werfer-abgeworfen, .shockwave, .schockwelle, .cutscene-fireball, .cutscene-shockwave, .cutscene-debris, .tractor-beam-svg';
+  const orphanSelectors =
+    '.boss-rakete, .boss-bombe, .boss-laser, .feind-laser, .laser, .rakete, .bombe, .powerup, .feind, .asteroid, .boss, .partikel, .werfer-abgeworfen, .shockwave, .schockwelle, .cutscene-fireball, .cutscene-shockwave, .cutscene-debris, .tractor-beam-svg';
   if (dom.spielfeld) {
     dom.spielfeld.querySelectorAll(orphanSelectors).forEach(el => el.remove());
   }
@@ -711,21 +760,21 @@ export function restartGame() {
   state.bossWarningTimer = 0;
   dom.warningOverlay.style.display = 'none';
   dom.bossHpContainer.style.display = 'none';
-  
+
   state.pausiert = false;
   state.pauseVon = null;
   state.pauseEndeZeit = 0;
   dom.pauseOverlay.style.display = 'none';
-  
+
   state.bossKampfAktiv = false;
   state.autolaserAktiv = false;
   state.autolaserStrahl = null;
   state.hitscanStrahl = null;
-  
+
   state.spielerSchussCooldown = 0;
   state.raketenCooldown = 0;
   state.bombenCooldown = 0;
-  
+
   state.frameZaehler = 0;
   state.spielLaeuft = false;
   state.cutsceneAktiv = false;
@@ -735,11 +784,11 @@ export function restartGame() {
     cutsceneContainer.innerHTML = '';
     cutsceneContainer.style.display = 'none';
   }
-  
+
   for (let key in state.tastenGedrueckt) {
     state.tastenGedrueckt[key] = false;
   }
-  
+
   let startScreen = document.getElementById('start-screen');
   if (startScreen) startScreen.style.display = 'block';
   wendeSpielfeldBreiteAn('menue');
@@ -773,7 +822,7 @@ export async function generateScoreHash(name, score, level, mode, timestamp) {
   return '';
 }
 
-export function normalizeHighscoreMode(mode = (state.gameMode || 'single')) {
+export function normalizeHighscoreMode(mode = state.gameMode || 'single') {
   if (mode === 'single') return 'single';
   if (mode === 'online') return 'online';
   if (mode === 'coop_bot') return 'coop_bot';
@@ -781,7 +830,7 @@ export function normalizeHighscoreMode(mode = (state.gameMode || 'single')) {
   return 'single';
 }
 
-export function getHighscores(mode = (state.gameMode || 'single')) {
+export function getHighscores(mode = state.gameMode || 'single') {
   const normMode = normalizeHighscoreMode(mode);
   let key = 'spaceShooterHighscores';
   if (normMode === 'coop_bot') key = 'spaceShooterHighscores_bot';
@@ -794,7 +843,14 @@ export function getHighscores(mode = (state.gameMode || 'single')) {
   return hs ? JSON.parse(hs) : [];
 }
 
-export function saveHighscore(name, scoreValue, shipModel = null, mode = (state.gameMode || 'single'), shipP2Model = null, level = null) {
+export function saveHighscore(
+  name,
+  scoreValue,
+  shipModel = null,
+  mode = state.gameMode || 'single',
+  shipP2Model = null,
+  level = null,
+) {
   const normMode = normalizeHighscoreMode(mode);
   let hs = getHighscores(normMode);
   let modelP1 = shipModel || state.selectedShipModel || 'viper';
@@ -807,7 +863,7 @@ export function saveHighscore(name, scoreValue, shipModel = null, mode = (state.
     name: name.toUpperCase(),
     score: scoreValue,
     level: currentLevel,
-    mode: normMode
+    mode: normMode,
   };
 
   if (isMulti) {
@@ -850,7 +906,7 @@ async function submitGlobalScore(mode, name, score, level, shipP1, shipP2) {
     const response = await fetch(apiUrl, {
       method: 'POST',
       headers: {
-        'Content-Type': 'application/json'
+        'Content-Type': 'application/json',
       },
       body: JSON.stringify({
         mode,
@@ -860,8 +916,8 @@ async function submitGlobalScore(mode, name, score, level, shipP1, shipP2) {
         shipP1,
         shipP2,
         timestamp,
-        hash
-      })
+        hash,
+      }),
     });
 
     if (response.ok) {
@@ -871,7 +927,7 @@ async function submitGlobalScore(mode, name, score, level, shipP1, shipP2) {
       }
       if (state.network && state.network.isOnline && state.network.isHost && state.network.connected) {
         Network.sendNetworkEvent({
-          type: 'highscore_committed'
+          type: 'highscore_committed',
         });
       }
       fetchGlobalHighscores(mode);
@@ -896,7 +952,7 @@ const HS_SCHIFFE = {
   viper: { klasse: 'hs-ship-viper', label: 'Viper-X', kurz: 'V' },
   phantom: { klasse: 'hs-ship-phantom', label: 'Phantom-NX', kurz: 'P' },
   gleve: { klasse: 'hs-ship-gleve', label: 'Gleve-MR', kurz: 'G' },
-  sniper: { klasse: 'hs-ship-sniper', label: 'Spectre-SR', kurz: 'S' }
+  sniper: { klasse: 'hs-ship-sniper', label: 'Spectre-SR', kurz: 'S' },
 };
 
 function hsSchiffInfo(model) {
@@ -971,7 +1027,7 @@ export async function fetchGlobalHighscores(mode) {
 
       // Wenn global noch keine Einträge existieren, aber lokal welche vorhanden sind, zeige diese an
       const localHs = getHighscores(normMode);
-      const scoresToRender = (data.highscores.length === 0 && localHs.length > 0) ? localHs : data.highscores;
+      const scoresToRender = data.highscores.length === 0 && localHs.length > 0 ? localHs : data.highscores;
 
       // Nur rendern, wenn der Tab noch der aktuelle ist
       if (state.currentHighscoreTab === normMode) {
@@ -1010,11 +1066,15 @@ export function renderHighscores(targetMode = null) {
   // Header-Spalte anpassen (SCHIFF vs SCHIFFE)
   const colHeaderShip = document.getElementById('hs-col-ship');
   if (colHeaderShip) {
-    colHeaderShip.innerText = (normMode === 'single') ? 'SCHIFF' : 'SCHIFFE';
+    colHeaderShip.innerText = normMode === 'single' ? 'SCHIFF' : 'SCHIFFE';
   }
 
   // Zuerst gecachte globale Scores oder lokale Scores sofort anzeigen
-  if (state.globalHighscoresCache && state.globalHighscoresCache[normMode] && state.globalHighscoresCache[normMode].length > 0) {
+  if (
+    state.globalHighscoresCache &&
+    state.globalHighscoresCache[normMode] &&
+    state.globalHighscoresCache[normMode].length > 0
+  ) {
     const statusText = document.getElementById('highscore-status-text');
     const spinner = document.getElementById('highscore-spinner');
     if (statusText) statusText.innerText = '🌐 GLOBALE BESTENLISTE';
@@ -1037,9 +1097,16 @@ export function submitHighscore() {
   if (!isOnline) {
     let nameInput = rawName;
     const isCoop = state.gameMode === 'coop';
-    if (!nameInput || nameInput === '') nameInput = (isCoop ? 'TEAM' : 'AAA');
+    if (!nameInput || nameInput === '') nameInput = isCoop ? 'TEAM' : 'AAA';
     const mode = isCoop ? 'coop_bot' : 'single';
-    saveHighscore(nameInput, state.finalerScore, state.selectedShipModel, mode, state.p2 ? state.p2.selectedShipModel : null, state.level || 1);
+    saveHighscore(
+      nameInput,
+      state.finalerScore,
+      state.selectedShipModel,
+      mode,
+      state.p2 ? state.p2.selectedShipModel : null,
+      state.level || 1,
+    );
     const hsForm = document.getElementById('highscore-form');
     if (hsForm) hsForm.style.display = 'none';
     renderHighscores(mode);
@@ -1057,7 +1124,7 @@ export function submitHighscore() {
   Network.sendNetworkEvent({
     type: 'highscore_name',
     role: myRole,
-    name: myName
+    name: myName,
   });
 
   if (hsInput) hsInput.disabled = true;
@@ -1132,7 +1199,7 @@ export function erzeugeExplosion(x, y, farbe, anzahl = 15) {
       vx: Math.cos(winkel) * tempo,
       vy: Math.sin(winkel) * tempo,
       leben: 1.0,
-      zerfall: Math.random() * 0.03 + 0.02
+      zerfall: Math.random() * 0.03 + 0.02,
     });
   }
 }
@@ -1179,7 +1246,7 @@ export function erzeugeRauchFunken(x, y, groesse) {
       vx: (Math.random() - 0.5) * 2,
       vy: -Math.random() * 2 - 1,
       leben: 1.0,
-      zerfall: 0.02
+      zerfall: 0.02,
     });
   }
   // Funken
@@ -1192,7 +1259,7 @@ export function erzeugeRauchFunken(x, y, groesse) {
       vx: (Math.random() - 0.5) * 4,
       vy: -Math.random() * 4,
       leben: 1.0,
-      zerfall: 0.05
+      zerfall: 0.05,
     });
   }
 }
@@ -1207,7 +1274,7 @@ export function erzeugeAntriebsRauch(x, y, vy = -1.5) {
       vx: (Math.random() - 0.5) * 1,
       vy: vy + (Math.random() - 0.5) * 0.5,
       leben: 1.0,
-      zerfall: 0.05
+      zerfall: 0.05,
     });
   }
 }
@@ -1247,7 +1314,7 @@ export function setGameMode(mode) {
   // Die Spielfeldbreite aendert sich NICHT hier: Das Menue bleibt in allen Modi gleich breit,
   // die Modusbreite gilt erst ab Spielstart (wendeSpielfeldBreiteAn in startCutscene/startOnlineGame).
   const hinweisSingle = document.getElementById('modus-optionen-single');
-  if (hinweisSingle) hinweisSingle.style.display = (mode === 'single') ? 'block' : 'none';
+  if (hinweisSingle) hinweisSingle.style.display = mode === 'single' ? 'block' : 'none';
   const optionenCoop = document.getElementById('modus-optionen-coop');
   if (optionenCoop) optionenCoop.style.display = isCoop ? 'block' : 'none';
 
@@ -1260,14 +1327,14 @@ export function setGameMode(mode) {
   const infoSingle = document.getElementById('steuerung-info-single');
   const infoCoop = document.getElementById('steuerung-info-coop');
   const infoOnline = document.getElementById('steuerung-info-online');
-  if (infoSingle) infoSingle.style.display = (mode === 'single') ? 'block' : 'none';
+  if (infoSingle) infoSingle.style.display = mode === 'single' ? 'block' : 'none';
   if (infoCoop) infoCoop.style.display = isCoop ? 'block' : 'none';
   if (infoOnline) infoOnline.style.display = isOnline ? 'block' : 'none';
 
   updateSteuerungInfo();
 
   const uiP2 = dom.uiContainerP2 || document.getElementById('ui-container-p2');
-  if (uiP2) uiP2.style.display = (isMultiplayer && state.spielLaeuft) ? 'flex' : 'none';
+  if (uiP2) uiP2.style.display = isMultiplayer && state.spielLaeuft ? 'flex' : 'none';
 
   const tagP1 = /** @type {HTMLElement} */ (document.querySelector('.tag-p1'));
   if (tagP1) tagP1.style.display = isMultiplayer ? 'block' : 'none';
@@ -1375,7 +1442,8 @@ export function updatePlayerShipVisuals() {
   const previewSvg = document.getElementById('hangar-preview-svg');
   if (previewSvg) {
     previewSvg.innerHTML = getShipSVGContent(activeHangarModel, activeHangarColor);
-    if (previewSvg.parentElement) previewSvg.parentElement.classList.toggle('schiff-gleve', activeHangarModel === 'gleve');
+    if (previewSvg.parentElement)
+      previewSvg.parentElement.classList.toggle('schiff-gleve', activeHangarModel === 'gleve');
   }
   const previewName = document.getElementById('hangar-ship-name');
   const shipData = shipModels && shipModels[activeHangarModel];
@@ -1387,7 +1455,12 @@ export function updatePlayerShipVisuals() {
   const perksContainer = document.getElementById('hangar-ship-perks');
   if (perksContainer && shipData && shipData.perks && perksContainer.dataset.modell !== activeHangarModel) {
     perksContainer.dataset.modell = activeHangarModel;
-    perksContainer.innerHTML = shipData.perks.map((p, i) => `<button type="button" class="hangar-perk-chip ${p.type === 'nerf' ? 'perk-nerf' : 'perk-buff'}" data-perk="${i}" title="${p.label}: ${p.desc}">${p.icon}</button>`).join('');
+    perksContainer.innerHTML = shipData.perks
+      .map(
+        (p, i) =>
+          `<button type="button" class="hangar-perk-chip ${p.type === 'nerf' ? 'perk-nerf' : 'perk-buff'}" data-perk="${i}" title="${p.label}: ${p.desc}">${p.icon}</button>`,
+      )
+      .join('');
     zeigePerkDetail(-1);
   }
 
@@ -1407,7 +1480,7 @@ export function updatePlayerShipVisuals() {
   // Bot-Controls Sichtbarkeit
   const botControls = document.getElementById('p2-bot-controls');
   if (botControls) {
-    botControls.style.display = (state.gameMode === 'coop' && isP2Hangar) ? 'block' : 'none';
+    botControls.style.display = state.gameMode === 'coop' && isP2Hangar ? 'block' : 'none';
   }
 
   updateRaketenWerferVisuals();
@@ -1419,7 +1492,7 @@ export function updatePlayerShipVisuals() {
 const HUD_LABELS = {
   standard: { energie: 'E', rakete: 'R', mobilRakete: 'R' },
   gleve: { energie: 'SWEEP', rakete: 'DASH', mobilRakete: 'D', lang: true },
-  sniper: { energie: 'E', rakete: 'GRANATE', mobilRakete: 'G', lang: true }
+  sniper: { energie: 'E', rakete: 'GRANATE', mobilRakete: 'G', lang: true },
 };
 
 function setzeHudLabel(el, text, lang) {
@@ -1436,13 +1509,24 @@ export function updateSchiffHudLabels() {
   const labelsP1 = HUD_LABELS[modelP1] || HUD_LABELS.standard;
   const labelsP2 = HUD_LABELS[modelP2] || HUD_LABELS.standard;
 
-  setzeHudLabel(document.querySelector('#energie-cd-container .cooldown-letter'), labelsP1.energie, modelP1 === 'gleve');
+  setzeHudLabel(
+    document.querySelector('#energie-cd-container .cooldown-letter'),
+    labelsP1.energie,
+    modelP1 === 'gleve',
+  );
   setzeHudLabel(document.querySelector('#raketen-cd-container .cooldown-letter'), labelsP1.rakete, !!labelsP1.lang);
-  setzeHudLabel(document.querySelector('#energie-cd-container-p2 .cooldown-letter'), labelsP2.energie, modelP2 === 'gleve');
+  setzeHudLabel(
+    document.querySelector('#energie-cd-container-p2 .cooldown-letter'),
+    labelsP2.energie,
+    modelP2 === 'gleve',
+  );
   setzeHudLabel(document.querySelector('#raketen-cd-container-p2 .cooldown-letter'), labelsP2.rakete, !!labelsP2.lang);
 
   // Ladungspunkte nur bei Gleve (Dash) und Sniper (Granaten); Inhalt pflegt Gleve.zeigeLadungenHud
-  for (const [id, model] of [['dash-ladungen', modelP1], ['dash-ladungen-p2', modelP2]]) {
+  for (const [id, model] of [
+    ['dash-ladungen', modelP1],
+    ['dash-ladungen-p2', modelP2],
+  ]) {
     const el = document.getElementById(id);
     if (!el) continue;
     const mitLadungen = model === 'gleve' || model === 'sniper';
@@ -1492,7 +1576,7 @@ export function erzeugeAbgeworfenenWerfer(x, y, vx, vy, vRot) {
     rot: 0,
     vRot: vRot || (vx > 0 ? 8 : -8),
     leben: 1.0,
-    zerfall: 0.02
+    zerfall: 0.02,
   });
 }
 
@@ -1516,7 +1600,7 @@ export function werferBelegung(pState) {
 function pruefeWerferAbwurf(pState, prevKey) {
   if (!pState) return;
   const jetzt = werferBelegung(pState);
-  const vorher = (prevKey === 'p1') ? prevWerferStatesP1 : prevWerferStatesP2;
+  const vorher = prevKey === 'p1' ? prevWerferStatesP1 : prevWerferStatesP2;
   if (vorher && state.spielLaeuft && !pState.isDead) {
     if (vorher.links && !jetzt.links) {
       erzeugeAbgeworfenenWerfer(pState.x - 8, pState.y + 7, -3 - Math.random() * 2, 2 + Math.random() * 2, -10);
@@ -1525,7 +1609,13 @@ function pruefeWerferAbwurf(pState, prevKey) {
       erzeugeAbgeworfenenWerfer(pState.x + 31, pState.y + 7, 3 + Math.random() * 2, 2 + Math.random() * 2, 10);
     }
     if (vorher.mitte && !jetzt.mitte) {
-      erzeugeAbgeworfenenWerfer(pState.x + 11.5, pState.y + 18, (Math.random() - 0.5) * 2, 3 + Math.random() * 2, (Math.random() - 0.5) * 12);
+      erzeugeAbgeworfenenWerfer(
+        pState.x + 11.5,
+        pState.y + 18,
+        (Math.random() - 0.5) * 2,
+        3 + Math.random() * 2,
+        (Math.random() - 0.5) * 12,
+      );
     }
   }
   if (prevKey === 'p1') prevWerferStatesP1 = jetzt;

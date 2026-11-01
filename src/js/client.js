@@ -1,4 +1,3 @@
-
 import { state, config, arrays, shipModels } from './state.js';
 import * as Network from './network.js';
 import * as Hack from './hack.js';
@@ -16,18 +15,19 @@ function steuerRichtung(keys) {
     if (mag <= 0.1) return { dx: 0, dy: 0 };
     return Hack.hackeBewegung(state.p2, state.joystick.x / mag, state.joystick.y / mag);
   }
-  return Hack.hackeBewegung(state.p2,
-    ((keys.d || keys.arrowright) ? 1 : 0) - ((keys.a || keys.arrowleft) ? 1 : 0),
-    ((keys.s || keys.arrowdown) ? 1 : 0) - ((keys.w || keys.arrowup) ? 1 : 0));
+  return Hack.hackeBewegung(
+    state.p2,
+    (keys.d || keys.arrowright ? 1 : 0) - (keys.a || keys.arrowleft ? 1 : 0),
+    (keys.s || keys.arrowdown ? 1 : 0) - (keys.w || keys.arrowup ? 1 : 0),
+  );
 }
-
 
 // --- GLAETTUNG ZWISCHEN HOST-SNAPSHOTS ---
 // Der Host sendet nur jeden 2. Simulationsschritt einen Snapshot. Dazwischen bewegt der Client:
 // - Projektile mit bekannter Geschwindigkeit weiter (Extrapolation, der naechste Snapshot korrigiert)
 // - alle anderen entfernten Objekte gleichmaessig zur letzten Snapshot-Position (Interpolation)
-export const INTERPOLATION_SCHRITTE = 2;     // Schritte zwischen zwei Host-Snapshots
-export const SPRUNG_DISTANZ = 100;           // ab dieser Distanz (px) springen statt gleiten (Respawn/Teleport)
+export const INTERPOLATION_SCHRITTE = 2; // Schritte zwischen zwei Host-Snapshots
+export const SPRUNG_DISTANZ = 100; // ab dieser Distanz (px) springen statt gleiten (Respawn/Teleport)
 export const MAX_EXTRAPOLATION_SCHRITTE = 4; // ohne neuen Snapshot nicht endlos weiterfliegen
 
 // Angezeigte Position des Host-Schiffs (P1) auf dem Client
@@ -101,8 +101,15 @@ function extrapoliereProjektile() {
   schritteSeitSnapshot++;
   // Spielerlaser fliegen auf dem Host mit y -= vy
   arrays.laserArray.forEach(l => bewegeProjektil(l, l.vx, -(l.vy || 0)));
-  [arrays.feindLaserArray, arrays.hackProjektilArray, arrays.bossLaserArray, arrays.bossRaketenArray,
-    arrays.raketenArray, arrays.bombenArray, arrays.bossBombenArray].forEach(liste => {
+  [
+    arrays.feindLaserArray,
+    arrays.hackProjektilArray,
+    arrays.bossLaserArray,
+    arrays.bossRaketenArray,
+    arrays.raketenArray,
+    arrays.bombenArray,
+    arrays.bossBombenArray,
+  ].forEach(liste => {
     liste.forEach(o => bewegeProjektil(o, o.vx, o.vy));
   });
 }
@@ -162,8 +169,13 @@ export function clientSchritt() {
     }
 
     // Viper: Ausweichrolle des eigenen Schiffs lokal vorhergesagt (Startposition geht im Eingabe-Paket zum Host)
-    const viperRolle = Viper.istViper(state.p2) &&
-      Viper.aktualisiereViper(state.p2, 'p2', Viper.eingabeVonTasten(keys.a || keys.arrowleft, keys.d || keys.arrowright, state.joystick));
+    const viperRolle =
+      Viper.istViper(state.p2) &&
+      Viper.aktualisiereViper(
+        state.p2,
+        'p2',
+        Viper.eingabeVonTasten(keys.a || keys.arrowleft, keys.d || keys.arrowright, state.joystick),
+      );
 
     if (gleveDash) {
       baseFlameScaleP2 = 2.2;
@@ -181,9 +193,11 @@ export function clientSchritt() {
       if (state.joystick.x < -0.2) targetRotateP2 = -15;
       else if (state.joystick.x > 0.2) targetRotateP2 = 15;
     } else {
-      const b = Hack.hackeBewegung(state.p2,
-        ((keys.d || keys.arrowright) ? 1 : 0) - ((keys.a || keys.arrowleft) ? 1 : 0),
-        ((keys.s || keys.arrowdown) ? 1 : 0) - ((keys.w || keys.arrowup) ? 1 : 0));
+      const b = Hack.hackeBewegung(
+        state.p2,
+        (keys.d || keys.arrowright ? 1 : 0) - (keys.a || keys.arrowleft ? 1 : 0),
+        (keys.s || keys.arrowdown ? 1 : 0) - (keys.w || keys.arrowup ? 1 : 0),
+      );
       if (b.dy < 0) {
         state.p2.y -= p2Speed;
         baseFlameScaleP2 = 1.8;
@@ -204,8 +218,10 @@ export function clientSchritt() {
 
     if (state.p2.x < 0) state.p2.x = 0;
     if (state.p2.y < 0) state.p2.y = 0;
-    if (state.p2.x > config.spielfeldBreite - config.spielerGroesse) state.p2.x = config.spielfeldBreite - config.spielerGroesse;
-    if (state.p2.y > config.spielfeldHoehe - config.spielerGroesse) state.p2.y = config.spielfeldHoehe - config.spielerGroesse;
+    if (state.p2.x > config.spielfeldBreite - config.spielerGroesse)
+      state.p2.x = config.spielfeldBreite - config.spielerGroesse;
+    if (state.p2.y > config.spielfeldHoehe - config.spielerGroesse)
+      state.p2.y = config.spielfeldHoehe - config.spielerGroesse;
 
     state.p2.rotate = targetRotateP2;
     state.p2.drehung = targetRotateP2;

@@ -12,9 +12,7 @@ module.exports = defineConfig({
   use: {
     baseURL: 'http://localhost:8080',
   },
-  projects: [
-    { name: 'chromium', use: { ...devices['Desktop Chrome'] } },
-  ],
+  projects: [{ name: 'chromium', use: { ...devices['Desktop Chrome'] } }],
   webServer: {
     command: 'npx http-server src -p 8080 -c-1',
     url: 'http://localhost:8080',

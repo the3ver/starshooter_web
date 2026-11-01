@@ -12,10 +12,13 @@ const GAME_VERSION = treffer[1];
 // Markiert die aktuelle Version als gesehen (kein "Was gibt's Neues"-Dialog) und ueberspringt
 // standardmaessig die Intro-Cutszene. Gilt fuer alle folgenden Seitenaufrufe dieser Seite.
 async function setzeSpielstand(page, { skipCutscene = true } = {}) {
-  await page.addInitScript(({ version, skip }) => {
-    localStorage.setItem('starshooter_last_seen_version', version);
-    if (skip) localStorage.setItem('starshooter_skip_cutscene', 'true');
-  }, { version: GAME_VERSION, skip: skipCutscene });
+  await page.addInitScript(
+    ({ version, skip }) => {
+      localStorage.setItem('starshooter_last_seen_version', version);
+      if (skip) localStorage.setItem('starshooter_skip_cutscene', 'true');
+    },
+    { version: GAME_VERSION, skip: skipCutscene },
+  );
 }
 
 // Startet das Spiel per Tastendruck. Die Taste bleibt gedrueckt, bis der Game-Loop den Start

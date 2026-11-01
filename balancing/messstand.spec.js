@@ -44,25 +44,44 @@ test.afterAll(() => {
       const st = l.map(e => e.schritte);
       const tr = l.map(e => e.treffer);
       zusammenfassung.push({
-        szenario: sz.id, schiff, laeufe: l.length, siege: l.filter(e => e.sieg).length,
-        schritteMedian: median(st), schritteMin: Math.min(...st), schritteMax: Math.max(...st),
-        trefferMedian: median(tr), trefferMin: Math.min(...tr), trefferMax: Math.max(...tr),
-        killsMedian: median(l.map(e => e.kills)), entkommenMedian: median(l.map(e => e.entkommen)),
+        szenario: sz.id,
+        schiff,
+        laeufe: l.length,
+        siege: l.filter(e => e.sieg).length,
+        schritteMedian: median(st),
+        schritteMin: Math.min(...st),
+        schritteMax: Math.max(...st),
+        trefferMedian: median(tr),
+        trefferMin: Math.min(...tr),
+        trefferMax: Math.max(...tr),
+        killsMedian: median(l.map(e => e.kills)),
+        entkommenMedian: median(l.map(e => e.entkommen)),
       });
     }
   }
-  const zeilen = ['', 'Szenario  Schiff   Siege  Schritte med (min-max)   Treffer med (min-max)  Kills med  Entkommen med'];
+  const zeilen = [
+    '',
+    'Szenario  Schiff   Siege  Schritte med (min-max)   Treffer med (min-max)  Kills med  Entkommen med',
+  ];
   for (const z of zusammenfassung) {
-    zeilen.push([
-      z.szenario.padEnd(9), z.schiff.padEnd(8), `${z.siege}/${z.laeufe}`.padEnd(6),
-      `${z.schritteMedian} (${z.schritteMin}-${z.schritteMax})`.padEnd(24),
-      `${z.trefferMedian} (${z.trefferMin}-${z.trefferMax})`.padEnd(22),
-      String(z.killsMedian).padEnd(10), String(z.entkommenMedian),
-    ].join(' '));
+    zeilen.push(
+      [
+        z.szenario.padEnd(9),
+        z.schiff.padEnd(8),
+        `${z.siege}/${z.laeufe}`.padEnd(6),
+        `${z.schritteMedian} (${z.schritteMin}-${z.schritteMax})`.padEnd(24),
+        `${z.trefferMedian} (${z.trefferMin}-${z.trefferMax})`.padEnd(22),
+        String(z.killsMedian).padEnd(10),
+        String(z.entkommenMedian),
+      ].join(' '),
+    );
   }
   console.log(zeilen.join('\n'));
   const ordner = path.join(__dirname, 'ergebnisse');
   fs.mkdirSync(ordner, { recursive: true });
   const stempel = new Date().toISOString().replace(/[:.]/g, '-');
-  fs.writeFileSync(path.join(ordner, `${stempel}.json`), JSON.stringify({ zeit: new Date().toISOString(), seeds: SEEDS, zusammenfassung, laeufe: ergebnisse }, null, 2));
+  fs.writeFileSync(
+    path.join(ordner, `${stempel}.json`),
+    JSON.stringify({ zeit: new Date().toISOString(), seeds: SEEDS, zusammenfassung, laeufe: ergebnisse }, null, 2),
+  );
 });

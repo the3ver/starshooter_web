@@ -7,7 +7,12 @@ export const HACK_EFFEKTE = ['invertiert', 'waffenOffline', 'tastenVertauscht', 
 export const HACK_DAUER = 180; // 3 s bei 60 FPS
 
 // Richtungen: oben, unten, links, rechts
-const RICHTUNGEN = [[0, -1], [0, 1], [-1, 0], [1, 0]];
+const RICHTUNGEN = [
+  [0, -1],
+  [0, 1],
+  [-1, 0],
+  [1, 0],
+];
 
 // Zufällige Permutation ohne Fixpunkt: keine Taste behält ihre Richtung
 function zufallsDerangement() {
@@ -49,7 +54,8 @@ export function hackeBewegung(pState, dx, dy) {
       dx = -dx;
       dy = -dy;
     } else if (h.typ === 'tastenVertauscht') {
-      let nx = 0, ny = 0;
+      let nx = 0,
+        ny = 0;
       RICHTUNGEN.forEach(([rx, ry], k) => {
         const anteil = Math.max(0, dx * rx + dy * ry);
         const [zx, zy] = RICHTUNGEN[h.perm[k]];
@@ -78,7 +84,7 @@ export const HACK_NAMEN = {
   invertiert: 'INVERTED',
   waffenOffline: 'WEAPONS OFFLINE',
   tastenVertauscht: 'KEYS SCRAMBLED',
-  hudGlitch: 'HUD GLITCH'
+  hudGlitch: 'HUD GLITCH',
 };
 
 function zeigeFuerSpieler(pState, hudEl) {

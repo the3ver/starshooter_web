@@ -2,10 +2,13 @@ const { test, expect } = require('@playwright/test');
 const { setzeSpielstand } = require('./helfer');
 
 test.beforeEach(async ({ page }) => {
-  await page.route('**/api/highscores*', route => route.fulfill({
-    status: 200, contentType: 'application/json',
-    body: JSON.stringify({ success: true, mode: 'single', highscores: [] })
-  }));
+  await page.route('**/api/highscores*', route =>
+    route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({ success: true, mode: 'single', highscores: [] }),
+    }),
+  );
   await setzeSpielstand(page);
   await page.goto('/');
 });
@@ -19,7 +22,8 @@ test('Host: applyPlayerInput akzeptiert nur endliche Zahlen und begrenzt auf das
     const lies = () => ({ x: state.p2.x, y: state.p2.y });
     const out = { maxX, maxY };
 
-    state.p2.x = 100; state.p2.y = 200;
+    state.p2.x = 100;
+    state.p2.y = 200;
     Network.applyPlayerInput({ x: 150, y: 250 });
     out.gueltig = lies();
 
@@ -36,7 +40,8 @@ test('Host: applyPlayerInput akzeptiert nur endliche Zahlen und begrenzt auf das
     out.oben = lies();
 
     // gemischt: x gueltig, y ungueltig
-    state.p2.x = 10; state.p2.y = 20;
+    state.p2.x = 10;
+    state.p2.y = 20;
     Network.applyPlayerInput({ x: 77, y: NaN });
     out.gemischt = lies();
     return out;
@@ -55,7 +60,7 @@ test('Bestenliste: API-Strings werden escaped, Titel-Attribut bleibt heil', asyn
     const { Utils } = window.__game;
     Utils.renderHighscoresTable('single', [
       { name: '<img src=x onerror=alert(1)>', city: 'A"B', country: 'DE', score: 1234, shipP1: 'viper' },
-      { name: 'X&Y', city: "O'<b>", country: 'US', score: 5, shipP1: 'phantom' }
+      { name: 'X&Y', city: "O'<b>", country: 'US', score: 5, shipP1: 'phantom' },
     ]);
     const tbody = document.getElementById('highscore-body');
     const zeilen = [...tbody.querySelectorAll('tr')];
@@ -68,7 +73,7 @@ test('Bestenliste: API-Strings werden escaped, Titel-Attribut bleibt heil', asyn
       attrs: zeilen[0].querySelector('.hs-location').getAttributeNames(),
       name2: zeilen[1].children[1].textContent,
       titel2: zeilen[1].querySelector('.hs-location').getAttribute('title'),
-      score1: zeilen[0].children[2].textContent
+      score1: zeilen[0].children[2].textContent,
     };
   });
   expect(r.zeilen).toBe(2);

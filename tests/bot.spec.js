@@ -2,10 +2,13 @@ const { test, expect } = require('@playwright/test');
 const { setzeSpielstand } = require('./helfer');
 
 test.beforeEach(async ({ page }) => {
-  await page.route('**/api/highscores*', route => route.fulfill({
-    status: 200, contentType: 'application/json',
-    body: JSON.stringify({ success: true, mode: 'single', highscores: [] })
-  }));
+  await page.route('**/api/highscores*', route =>
+    route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({ success: true, mode: 'single', highscores: [] }),
+    }),
+  );
   await setzeSpielstand(page);
   await page.goto('/');
 });
@@ -22,18 +25,31 @@ async function starteBotSpiel(page) {
       Bot,
       leeren() {
         const { state, arrays } = window.__game;
-        ['feinde', 'asteroiden', 'feindLaserArray', 'hackProjektilArray', 'bossLaserArray', 'bossBombenArray',
-          'bossRaketenArray', 'bosses', 'powerups', 'laserArray', 'raketenArray'].forEach(name => {
+        [
+          'feinde',
+          'asteroiden',
+          'feindLaserArray',
+          'hackProjektilArray',
+          'bossLaserArray',
+          'bossBombenArray',
+          'bossRaketenArray',
+          'bosses',
+          'powerups',
+          'laserArray',
+          'raketenArray',
+        ].forEach(name => {
           arrays[name].forEach(o => o.el && o.el.remove());
           arrays[name].length = 0;
         });
-        Object.keys(state.tastenGedrueckt).forEach(k => { state.tastenGedrueckt[k] = false; });
+        Object.keys(state.tastenGedrueckt).forEach(k => {
+          state.tastenGedrueckt[k] = false;
+        });
         state.frameZaehler = 1;
         state.hacks = [];
         state.p2IsBot = true;
         state.p2BotDifficulty = 'normal';
         Bot.resetBot();
-      }
+      },
     };
   });
 }
@@ -76,7 +92,9 @@ test('Bot bevorzugt Gegnerschiffe vor Asteroiden und ignoriert unzerstoerbare As
   expect(r.mitNormal.x).toBeLessThan(150);
 });
 
-test('Bot laesst sich vom Jaeger-Boss (Typ 2) nicht an den Rand draengen und weicht seinen Schuessen aus', async ({ page }) => {
+test('Bot laesst sich vom Jaeger-Boss (Typ 2) nicht an den Rand draengen und weicht seinen Schuessen aus', async ({
+  page,
+}) => {
   await starteBotSpiel(page);
   const r = await page.evaluate(() => {
     const { state, arrays, Entities, Loop } = window.__game;
@@ -119,7 +137,9 @@ test('Bot laesst sich vom Jaeger-Boss (Typ 2) nicht an den Rand draengen und wei
   expect(r.treffer).toBeLessThanOrEqual(2);
 });
 
-test('Bot-Gleve fliegt in Sweep-Reichweite unter den Boss und dasht gegen ihn: Boss verliert deutlich HP', async ({ page }) => {
+test('Bot-Gleve fliegt in Sweep-Reichweite unter den Boss und dasht gegen ihn: Boss verliert deutlich HP', async ({
+  page,
+}) => {
   await starteBotSpiel(page);
   const r = await page.evaluate(() => {
     const { state, arrays, Entities, Loop } = window.__game;

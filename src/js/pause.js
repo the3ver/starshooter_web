@@ -57,7 +57,8 @@ export function beendeSpielZumHauptmenue() {
 // ESC waehrend der Pause: Abfrage oeffnen bzw. abbrechen. true = Taste verbraucht.
 export function behandleEscape() {
   if (!state.pausiert || state.pauseVon || istOnlineModus()) return false;
-  if (abfrageOffen) schliesseAbfrage(); else oeffneAbfrage();
+  if (abfrageOffen) schliesseAbfrage();
+  else oeffneAbfrage();
   return true;
 }
 
@@ -120,11 +121,14 @@ export function aktualisierePauseAnzeige() {
   }
   if (titel) titel.textContent = 'PAUSE - ' + spielerName(state.pauseVon);
   if (info) {
-    const fortsetzen = istEigenePause() ? 'Mit P fortsetzen' : 'Nur ' + spielerName(state.pauseVon) + ' kann fortsetzen';
+    const fortsetzen = istEigenePause()
+      ? 'Mit P fortsetzen'
+      : 'Nur ' + spielerName(state.pauseVon) + ' kann fortsetzen';
     info.textContent = formatiereZeit(restzeitSekunden()) + ' | ' + fortsetzen;
   }
   if (hinweis) {
-    hinweis.textContent = Date.now() < hinweisBis ? 'Nur ' + spielerName(state.pauseVon) + ' kann die Pause beenden' : '';
+    hinweis.textContent =
+      Date.now() < hinweisBis ? 'Nur ' + spielerName(state.pauseVon) + ' kann die Pause beenden' : '';
   }
 }
 

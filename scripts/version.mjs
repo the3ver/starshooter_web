@@ -34,7 +34,13 @@ if (!changelog.includes(`'${version}': {`)) {
     `    ]`,
     `  },`,
   ].join(zeilenende);
-  writeFileSync('src/js/changelog.js', changelog.replace(`export const changelogData = {${zeilenende}`, `export const changelogData = {${zeilenende}${eintrag}${zeilenende}`));
+  writeFileSync(
+    'src/js/changelog.js',
+    changelog.replace(
+      `export const changelogData = {${zeilenende}`,
+      `export const changelogData = {${zeilenende}${eintrag}${zeilenende}`,
+    ),
+  );
   console.log(`Version ${version} gesetzt, Highlights in src/js/changelog.js eintragen (TODO)`);
 } else {
   console.log(`Version ${version} gesetzt`);

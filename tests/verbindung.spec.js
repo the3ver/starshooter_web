@@ -4,7 +4,7 @@ const { setzeSpielstand, installiereUhr, haltUhrAn } = require('./helfer');
 const TRYSTERO_URL = 'https://cdn.jsdelivr.net/npm/@trystero-p2p/torrent/+esm';
 const ICE_SERVERS = [
   { urls: ['stun:stun.cloudflare.com:3478'] },
-  { urls: ['turn:turn.cloudflare.com:3478?transport=udp'], username: 'u', credential: 'c' }
+  { urls: ['turn:turn.cloudflare.com:3478?transport=udp'], username: 'u', credential: 'c' },
 ];
 
 // Fake-Modul statt echtem Trystero: legt Hooks auf window, mit denen der Test Peer-Beitritt und -Abgang ausloest
@@ -24,7 +24,9 @@ const HALLO_OK = "window.__game.Network.handleNetworkEvent({ type: 'hallo', prot
 // Ein Tor, das ein Test von Node aus oeffnet (haelt Antworten an, bis die Phase geprueft ist)
 function tor() {
   let oeffne;
-  const offen = new Promise(r => { oeffne = r; });
+  const offen = new Promise(r => {
+    oeffne = r;
+  });
   return { offen, oeffne };
 }
 
@@ -33,9 +35,10 @@ async function routen(page, { turnStatus = 503, turnTor = null, modulTor = null 
     if (turnTor) await turnTor.offen;
     if (turnStatus === 200) {
       await route.fulfill({
-        status: 200, contentType: 'application/json',
+        status: 200,
+        contentType: 'application/json',
         headers: { 'access-control-allow-origin': '*' },
-        body: JSON.stringify({ success: true, iceServers: ICE_SERVERS })
+        body: JSON.stringify({ success: true, iceServers: ICE_SERVERS }),
       });
     } else {
       await route.fulfill({ status: turnStatus, body: '' });
@@ -44,9 +47,10 @@ async function routen(page, { turnStatus = 503, turnTor = null, modulTor = null 
   await page.route(TRYSTERO_URL, async route => {
     if (modulTor) await modulTor.offen;
     await route.fulfill({
-      status: 200, contentType: 'application/javascript',
+      status: 200,
+      contentType: 'application/javascript',
       headers: { 'access-control-allow-origin': '*' },
-      body: FAKE_TRYSTERO
+      body: FAKE_TRYSTERO,
     });
   });
 }
@@ -73,10 +77,13 @@ async function warteAufPhase(page, nummer) {
 }
 
 test.beforeEach(async ({ page }) => {
-  await page.route('**/api/highscores*', route => route.fulfill({
-    status: 200, contentType: 'application/json',
-    body: JSON.stringify({ success: true, mode: 'single', highscores: [] })
-  }));
+  await page.route('**/api/highscores*', route =>
+    route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({ success: true, mode: 'single', highscores: [] }),
+    }),
+  );
   await setzeSpielstand(page);
 });
 
@@ -86,7 +93,9 @@ test('Host: Phasen 1 bis 5 erscheinen der Reihe nach, Raum-Code bleibt in Schrit
   await routen(page, { turnTor, modulTor });
   await starte(page);
 
-  await page.evaluate(() => { window.__hostLauf = window.__game.Network.hostRoom('ABCDE'); });
+  await page.evaluate(() => {
+    window.__hostLauf = window.__game.Network.hostRoom('ABCDE');
+  });
   await warteAufPhase(page, 1);
   expect(await statusText(page)).toContain('1/5 VERBINDUNGSDATEN HOLEN');
 
@@ -120,7 +129,9 @@ test('Client: Phasen 1 bis 5 mit "Suche Host" in Schritt 3', async ({ page }) =>
   await routen(page, { turnTor, modulTor });
   await starte(page);
 
-  await page.evaluate(() => { window.__clientLauf = window.__game.Network.joinOnlineRoom('fghjk'); });
+  await page.evaluate(() => {
+    window.__clientLauf = window.__game.Network.joinOnlineRoom('fghjk');
+  });
   await warteAufPhase(page, 1);
   expect(await statusText(page)).toContain('1/5 VERBINDUNGSDATEN HOLEN');
   expect(await statusText(page)).toContain('VERBINDE MIT RAUM FGHJK');
@@ -144,7 +155,9 @@ test('Client: Phasen 1 bis 5 mit "Suche Host" in Schritt 3', async ({ page }) =>
 test('Host: Wartezeit zaehlt hoch, nur der Netzwerk-Hinweis erscheint nach 45 s', async ({ page }) => {
   await routen(page);
   await starte(page, { mitClock: true });
-  await page.evaluate(() => { window.__game.Network.hostRoom('ABCDE'); });
+  await page.evaluate(() => {
+    window.__game.Network.hostRoom('ABCDE');
+  });
   await warteAufPhase(page, 3);
 
   await page.clock.fastForward(12000);
@@ -165,7 +178,9 @@ test('Host: Wartezeit zaehlt hoch, nur der Netzwerk-Hinweis erscheint nach 45 s'
 test('Client: Hinweis zum Raum-Code nach 20 s, Netzwerk-Hinweis nach 45 s', async ({ page }) => {
   await routen(page);
   await starte(page, { mitClock: true });
-  await page.evaluate(() => { window.__game.Network.joinOnlineRoom('FGHJK'); });
+  await page.evaluate(() => {
+    window.__game.Network.joinOnlineRoom('FGHJK');
+  });
   await warteAufPhase(page, 3);
 
   await page.clock.fastForward(19000);
@@ -197,10 +212,13 @@ test('TURN-Detail: "ohne TURN" bei 503, "TURN verfügbar" bei 200', async ({ pag
   const seite2 = await page.context().newPage();
   await routen(seite2, { turnStatus: 200 });
   await setzeSpielstand(seite2);
-  await seite2.route('**/api/highscores*', route => route.fulfill({
-    status: 200, contentType: 'application/json',
-    body: JSON.stringify({ success: true, mode: 'single', highscores: [] })
-  }));
+  await seite2.route('**/api/highscores*', route =>
+    route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({ success: true, mode: 'single', highscores: [] }),
+    }),
+  );
   await starte(seite2);
   await seite2.evaluate(() => window.__game.Network.joinOnlineRoom('FGHJK'));
   expect(await phase(seite2)).toBe(3);
@@ -225,10 +243,13 @@ test('Fehler in Schritt 4 nennt den Schritt, Versionsabweichung behaelt ihre Mel
   const client = await page.context().newPage();
   await routen(client);
   await setzeSpielstand(client);
-  await client.route('**/api/highscores*', route => route.fulfill({
-    status: 200, contentType: 'application/json',
-    body: JSON.stringify({ success: true, mode: 'single', highscores: [] })
-  }));
+  await client.route('**/api/highscores*', route =>
+    route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({ success: true, mode: 'single', highscores: [] }),
+    }),
+  );
   await starte(client);
   await client.evaluate(() => window.__game.Network.joinOnlineRoom('FGHJK'));
   await client.evaluate(() => window.__peerJoin('host1'));
@@ -238,7 +259,9 @@ test('Fehler in Schritt 4 nennt den Schritt, Versionsabweichung behaelt ihre Mel
   // Versionsabweichung: Meldung bleibt unveraendert, Phase ist beendet
   await page.evaluate(() => window.__game.Network.hostRoom('ABCDE'));
   await page.evaluate(() => window.__peerJoin('peer2'));
-  await page.evaluate(() => window.__game.Network.handleNetworkEvent({ type: 'hallo', protokoll: window.__protokoll - 1 }, 'peer'));
+  await page.evaluate(() =>
+    window.__game.Network.handleNetworkEvent({ type: 'hallo', protokoll: window.__protokoll - 1 }, 'peer'),
+  );
   expect(await statusText(page)).toBe('Unterschiedliche Spielversionen, bitte Seite neu laden (Strg+F5)');
   expect(await phase(page)).toBe(0);
 });
@@ -246,7 +269,9 @@ test('Fehler in Schritt 4 nennt den Schritt, Versionsabweichung behaelt ihre Mel
 test('Schritt 3 bis 5: Timer laufen nach Raum verlassen und nach Schritt 5 nicht weiter', async ({ page }) => {
   await routen(page);
   await starte(page, { mitClock: true });
-  await page.evaluate(() => { window.__game.Network.hostRoom('ABCDE'); });
+  await page.evaluate(() => {
+    window.__game.Network.hostRoom('ABCDE');
+  });
   await warteAufPhase(page, 3);
   await page.clock.fastForward(3000);
   expect(await statusText(page)).toContain('(0:03)');
@@ -258,7 +283,9 @@ test('Schritt 3 bis 5: Timer laufen nach Raum verlassen und nach Schritt 5 nicht
   expect(await page.evaluate(() => document.getElementById('online-status').textContent)).toBe('RAUM VERLASSEN');
 
   // Nach Schritt 5 bleibt der Text stehen
-  await page.evaluate(() => { window.__game.Network.hostRoom('ABCDE'); });
+  await page.evaluate(() => {
+    window.__game.Network.hostRoom('ABCDE');
+  });
   await warteAufPhase(page, 3);
   await page.evaluate(() => window.__peerJoin('peer1'));
   await page.evaluate(HALLO_OK);
@@ -272,7 +299,9 @@ test('Raum verlassen waehrend Schritt 1 bricht den Aufbau ab, es wird kein Raum 
   const turnTor = tor();
   await routen(page, { turnTor });
   await starte(page);
-  await page.evaluate(() => { window.__hostLauf = window.__game.Network.hostRoom('ABCDE'); });
+  await page.evaluate(() => {
+    window.__hostLauf = window.__game.Network.hostRoom('ABCDE');
+  });
   await warteAufPhase(page, 1);
   await page.evaluate(() => window.__game.Network.leaveOnlineRoom());
   turnTor.oeffne();

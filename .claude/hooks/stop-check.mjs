@@ -8,10 +8,25 @@ import { join } from 'node:path';
 
 const wurzel = join(import.meta.dirname, '..', '..');
 const STAND = join(wurzel, '.claude', '.check-stand.json');
-const PFADE = ['src', 'tests', 'worker', 'scripts', 'types', 'jsconfig.json', 'playwright.config.js', 'package.json', 'package-lock.json'];
+const PFADE = [
+  'src',
+  'tests',
+  'worker',
+  'scripts',
+  'types',
+  'jsconfig.json',
+  'playwright.config.js',
+  'package.json',
+  'package-lock.json',
+];
 
-const dateien = execFileSync('git', ['ls-files', '-co', '--exclude-standard', '--', ...PFADE], { cwd: wurzel, encoding: 'utf8' })
-  .split('\n').filter(Boolean).sort();
+const dateien = execFileSync('git', ['ls-files', '-co', '--exclude-standard', '--', ...PFADE], {
+  cwd: wurzel,
+  encoding: 'utf8',
+})
+  .split('\n')
+  .filter(Boolean)
+  .sort();
 const hash = createHash('sha1');
 for (const datei of dateien) {
   const pfad = join(wurzel, datei);
@@ -21,7 +36,11 @@ for (const datei of dateien) {
 const fingerabdruck = hash.digest('hex');
 
 let stand = {};
-try { stand = JSON.parse(readFileSync(STAND, 'utf8')); } catch { /* erster Lauf */ }
+try {
+  stand = JSON.parse(readFileSync(STAND, 'utf8'));
+} catch {
+  /* erster Lauf */
+}
 if (stand.gruen === fingerabdruck) process.exit(0);
 
 const lauf = spawnSync('bash', ['scripts/check.sh'], { cwd: wurzel, encoding: 'utf8' });

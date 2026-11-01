@@ -2,10 +2,13 @@ const { test, expect } = require('@playwright/test');
 const { setzeSpielstand } = require('./helfer');
 
 test.beforeEach(async ({ page }) => {
-  await page.route('**/api/highscores*', route => route.fulfill({
-    status: 200, contentType: 'application/json',
-    body: JSON.stringify({ success: true, mode: 'single', highscores: [] })
-  }));
+  await page.route('**/api/highscores*', route =>
+    route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({ success: true, mode: 'single', highscores: [] }),
+    }),
+  );
   await setzeSpielstand(page);
   await page.goto('/');
 });
@@ -39,7 +42,7 @@ test('berechneSchritte begrenzt grosse Deltas und ignoriert negative', async ({ 
       max: MAX_SCHRITTE_PRO_FRAME,
       gross: berechneSchritte(0, 5000),
       negativ: berechneSchritte(0, -100),
-      nan: berechneSchritte(0, NaN)
+      nan: berechneSchritte(0, NaN),
     };
   });
   expect(r.gross.schritte).toBe(r.max);
@@ -54,7 +57,10 @@ test('simulationsSchritt plant keinen Animation-Frame ein', async ({ page }) => 
     const { state } = await import('./js/state.js');
     const original = window.requestAnimationFrame;
     let zaehler = 0;
-    window.requestAnimationFrame = (cb) => { zaehler++; return original(cb); };
+    window.requestAnimationFrame = cb => {
+      zaehler++;
+      return original(cb);
+    };
     try {
       // Startbildschirm (Frueh-Return-Zweig)
       for (let i = 0; i < 3; i++) simulationsSchritt();

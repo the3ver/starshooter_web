@@ -1,4 +1,3 @@
-
 import { state, config, arrays, shipModels } from './state.js';
 import * as Gleve from './gleve.js';
 import * as Viper from './viper.js';
@@ -7,9 +6,9 @@ import * as Hack from './hack.js';
 
 // --- Bot-Schwierigkeitsstufen ---
 const BOT_DIFFICULTY = {
-  easy:   { reactionFrames: 8, aimCorridor: 60, dodgeRadius: 60,  powerupRange: 120 },
-  normal: { reactionFrames: 3, aimCorridor: 30, dodgeRadius: 80,  powerupRange: 180 },
-  hard:   { reactionFrames: 0, aimCorridor: 15, dodgeRadius: 100, powerupRange: 250 }
+  easy: { reactionFrames: 8, aimCorridor: 60, dodgeRadius: 60, powerupRange: 120 },
+  normal: { reactionFrames: 3, aimCorridor: 30, dodgeRadius: 80, powerupRange: 180 },
+  hard: { reactionFrames: 0, aimCorridor: 15, dodgeRadius: 100, powerupRange: 250 },
 };
 
 let reactionCounter = 0;
@@ -142,8 +141,16 @@ export function findBestTarget(p2, diff) {
     if (boss.hp <= 0) continue;
     const m = bossMitte(boss);
     const dSq = distanceSq(cx, p2.y, m.x, m.y);
-    if (m.y < p2.y && dSq < bestDSq) { // Nur Ziele über dem Bot
-      bestTarget = { x: m.x, y: m.y, dSq, isBoss: true, unten: boss.y + (boss.groesse || 100), groesse: boss.groesse || 100 };
+    if (m.y < p2.y && dSq < bestDSq) {
+      // Nur Ziele über dem Bot
+      bestTarget = {
+        x: m.x,
+        y: m.y,
+        dSq,
+        isBoss: true,
+        unten: boss.y + (boss.groesse || 100),
+        groesse: boss.groesse || 100,
+      };
       bestDSq = dSq;
     }
   }
@@ -195,7 +202,8 @@ function computeMovement(p2, target, danger, powerup, diff) {
     const raumLinks = cx;
     const raumRechts = config.spielfeldBreite - cx;
     // Gleve mit bereitem Sweep (laeuft oder genug Energie) pariert Gefahren im Bogen, statt seitlich aus ihm herauszufliegen
-    const pariert = Gleve.istGleve(p2) && (Gleve.istSweepAktiv(p2) || sweepBereit(p2)) && imSweepBogen(p2, danger.x, danger.y);
+    const pariert =
+      Gleve.istGleve(p2) && (Gleve.istSweepAktiv(p2) || sweepBereit(p2)) && imSweepBogen(p2, danger.x, danger.y);
     // Gefahr fast genau ueber dem Bot: seitlich zur freieren Seite ausweichen statt nur nach unten
     if (!pariert && Math.abs(dx) < 20 && dy > 0) moveX = (raumRechts >= raumLinks ? 1 : -1) * 1.5;
     // Nicht in die Wand ausweichen, sondern zur Mitte hin
@@ -272,7 +280,10 @@ function sniperBewegung(p2, target, cx, cy, zielX) {
   const kreuzY = target.isBoss ? target.unten - 0.3 * target.groesse : target.y;
   const halfSize = config.spielerGroesse / 2;
   // Schiffsoberkante = Mitte - halfSize; Fadenkreuz liegt FADENKREUZ_ABSTAND darueber (oben bei 0 begrenzt)
-  const idealCy = Math.max(Sniper.FADENKREUZ_ABSTAND + halfSize, Math.min(config.spielfeldHoehe - halfSize, kreuzY + Sniper.FADENKREUZ_ABSTAND + halfSize));
+  const idealCy = Math.max(
+    Sniper.FADENKREUZ_ABSTAND + halfSize,
+    Math.min(config.spielfeldHoehe - halfSize, kreuzY + Sniper.FADENKREUZ_ABSTAND + halfSize),
+  );
   const dy = idealCy - cy;
   if (Math.abs(dy) > SNIPER_TOLERANZ) moveY = dy > 0 ? 0.8 : -0.8;
   return { moveX, moveY };
@@ -296,7 +307,12 @@ function sniperGranateLohnt(p2, kreuz, imKreis) {
   // Stufe 5 loescht Geschosse im Radius: Geschoss, das nach der Flugzeit (30 Schritte) am Kreuz ankommt und aufs Schiff zielt
   if ((p2.raketenStufe || 1) >= 5) {
     const cx = p2.x + config.spielerGroesse / 2;
-    for (const g of [...arrays.feindLaserArray, ...arrays.bossLaserArray, ...arrays.hackProjektilArray, ...arrays.bossRaketenArray]) {
+    for (const g of [
+      ...arrays.feindLaserArray,
+      ...arrays.bossLaserArray,
+      ...arrays.hackProjektilArray,
+      ...arrays.bossRaketenArray,
+    ]) {
       if (g.harmlos || Math.abs(g.x - cx) > 50 || g.y > p2.y) continue;
       const py = g.y + (g.vy || 4) * Sniper.GRANATE_FLUG;
       if (Math.hypot(g.x - kreuz.x, py - kreuz.y) <= r * 0.8) return true;
@@ -310,7 +326,12 @@ function sniperEmpLohnt(p2) {
   const cx = p2.x + config.spielerGroesse / 2;
   const cy = p2.y + config.spielerGroesse / 2;
   const r = Math.min(80, Sniper.empRadius(p2));
-  for (const g of [...arrays.feindLaserArray, ...arrays.bossLaserArray, ...arrays.hackProjektilArray, ...arrays.bossRaketenArray]) {
+  for (const g of [
+    ...arrays.feindLaserArray,
+    ...arrays.bossLaserArray,
+    ...arrays.hackProjektilArray,
+    ...arrays.bossRaketenArray,
+  ]) {
     if (g.harmlos) continue;
     const w = g.width || g.groesse || 4;
     const h = g.height || g.groesse || 4;
@@ -353,19 +374,37 @@ function updateSniperWaffen(p2) {
     sniperHaltedauer++;
     let loslassen = offline || sniperModus === 'tipp';
     if (sniperModus === 'laden') {
-      const bossNah = bossImKreis || Sniper.zieleImKreis(kreuz.x, kreuz.y, radius * Sniper.MAX_RADIUSFAKTOR).some(z => arrays.bosses.includes(z));
+      const bossNah =
+        bossImKreis ||
+        Sniper.zieleImKreis(kreuz.x, kreuz.y, radius * Sniper.MAX_RADIUSFAKTOR).some(z => arrays.bosses.includes(z));
       // Voll geladen (oder Energie bis auf den Schuss aufgebraucht) oder Boss weg: loslassen
-      if (p2.sniperVoll || (p2.sniperLadung || 0) >= Sniper.LADUNG_VOLL || !bossNah || sniperHaltedauer > Sniper.LADUNG_VOLL + 15 || energie < Sniper.SCHUSS_ENERGIE + 1) loslassen = true;
+      if (
+        p2.sniperVoll ||
+        (p2.sniperLadung || 0) >= Sniper.LADUNG_VOLL ||
+        !bossNah ||
+        sniperHaltedauer > Sniper.LADUNG_VOLL + 15 ||
+        energie < Sniper.SCHUSS_ENERGIE + 1
+      )
+        loslassen = true;
     }
-    if (loslassen) { p2.botFireLaser = false; sniperModus = null; sniperHaltedauer = 0; }
-    else p2.botFireLaser = true;
+    if (loslassen) {
+      p2.botFireLaser = false;
+      sniperModus = null;
+      sniperHaltedauer = 0;
+    } else p2.botFireLaser = true;
   } else {
     p2.botFireLaser = false;
     if (!offline && p2.sniperCooldown <= 0) {
       if (bossImKreis) {
-        if (energie >= ladeEnergie) { sniperModus = 'laden'; sniperHaltedauer = 0; p2.botFireLaser = true; }
+        if (energie >= ladeEnergie) {
+          sniperModus = 'laden';
+          sniperHaltedauer = 0;
+          p2.botFireLaser = true;
+        }
       } else if (normalImKreis && energie >= 8) {
-        sniperModus = 'tipp'; sniperHaltedauer = 0; p2.botFireLaser = true;
+        sniperModus = 'tipp';
+        sniperHaltedauer = 0;
+        p2.botFireLaser = true;
       }
     }
   }
@@ -374,7 +413,11 @@ function updateSniperWaffen(p2) {
   const minenLohnt = sniperMinenLohnt(p2);
   if (sniperMinenHalt) {
     sniperMinenSchritte++;
-    const fertig = (p2.granateMinen || 0) >= 5 || !minenLohnt || offline || ((p2.granateMinen || 0) === 0 && (p2.sniperGranatenLadungen || 0) < 1);
+    const fertig =
+      (p2.granateMinen || 0) >= 5 ||
+      !minenLohnt ||
+      offline ||
+      ((p2.granateMinen || 0) === 0 && (p2.sniperGranatenLadungen || 0) < 1);
     if (fertig && (sniperMinenSchritte > 10 || offline)) {
       sniperMinenHalt = false;
       sniperMinenSchritte = 0;
@@ -391,7 +434,11 @@ function updateSniperWaffen(p2) {
     if (sniperTippRest === 0) sniperTippPause = 3;
   } else if (sniperTippPause > 0) {
     sniperTippPause--;
-  } else if (!offline && (p2.sniperGranatenLadungen || 0) >= 1 && (sniperEmpLohnt(p2) || sniperGranateLohnt(p2, kreuz, imKreis))) {
+  } else if (
+    !offline &&
+    (p2.sniperGranatenLadungen || 0) >= 1 &&
+    (sniperEmpLohnt(p2) || sniperGranateLohnt(p2, kreuz, imKreis))
+  ) {
     sniperTippRest = 1;
     p2.botFireRakete = true;
   } else if (!offline && (p2.sniperGranatenLadungen || 0) >= 1 && minenLohnt) {
@@ -415,8 +462,8 @@ function dashWegBlockiert(p2, dx, dy) {
   const hindernisse = [...arrays.bosses];
   if (!Gleve.dashKnacktMagma(p2)) hindernisse.push(...arrays.asteroiden.filter(a => a.istUnzerstoerbar));
   for (let i = 1; i <= Gleve.DASH_FRAMES; i++) {
-    const x = p2.x + dx * reichweite * i / Gleve.DASH_FRAMES;
-    const y = p2.y + dy * reichweite * i / Gleve.DASH_FRAMES;
+    const x = p2.x + (dx * reichweite * i) / Gleve.DASH_FRAMES;
+    const y = p2.y + (dy * reichweite * i) / Gleve.DASH_FRAMES;
     for (const h of hindernisse) {
       const b = boxVon(h);
       if (x < b.x + b.w && x + s > b.x && y < b.y + b.h && y + s > b.y) return true;
@@ -454,8 +501,10 @@ function findeDashZiel(p2) {
   let beste = null;
   let besteDSq = Infinity;
   // Feindschiffe zuerst, Asteroiden nur ohne Feind
-  const kandidaten = arrays.feinde.length > 0 ? arrays.feinde
-    : arrays.asteroiden.filter(a => !a.traegtPowerup && kannAsteroidZerstoeren(p2, a));
+  const kandidaten =
+    arrays.feinde.length > 0
+      ? arrays.feinde
+      : arrays.asteroiden.filter(a => !a.traegtPowerup && kannAsteroidZerstoeren(p2, a));
   for (const f of kandidaten) {
     const b = boxVon(f);
     const fx = b.x + b.w / 2;
@@ -481,7 +530,7 @@ function imSweepBogen(p2, px, py) {
   const dy = py - oy;
   const dist = Math.hypot(dx, dy);
   if (dist > Gleve.sweepLaenge(p2) || dy > 0) return false;
-  return Math.abs(Math.atan2(dx, -dy) * 180 / Math.PI) <= Gleve.sweepBogen(p2) / 2;
+  return Math.abs((Math.atan2(dx, -dy) * 180) / Math.PI) <= Gleve.sweepBogen(p2) / 2;
 }
 
 // Reicht die Energie fuer den naechsten Sweep (Superwaffe: immer)?
@@ -496,7 +545,12 @@ function sweepLohntSich(p2) {
     const b = boxVon(p);
     if (imSweepBogen(p2, b.x + b.w / 2, b.y + b.h / 2)) return true;
   }
-  const ziele = [...arrays.feinde, ...arrays.asteroiden.filter(a => !a.istUnzerstoerbar), ...arrays.bosses, ...arrays.bossRaketenArray];
+  const ziele = [
+    ...arrays.feinde,
+    ...arrays.asteroiden.filter(a => !a.istUnzerstoerbar),
+    ...arrays.bosses,
+    ...arrays.bossRaketenArray,
+  ];
   for (const z of ziele) {
     const b = boxVon(z);
     // Mitte oder untere Kante (grosse Ziele wie Bosse)
@@ -508,7 +562,12 @@ function sweepLohntSich(p2) {
 function updateGleveWaffen(p2) {
   // Dash (Raketen-Taste): ein Schritt Druck (Flanke), nur ohne Cooldown, ohne Waffen-Hack und nicht dauernd
   p2.botFireRakete = false;
-  if (gleveDashSperre <= 0 && (p2.gleveDashLadungen || 0) >= 1 && !Gleve.istDashAktiv(p2) && !Hack.hatHack(p2, 'waffenOffline')) {
+  if (
+    gleveDashSperre <= 0 &&
+    (p2.gleveDashLadungen || 0) >= 1 &&
+    !Gleve.istDashAktiv(p2) &&
+    !Hack.hatHack(p2, 'waffenOffline')
+  ) {
     let ziel = findeDashZiel(p2);
     // Bosse: nur mit mindestens 2 Ladungen (eine bleibt als Reserve)
     if (!ziel && arrays.feinde.length === 0 && (p2.gleveDashLadungen || 0) >= 2) ziel = findeBossDashZiel(p2);
@@ -555,7 +614,7 @@ function updateStandardWaffen(p2, diff, target, cx) {
   // Raketen: Feuern wenn Ziel im Schussfeld (bei Bossen immer wenn grob ausgerichtet, bei Feinden bis 350px)
   p2.botFireRakete = false;
   if (target && p2.raketenCooldown <= 0) {
-    const isAligned = Math.abs(target.x - cx) <= (diff.aimCorridor * 1.5);
+    const isAligned = Math.abs(target.x - cx) <= diff.aimCorridor * 1.5;
     if (target.isBoss && isAligned) {
       p2.botFireRakete = true;
     } else if (isAligned && target.dSq < 350 * 350) {
@@ -574,8 +633,15 @@ function seitenFreiheit(p2, richtung, cx, cy) {
   const x1 = cx + richtung * (Viper.ROLLE_DISTANZ + 15);
   const lo = Math.min(cx, x1) - 8;
   const hi = Math.max(cx, x1) + 8;
-  const hindernisse = [...arrays.asteroiden, ...arrays.feinde, ...arrays.feindLaserArray, ...arrays.bossLaserArray,
-    ...arrays.hackProjektilArray, ...arrays.bossBombenArray, ...arrays.bossRaketenArray];
+  const hindernisse = [
+    ...arrays.asteroiden,
+    ...arrays.feinde,
+    ...arrays.feindLaserArray,
+    ...arrays.bossLaserArray,
+    ...arrays.hackProjektilArray,
+    ...arrays.bossBombenArray,
+    ...arrays.bossRaketenArray,
+  ];
   for (const h of hindernisse) {
     if (h.harmlos) continue;
     const hx = h.x + (h.groesse || h.width || 4) / 2;
@@ -627,7 +693,7 @@ export function updateBot() {
 
   // Smooth Bewegung anwenden
   const p2Ship = shipModels && shipModels[p2.selectedShipModel || 'phantom'];
-  const speed = (p2Ship?.speed || config.geschwindigkeit);
+  const speed = p2Ship?.speed || config.geschwindigkeit;
 
   p2.x += lastDecision.moveX * speed;
   p2.y += lastDecision.moveY * speed;

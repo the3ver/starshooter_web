@@ -6,15 +6,20 @@ const { test, expect } = require('@playwright/test');
 const { setzeSpielstand } = require('./helfer');
 
 test.beforeEach(async ({ page }) => {
-  await page.route('**/api/highscores*', route => route.fulfill({
-    status: 200, contentType: 'application/json',
-    body: JSON.stringify({ success: true, mode: 'single', highscores: [] })
-  }));
+  await page.route('**/api/highscores*', route =>
+    route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({ success: true, mode: 'single', highscores: [] }),
+    }),
+  );
   await setzeSpielstand(page);
   await page.goto('/');
 });
 
-test('Test-Backend: zeichneWelt einmal pro Schritt, Logik schreibt keine Positionen ins DOM, entferne beim Verlassen des Felds', async ({ page }) => {
+test('Test-Backend: zeichneWelt einmal pro Schritt, Logik schreibt keine Positionen ins DOM, entferne beim Verlassen des Felds', async ({
+  page,
+}) => {
   const r = await page.evaluate(async () => {
     const Anzeige = await import('./js/anzeige.js');
     const { simulationsSchritt } = await import('./js/loop.js');
@@ -32,21 +37,30 @@ test('Test-Backend: zeichneWelt einmal pro Schritt, Logik schreibt keine Positio
     const domBackend = Anzeige.holeBackend();
     Anzeige.setzeBackend({
       erzeuge() {},
-      blitze() {}, blitzeSpielfeld() {},
+      blitze() {},
+      blitzeSpielfeld() {},
       zeichneSpieler() {},
-      zeichneWelt() { protokoll.zeichne++; },
-      entferne(o) { protokoll.entfernt.push(o.id); }
+      zeichneWelt() {
+        protokoll.zeichne++;
+      },
+      entferne(o) {
+        protokoll.entfernt.push(o.id);
+      },
     });
     try {
       for (let i = 0; i < 3; i++) simulationsSchritt();
-      const nachSchritten = { zeichne: protokoll.zeichne, yBewegt: f.y > yVorher, topGleich: f.el.style.top === topVorher };
+      const nachSchritten = {
+        zeichne: protokoll.zeichne,
+        yBewegt: f.y > yVorher,
+        topGleich: f.el.style.top === topVorher,
+      };
       f.y = config.spielfeldHoehe + 10;
       simulationsSchritt();
       return {
         ...nachSchritten,
         entferntFeind: protokoll.entfernt.includes(f.id),
         ausListe: !arrays.feinde.includes(f),
-        elementNochDa: f.el.isConnected
+        elementNochDa: f.el.isConnected,
       };
     } finally {
       Anzeige.setzeBackend(domBackend);
@@ -68,10 +82,13 @@ test('DOM-Backend zeichnet aus dem Modell: Position, Drehung, Anzeigeposition de
     const Entities = await import('./js/entities.js');
     Entities.erzeugeFeind(100, 50, 'normal', 0);
     const f = arrays.feinde[arrays.feinde.length - 1];
-    f.x = 12; f.y = 34; f.rot = 45;
+    f.x = 12;
+    f.y = 34;
+    f.rot = 45;
     Anzeige.zeichneWelt();
     const modell = [f.el.style.left, f.el.style.top, f.el.style.transform];
-    f.anzeigeX = 56; f.anzeigeY = 78;
+    f.anzeigeX = 56;
+    f.anzeigeY = 78;
     Anzeige.zeichneWelt();
     const anzeige = [f.el.style.left, f.el.style.top];
     Anzeige.entferne(f);
@@ -88,23 +105,43 @@ test('setzeBackend lehnt ein Backend ohne Pflichtfunktionen ab', async ({ page }
     const meldungen = [];
     const f = () => {};
     const voll = { erzeuge: f, zeichneWelt: f, zeichneSpieler: f, entferne: f, blitze: f, blitzeSpielfeld: f };
-    const ohne = name => { const b = { ...voll }; delete b[name]; return b; };
+    const ohne = name => {
+      const b = { ...voll };
+      delete b[name];
+      return b;
+    };
     for (const b of [null, {}, ...Object.keys(voll).map(ohne)]) {
-      try { Anzeige.setzeBackend(b); meldungen.push(null); } catch (e) { meldungen.push(e.message); }
+      try {
+        Anzeige.setzeBackend(b);
+        meldungen.push(null);
+      } catch (e) {
+        meldungen.push(e.message);
+      }
     }
     return meldungen;
   });
   expect(fehler.every(m => typeof m === 'string' && m.startsWith('Anzeige-Backend ohne'))).toBe(true);
 });
 
-test('Spiellogik erzeugt Weltobjekte nur ueber die Anzeige: Test-Backend bekommt Objekt und Art, kein DOM-Element', async ({ page }) => {
+test('Spiellogik erzeugt Weltobjekte nur ueber die Anzeige: Test-Backend bekommt Objekt und Art, kein DOM-Element', async ({
+  page,
+}) => {
   const r = await page.evaluate(async () => {
     const Anzeige = await import('./js/anzeige.js');
     const { state, arrays } = await import('./js/state.js');
     const Entities = await import('./js/entities.js');
     const domBackend = Anzeige.holeBackend();
     const erzeugt = [];
-    Anzeige.setzeBackend({ erzeuge(o, art) { erzeugt.push(art); }, zeichneWelt() {}, zeichneSpieler() {}, entferne() {}, blitze() {}, blitzeSpielfeld() {} });
+    Anzeige.setzeBackend({
+      erzeuge(o, art) {
+        erzeugt.push(art);
+      },
+      zeichneWelt() {},
+      zeichneSpieler() {},
+      entferne() {},
+      blitze() {},
+      blitzeSpielfeld() {},
+    });
     const vorher = document.querySelectorAll('#spielfeld *').length;
     try {
       state.level = 1;
@@ -117,26 +154,52 @@ test('Spiellogik erzeugt Weltobjekte nur ueber die Anzeige: Test-Backend bekommt
       Entities.erzeugeBossBombe(100, 100);
       Entities.erzeugeBossRakete(100, 100, 1);
       Entities.erzeugeBoss();
-      const neu = [arrays.feinde, arrays.asteroiden, arrays.powerups, arrays.feindLaserArray, arrays.hackProjektilArray,
-        arrays.bossLaserArray, arrays.bossBombenArray, arrays.bossRaketenArray, arrays.bosses].map(l => l[l.length - 1]);
+      const neu = [
+        arrays.feinde,
+        arrays.asteroiden,
+        arrays.powerups,
+        arrays.feindLaserArray,
+        arrays.hackProjektilArray,
+        arrays.bossLaserArray,
+        arrays.bossBombenArray,
+        arrays.bossRaketenArray,
+        arrays.bosses,
+      ].map(l => l[l.length - 1]);
       const ast = arrays.asteroiden[arrays.asteroiden.length - 1];
       return {
         erzeugt,
         ohneEl: neu.every(o => o.el === undefined),
         domGleich: document.querySelectorAll('#spielfeld *').length === vorher,
-        asteroid: { farbe: typeof ast.farbe, farbe2: typeof ast.farbe2, formPunkte: Array.isArray(ast.form) && ast.form.length >= 6, riss: typeof ast.riss }
+        asteroid: {
+          farbe: typeof ast.farbe,
+          farbe2: typeof ast.farbe2,
+          formPunkte: Array.isArray(ast.form) && ast.form.length >= 6,
+          riss: typeof ast.riss,
+        },
       };
     } finally {
       Anzeige.setzeBackend(domBackend);
     }
   });
-  expect(r.erzeugt).toEqual(['feind', 'asteroid', 'powerup', 'feindLaser', 'hackProjektil', 'bossLaser', 'bossBombe', 'bossRakete', 'boss']);
+  expect(r.erzeugt).toEqual([
+    'feind',
+    'asteroid',
+    'powerup',
+    'feindLaser',
+    'hackProjektil',
+    'bossLaser',
+    'bossBombe',
+    'bossRakete',
+    'boss',
+  ]);
   expect(r.ohneEl).toBe(true);
   expect(r.domGleich).toBe(true);
   expect(r.asteroid).toEqual({ farbe: 'string', farbe2: 'string', formPunkte: true, riss: 'number' });
 });
 
-test('Host und Online-Client bauen gleiche Elemente; der Snapshot traegt Modelldaten statt CSS-Text', async ({ page }) => {
+test('Host und Online-Client bauen gleiche Elemente; der Snapshot traegt Modelldaten statt CSS-Text', async ({
+  page,
+}) => {
   const r = await page.evaluate(async () => {
     const { arrays, state } = await import('./js/state.js');
     const Entities = await import('./js/entities.js');
@@ -149,7 +212,7 @@ test('Host und Online-Client bauen gleiche Elemente; der Snapshot traegt Modelld
     const host = {
       asteroid: arrays.asteroiden[0].el.outerHTML,
       feind: arrays.feinde[0].el.outerHTML,
-      powerup: arrays.powerups[0].el.outerHTML
+      powerup: arrays.powerups[0].el.outerHTML,
     };
     const snapshot = Network.serializeGameState();
     // Host-Objekte entfernen, damit der Client sie aus dem Snapshot neu baut
@@ -165,10 +228,10 @@ test('Host und Online-Client bauen gleiche Elemente; der Snapshot traegt Modelld
       gleich: {
         asteroid: ohneDrehung(arrays.asteroiden[0].el.outerHTML) === ohneDrehung(host.asteroid),
         feind: ohneDrehung(arrays.feinde[0].el.outerHTML) === ohneDrehung(host.feind),
-        powerup: arrays.powerups[0].el.outerHTML === host.powerup
+        powerup: arrays.powerups[0].el.outerHTML === host.powerup,
       },
       snapshotFelder: Object.keys(sa).filter(k => ['background', 'clipPath', 'baseColor'].includes(k)),
-      formText: typeof sa.form
+      formText: typeof sa.form,
     };
   });
   expect(r.gleich).toEqual({ asteroid: true, feind: true, powerup: true });
@@ -212,7 +275,9 @@ test('Online-Client: Feind-Schild verschwindet, wenn der Host es bricht', async 
   expect(r).toEqual({ vorher: true, nachher: false });
 });
 
-test('DOM-Backend zeigt Zustand aus Modellfeldern: Schild, Risse, Magma, Betaeubung, Repulsor, Schlepp-Strahl, Parade', async ({ page }) => {
+test('DOM-Backend zeigt Zustand aus Modellfeldern: Schild, Risse, Magma, Betaeubung, Repulsor, Schlepp-Strahl, Parade', async ({
+  page,
+}) => {
   const r = await page.evaluate(async () => {
     const { arrays, state } = await import('./js/state.js');
     const Entities = await import('./js/entities.js');
@@ -223,11 +288,20 @@ test('DOM-Backend zeigt Zustand aus Modellfeldern: Schild, Risse, Magma, Betaeub
     Entities.erzeugeBoss();
     Entities.erzeugePowerup(10, 20, 'schild', 'p2');
     Entities.erzeugeFeindLaser(100, 100, 100, 300);
-    const [f, a, b, p, fl] = [arrays.feinde[0], arrays.asteroiden[0], arrays.bosses[0], arrays.powerups[0], arrays.feindLaserArray[0]];
-    f.schildHp = 0; f.betaeubt = 5;
+    const [f, a, b, p, fl] = [
+      arrays.feinde[0],
+      arrays.asteroiden[0],
+      arrays.bosses[0],
+      arrays.powerups[0],
+      arrays.feindLaserArray[0],
+    ];
+    f.schildHp = 0;
+    f.betaeubt = 5;
     a.hp = a.maxHp / 2;
     b.repulsorAktiv = true;
-    p.towedBy = 'p1'; p.strahlX = 30; p.strahlY = 40;
+    p.towedBy = 'p1';
+    p.strahlX = 30;
+    p.strahlY = 40;
     fl.harmlos = true;
     Anzeige.zeichneWelt();
     const strahl = p.beamEl && p.beamEl.querySelector('line');
@@ -238,19 +312,35 @@ test('DOM-Backend zeigt Zustand aus Modellfeldern: Schild, Risse, Magma, Betaeub
       repulsor: b.el.classList.contains('repulsor-aktiv'),
       towed: p.el.classList.contains('powerup-towed-p1'),
       strahl: strahl ? [strahl.getAttribute('x1'), strahl.getAttribute('y1')] : null,
-      pariert: fl.el.classList.contains('gleve-pariert')
+      pariert: fl.el.classList.contains('gleve-pariert'),
     };
     // Zustand zurueck: Klassen und Strahl verschwinden wieder; Magma-Brocken bekommt seine Klasse
-    f.betaeubt = 0; b.repulsorAktiv = false; p.towedBy = null; a.istUnzerstoerbar = true;
+    f.betaeubt = 0;
+    b.repulsorAktiv = false;
+    p.towedBy = null;
+    a.istUnzerstoerbar = true;
     Anzeige.zeichneWelt();
     const strahlEl = p.beamEl;
     return {
       zustand,
-      zurueck: { betaeubt: f.el.classList.contains('betaeubt'), repulsor: b.el.classList.contains('repulsor-aktiv'),
-        towed: p.el.classList.contains('powerup-towed'), strahl: strahlEl, magma: a.el.classList.contains('unzerstoerbar') }
+      zurueck: {
+        betaeubt: f.el.classList.contains('betaeubt'),
+        repulsor: b.el.classList.contains('repulsor-aktiv'),
+        towed: p.el.classList.contains('powerup-towed'),
+        strahl: strahlEl,
+        magma: a.el.classList.contains('unzerstoerbar'),
+      },
     };
   });
-  expect(r.zustand).toEqual({ schildWeg: true, betaeubt: true, riss: 0.5, repulsor: true, towed: true, strahl: ['30', '40'], pariert: true });
+  expect(r.zustand).toEqual({
+    schildWeg: true,
+    betaeubt: true,
+    riss: 0.5,
+    repulsor: true,
+    towed: true,
+    strahl: ['30', '40'],
+    pariert: true,
+  });
   expect(r.zurueck).toEqual({ betaeubt: false, repulsor: false, towed: false, strahl: null, magma: true });
 });
 
@@ -265,7 +355,12 @@ test('Treffer melden einen Blitz an die Anzeige, ohne Element-Zugriff der Logik'
     const a = arrays.asteroiden[0];
     const domBackend = Anzeige.holeBackend();
     const blitze = [];
-    Anzeige.setzeBackend({ ...domBackend, blitze(o, staerke) { blitze.push([o.id, staerke]); } });
+    Anzeige.setzeBackend({
+      ...domBackend,
+      blitze(o, staerke) {
+        blitze.push([o.id, staerke]);
+      },
+    });
     try {
       Gleve.schadeZiel(a, 1, 'p1');
     } finally {
@@ -297,69 +392,165 @@ test('Spielerschiff aus dem Zustand: Position, Neigung, Flammen, Sichtbarkeit, B
   const r = await page.evaluate(async () => {
     const { state, dom } = await import('./js/state.js');
     const Anzeige = await import('./js/anzeige.js');
-    Object.assign(state, { x: 40, y: 50, drehung: 12, flammenSkala: 1.8, schiffSichtbar: true, invulnerableTimer: 10, schildStufe: 2 });
+    Object.assign(state, {
+      x: 40,
+      y: 50,
+      drehung: 12,
+      flammenSkala: 1.8,
+      schiffSichtbar: true,
+      invulnerableTimer: 10,
+      schildStufe: 2,
+    });
     Anzeige.zeichneSpieler();
     const el = dom.spieler;
     const an = {
-      pos: [el.style.left, el.style.top], transform: el.style.transform, display: el.style.display,
+      pos: [el.style.left, el.style.top],
+      transform: el.style.transform,
+      display: el.style.display,
       flamme: document.getElementById('flame-left').style.transform,
       blink: el.classList.contains('spieler-blink'),
-      schild: Array.from(el.classList).filter(k => k.startsWith('schild-aktiv-'))
+      schild: Array.from(el.classList).filter(k => k.startsWith('schild-aktiv-')),
     };
     // Online-Client: P1 an der interpolierten Anzeigeposition
     Object.assign(state, { anzeigeX: 70, anzeigeY: 80, schiffSichtbar: false, invulnerableTimer: 0, schildStufe: 0 });
     Anzeige.zeichneSpieler();
-    const aus = { pos: [el.style.left, el.style.top], display: el.style.display, blink: el.classList.contains('spieler-blink'),
-      schild: Array.from(el.classList).filter(k => k.startsWith('schild-aktiv-')) };
+    const aus = {
+      pos: [el.style.left, el.style.top],
+      display: el.style.display,
+      blink: el.classList.contains('spieler-blink'),
+      schild: Array.from(el.classList).filter(k => k.startsWith('schild-aktiv-')),
+    };
     delete state.anzeigeX;
     delete state.anzeigeY;
     return { an, aus };
   });
-  expect(r.an).toEqual({ pos: ['40px', '50px'], transform: 'rotate(12deg)', display: 'block', flamme: 'scaleY(1.8)', blink: true, schild: ['schild-aktiv-2'] });
+  expect(r.an).toEqual({
+    pos: ['40px', '50px'],
+    transform: 'rotate(12deg)',
+    display: 'block',
+    flamme: 'scaleY(1.8)',
+    blink: true,
+    schild: ['schild-aktiv-2'],
+  });
   expect(r.aus).toEqual({ pos: ['70px', '80px'], display: 'none', blink: false, schild: [] });
 });
 
-test('Schiffsaussehen und -zustand aus dem Modell: SVG, Werfer-Pods, Dash/Rolle/Overdrive/Hack, Strahlen', async ({ page }) => {
+test('Schiffsaussehen und -zustand aus dem Modell: SVG, Werfer-Pods, Dash/Rolle/Overdrive/Hack, Strahlen', async ({
+  page,
+}) => {
   const r = await page.evaluate(async () => {
     const { state, dom } = await import('./js/state.js');
     const Anzeige = await import('./js/anzeige.js');
     const el = dom.spieler;
-    const pods = () => ['.werfer-links', '.werfer-rechts', '.werfer-center'].map(sel => el.querySelector(sel).style.display);
-    Object.assign(state, { isDead: false, selectedShipModel: 'gleve', selectedShipColor: 'green', raketenStufe: 5, gleveDashTimer: 4 });
+    const pods = () =>
+      ['.werfer-links', '.werfer-rechts', '.werfer-center'].map(sel => el.querySelector(sel).style.display);
+    Object.assign(state, {
+      isDead: false,
+      selectedShipModel: 'gleve',
+      selectedShipColor: 'green',
+      raketenStufe: 5,
+      gleveDashTimer: 4,
+    });
     Anzeige.zeichneSpieler();
-    const gleve = { klasse: el.classList.contains('schiff-gleve'), dash: el.classList.contains('gleve-dash'), pods: pods(),
-      svgGruen: el.querySelector('svg').innerHTML.includes('#2ecc71') };
-    Object.assign(state, { selectedShipModel: 'viper', selectedShipColor: 'red', raketenStufe: 5, gleveDashTimer: 0,
-      viperRolleTimer: 3, viperOverdriveTimer: 10, hacks: [{ typ: 'invertiert', timer: 90 }],
-      autolaserStrahl: { x: 100, y: 300, laenge: 50, winkel: 20 }, hitscanStrahl: { x: 100, y: 300, laenge: 300 } });
+    const gleve = {
+      klasse: el.classList.contains('schiff-gleve'),
+      dash: el.classList.contains('gleve-dash'),
+      pods: pods(),
+      svgGruen: el.querySelector('svg').innerHTML.includes('#2ecc71'),
+    };
+    Object.assign(state, {
+      selectedShipModel: 'viper',
+      selectedShipColor: 'red',
+      raketenStufe: 5,
+      gleveDashTimer: 0,
+      viperRolleTimer: 3,
+      viperOverdriveTimer: 10,
+      hacks: [{ typ: 'invertiert', timer: 90 }],
+      autolaserStrahl: { x: 100, y: 300, laenge: 50, winkel: 20 },
+      hitscanStrahl: { x: 100, y: 300, laenge: 300 },
+    });
     Anzeige.zeichneSpieler();
     const label = document.getElementById('hack-label-p1');
     const auto = dom.autolaserEl;
     const hitscan = document.getElementById('hitscan-laser');
-    const viper = { klasse: el.classList.contains('schiff-gleve'), dash: el.classList.contains('gleve-dash'), pods: pods(),
-      rolle: el.classList.contains('viper-rolle'), overdrive: el.classList.contains('viper-overdrive'),
-      gehackt: el.classList.contains('spieler-gehackt'), label: label && label.style.display, labelText: label && label.textContent,
-      auto: [auto.style.display, auto.style.top, auto.style.transform], hitscan: [hitscan.style.display, hitscan.style.top] };
-    Object.assign(state, { raketenStufe: 1, viperRolleTimer: 0, viperOverdriveTimer: 0, hacks: [], autolaserStrahl: null, hitscanStrahl: null });
+    const viper = {
+      klasse: el.classList.contains('schiff-gleve'),
+      dash: el.classList.contains('gleve-dash'),
+      pods: pods(),
+      rolle: el.classList.contains('viper-rolle'),
+      overdrive: el.classList.contains('viper-overdrive'),
+      gehackt: el.classList.contains('spieler-gehackt'),
+      label: label && label.style.display,
+      labelText: label && label.textContent,
+      auto: [auto.style.display, auto.style.top, auto.style.transform],
+      hitscan: [hitscan.style.display, hitscan.style.top],
+    };
+    Object.assign(state, {
+      raketenStufe: 1,
+      viperRolleTimer: 0,
+      viperOverdriveTimer: 0,
+      hacks: [],
+      autolaserStrahl: null,
+      hitscanStrahl: null,
+    });
     Anzeige.zeichneSpieler();
-    const aus = { pods: pods(), rolle: el.classList.contains('viper-rolle'), gehackt: el.classList.contains('spieler-gehackt'),
-      label: label.style.display, auto: auto.style.display, hitscan: hitscan.style.display };
+    const aus = {
+      pods: pods(),
+      rolle: el.classList.contains('viper-rolle'),
+      gehackt: el.classList.contains('spieler-gehackt'),
+      label: label.style.display,
+      auto: auto.style.display,
+      hitscan: hitscan.style.display,
+    };
     return { gleve, viper, aus };
   });
   expect(r.gleve).toEqual({ klasse: true, dash: true, pods: ['none', 'none', 'none'], svgGruen: true });
-  expect(r.viper).toEqual({ klasse: false, dash: false, pods: ['block', 'block', 'block'], rolle: true, overdrive: true,
-    gehackt: true, label: 'block', labelText: 'INVERTED', auto: ['block', '250px', 'rotate(20deg)'], hitscan: ['block', '0px'] });
-  expect(r.aus).toEqual({ pods: ['block', 'none', 'none'], rolle: false, gehackt: false, label: 'none', auto: 'none', hitscan: 'none' });
+  expect(r.viper).toEqual({
+    klasse: false,
+    dash: false,
+    pods: ['block', 'block', 'block'],
+    rolle: true,
+    overdrive: true,
+    gehackt: true,
+    label: 'block',
+    labelText: 'INVERTED',
+    auto: ['block', '250px', 'rotate(20deg)'],
+    hitscan: ['block', '0px'],
+  });
+  expect(r.aus).toEqual({
+    pods: ['block', 'none', 'none'],
+    rolle: false,
+    gehackt: false,
+    label: 'none',
+    auto: 'none',
+    hitscan: 'none',
+  });
 });
 
 test('Spielerschiffe: Logik schreibt nicht in #spieler / #spieler-2', () => {
-  const module = ['spieler.js', 'client.js', 'network.js', 'powerups.js', 'input.js', 'main.js', 'cutscene.js', 'loop.js',
-    'utils.js', 'gleve.js', 'viper.js', 'hack.js', 'waffen.js'];
-  const verboten = /dom\.spieler2?\.(style|classList|setAttribute|querySelector)|flame-(left|right)|autolaserEl|hitscan-laser|schiffElement/;
+  const module = [
+    'spieler.js',
+    'client.js',
+    'network.js',
+    'powerups.js',
+    'input.js',
+    'main.js',
+    'cutscene.js',
+    'loop.js',
+    'utils.js',
+    'gleve.js',
+    'viper.js',
+    'hack.js',
+    'waffen.js',
+  ];
+  const verboten =
+    /dom\.spieler2?\.(style|classList|setAttribute|querySelector)|flame-(left|right)|autolaserEl|hitscan-laser|schiffElement/;
   const funde = [];
   for (const datei of module) {
     const zeilen = fs.readFileSync(path.join(__dirname, '..', 'src', 'js', datei), 'utf8').split('\n');
-    zeilen.forEach((zeile, i) => { if (verboten.test(zeile)) funde.push(`${datei}:${i + 1}: ${zeile.trim()}`); });
+    zeilen.forEach((zeile, i) => {
+      if (verboten.test(zeile)) funde.push(`${datei}:${i + 1}: ${zeile.trim()}`);
+    });
   }
   expect(funde).toEqual([]);
 });
@@ -367,13 +558,27 @@ test('Spielerschiffe: Logik schreibt nicht in #spieler / #spieler-2', () => {
 // Waechter: Diese Module laufen ueber die Anzeige-Schnittstelle. Positionen und Entfernen von Weltobjekten
 // gehoeren ins Backend (anzeige-dom.js), nicht in die Spiellogik.
 test('Spiellogik fasst die Elemente der Weltobjekte nicht an (Position, Zustand, Entfernen)', () => {
-  const module = ['loop.js', 'client.js', 'gegner.js', 'boss.js', 'waffen.js', 'powerups.js', 'partikel.js',
-    'gleve.js', 'input.js', 'utils.js', 'network.js', 'entities.js'];
+  const module = [
+    'loop.js',
+    'client.js',
+    'gegner.js',
+    'boss.js',
+    'waffen.js',
+    'powerups.js',
+    'partikel.js',
+    'gleve.js',
+    'input.js',
+    'utils.js',
+    'network.js',
+    'entities.js',
+  ];
   const verboten = /\.el\.style\.|\.el\.remove\(\)|\.el\.classList|\.el\.querySelector|schildEl|rissEl|beamEl/;
   const funde = [];
   for (const datei of module) {
     const zeilen = fs.readFileSync(path.join(__dirname, '..', 'src', 'js', datei), 'utf8').split('\n');
-    zeilen.forEach((zeile, i) => { if (verboten.test(zeile)) funde.push(`${datei}:${i + 1}: ${zeile.trim()}`); });
+    zeilen.forEach((zeile, i) => {
+      if (verboten.test(zeile)) funde.push(`${datei}:${i + 1}: ${zeile.trim()}`);
+    });
   }
   expect(funde).toEqual([]);
 });
@@ -385,24 +590,41 @@ test('entities.js baut keine DOM-Elemente (Erzeugen nur ueber Anzeige.erzeuge)',
 
 test('Partikel entstehen nur ueber erzeugePartikel (partikel.js)', () => {
   const ordner = path.join(__dirname, '..', 'src', 'js');
-  const funde = fs.readdirSync(ordner).filter(d => d.endsWith('.js') && d !== 'partikel.js')
+  const funde = fs
+    .readdirSync(ordner)
+    .filter(d => d.endsWith('.js') && d !== 'partikel.js')
     .filter(d => fs.readFileSync(path.join(ordner, d), 'utf8').includes('partikelArray.push'));
   expect(funde).toEqual([]);
 });
 
-test('Detonationen erzeugen Effekte ueber die Anzeige: Test-Backend bekommt Art effekt, kein Element im Spielfeld', async ({ page }) => {
+test('Detonationen erzeugen Effekte ueber die Anzeige: Test-Backend bekommt Art effekt, kein Element im Spielfeld', async ({
+  page,
+}) => {
   const r = await page.evaluate(async () => {
     const Anzeige = await import('./js/anzeige.js');
     const Utils = await import('./js/utils.js');
     const { arrays } = await import('./js/state.js');
     const domBackend = Anzeige.holeBackend();
     const arten = [];
-    Anzeige.setzeBackend({ erzeuge(o, art) { if (art === 'effekt') arten.push(o.art); }, zeichneWelt() {}, zeichneSpieler() {}, entferne() {}, blitze() {}, blitzeSpielfeld() {} });
+    Anzeige.setzeBackend({
+      erzeuge(o, art) {
+        if (art === 'effekt') arten.push(o.art);
+      },
+      zeichneWelt() {},
+      zeichneSpieler() {},
+      entferne() {},
+      blitze() {},
+      blitzeSpielfeld() {},
+    });
     const vorher = document.querySelector('#spielfeld').children.length;
     try {
       Utils.erzeugeBombenDetonation(100, 100, '#f39c12', 80, 1, false);
       Utils.erzeugeRaketenDetonation(200, 200, 70);
-      return { arten, effekte: arrays.effekte.length, kinder: document.querySelector('#spielfeld').children.length - vorher };
+      return {
+        arten,
+        effekte: arrays.effekte.length,
+        kinder: document.querySelector('#spielfeld').children.length - vorher,
+      };
     } finally {
       Anzeige.setzeBackend(domBackend);
       arrays.effekte.length = 0;
@@ -460,7 +682,13 @@ test('Stufe-3-Bombe erzeugt zwei Effekte, der zweite ist in den ersten 9 Schritt
     }
     const mini = arrays.effekte.length;
     Utils.erzeugeBombenDetonation(200, 200, '#9b59b6', 100, 3, true);
-    return { arten: [a.art, b.art], unsichtbar, ersteSichtbar: a.el.style.opacity !== '0', mini, nachMini: arrays.effekte.length - mini };
+    return {
+      arten: [a.art, b.art],
+      unsichtbar,
+      ersteSichtbar: a.el.style.opacity !== '0',
+      mini,
+      nachMini: arrays.effekte.length - mini,
+    };
   });
   expect(r.arten).toEqual(['bombenWelle', 'bombenWelle2']);
   expect(r.unsichtbar).toEqual([true, true, true, true, true, true, true, true, true, false, false, false]);
@@ -496,7 +724,9 @@ test('Boss-Bombe erzeugt eine Boss-Welle als Effekt, Game Over und Neustart raeu
   expect(r.elWeg).toBe(true);
 });
 
-test('Sniper-Effekte (Strahl, Druckwelle, Minen-Explosion, EMP) laufen als Effekt ueber die Anzeige, Rest und Aufraeumen nach pKey', async ({ page }) => {
+test('Sniper-Effekte (Strahl, Druckwelle, Minen-Explosion, EMP) laufen als Effekt ueber die Anzeige, Rest und Aufraeumen nach pKey', async ({
+  page,
+}) => {
   await page.keyboard.down('KeyW');
   await page.waitForFunction(() => window.__game.state.spielLaeuft && !window.__game.state.cutsceneAktiv);
   await page.keyboard.up('KeyW');
@@ -511,8 +741,16 @@ test('Sniper-Effekte (Strahl, Druckwelle, Minen-Explosion, EMP) laufen als Effek
     state.energie = 100;
     try {
       Anzeige.setzeBackend({
-        erzeuge(o, art) { if (art === 'effekt') arten.push(o.art); },
-        zeichneWelt() {}, zeichneSpieler() {}, entferne(o) { entfernt.push(o.art); }, blitze() {}, blitzeSpielfeld() {}
+        erzeuge(o, art) {
+          if (art === 'effekt') arten.push(o.art);
+        },
+        zeichneWelt() {},
+        zeichneSpieler() {},
+        entferne(o) {
+          entfernt.push(o.art);
+        },
+        blitze() {},
+        blitzeSpielfeld() {},
       });
       Sniper.aktualisiereSniper(state, 'p1', true);
       Sniper.aktualisiereSniper(state, 'p1', false);
@@ -520,14 +758,26 @@ test('Sniper-Effekte (Strahl, Druckwelle, Minen-Explosion, EMP) laufen als Effek
       Sniper.zeigeMinenExplosion({ x: 150, y: 150, radius: 30, owner: 'p2' });
       Sniper.zeigeEmp({ x: 200, y: 200, radius: 80, owner: 'p1' });
       // das Fadenkreuz bleibt vorerst direkt im DOM, die Effekte nicht
-      const kinder = document.querySelectorAll('.sniper-strahl, .sniper-druckwelle, .sniper-mine-explosion, .sniper-emp').length;
+      const kinder = document.querySelectorAll(
+        '.sniper-strahl, .sniper-druckwelle, .sniper-mine-explosion, .sniper-emp',
+      ).length;
       const strahl = arrays.effekte.find(e => e.art === 'sniperStrahl');
-      const modellfelder = strahl ? ['x', 'y', 'laenge', 'winkel', 'breite', 'glow', 'farbe', 'pKey'].every(k => strahl[k] !== undefined) : false;
+      const modellfelder = strahl
+        ? ['x', 'y', 'laenge', 'winkel', 'breite', 'glow', 'farbe', 'pKey'].every(k => strahl[k] !== undefined)
+        : false;
       const gesamt = arrays.effekte.length;
       Sniper.setzeZurueck(state);
       const nachP1 = arrays.effekte.map(e => e.pKey);
       Sniper.entferneEffekte();
-      return { arten, kinder, modellfelder, gesamt, nachP1, nachAlle: arrays.effekte.length, entfernt: entfernt.length };
+      return {
+        arten,
+        kinder,
+        modellfelder,
+        gesamt,
+        nachP1,
+        nachAlle: arrays.effekte.length,
+        entfernt: entfernt.length,
+      };
     } finally {
       Anzeige.setzeBackend(domBackend);
       state.selectedShipModel = 'viper';
@@ -543,7 +793,9 @@ test('Sniper-Effekte (Strahl, Druckwelle, Minen-Explosion, EMP) laufen als Effek
   expect(r.entfernt).toBe(4);
 });
 
-test('Sniper-Granate: entsteht ueber Anzeige.erzeuge (sniperGranate), fliegt im Modell, wird nach dem Flug entfernt', async ({ page }) => {
+test('Sniper-Granate: entsteht ueber Anzeige.erzeuge (sniperGranate), fliegt im Modell, wird nach dem Flug entfernt', async ({
+  page,
+}) => {
   await page.keyboard.down('KeyW');
   await page.waitForFunction(() => window.__game.state.spielLaeuft && !window.__game.state.cutsceneAktiv);
   await page.keyboard.up('KeyW');
@@ -559,8 +811,16 @@ test('Sniper-Granate: entsteht ueber Anzeige.erzeuge (sniperGranate), fliegt im 
     state.sniperZielY = 100;
     try {
       Anzeige.setzeBackend({
-        erzeuge(o, art) { if (art === 'sniperGranate') erzeugt.push(art); }, // die Explosion erzeugt auch Partikel
-        zeichneWelt() {}, zeichneSpieler() {}, entferne(o) { entfernt.push(o.id); }, blitze() {}, blitzeSpielfeld() {}
+        erzeuge(o, art) {
+          if (art === 'sniperGranate') erzeugt.push(art);
+        }, // die Explosion erzeugt auch Partikel
+        zeichneWelt() {},
+        zeichneSpieler() {},
+        entferne(o) {
+          entfernt.push(o.id);
+        },
+        blitze() {},
+        blitzeSpielfeld() {},
       });
       const kinderVorher = document.querySelectorAll('.sniper-granate').length;
       Sniper.werfeGranate(state, 'p1');
@@ -572,8 +832,15 @@ test('Sniper-Granate: entsteht ueber Anzeige.erzeuge (sniperGranate), fliegt im 
       const vorEnde = { laenge: arrays.sniperGranaten.length, entfernt: entfernt.length };
       Sniper.aktualisiereSniper(state, 'p1', false);
       return {
-        erzeugt, start, nachEins, vorEnde, kinder: document.querySelectorAll('.sniper-granate').length - kinderVorher,
-        nachEnde: arrays.sniperGranaten.length, entfernt, id: g.id, flug: Sniper.GRANATE_FLUG
+        erzeugt,
+        start,
+        nachEins,
+        vorEnde,
+        kinder: document.querySelectorAll('.sniper-granate').length - kinderVorher,
+        nachEnde: arrays.sniperGranaten.length,
+        entfernt,
+        id: g.id,
+        flug: Sniper.GRANATE_FLUG,
       };
     } finally {
       Anzeige.setzeBackend(domBackend);
@@ -594,7 +861,9 @@ test('Sniper-Granate: entsteht ueber Anzeige.erzeuge (sniperGranate), fliegt im 
   expect(r.entfernt).toEqual([r.id]);
 });
 
-test('Online-Client baut aus dem Snapshot-Listeneintrag ein Granaten-Modell in arrays.sniperGranaten', async ({ page }) => {
+test('Online-Client baut aus dem Snapshot-Listeneintrag ein Granaten-Modell in arrays.sniperGranaten', async ({
+  page,
+}) => {
   const r = await page.evaluate(async () => {
     const Sniper = await import('./js/sniper.js');
     const { arrays } = await import('./js/state.js');
@@ -603,7 +872,12 @@ test('Online-Client baut aus dem Snapshot-Listeneintrag ein Granaten-Modell in a
       const g = arrays.sniperGranaten[0];
       const modell = { id: g.id, pKey: g.pKey, x: g.x, y: g.y, rest: g.rest, rot: g.rot };
       const el = g.el;
-      const pos = { left: el.style.left, top: el.style.top, transform: el.style.transform, klasse: el.classList.contains('sniper-granate') };
+      const pos = {
+        left: el.style.left,
+        top: el.style.top,
+        transform: el.style.transform,
+        klasse: el.classList.contains('sniper-granate'),
+      };
       Sniper.synchronisiereGranaten([{ id: 'sg_7', x: 130, y: 280, owner: 'p2', rest: 19 }]);
       const gleich = arrays.sniperGranaten[0] === g && g.x === 130 && g.rot === (Sniper.GRANATE_FLUG - 19) * 24;
       const liste = Sniper.netzGranatenListe();
@@ -627,7 +901,9 @@ test('sniper.js baut keine Granaten-Elemente (Erzeugen ueber Anzeige.erzeuge)', 
   expect(text).not.toMatch(/netzGranaten\b|const granaten\b/);
 });
 
-test('Haftmine: entsteht ueber Anzeige.erzeuge (sniperMine) ohne DOM-Element, wird ueber Anzeige.entferne abgeraeumt', async ({ page }) => {
+test('Haftmine: entsteht ueber Anzeige.erzeuge (sniperMine) ohne DOM-Element, wird ueber Anzeige.entferne abgeraeumt', async ({
+  page,
+}) => {
   await page.keyboard.down('KeyW');
   await page.waitForFunction(() => window.__game.state.spielLaeuft && !window.__game.state.cutsceneAktiv);
   await page.keyboard.up('KeyW');
@@ -641,8 +917,16 @@ test('Haftmine: entsteht ueber Anzeige.erzeuge (sniperMine) ohne DOM-Element, wi
     state.selectedShipModel = 'sniper';
     try {
       Anzeige.setzeBackend({
-        erzeuge(o, art) { if (art === 'sniperMine') erzeugt.push(art); },
-        zeichneWelt() {}, zeichneSpieler() {}, entferne(o) { entfernt.push(o.id); }, blitze() {}, blitzeSpielfeld() {}
+        erzeuge(o, art) {
+          if (art === 'sniperMine') erzeugt.push(art);
+        },
+        zeichneWelt() {},
+        zeichneSpieler() {},
+        entferne(o) {
+          entfernt.push(o.id);
+        },
+        blitze() {},
+        blitzeSpielfeld() {},
       });
       const kinderVorher = document.querySelectorAll('.sniper-mine').length;
       Sniper.haltenSchritt(state, 'p1', 10);
@@ -653,7 +937,16 @@ test('Haftmine: entsteht ueber Anzeige.erzeuge (sniperMine) ohne DOM-Element, wi
       Sniper.aktualisiereSniper(state, 'p1', false);
       const blinkt = m.blinkt;
       Sniper.aktualisiereSniper(state, 'p1', false);
-      return { erzeugt, modell, kinder, blinkt, blinktSpaeter: m.blinkt, id: m.id, entfernt, laenge: arrays.sniperMinen.length };
+      return {
+        erzeugt,
+        modell,
+        kinder,
+        blinkt,
+        blinktSpaeter: m.blinkt,
+        id: m.id,
+        entfernt,
+        laenge: arrays.sniperMinen.length,
+      };
     } finally {
       Anzeige.setzeBackend(domBackend);
       state.selectedShipModel = 'viper';
@@ -673,7 +966,10 @@ test('Haftmine: Klassen haftet und blinkt kommen aus den Modellfeldern (DOM-Back
     const Anzeige = await import('./js/anzeige.js');
     const { arrays } = await import('./js/state.js');
     try {
-      const m = Anzeige.erzeuge({ id: 'sm_t', pKey: 'p2', x: 100, y: 200, rest: 300, haftet: false, blinkt: false }, 'sniperMine');
+      const m = Anzeige.erzeuge(
+        { id: 'sm_t', pKey: 'p2', x: 100, y: 200, rest: 300, haftet: false, blinkt: false },
+        'sniperMine',
+      );
       arrays.sniperMinen.push(m);
       const lies = () => ({ klassen: [...m.el.classList].sort(), left: m.el.style.left, top: m.el.style.top });
       const frei = lies();
@@ -702,12 +998,16 @@ test('Online-Client baut aus dem Snapshot-Listeneintrag ein Minen-Modell in arra
     const Sniper = await import('./js/sniper.js');
     const { arrays } = await import('./js/state.js');
     try {
-      Sniper.synchronisiereMinen([{ id: 'sm_7', x: 120, y: 300, owner: 'p2', haftet: false, zuender: 0, rest: 50, blinkt: true }]);
+      Sniper.synchronisiereMinen([
+        { id: 'sm_7', x: 120, y: 300, owner: 'p2', haftet: false, zuender: 0, rest: 50, blinkt: true },
+      ]);
       const m = arrays.sniperMinen[0];
       const modell = { id: m.id, pKey: m.pKey, x: m.x, y: m.y, rest: m.rest, haftet: m.haftet, blinkt: m.blinkt };
       const el = m.el;
       const klassen = [...el.classList].sort();
-      Sniper.synchronisiereMinen([{ id: 'sm_7', x: 130, y: 280, owner: 'p2', haftet: true, zuender: 20, rest: 49, blinkt: false }]);
+      Sniper.synchronisiereMinen([
+        { id: 'sm_7', x: 130, y: 280, owner: 'p2', haftet: true, zuender: 20, rest: 49, blinkt: false },
+      ]);
       const gleich = arrays.sniperMinen[0] === m && m.x === 130 && m.haftet === true && m.blinkt === false;
       Sniper.synchronisiereMinen([]);
       return { modell, klassen, gleich, leer: arrays.sniperMinen.length, weg: !el.isConnected };
@@ -727,11 +1027,19 @@ test('sniper.js baut keine Minen-Elemente (Erzeugen ueber Anzeige.erzeuge)', () 
   expect(text).not.toMatch(/sniper-mine'|netzMinen\b|zeigeMine\b/);
 });
 
-test('Fadenkreuz und Ladering kommen aus den Zustandsfeldern (DOM-Backend), verschwinden bei isDead', async ({ page }) => {
+test('Fadenkreuz und Ladering kommen aus den Zustandsfeldern (DOM-Backend), verschwinden bei isDead', async ({
+  page,
+}) => {
   const r = await page.evaluate(async () => {
     const Anzeige = await import('./js/anzeige.js');
     const { state } = await import('./js/state.js');
-    const alt = { modell: state.selectedShipModel, lauf: state.spielLaeuft, stufe: state.laserStufe, tot: state.isDead, farbe: state.selectedShipColor };
+    const alt = {
+      modell: state.selectedShipModel,
+      lauf: state.spielLaeuft,
+      stufe: state.laserStufe,
+      tot: state.isDead,
+      farbe: state.selectedShipColor,
+    };
     try {
       state.selectedShipModel = 'sniper';
       state.selectedShipColor = 'red';
@@ -748,8 +1056,13 @@ test('Fadenkreuz und Ladering kommen aus den Zustandsfeldern (DOM-Backend), vers
         if (!el) return null;
         const ring = el.querySelector('.sniper-ladering');
         return {
-          left: el.style.left, top: el.style.top, breite: el.style.width, striche: el.querySelectorAll('i.sniper-strich').length,
-          ring: ring ? { anzeige: ring.style.display, breite: ring.style.width, voll: ring.classList.contains('voll') } : null
+          left: el.style.left,
+          top: el.style.top,
+          breite: el.style.width,
+          striche: el.querySelectorAll('i.sniper-strich').length,
+          ring: ring
+            ? { anzeige: ring.style.display, breite: ring.style.width, voll: ring.classList.contains('voll') }
+            : null,
         };
       };
       const grund = lies();
@@ -791,7 +1104,13 @@ test('Fadenkreuz und Ladering kommen aus den Zustandsfeldern (DOM-Backend), vers
       document.querySelectorAll('.sniper-fadenkreuz').forEach(e => e.remove());
     }
   });
-  expect(r.grund).toEqual({ left: '178px', top: '78px', breite: '44px', striche: 4, ring: { anzeige: 'none', breite: '', voll: false } });
+  expect(r.grund).toEqual({
+    left: '178px',
+    top: '78px',
+    breite: '44px',
+    striche: 4,
+    ring: { anzeige: 'none', breite: '', voll: false },
+  });
   expect(r.anzahl).toBe(1);
   expect(r.laden.ring.anzeige).toBe('block');
   expect(r.laden.ring.voll).toBe(false);
@@ -807,15 +1126,26 @@ test('Fadenkreuz und Ladering kommen aus den Zustandsfeldern (DOM-Backend), vers
 
 test('sniper.js fasst das DOM nicht an (kein createElement, kein dom.spielfeld, kein isConnected, kein el.remove)', () => {
   const text = fs.readFileSync(path.join(__dirname, '..', 'src', 'js', 'sniper.js'), 'utf8');
-  expect(text).not.toMatch(/createElement|dom.spielfeld|isConnected|.el.remove|fadenkreuze\b|holeFadenkreuz|zeigeFadenkreuz|entferneFadenkreuz/);
+  expect(text).not.toMatch(
+    /createElement|dom.spielfeld|isConnected|.el.remove|fadenkreuze\b|holeFadenkreuz|zeigeFadenkreuz|entferneFadenkreuz/,
+  );
 });
 
-test('Gleve-Klinge kommt aus den Zustandsfeldern (DOM-Backend), verschwindet bei Sweep-Ende und isDead', async ({ page }) => {
+test('Gleve-Klinge kommt aus den Zustandsfeldern (DOM-Backend), verschwindet bei Sweep-Ende und isDead', async ({
+  page,
+}) => {
   const r = await page.evaluate(async () => {
     const Anzeige = await import('./js/anzeige.js');
     const Gleve = await import('./js/gleve.js');
     const { state } = await import('./js/state.js');
-    const alt = { modell: state.selectedShipModel, farbe: state.selectedShipColor, tot: state.isDead, stufe: state.laserStufe, x: state.x, y: state.y };
+    const alt = {
+      modell: state.selectedShipModel,
+      farbe: state.selectedShipColor,
+      tot: state.isDead,
+      stufe: state.laserStufe,
+      x: state.x,
+      y: state.y,
+    };
     try {
       state.selectedShipModel = 'gleve';
       state.selectedShipColor = 'red';
@@ -829,7 +1159,16 @@ test('Gleve-Klinge kommt aus den Zustandsfeldern (DOM-Backend), verschwindet bei
       Anzeige.zeichneWelt();
       const lies = () => {
         const el = document.querySelector('.gleve-klinge');
-        return el ? { anzahl: document.querySelectorAll('.gleve-klinge').length, hoehe: el.style.height, left: el.style.left, top: el.style.top, transform: el.style.transform, radius: el.style.borderRadius } : null;
+        return el
+          ? {
+              anzahl: document.querySelectorAll('.gleve-klinge').length,
+              hoehe: el.style.height,
+              left: el.style.left,
+              top: el.style.top,
+              transform: el.style.transform,
+              radius: el.style.borderRadius,
+            }
+          : null;
       };
       const laenge = Gleve.sweepLaenge(state);
       const o = Gleve.sweepUrsprung(state);
@@ -865,8 +1204,8 @@ test('Gleve-Klinge kommt aus den Zustandsfeldern (DOM-Backend), verschwindet bei
   });
   expect(r.aktiv.anzahl).toBe(1);
   expect(r.aktiv.hoehe).toBe(r.laenge + 'px');
-  expect(r.aktiv.left).toBe((r.o.x - 2) + 'px');
-  expect(r.aktiv.top).toBe((r.o.y - r.laenge) + 'px');
+  expect(r.aktiv.left).toBe(r.o.x - 2 + 'px');
+  expect(r.aktiv.top).toBe(r.o.y - r.laenge + 'px');
   expect(r.aktiv.transform).toBe('rotate(-18deg)');
   // Richtung +1: Rundung oben rechts, Richtung -1: oben links (Browser serialisiert die Kurzform)
   expect(r.aktiv.radius).toMatch(/^0px 100% 0px 0px/);
@@ -886,7 +1225,9 @@ test('gleve.js legt keine Klinge im DOM an (kein gleve-klinge, kein dom.spielfel
   expect(text).not.toMatch(/gleve-klinge|dom\.spielfeld|isConnected|\.el\.remove|zeigeKlinge|entferneKlinge|klingen\[/);
 });
 
-test('Spielertreffer und Powerup melden den Bildschirm-Blitz (Farbe, Dauer) an die Anzeige, ohne dass die Logik das Spielfeld anfasst', async ({ page }) => {
+test('Spielertreffer und Powerup melden den Bildschirm-Blitz (Farbe, Dauer) an die Anzeige, ohne dass die Logik das Spielfeld anfasst', async ({
+  page,
+}) => {
   const r = await page.evaluate(async () => {
     const { arrays, state, dom } = await import('./js/state.js');
     const Anzeige = await import('./js/anzeige.js');
@@ -901,7 +1242,12 @@ test('Spielertreffer und Powerup melden den Bildschirm-Blitz (Farbe, Dauer) an d
     const domBackend = Anzeige.holeBackend();
     const blitze = [];
     const vorher = dom.spielfeld.style.backgroundColor;
-    Anzeige.setzeBackend({ ...domBackend, blitzeSpielfeld(farbe, ms) { blitze.push([farbe, ms]); } });
+    Anzeige.setzeBackend({
+      ...domBackend,
+      blitzeSpielfeld(farbe, ms) {
+        blitze.push([farbe, ms]);
+      },
+    });
     try {
       Utils.spielerGetroffen({ x: 0, y: 0, el: document.createElement('div') }, false);
       state.invulnerableTimer = 0;
@@ -909,7 +1255,9 @@ test('Spielertreffer und Powerup melden den Bildschirm-Blitz (Farbe, Dauer) an d
       Utils.spielerGetroffen({ x: 0, y: 0, el: document.createElement('div') }, false);
       Entities.erzeugePowerup(state.x, state.y, 'laserWaffe', 'p1');
       const p = arrays.powerups[arrays.powerups.length - 1];
-      p.x = state.x; p.y = state.y; p.vy = 0;
+      p.x = state.x;
+      p.y = state.y;
+      p.vy = 0;
       Powerups.aktualisierePowerups();
       return { blitze, farbe: p.farbe, vorher, nachher: dom.spielfeld.style.backgroundColor };
     } finally {
@@ -934,7 +1282,22 @@ test('Logik setzt den Spielfeld-Hintergrund nicht selbst (utils, powerups, netwo
 // Einzige Ausnahme: gleve.js baut in zeigeLadungenHud die HUD-Punkte (.dash-ladung) per createElement in den
 // HUD-Container #dash-ladungen. Der liegt ausserhalb von #spielfeld und bleibt bewusst HTML.
 test('Spiellogik-Module enthalten kein document.createElement, kein dom.spielfeld und kein isConnected', () => {
-  const module = ['gegner', 'boss', 'waffen', 'powerups', 'partikel', 'gleve', 'sniper', 'viper', 'hack', 'entities', 'spieler', 'client', 'loop', 'effekte'];
+  const module = [
+    'gegner',
+    'boss',
+    'waffen',
+    'powerups',
+    'partikel',
+    'gleve',
+    'sniper',
+    'viper',
+    'hack',
+    'entities',
+    'spieler',
+    'client',
+    'loop',
+    'effekte',
+  ];
   for (const datei of module) {
     let text = fs.readFileSync(path.join(__dirname, '..', 'src', 'js', datei + '.js'), 'utf8');
     if (datei === 'gleve') text = text.replace(/const punkt = document\.createElement\('div'\);/, '');
@@ -953,7 +1316,7 @@ test('Sterne entstehen ueber die Anzeige (Art stern, Modell mit groesse statt El
       groesse: typeof s.groesse,
       breite: s.el.style.width,
       klasse: s.el.className,
-      links: Math.abs(parseFloat(s.el.style.left) - s.x) < 0.001
+      links: Math.abs(parseFloat(s.el.style.left) - s.x) < 0.001,
     };
   });
   expect(r.anzahl).toBe(60);
@@ -963,7 +1326,9 @@ test('Sterne entstehen ueber die Anzeige (Art stern, Modell mit groesse statt El
   expect(r.breite).toMatch(/px$/);
 });
 
-test('Null-Backend: Coop mit Bot, Gleve gegen Boss, Bomben, Granaten, Minen und Raketen laufen ohne Fehler und ohne neue Kinder in #spielfeld', async ({ page }) => {
+test('Null-Backend: Coop mit Bot, Gleve gegen Boss, Bomben, Granaten, Minen und Raketen laufen ohne Fehler und ohne neue Kinder in #spielfeld', async ({
+  page,
+}) => {
   const fehler = [];
   page.on('pageerror', e => fehler.push(e.message));
   const r = await page.evaluate(async () => {
@@ -1004,7 +1369,12 @@ test('Null-Backend: Coop mit Bot, Gleve gegen Boss, Bomben, Granaten, Minen und 
         gesehen.mine = Math.max(gesehen.mine, arrays.sniperMinen.length);
         gesehen.rakete = Math.max(gesehen.rakete, arrays.raketenArray.length);
       }
-      return { vorher, nachher: document.getElementById('spielfeld').children.length, gesehen, boss: arrays.bosses.length };
+      return {
+        vorher,
+        nachher: document.getElementById('spielfeld').children.length,
+        gesehen,
+        boss: arrays.bosses.length,
+      };
     } finally {
       state.tastenGedrueckt.l = false;
       state.tastenGedrueckt.k = false;

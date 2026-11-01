@@ -5,10 +5,13 @@ const { setzeSpielstand } = require('./helfer');
 // unverwundbar, Cooldown 90 Schritte ab Rollenstart. Alles deterministisch ueber simulationsSchritt().
 
 test.beforeEach(async ({ page }) => {
-  await page.route('**/api/highscores*', route => route.fulfill({
-    status: 200, contentType: 'application/json',
-    body: JSON.stringify({ success: true, mode: 'single', highscores: [] })
-  }));
+  await page.route('**/api/highscores*', route =>
+    route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({ success: true, mode: 'single', highscores: [] }),
+    }),
+  );
   await page.route('**/api/turn*', route => route.fulfill({ status: 503, body: '' }));
   await setzeSpielstand(page);
   await page.goto('/');
@@ -31,12 +34,25 @@ async function starteSpiel(page, { coop = false, p1 = 'viper', p2 = 'viper' } = 
     window.__viperTest = {
       leeren() {
         const { state, arrays } = window.__game;
-        ['feinde', 'asteroiden', 'feindLaserArray', 'hackProjektilArray', 'bossLaserArray', 'bossBombenArray',
-          'bossRaketenArray', 'bosses', 'powerups', 'laserArray', 'raketenArray'].forEach(name => {
+        [
+          'feinde',
+          'asteroiden',
+          'feindLaserArray',
+          'hackProjektilArray',
+          'bossLaserArray',
+          'bossBombenArray',
+          'bossRaketenArray',
+          'bosses',
+          'powerups',
+          'laserArray',
+          'raketenArray',
+        ].forEach(name => {
           arrays[name].forEach(o => o.el && o.el.remove());
           arrays[name].length = 0;
         });
-        Object.keys(state.tastenGedrueckt).forEach(k => { state.tastenGedrueckt[k] = false; });
+        Object.keys(state.tastenGedrueckt).forEach(k => {
+          state.tastenGedrueckt[k] = false;
+        });
         state.frameZaehler = 1; // keine Spawns in den naechsten 100 Schritten
         state.level = 1;
         state.bossAktiv = false;
@@ -89,13 +105,15 @@ async function starteSpiel(page, { coop = false, p1 = 'viper', p2 = 'viper' } = 
       },
       rollen() {
         return window.__game.Audio.audioHistory.filter(a => a.name === 'rolle').length;
-      }
+      },
     };
   });
 }
 
 test.describe('Viper-X Ausweichrolle', () => {
-  test('Doppeltipp rechts: 70 px gleichmaessig in 12 Schritten, Klasse, Sound, danach wieder normale Steuerung', async ({ page }) => {
+  test('Doppeltipp rechts: 70 px gleichmaessig in 12 Schritten, Klasse, Sound, danach wieder normale Steuerung', async ({
+    page,
+  }) => {
     await starteSpiel(page);
     const r = await page.evaluate(() => {
       const { state } = window.__game;
@@ -104,25 +122,42 @@ test.describe('Viper-X Ausweichrolle', () => {
       T.leeren();
       T.schritte(1); // Ausgangszustand setzen lassen
       const t = state.tastenGedrueckt;
-      t.d = true; T.schritte(1);
-      t.d = false; T.schritte(1);
+      t.d = true;
+      T.schritte(1);
+      t.d = false;
+      T.schritte(1);
       const x0 = state.x;
-      t.d = true; T.schritte(1); // Start der Rolle (zweite Druck-Flanke)
+      t.d = true;
+      T.schritte(1); // Start der Rolle (zweite Druck-Flanke)
       t.d = false;
       const xs = [state.x - x0];
-      const nachStart = { timer: state.viperRolleTimer, klasse: el.classList.contains('viper-rolle'), cd: state.viperRolleCooldown, sounds: T.rollen() };
-      for (let i = 0; i < 11; i++) { T.schritte(1); xs.push(state.x - x0); }
-      const amEnde = { x: state.x - x0, klasse: el.classList.contains('viper-rolle'), nachbilder: document.querySelectorAll('.viper-nachbild').length };
+      const nachStart = {
+        timer: state.viperRolleTimer,
+        klasse: el.classList.contains('viper-rolle'),
+        cd: state.viperRolleCooldown,
+        sounds: T.rollen(),
+      };
+      for (let i = 0; i < 11; i++) {
+        T.schritte(1);
+        xs.push(state.x - x0);
+      }
+      const amEnde = {
+        x: state.x - x0,
+        klasse: el.classList.contains('viper-rolle'),
+        nachbilder: document.querySelectorAll('.viper-nachbild').length,
+      };
       T.schritte(1);
       const danach = { x: state.x - x0, klasse: el.classList.contains('viper-rolle'), timer: state.viperRolleTimer };
       // Normale Steuerung wieder aktiv
-      t.a = true; T.schritte(3); t.a = false;
+      t.a = true;
+      T.schritte(3);
+      t.a = false;
       const links = state.x - x0;
       return { xs, nachStart, amEnde, danach, links };
     });
     expect(r.nachStart).toEqual({ timer: 12, klasse: true, cd: 90, sounds: 1 });
     expect(r.xs).toHaveLength(12);
-    r.xs.forEach((x, i) => expect(x).toBeCloseTo(70 / 12 * (i + 1), 3));
+    r.xs.forEach((x, i) => expect(x).toBeCloseTo((70 / 12) * (i + 1), 3));
     expect(r.amEnde.x).toBeCloseTo(70, 3);
     expect(r.amEnde.klasse).toBe(true);
     expect(r.amEnde.nachbilder).toBeGreaterThan(0);
@@ -142,11 +177,15 @@ test.describe('Viper-X Ausweichrolle', () => {
         T.leeren();
         state.x = 250;
         const t = state.tastenGedrueckt;
-        t[taste] = true; T.schritte(1);
-        t[taste] = false; T.schritte(1);
+        t[taste] = true;
+        T.schritte(1);
+        t[taste] = false;
+        T.schritte(1);
         const x0 = state.x;
-        t[taste] = true; T.schritte(1);
-        t[taste] = false; T.schritte(11);
+        t[taste] = true;
+        T.schritte(1);
+        t[taste] = false;
+        T.schritte(11);
         out.push(state.x - x0);
       }
       return out;
@@ -162,23 +201,35 @@ test.describe('Viper-X Ausweichrolle', () => {
       T.leeren();
       const t = state.tastenGedrueckt;
       const timer = [];
-      t.d = true; T.schritte(1); timer.push(state.viperRolleTimer);
-      t.d = false; T.schritte(40); timer.push(state.viperRolleTimer);
+      t.d = true;
+      T.schritte(1);
+      timer.push(state.viperRolleTimer);
+      t.d = false;
+      T.schritte(40);
+      timer.push(state.viperRolleTimer);
       const einzel = { timer: [...timer], sounds: T.rollen() };
       // Zwei Tipps mit 16 Schritten Abstand
       T.leeren();
       T.tippe('d', 16);
       const zuLangsam = { timer: state.viperRolleTimer, sounds: T.rollen() };
-      t.d = false; T.schritte(3);
+      t.d = false;
+      T.schritte(3);
       // Genau 15 Schritte Abstand zaehlt noch
       T.leeren();
       T.tippe('d', 15);
       const grenze = { timer: state.viperRolleTimer, sounds: T.rollen() };
       // Links und rechts im Wechsel ist kein Doppeltipp
-      t.d = false; T.schritte(14);
+      t.d = false;
+      T.schritte(14);
       T.leeren();
-      t.a = true; T.schritte(1); t.a = false; T.schritte(1);
-      t.d = true; T.schritte(1); t.d = false; T.schritte(1);
+      t.a = true;
+      T.schritte(1);
+      t.a = false;
+      T.schritte(1);
+      t.d = true;
+      T.schritte(1);
+      t.d = false;
+      T.schritte(1);
       const gemischt = { timer: state.viperRolleTimer, sounds: T.rollen() };
       return { einzel, zuLangsam, grenze, gemischt };
     });
@@ -253,14 +304,21 @@ test.describe('Viper-X Ausweichrolle', () => {
       const t = state.tastenGedrueckt;
       T.leeren();
       state.x = 100;
-      t.d = true; T.schritte(1);
-      t.d = false; T.schritte(1);
+      t.d = true;
+      T.schritte(1);
+      t.d = false;
+      T.schritte(1);
       // Stehender Laser mitten im Schiff (die Rolle beginnt im naechsten Schritt)
       Entities.erzeugeFeindLaser(state.x + 14, state.y + 10);
       Object.assign(arrays.feindLaserArray[0], { vx: 0, vy: 0 });
-      t.d = true; T.schritte(1);
+      t.d = true;
+      T.schritte(1);
       t.d = false;
-      const beiStart = { leben: state.leben, laser: arrays.feindLaserArray.length, unverwundbar: window.__game.Utils.istDashUnverwundbar(state) };
+      const beiStart = {
+        leben: state.leben,
+        laser: arrays.feindLaserArray.length,
+        unverwundbar: window.__game.Utils.istDashUnverwundbar(state),
+      };
       T.schritte(11);
       const waehrendRolle = { leben: state.leben, laser: arrays.feindLaserArray.length };
       // Rolle ist vorbei: ein neuer stehender Laser am Schiff trifft
@@ -286,12 +344,16 @@ test.describe('Viper-X Ausweichrolle', () => {
       const out = {};
       T.leeren();
       state.x = config.spielfeldBreite - config.spielerGroesse - 20;
-      T.tippe('d'); t.d = false; T.schritte(11);
+      T.tippe('d');
+      t.d = false;
+      T.schritte(11);
       out.rechts = state.x;
       out.rechtsMax = config.spielfeldBreite - config.spielerGroesse;
       T.leeren();
       state.x = 20;
-      T.tippe('a'); t.a = false; T.schritte(11);
+      T.tippe('a');
+      t.a = false;
+      T.schritte(11);
       out.links = state.x;
       return out;
     });
@@ -307,13 +369,22 @@ test.describe('Viper-X Ausweichrolle', () => {
       T.leeren();
       state.x = 100;
       const t = state.tastenGedrueckt;
-      t.d = true; T.schritte(1);
-      t.d = false; T.schritte(1);
+      t.d = true;
+      T.schritte(1);
+      t.d = false;
+      T.schritte(1);
       const x0 = state.x;
-      t.d = true; T.schritte(1);
-      t.d = false; T.schritte(11);
-      return { dx: state.x - x0, timer: state.viperRolleTimer, sounds: T.rollen(), klasse: document.getElementById('spieler').classList.contains('viper-rolle'),
-        hud: document.getElementById('viper-rolle-hud').style.display };
+      t.d = true;
+      T.schritte(1);
+      t.d = false;
+      T.schritte(11);
+      return {
+        dx: state.x - x0,
+        timer: state.viperRolleTimer,
+        sounds: T.rollen(),
+        klasse: document.getElementById('spieler').classList.contains('viper-rolle'),
+        hud: document.getElementById('viper-rolle-hud').style.display,
+      };
     });
     // Normale Fahrt: hoechstens ein Schritt Geschwindigkeit, nie 70 px
     expect(Math.abs(r.dx)).toBeLessThan(20);
@@ -333,13 +404,17 @@ test.describe('Viper-X Ausweichrolle', () => {
       state.x = 200;
       state.hacks = [{ typ: 'invertiert', timer: 999 }];
       const x0 = state.x;
-      T.tippe('d'); state.tastenGedrueckt.d = false; T.schritte(11);
+      T.tippe('d');
+      state.tastenGedrueckt.d = false;
+      T.schritte(11);
       out.invertiert = state.x - x0;
       T.leeren();
       state.x = 200;
       state.hacks = [{ typ: 'waffenOffline', timer: 999 }];
       const x1 = state.x;
-      T.tippe('d'); state.tastenGedrueckt.d = false; T.schritte(11);
+      T.tippe('d');
+      state.tastenGedrueckt.d = false;
+      T.schritte(11);
       out.waffenOffline = state.x - x1;
       return out;
     });
@@ -358,30 +433,41 @@ test.describe('Viper-X Ausweichrolle', () => {
       T.leeren();
       state.x = 150;
       j.active = true;
-      j.x = 0; T.schritte(2);
+      j.x = 0;
+      T.schritte(2);
       const x0 = state.x;
-      j.x = 1; T.schritte(1);
+      j.x = 1;
+      T.schritte(1);
       out.wisch = { timer: state.viperRolleTimer, sounds: T.rollen() };
       T.schritte(11);
       out.wischDx = state.x - x0;
-      j.active = false; j.x = 0; T.schritte(1);
+      j.active = false;
+      j.x = 0;
+      T.schritte(1);
 
       // Langsam: 0.05 pro Schritt bis 1.0
       T.leeren();
       state.x = 150;
       j.active = true;
-      for (let k = 0; k <= 30; k++) { j.x = Math.min(1, k * 0.05); T.schritte(1); }
+      for (let k = 0; k <= 30; k++) {
+        j.x = Math.min(1, k * 0.05);
+        T.schritte(1);
+      }
       out.langsam = { sounds: T.rollen(), timer: state.viperRolleTimer };
-      j.active = false; j.x = 0;
+      j.active = false;
+      j.x = 0;
       // Nach links
       T.leeren();
       state.x = 250;
       j.active = true;
-      j.x = 0; T.schritte(2);
+      j.x = 0;
+      T.schritte(2);
       const x1 = state.x;
-      j.x = -1; T.schritte(12);
+      j.x = -1;
+      T.schritte(12);
       out.linksDx = state.x - x1;
-      j.active = false; j.x = 0;
+      j.active = false;
+      j.x = 0;
       return out;
     });
     expect(r.wisch).toEqual({ timer: 12, sounds: 1 });
@@ -402,25 +488,44 @@ test.describe('Viper-X Ausweichrolle', () => {
       state.x = 100;
       state.p2.x = 200;
       // P2: Pfeil rechts doppelt
-      t.arrowright = true; T.schritte(1);
-      t.arrowright = false; T.schritte(1);
+      t.arrowright = true;
+      T.schritte(1);
+      t.arrowright = false;
+      T.schritte(1);
       const p2x0 = state.p2.x;
       const p1x0 = state.x;
-      t.arrowright = true; T.schritte(1);
-      t.arrowright = false; T.schritte(11);
-      const p2 = { dx: state.p2.x - p2x0, timer: state.viperRolleTimer, cd: state.p2.viperRolleCooldown, p1dx: state.x - p1x0, p1cd: state.viperRolleCooldown };
+      t.arrowright = true;
+      T.schritte(1);
+      t.arrowright = false;
+      T.schritte(11);
+      const p2 = {
+        dx: state.p2.x - p2x0,
+        timer: state.viperRolleTimer,
+        cd: state.p2.viperRolleCooldown,
+        p1dx: state.x - p1x0,
+        p1cd: state.viperRolleCooldown,
+      };
       // P1: A doppelt (P1-Cooldown unabhaengig)
       T.leeren();
       state.p2IsBot = false;
       state.x = 200;
       state.p2.x = 100;
-      t.a = true; T.schritte(1);
-      t.a = false; T.schritte(1);
+      t.a = true;
+      T.schritte(1);
+      t.a = false;
+      T.schritte(1);
       const q1x0 = state.x;
-      t.a = true; T.schritte(1);
-      t.a = false; T.schritte(11);
+      t.a = true;
+      T.schritte(1);
+      t.a = false;
+      T.schritte(11);
       const p1 = { dx: state.x - q1x0, p2cd: state.p2.viperRolleCooldown, p2timer: state.p2.viperRolleTimer };
-      return { p2, p1, klasse2: document.getElementById('spieler-2').classList.contains('viper-rolle'), hud2: document.getElementById('viper-rolle-hud-p2').style.display };
+      return {
+        p2,
+        p1,
+        klasse2: document.getElementById('spieler-2').classList.contains('viper-rolle'),
+        hud2: document.getElementById('viper-rolle-hud-p2').style.display,
+      };
     });
     expect(r.p2.dx).toBeCloseTo(70, 3);
     expect(r.p2.timer).toBe(0);
@@ -443,11 +548,15 @@ test.describe('Viper-X Ausweichrolle', () => {
       T.leeren();
       T.schritte(2);
       const bereit = { anzeige: hud.style.display, bereit: hud.classList.contains('bereit') };
-      T.tippe('d'); state.tastenGedrueckt.d = false;
+      T.tippe('d');
+      state.tastenGedrueckt.d = false;
       T.schritte(1);
       const laedt = { bereit: hud.classList.contains('bereit'), breite: parseFloat(hud.firstElementChild.style.width) };
       T.schritte(100);
-      const wieder = { bereit: hud.classList.contains('bereit'), breite: parseFloat(hud.firstElementChild.style.width) };
+      const wieder = {
+        bereit: hud.classList.contains('bereit'),
+        breite: parseFloat(hud.firstElementChild.style.width),
+      };
       return { bereit, laedt, wieder };
     });
     expect(r.bereit).toEqual({ anzeige: 'block', bereit: true });
@@ -464,11 +573,11 @@ test.describe('Viper-X Ausweichrolle: Bot', () => {
       const { state, arrays, Entities } = window.__game;
       const T = window.__viperTest;
       const out = {};
-      const stehendesGeschoss = (p) => {
+      const stehendesGeschoss = p => {
         Entities.erzeugeFeindLaser(p.x + 13, p.y - 17);
         Object.assign(arrays.feindLaserArray[arrays.feindLaserArray.length - 1], { vx: 0, vy: 0 });
       };
-      const vorbereiten = (x) => {
+      const vorbereiten = x => {
         T.leeren();
         state.p2IsBot = true;
         state.p2BotDifficulty = 'hard';
@@ -536,7 +645,7 @@ test.describe('Viper-X Ausweichrolle: Bot', () => {
 test.describe('Viper-X Ausweichrolle: Online', () => {
   // Online-Zustand ohne echte Verbindung: host = true Host, sonst Client (P2)
   async function alsOnline(page, host) {
-    await page.evaluate((host) => {
+    await page.evaluate(host => {
       const { state, arrays, Utils } = window.__game;
       Utils.setGameMode('online');
       state.spielLaeuft = true;
@@ -551,16 +660,34 @@ test.describe('Viper-X Ausweichrolle: Online', () => {
       state.network.isClient = !host;
       state.network.connected = true;
       state.frameZaehler = 1;
-      ['feinde', 'asteroiden', 'bosses', 'powerups', 'laserArray', 'raketenArray', 'bombenArray',
-        'feindLaserArray', 'hackProjektilArray', 'bossLaserArray', 'bossRaketenArray', 'bossBombenArray'].forEach(n => {
-        arrays[n].forEach(o => { if (o.el) o.el.remove(); });
+      [
+        'feinde',
+        'asteroiden',
+        'bosses',
+        'powerups',
+        'laserArray',
+        'raketenArray',
+        'bombenArray',
+        'feindLaserArray',
+        'hackProjektilArray',
+        'bossLaserArray',
+        'bossRaketenArray',
+        'bossBombenArray',
+      ].forEach(n => {
+        arrays[n].forEach(o => {
+          if (o.el) o.el.remove();
+        });
         arrays[n].length = 0;
       });
-      Object.keys(state.tastenGedrueckt).forEach(k => { state.tastenGedrueckt[k] = false; });
+      Object.keys(state.tastenGedrueckt).forEach(k => {
+        state.tastenGedrueckt[k] = false;
+      });
     }, host);
   }
 
-  test('Host serialisiert den Rollen-Zustand beider Schiffe, er ueberlebt die Netzkodierung und der Client zeigt die Klasse', async ({ page }) => {
+  test('Host serialisiert den Rollen-Zustand beider Schiffe, er ueberlebt die Netzkodierung und der Client zeigt die Klasse', async ({
+    page,
+  }) => {
     await page.waitForFunction(() => window.__game && window.__game.state);
     await alsOnline(page, true);
     const r = await page.evaluate(async () => {
@@ -586,7 +713,12 @@ test.describe('Viper-X Ausweichrolle: Online', () => {
       const kodierer = new NK.SnapshotKodierer();
       const dekodierer = new NK.SnapshotDekodierer();
       const rekon = dekodierer.dekodiere(JSON.parse(JSON.stringify(kodierer.kodiere(voll, 0))));
-      out.draht = [rekon.p1.viperRolleTimer, rekon.p1.viperRolleRichtung, rekon.p1.viperRolleCooldown, rekon.p2.viperRolleCooldown];
+      out.draht = [
+        rekon.p1.viperRolleTimer,
+        rekon.p1.viperRolleRichtung,
+        rekon.p1.viperRolleCooldown,
+        rekon.p2.viperRolleCooldown,
+      ];
 
       // Client uebernimmt: Host-P1 rollt noch 7 Schritte
       state.network.isHost = false;
@@ -619,7 +751,9 @@ test.describe('Viper-X Ausweichrolle: Online', () => {
     expect(r.cooldownNachSchritten).toBe(24);
   });
 
-  test('Client sagt die eigene Rolle voraus und meldet Start und Richtung; der Host rollt von dort aus', async ({ page }) => {
+  test('Client sagt die eigene Rolle voraus und meldet Start und Richtung; der Host rollt von dort aus', async ({
+    page,
+  }) => {
     await page.waitForFunction(() => window.__game && window.__game.state);
     await alsOnline(page, false);
     const paket = await page.evaluate(() => {
@@ -631,11 +765,17 @@ test.describe('Viper-X Ausweichrolle: Online', () => {
       state.p2.y = 400;
       state.p2.viperRolleCooldown = 0;
       const pakete = [];
-      const schritt = () => { g.Loop.simulationsSchritt(); pakete.push(g.Network.serializePlayerInput()); };
-      t.d = true; schritt();
-      t.d = false; schritt();
+      const schritt = () => {
+        g.Loop.simulationsSchritt();
+        pakete.push(g.Network.serializePlayerInput());
+      };
+      t.d = true;
+      schritt();
+      t.d = false;
+      schritt();
       const x0 = state.p2.x;
-      t.d = true; schritt();
+      t.d = true;
+      schritt();
       t.d = false;
       const klasseNachStart = el.classList.contains('viper-rolle');
       for (let i = 0; i < 11; i++) schritt();
@@ -649,7 +789,7 @@ test.describe('Viper-X Ausweichrolle: Online', () => {
 
     // Host: Start-Paket empfangen, danach rollt P2 dort 12 Schritte, ignoriert Client-Positionen und ist unverwundbar
     await alsOnline(page, true);
-    const host = await page.evaluate(async (p) => {
+    const host = await page.evaluate(async p => {
       const g = window.__game;
       const { state, arrays, Entities } = g;
       const NK = await import('./js/netzkodierung.js');
@@ -674,13 +814,21 @@ test.describe('Viper-X Ausweichrolle: Online', () => {
       Entities.erzeugeFeindLaser(p.x0 + 14, 410);
       Object.assign(arrays.feindLaserArray[0], { vx: 0, vy: 0 });
       g.Loop.simulationsSchritt();
-      out.nachStart = { timer: state.p2.viperRolleTimer, klasse: document.getElementById('spieler-2').classList.contains('viper-rolle'), leben: state.p2.leben, cd: state.p2.viperRolleCooldown };
+      out.nachStart = {
+        timer: state.p2.viperRolleTimer,
+        klasse: document.getElementById('spieler-2').classList.contains('viper-rolle'),
+        leben: state.p2.leben,
+        cd: state.p2.viperRolleCooldown,
+      };
       // Client-Positionen waehrend der Rolle werden ignoriert
       g.Network.applyPlayerInput({ ...eingabe, x: 5 });
       for (let i = 0; i < 11; i++) g.Loop.simulationsSchritt();
       out.dx = state.p2.x - p.x0;
       out.leben = state.p2.leben;
-      out.snapshot = [g.Network.serializeGameState().p2.viperRolleTimer, g.Network.serializeGameState().p2.viperRolleCooldown];
+      out.snapshot = [
+        g.Network.serializeGameState().p2.viperRolleTimer,
+        g.Network.serializeGameState().p2.viperRolleCooldown,
+      ];
       g.Loop.simulationsSchritt();
       out.danach = state.p2.viperRolleTimer;
       // Eine zweite Anfrage im Cooldown wird abgelehnt
@@ -711,35 +859,50 @@ test.describe('Viper-X Ausweichrolle: Online', () => {
 
 // Feindlichen Laser (kein Zielen, gerade nach unten) mit linker Kante x ueber dem Schiff erzeugen
 async function nearMissBahn(page, { x, liste = 'feindLaserArray', harmlos = false, ys = [300], schritte = 60 }) {
-  return page.evaluate(({ x, liste, harmlos, ys, schritte }) => {
-    const { state, arrays } = window.__game;
-    const T = window.__viperTest;
-    T.leeren();
-    state.viperOverdriveLeiste = 0;
-    state.viperOverdriveTimer = 0;
-    state.x = 150;
-    state.y = 400;
-    ys.forEach((y, i) => {
-      const el = document.createElement('div');
-      el.classList.add('feind-laser');
-      document.getElementById('spielfeld').appendChild(el);
-      arrays[liste].push({ id: 'nm' + i, el, x, y, vx: 0, vy: 5, width: 4, height: 15, harmlos: harmlos || undefined });
-    });
-    const leben = state.leben;
-    T.schritte(schritte);
-    return {
-      leiste: state.viperOverdriveLeiste,
-      timer: state.viperOverdriveTimer,
-      leben: state.leben,
-      verloren: leben - state.leben,
-      ticks: window.__game.Audio.audioHistory.filter(a => a.name === 'nearMiss').length,
-      plus: document.querySelectorAll('.viper-nearmiss-plus').length
-    };
-  }, { x, liste, harmlos, ys, schritte });
+  return page.evaluate(
+    ({ x, liste, harmlos, ys, schritte }) => {
+      const { state, arrays } = window.__game;
+      const T = window.__viperTest;
+      T.leeren();
+      state.viperOverdriveLeiste = 0;
+      state.viperOverdriveTimer = 0;
+      state.x = 150;
+      state.y = 400;
+      ys.forEach((y, i) => {
+        const el = document.createElement('div');
+        el.classList.add('feind-laser');
+        document.getElementById('spielfeld').appendChild(el);
+        arrays[liste].push({
+          id: 'nm' + i,
+          el,
+          x,
+          y,
+          vx: 0,
+          vy: 5,
+          width: 4,
+          height: 15,
+          harmlos: harmlos || undefined,
+        });
+      });
+      const leben = state.leben;
+      T.schritte(schritte);
+      return {
+        leiste: state.viperOverdriveLeiste,
+        timer: state.viperOverdriveTimer,
+        leben: state.leben,
+        verloren: leben - state.leben,
+        ticks: window.__game.Audio.audioHistory.filter(a => a.name === 'nearMiss').length,
+        plus: document.querySelectorAll('.viper-nearmiss-plus').length,
+      };
+    },
+    { x, liste, harmlos, ys, schritte },
+  );
 }
 
 test.describe('Viper-X Near-Miss und Overdrive', () => {
-  test('Geschoss 10 px neben dem Schiff: +10, nur einmal; 30 px daneben: 0; Treffer: 0; harmlos: 0', async ({ page }) => {
+  test('Geschoss 10 px neben dem Schiff: +10, nur einmal; 30 px daneben: 0; Treffer: 0; harmlos: 0', async ({
+    page,
+  }) => {
     await starteSpiel(page);
     // Schiff x 150..180; Laser-Kante bei 190 = 10 px Abstand
     const nah = await nearMissBahn(page, { x: 190 });
@@ -747,7 +910,10 @@ test.describe('Viper-X Near-Miss und Overdrive', () => {
     expect(nah.ticks).toBe(1);
     expect(nah.verloren).toBe(0);
     // weitere Schritte zaehlen dasselbe Geschoss nicht noch einmal (ist laengst aus dem Feld, Leiste bleibt)
-    const ueberlappt = await page.evaluate(() => { window.__viperTest.schritte(30); return window.__game.state.viperOverdriveLeiste; });
+    const ueberlappt = await page.evaluate(() => {
+      window.__viperTest.schritte(30);
+      return window.__game.state.viperOverdriveLeiste;
+    });
     expect(ueberlappt).toBe(10);
     // Linke Seite: Laser rechts der Kante 150: Mitte 142 -> Abstand 150 - (142 + 4) = 4
     expect((await nearMissBahn(page, { x: 142 })).leiste).toBe(10);
@@ -770,7 +936,9 @@ test.describe('Viper-X Near-Miss und Overdrive', () => {
     expect((await nearMissBahn(page, { x: 190, ys: [300, 330] })).leiste).toBe(20);
   });
 
-  test('waehrend der Ausweichrolle zaehlt ein Near-Miss ebenfalls; mehrere Geschosse mit Hack-Projektil und Rakete', async ({ page }) => {
+  test('waehrend der Ausweichrolle zaehlt ein Near-Miss ebenfalls; mehrere Geschosse mit Hack-Projektil und Rakete', async ({
+    page,
+  }) => {
     await starteSpiel(page);
     const r = await page.evaluate(() => {
       const { state, arrays } = window.__game;
@@ -795,7 +963,9 @@ test.describe('Viper-X Near-Miss und Overdrive', () => {
     expect(r).toBe(30);
   });
 
-  test('10 Near-Misses starten den Overdrive fuer 300 Schritte, die Leiste leert sich, danach aus', async ({ page }) => {
+  test('10 Near-Misses starten den Overdrive fuer 300 Schritte, die Leiste leert sich, danach aus', async ({
+    page,
+  }) => {
     await starteSpiel(page);
     const r = await page.evaluate(() => {
       const { state, arrays } = window.__game;
@@ -814,7 +984,7 @@ test.describe('Viper-X Near-Miss und Overdrive', () => {
       out.start = [state.viperOverdriveLeiste, state.viperOverdriveTimer, klasse()];
       out.sounds = [
         window.__game.Audio.audioHistory.filter(a => a.name === 'overdrive').length,
-        window.__game.Audio.audioHistory.filter(a => a.name === 'nearMiss').length
+        window.__game.Audio.audioHistory.filter(a => a.name === 'nearMiss').length,
       ];
       const timerNachStart = state.viperOverdriveTimer;
       // weitere Near-Misses laden waehrend des Overdrives nicht nach
@@ -863,7 +1033,10 @@ test.describe('Viper-X Near-Miss und Overdrive', () => {
       }
       const t = state.viperOverdriveTimer;
       let dauer = 0;
-      while (state.viperOverdriveTimer > 0 && dauer < 400) { T.schritte(1); dauer++; }
+      while (state.viperOverdriveTimer > 0 && dauer < 400) {
+        T.schritte(1);
+        dauer++;
+      }
       return { t, leiste: state.viperOverdriveLeiste, dauer };
     });
     expect(r.t).toBe(300);
@@ -873,37 +1046,55 @@ test.describe('Viper-X Near-Miss und Overdrive', () => {
 
   test('im Overdrive halbe Schussabstaende und Durchschlag, ausserhalb nicht', async ({ page }) => {
     await starteSpiel(page);
-    const messe = (overdrive) => page.evaluate((overdrive) => {
-      const { state, arrays } = window.__game;
-      const T = window.__viperTest;
-      T.leeren();
-      state.laserStufe = 1;
-      state.laserDurchschlag = false;
-      state.energie = 50;
-      state.maxEnergie = 50;
-      state.unbegrenzteEnergie = true;
-      state.spielerSchussCooldown = 0;
-      state.viperOverdriveLeiste = overdrive ? 100 : 0;
-      state.viperOverdriveTimer = overdrive ? 300 : 0;
-      // zwei hintereinander stehende, ruhende Ziele ueber dem Schiff
-      const ziele = [300, 200].map((y, i) => {
-        const el = document.createElement('div');
-        el.classList.add('asteroid');
-        document.getElementById('spielfeld').appendChild(el);
-        const a = { id: 'ziel' + i, el, x: 140, y, groesse: 50, vx: 0, vy: 0, immune: 0, hp: 100000, maxHp: 100000,
-          istMagma: false, istUnzerstoerbar: false, traegtPowerup: false, rissEl: null, istFeind: false, rot: 0, vRot: 0 };
-        arrays.asteroiden.push(a);
-        return a;
-      });
-      const ids = new Set();
-      state.tastenGedrueckt.l = true;
-      for (let i = 0; i < 30; i++) {
-        T.schritte(1);
-        arrays.laserArray.forEach(l => ids.add(l.id));
-      }
-      state.tastenGedrueckt.l = false;
-      return { schuesse: ids.size, hp: ziele.map(z => z.hp) };
-    }, overdrive);
+    const messe = overdrive =>
+      page.evaluate(overdrive => {
+        const { state, arrays } = window.__game;
+        const T = window.__viperTest;
+        T.leeren();
+        state.laserStufe = 1;
+        state.laserDurchschlag = false;
+        state.energie = 50;
+        state.maxEnergie = 50;
+        state.unbegrenzteEnergie = true;
+        state.spielerSchussCooldown = 0;
+        state.viperOverdriveLeiste = overdrive ? 100 : 0;
+        state.viperOverdriveTimer = overdrive ? 300 : 0;
+        // zwei hintereinander stehende, ruhende Ziele ueber dem Schiff
+        const ziele = [300, 200].map((y, i) => {
+          const el = document.createElement('div');
+          el.classList.add('asteroid');
+          document.getElementById('spielfeld').appendChild(el);
+          const a = {
+            id: 'ziel' + i,
+            el,
+            x: 140,
+            y,
+            groesse: 50,
+            vx: 0,
+            vy: 0,
+            immune: 0,
+            hp: 100000,
+            maxHp: 100000,
+            istMagma: false,
+            istUnzerstoerbar: false,
+            traegtPowerup: false,
+            rissEl: null,
+            istFeind: false,
+            rot: 0,
+            vRot: 0,
+          };
+          arrays.asteroiden.push(a);
+          return a;
+        });
+        const ids = new Set();
+        state.tastenGedrueckt.l = true;
+        for (let i = 0; i < 30; i++) {
+          T.schritte(1);
+          arrays.laserArray.forEach(l => ids.add(l.id));
+        }
+        state.tastenGedrueckt.l = false;
+        return { schuesse: ids.size, hp: ziele.map(z => z.hp) };
+      }, overdrive);
     const normal = await messe(false);
     const od = await messe(true);
     expect(normal.hp[0]).toBeLessThan(100000);
@@ -932,7 +1123,7 @@ test.describe('Viper-X Near-Miss und Overdrive', () => {
         leiste: state.viperOverdriveLeiste,
         timer: state.viperOverdriveTimer,
         hud: document.getElementById('viper-overdrive-hud').style.display,
-        klasse: document.getElementById('spieler').classList.contains('viper-overdrive')
+        klasse: document.getElementById('spieler').classList.contains('viper-overdrive'),
       };
     });
     expect(r).toEqual({ leiste: 0, timer: 0, hud: 'none', klasse: false });
@@ -972,7 +1163,11 @@ test.describe('Viper-X Near-Miss und Overdrive', () => {
         arrays.feindLaserArray.push({ id: 'b' + i, el, x: 192, y: 100 + i * 25, vx: 0, vy: 5, width: 4, height: 15 });
       }
       T.schritte(120);
-      return { fehler, leistePlausibel: state.p2.viperOverdriveLeiste >= 0 && state.p2.viperOverdriveLeiste <= 100, leben: state.p2.leben };
+      return {
+        fehler,
+        leistePlausibel: state.p2.viperOverdriveLeiste >= 0 && state.p2.viperOverdriveLeiste <= 100,
+        leben: state.p2.leben,
+      };
     });
     expect(r.fehler).toEqual([]);
     expect(r.leistePlausibel).toBe(true);
@@ -981,7 +1176,7 @@ test.describe('Viper-X Near-Miss und Overdrive', () => {
 
 test.describe('Viper-X Near-Miss und Overdrive: Online', () => {
   async function alsOnline(page, host) {
-    await page.evaluate((host) => {
+    await page.evaluate(host => {
       const { state, arrays, Utils } = window.__game;
       Utils.setGameMode('online');
       state.spielLaeuft = true;
@@ -996,16 +1191,34 @@ test.describe('Viper-X Near-Miss und Overdrive: Online', () => {
       state.network.isClient = !host;
       state.network.connected = true;
       state.frameZaehler = 1;
-      ['feinde', 'asteroiden', 'bosses', 'powerups', 'laserArray', 'raketenArray', 'bombenArray',
-        'feindLaserArray', 'hackProjektilArray', 'bossLaserArray', 'bossRaketenArray', 'bossBombenArray'].forEach(n => {
-        arrays[n].forEach(o => { if (o.el) o.el.remove(); });
+      [
+        'feinde',
+        'asteroiden',
+        'bosses',
+        'powerups',
+        'laserArray',
+        'raketenArray',
+        'bombenArray',
+        'feindLaserArray',
+        'hackProjektilArray',
+        'bossLaserArray',
+        'bossRaketenArray',
+        'bossBombenArray',
+      ].forEach(n => {
+        arrays[n].forEach(o => {
+          if (o.el) o.el.remove();
+        });
         arrays[n].length = 0;
       });
-      Object.keys(state.tastenGedrueckt).forEach(k => { state.tastenGedrueckt[k] = false; });
+      Object.keys(state.tastenGedrueckt).forEach(k => {
+        state.tastenGedrueckt[k] = false;
+      });
     }, host);
   }
 
-  test('Snapshot enthaelt Leiste und Overdrive-Timer (ganzzahlig), der Client zeigt die Klasse und spielt die Sounds fuer das eigene Schiff', async ({ page }) => {
+  test('Snapshot enthaelt Leiste und Overdrive-Timer (ganzzahlig), der Client zeigt die Klasse und spielt die Sounds fuer das eigene Schiff', async ({
+    page,
+  }) => {
     await page.waitForFunction(() => window.__game && window.__game.state);
     await alsOnline(page, true);
     const r = await page.evaluate(async () => {
@@ -1018,14 +1231,24 @@ test.describe('Viper-X Near-Miss und Overdrive: Online', () => {
       state.p2.viperOverdriveLeiste = 40;
       state.p2.viperOverdriveTimer = 0;
       const voll = JSON.parse(JSON.stringify(g.Network.serializeGameState()));
-      out.roh = [voll.p1.viperOverdriveLeiste, voll.p1.viperOverdriveTimer, voll.p2.viperOverdriveLeiste, voll.p2.viperOverdriveTimer];
+      out.roh = [
+        voll.p1.viperOverdriveLeiste,
+        voll.p1.viperOverdriveTimer,
+        voll.p2.viperOverdriveLeiste,
+        voll.p2.viperOverdriveTimer,
+      ];
       state.p2.selectedShipModel = 'phantom';
       out.phantomFelder = 'viperOverdriveLeiste' in g.Network.serializeGameState().p2;
       state.p2.selectedShipModel = 'viper';
       const kodierer = new NK.SnapshotKodierer();
       const dekodierer = new NK.SnapshotDekodierer();
       const rekon = dekodierer.dekodiere(JSON.parse(JSON.stringify(kodierer.kodiere(voll, 0))));
-      out.draht = [rekon.p1.viperOverdriveLeiste, rekon.p1.viperOverdriveTimer, rekon.p2.viperOverdriveLeiste, rekon.p2.viperOverdriveTimer];
+      out.draht = [
+        rekon.p1.viperOverdriveLeiste,
+        rekon.p1.viperOverdriveTimer,
+        rekon.p2.viperOverdriveLeiste,
+        rekon.p2.viperOverdriveTimer,
+      ];
 
       // Client: Host-P1 im Overdrive, eigenes Schiff (P2) lernt einen Near-Miss kennen
       state.network.isHost = false;
@@ -1113,11 +1336,16 @@ test.describe('Viper-X Kill-Kombo', () => {
       const out = {};
       // Asteroiden spawnen bei frameZaehler % 120 === 0 und koennten das Schiff treffen (Kombo -> 0):
       // Zaehler vor jedem Block zuruecksetzen, damit kein Block die 120 erreicht
-      const schritte = (n) => { state.frameZaehler = 1; T.schritte(n); };
+      const schritte = n => {
+        state.frameZaehler = 1;
+        T.schritte(n);
+      };
       T.killFeind();
       out.erster = state.viperKombo;
-      schritte(100); T.killFeind();
-      schritte(100); T.killFeind();
+      schritte(100);
+      T.killFeind();
+      schritte(100);
+      T.killFeind();
       out.drei = [state.viperKombo, state.viperKomboTimer];
       schritte(119);
       out.nochDa = state.viperKombo;
@@ -1131,21 +1359,31 @@ test.describe('Viper-X Kill-Kombo', () => {
     expect(r.abgelaufen).toEqual([0, 0]);
   });
 
-  test('Treffer setzt die Kombo auf 0 (auch ein vom Schild abgefangener), Waffenstufen bleiben unveraendert', async ({ page }) => {
+  test('Treffer setzt die Kombo auf 0 (auch ein vom Schild abgefangener), Waffenstufen bleiben unveraendert', async ({
+    page,
+  }) => {
     await bereit(page);
     const r = await page.evaluate(() => {
       const { state, Utils } = window.__game;
       const dummy = { istFeind: false, el: { dataset: {} }, x: 0, y: 0 };
       const out = {};
-      state.laserStufe = 4; state.raketenStufe = 3; state.bombenStufe = 2;
-      state.viperKombo = 8; state.viperKomboTimer = 90;
+      state.laserStufe = 4;
+      state.raketenStufe = 3;
+      state.bombenStufe = 2;
+      state.viperKombo = 8;
+      state.viperKomboTimer = 90;
       Utils.spielerGetroffen(dummy, false, 'p1');
-      out.treffer = { kombo: state.viperKombo, timer: state.viperKomboTimer, leben: state.leben,
-        stufen: [state.laserStufe, state.raketenStufe, state.bombenStufe] };
+      out.treffer = {
+        kombo: state.viperKombo,
+        timer: state.viperKomboTimer,
+        leben: state.leben,
+        stufen: [state.laserStufe, state.raketenStufe, state.bombenStufe],
+      };
       // Schild faengt den Treffer ab, die Kombo faellt trotzdem
       state.invulnerableTimer = 0;
       state.schildStufe = 1;
-      state.viperKombo = 6; state.viperKomboTimer = 50;
+      state.viperKombo = 6;
+      state.viperKomboTimer = 50;
       Utils.spielerGetroffen(dummy, false, 'p1');
       out.schild = { kombo: state.viperKombo, leben: state.leben, schild: state.schildStufe };
       // Unverwundbar (kein Treffer) laesst die Kombo stehen
@@ -1176,8 +1414,9 @@ test.describe('Viper-X Kill-Kombo', () => {
     const r = await page.evaluate(() => {
       const T = window.__viperTest;
       const { state } = window.__game;
-      const delta = (kombo) => {
-        state.viperKombo = kombo; state.viperKomboTimer = 120;
+      const delta = kombo => {
+        state.viperKombo = kombo;
+        state.viperKomboTimer = 120;
         const s0 = state.score;
         T.killFeind();
         return state.score - s0;
@@ -1198,8 +1437,11 @@ test.describe('Viper-X Kill-Kombo', () => {
       const T = window.__viperTest;
       const { state } = window.__game;
       const cd = (kombo, overdrive = 0) => {
-        state.viperKombo = kombo; state.viperKomboTimer = 120; state.viperOverdriveTimer = overdrive;
-        state.spielerSchussCooldown = 0; state.energie = state.maxEnergie;
+        state.viperKombo = kombo;
+        state.viperKomboTimer = 120;
+        state.viperOverdriveTimer = overdrive;
+        state.spielerSchussCooldown = 0;
+        state.energie = state.maxEnergie;
         state.tastenGedrueckt.l = true;
         T.schritte(1);
         state.tastenGedrueckt.l = false;
@@ -1232,7 +1474,11 @@ test.describe('Viper-X Kill-Kombo', () => {
       }
       return stufen;
     });
-    expect(r).toEqual([[5, 1], [10, 2], [20, 3]]);
+    expect(r).toEqual([
+      [5, 1],
+      [10, 2],
+      [20, 3],
+    ]);
   });
 
   test('Phantom hat keine Kombo: Kills aendern nichts, Punkte ohne Faktor, Cooldown 6', async ({ page }) => {
@@ -1246,8 +1492,12 @@ test.describe('Viper-X Kill-Kombo', () => {
       const punkte = state.score - s0;
       state.tastenGedrueckt.l = true;
       T.schritte(1);
-      return { punkte, kombo: state.viperKombo, cooldown: state.spielerSchussCooldown,
-        hud: document.getElementById('viper-kombo-hud').style.display };
+      return {
+        punkte,
+        kombo: state.viperKombo,
+        cooldown: state.spielerSchussCooldown,
+        hud: document.getElementById('viper-kombo-hud').style.display,
+      };
     });
     expect(r.punkte).toBe(100);
     expect(r.kombo).toBe(10);
@@ -1260,7 +1510,9 @@ test.describe('Viper-X Kill-Kombo', () => {
     const r = await page.evaluate(() => {
       const T = window.__viperTest;
       const { state, Utils } = window.__game;
-      T.killFeind('p2'); T.killFeind('p2'); T.killFeind('p1');
+      T.killFeind('p2');
+      T.killFeind('p2');
+      T.killFeind('p1');
       const nachKills = { p1: state.viperKombo, p2: state.p2.viperKombo };
       // P2-Kill mit Kombo 10 zaehlt x2, P1-Kill (Kombo 1) x1.1
       state.p2.viperKombo = 10;
@@ -1286,12 +1538,14 @@ test.describe('Viper-X Kill-Kombo', () => {
       const { state } = window.__game;
       const h1 = document.getElementById('viper-kombo-hud');
       const h2 = document.getElementById('viper-kombo-hud-p2');
-      const lies = (h) => ({ anzeige: h.style.display, text: h.textContent, puls: h.classList.contains('puls') });
+      const lies = h => ({ anzeige: h.style.display, text: h.textContent, puls: h.classList.contains('puls') });
       const out = {};
       T.schritte(1);
       out.null = [lies(h1).anzeige, lies(h2).anzeige];
-      state.viperKombo = 7; state.viperKomboTimer = 100;
-      state.p2.viperKombo = 25; state.p2.viperKomboTimer = 100;
+      state.viperKombo = 7;
+      state.viperKomboTimer = 100;
+      state.p2.viperKombo = 25;
+      state.p2.viperKomboTimer = 100;
       T.schritte(1);
       out.p1 = lies(h1);
       out.p2 = lies(h2);
@@ -1312,30 +1566,57 @@ test.describe('Viper-X Kill-Kombo', () => {
     expect(r.p1Weg.anzeige).toBe('none');
   });
 
-  test('Online: Snapshot traegt Kombo und Timer beider Viper (ganzzahlig, nur Viper), der Client zeigt sie und tickt nicht selbst', async ({ page }) => {
+  test('Online: Snapshot traegt Kombo und Timer beider Viper (ganzzahlig, nur Viper), der Client zeigt sie und tickt nicht selbst', async ({
+    page,
+  }) => {
     await page.waitForFunction(() => window.__game && window.__game.state);
     await page.evaluate(() => {
       const { state, arrays, Utils } = window.__game;
       Utils.setGameMode('online');
-      state.spielLaeuft = true; state.pausiert = false; state.cutsceneAktiv = false; state.gameOverAktiv = false;
+      state.spielLaeuft = true;
+      state.pausiert = false;
+      state.cutsceneAktiv = false;
+      state.gameOverAktiv = false;
       state.bossWarningAktiv = false;
-      state.selectedShipModel = 'viper'; state.p2.selectedShipModel = 'viper';
-      state.network.isOnline = true; state.network.isHost = true; state.network.isClient = false; state.network.connected = true;
+      state.selectedShipModel = 'viper';
+      state.p2.selectedShipModel = 'viper';
+      state.network.isOnline = true;
+      state.network.isHost = true;
+      state.network.isClient = false;
+      state.network.connected = true;
       state.frameZaehler = 1;
-      ['feinde', 'asteroiden', 'bosses', 'powerups', 'laserArray', 'raketenArray', 'bombenArray',
-        'feindLaserArray', 'hackProjektilArray', 'bossLaserArray', 'bossRaketenArray', 'bossBombenArray'].forEach(n => {
-        arrays[n].forEach(o => { if (o.el) o.el.remove(); });
+      [
+        'feinde',
+        'asteroiden',
+        'bosses',
+        'powerups',
+        'laserArray',
+        'raketenArray',
+        'bombenArray',
+        'feindLaserArray',
+        'hackProjektilArray',
+        'bossLaserArray',
+        'bossRaketenArray',
+        'bossBombenArray',
+      ].forEach(n => {
+        arrays[n].forEach(o => {
+          if (o.el) o.el.remove();
+        });
         arrays[n].length = 0;
       });
-      Object.keys(state.tastenGedrueckt).forEach(k => { state.tastenGedrueckt[k] = false; });
+      Object.keys(state.tastenGedrueckt).forEach(k => {
+        state.tastenGedrueckt[k] = false;
+      });
     });
     const r = await page.evaluate(async () => {
       const g = window.__game;
       const { state } = g;
       const NK = await import('./js/netzkodierung.js');
       const out = {};
-      state.viperKombo = 7; state.viperKomboTimer = 80.4;
-      state.p2.viperKombo = 5; state.p2.viperKomboTimer = 30;
+      state.viperKombo = 7;
+      state.viperKomboTimer = 80.4;
+      state.p2.viperKombo = 5;
+      state.p2.viperKomboTimer = 30;
       const voll = JSON.parse(JSON.stringify(g.Network.serializeGameState()));
       out.roh = [voll.p1.viperKombo, voll.p1.viperKomboTimer, voll.p2.viperKombo, voll.p2.viperKomboTimer];
       state.p2.selectedShipModel = 'phantom';
@@ -1347,14 +1628,21 @@ test.describe('Viper-X Kill-Kombo', () => {
       out.draht = [rekon.p1.viperKombo, rekon.p1.viperKomboTimer, rekon.p2.viperKombo, rekon.p2.viperKomboTimer];
 
       // Client: Host-P1 Kombo 7, eigenes Schiff (P2) springt von 4 auf 5 -> Sound
-      state.network.isHost = false; state.network.isClient = true;
-      state.viperKombo = 0; state.viperKomboTimer = 0;
-      state.p2.viperKombo = 4; state.p2.viperKomboTimer = 10;
+      state.network.isHost = false;
+      state.network.isClient = true;
+      state.viperKombo = 0;
+      state.viperKomboTimer = 0;
+      state.p2.viperKombo = 4;
+      state.p2.viperKomboTimer = 10;
       g.Audio.clearAudioHistory();
       g.Network.applyGameStateSnapshot(rekon);
       g.Loop.simulationsSchritt();
-      out.client = [state.viperKombo, state.p2.viperKombo, document.getElementById('viper-kombo-hud').textContent,
-        document.getElementById('viper-kombo-hud-p2').style.display];
+      out.client = [
+        state.viperKombo,
+        state.p2.viperKombo,
+        document.getElementById('viper-kombo-hud').textContent,
+        document.getElementById('viper-kombo-hud-p2').style.display,
+      ];
       out.sounds = g.Audio.audioHistory.filter(a => a.name === 'kombo').length;
       // Der Client zaehlt das Fenster nicht selbst herunter und verwirft die Kombo nicht
       state.p2.viperKomboTimer = 1;

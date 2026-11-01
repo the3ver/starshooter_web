@@ -10,1127 +10,1141 @@ let sharedNoiseBuffer = null;
 export const audioHistory = [];
 
 function recordSound(name, details = {}) {
-    audioHistory.push({ name, details, time: Date.now() });
-    if (audioHistory.length > 50) audioHistory.shift();
+  audioHistory.push({ name, details, time: Date.now() });
+  if (audioHistory.length > 50) audioHistory.shift();
 }
 
 export function clearAudioHistory() {
-    audioHistory.length = 0;
+  audioHistory.length = 0;
 }
 
 export function getAudioContext() {
-    if (!audioCtx && (typeof window !== 'undefined') && (window.AudioContext || window.webkitAudioContext)) {
-        const AudioContextClass = window.AudioContext || window.webkitAudioContext;
-        audioCtx = new AudioContextClass({ latencyHint: 'interactive' });
-        masterGain = audioCtx.createGain();
-        masterGain.gain.setValueAtTime(isMuted ? 0 : 0.3, audioCtx.currentTime);
-        masterGain.connect(audioCtx.destination);
-    }
-    return audioCtx;
+  if (!audioCtx && typeof window !== 'undefined' && (window.AudioContext || window.webkitAudioContext)) {
+    const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+    audioCtx = new AudioContextClass({ latencyHint: 'interactive' });
+    masterGain = audioCtx.createGain();
+    masterGain.gain.setValueAtTime(isMuted ? 0 : 0.3, audioCtx.currentTime);
+    masterGain.connect(audioCtx.destination);
+  }
+  return audioCtx;
 }
 
 export function getNoiseBuffer(ctx) {
-    if (!sharedNoiseBuffer && ctx) {
-        try {
-            const sampleRate = ctx.sampleRate || 44100;
-            const bufferSize = sampleRate * 2;
-            sharedNoiseBuffer = ctx.createBuffer(1, bufferSize, sampleRate);
-            const output = sharedNoiseBuffer.getChannelData(0);
-            for (let i = 0; i < bufferSize; i++) {
-                output[i] = Math.random() * 2 - 1;
-            }
-        } catch (e) {}
-    }
-    return sharedNoiseBuffer;
+  if (!sharedNoiseBuffer && ctx) {
+    try {
+      const sampleRate = ctx.sampleRate || 44100;
+      const bufferSize = sampleRate * 2;
+      sharedNoiseBuffer = ctx.createBuffer(1, bufferSize, sampleRate);
+      const output = sharedNoiseBuffer.getChannelData(0);
+      for (let i = 0; i < bufferSize; i++) {
+        output[i] = Math.random() * 2 - 1;
+      }
+    } catch (e) {}
+  }
+  return sharedNoiseBuffer;
 }
 
 export function initAudio() {
-    const ctx = getAudioContext();
-    if (ctx && ctx.state === 'suspended') {
-        ctx.resume().catch(() => {});
-    }
+  const ctx = getAudioContext();
+  if (ctx && ctx.state === 'suspended') {
+    ctx.resume().catch(() => {});
+  }
 }
 
 if (typeof window !== 'undefined') {
-    const unlock = () => {
-        initAudio();
-    };
-    window.addEventListener('pointerdown', unlock, { passive: true, once: true });
-    window.addEventListener('touchstart', unlock, { passive: true, once: true });
-    window.addEventListener('keydown', unlock, { passive: true, once: true });
+  const unlock = () => {
+    initAudio();
+  };
+  window.addEventListener('pointerdown', unlock, { passive: true, once: true });
+  window.addEventListener('touchstart', unlock, { passive: true, once: true });
+  window.addEventListener('keydown', unlock, { passive: true, once: true });
 }
 
 export function isSoundMuted() {
-    return isMuted;
+  return isMuted;
 }
 
 export function setMuted(muted) {
-    isMuted = !!muted;
-    try {
-        localStorage.setItem('starshooter_muted', isMuted ? 'true' : 'false');
-    } catch (e) {}
+  isMuted = !!muted;
+  try {
+    localStorage.setItem('starshooter_muted', isMuted ? 'true' : 'false');
+  } catch (e) {}
 
-    if (audioCtx && masterGain) {
-        masterGain.gain.setValueAtTime(isMuted ? 0 : 0.3, audioCtx.currentTime);
-    }
-    updateSoundButtonUI();
+  if (audioCtx && masterGain) {
+    masterGain.gain.setValueAtTime(isMuted ? 0 : 0.3, audioCtx.currentTime);
+  }
+  updateSoundButtonUI();
 }
 
 export function toggleMute() {
-    setMuted(!isMuted);
-    return isMuted;
+  setMuted(!isMuted);
+  return isMuted;
 }
 
 export function updateSoundButtonUI() {
-    const btn = document.getElementById('btn-sound-toggle');
-    if (btn) {
-        btn.textContent = isMuted ? '🔇' : '🔊';
-        btn.setAttribute('title', isMuted ? 'Sound aktivieren (M)' : 'Sound stummschalten (M)');
-        btn.setAttribute('aria-label', isMuted ? 'Sound aktivieren (M)' : 'Sound stummschalten (M)');
-    }
+  const btn = document.getElementById('btn-sound-toggle');
+  if (btn) {
+    btn.textContent = isMuted ? '🔇' : '🔊';
+    btn.setAttribute('title', isMuted ? 'Sound aktivieren (M)' : 'Sound stummschalten (M)');
+    btn.setAttribute('aria-label', isMuted ? 'Sound aktivieren (M)' : 'Sound stummschalten (M)');
+  }
 }
 
 export function initSoundState() {
-    try {
-        const saved = localStorage.getItem('starshooter_muted');
-        if (saved !== null) {
-            isMuted = (saved === 'true');
-        }
-    } catch (e) {}
-    updateSoundButtonUI();
+  try {
+    const saved = localStorage.getItem('starshooter_muted');
+    if (saved !== null) {
+      isMuted = saved === 'true';
+    }
+  } catch (e) {}
+  updateSoundButtonUI();
 }
 
 export function playLaser(level = 1) {
-    recordSound('laser', { level });
-    if (isMuted) return;
-    const ctx = getAudioContext();
-    if (!ctx) return;
-    if (ctx.state === 'suspended') ctx.resume().catch(() => {});
+  recordSound('laser', { level });
+  if (isMuted) return;
+  const ctx = getAudioContext();
+  if (!ctx) return;
+  if (ctx.state === 'suspended') ctx.resume().catch(() => {});
 
-    const now = ctx.currentTime;
-    const osc = ctx.createOscillator();
-    const gain = ctx.createGain();
+  const now = ctx.currentTime;
+  const osc = ctx.createOscillator();
+  const gain = ctx.createGain();
 
-    const baseFreq = 600 + (level * 100);
-    osc.type = level >= 4 ? 'square' : 'sawtooth';
-    osc.frequency.setValueAtTime(baseFreq, now);
-    osc.frequency.exponentialRampToValueAtTime(80, now + 0.12);
+  const baseFreq = 600 + level * 100;
+  osc.type = level >= 4 ? 'square' : 'sawtooth';
+  osc.frequency.setValueAtTime(baseFreq, now);
+  osc.frequency.exponentialRampToValueAtTime(80, now + 0.12);
 
-    gain.gain.setValueAtTime(0.18, now);
-    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.12);
+  gain.gain.setValueAtTime(0.18, now);
+  gain.gain.exponentialRampToValueAtTime(0.001, now + 0.12);
 
-    osc.connect(gain);
-    gain.connect(masterGain);
+  osc.connect(gain);
+  gain.connect(masterGain);
 
-    osc.start(now);
-    osc.stop(now + 0.12);
+  osc.start(now);
+  osc.stop(now + 0.12);
 }
 
 export function playAutolaser() {
-    recordSound('autolaser');
-    if (isMuted) return;
-    const ctx = getAudioContext();
-    if (!ctx) return;
-    if (ctx.state === 'suspended') ctx.resume().catch(() => {});
+  recordSound('autolaser');
+  if (isMuted) return;
+  const ctx = getAudioContext();
+  if (!ctx) return;
+  if (ctx.state === 'suspended') ctx.resume().catch(() => {});
 
-    const now = ctx.currentTime;
-    const osc = ctx.createOscillator();
-    const gain = ctx.createGain();
-    osc.type = 'triangle';
-    osc.frequency.setValueAtTime(1400, now);
-    osc.frequency.exponentialRampToValueAtTime(700, now + 0.06);
-    gain.gain.setValueAtTime(0.15, now);
-    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.06);
-    osc.connect(gain);
-    gain.connect(masterGain);
-    osc.start(now);
-    osc.stop(now + 0.06);
+  const now = ctx.currentTime;
+  const osc = ctx.createOscillator();
+  const gain = ctx.createGain();
+  osc.type = 'triangle';
+  osc.frequency.setValueAtTime(1400, now);
+  osc.frequency.exponentialRampToValueAtTime(700, now + 0.06);
+  gain.gain.setValueAtTime(0.15, now);
+  gain.gain.exponentialRampToValueAtTime(0.001, now + 0.06);
+  osc.connect(gain);
+  gain.connect(masterGain);
+  osc.start(now);
+  osc.stop(now + 0.06);
 }
 
 export function playMissile() {
-    recordSound('missile');
-    if (isMuted) return;
-    const ctx = getAudioContext();
-    if (!ctx) return;
-    if (ctx.state === 'suspended') ctx.resume().catch(() => {});
+  recordSound('missile');
+  if (isMuted) return;
+  const ctx = getAudioContext();
+  if (!ctx) return;
+  if (ctx.state === 'suspended') ctx.resume().catch(() => {});
 
-    const now = ctx.currentTime;
-    const duration = 0.32;
+  const now = ctx.currentTime;
+  const duration = 0.32;
 
-    // 1. Silvester-Raketen Rausch-Zischen (Resonant Bandpass Sweep über Noise-Buffer)
-    try {
-        const noiseBuf = getNoiseBuffer(ctx);
-        if (noiseBuf) {
-            const noiseSource = ctx.createBufferSource();
-            noiseSource.buffer = noiseBuf;
-            noiseSource.loop = true;
+  // 1. Silvester-Raketen Rausch-Zischen (Resonant Bandpass Sweep über Noise-Buffer)
+  try {
+    const noiseBuf = getNoiseBuffer(ctx);
+    if (noiseBuf) {
+      const noiseSource = ctx.createBufferSource();
+      noiseSource.buffer = noiseBuf;
+      noiseSource.loop = true;
 
-            const bandpass = ctx.createBiquadFilter();
-            bandpass.type = 'bandpass';
-            bandpass.Q.setValueAtTime(4.0, now);
-            bandpass.frequency.setValueAtTime(800, now);
-            bandpass.frequency.exponentialRampToValueAtTime(3800, now + duration * 0.7);
-            bandpass.frequency.exponentialRampToValueAtTime(1200, now + duration);
+      const bandpass = ctx.createBiquadFilter();
+      bandpass.type = 'bandpass';
+      bandpass.Q.setValueAtTime(4.0, now);
+      bandpass.frequency.setValueAtTime(800, now);
+      bandpass.frequency.exponentialRampToValueAtTime(3800, now + duration * 0.7);
+      bandpass.frequency.exponentialRampToValueAtTime(1200, now + duration);
 
-            const noiseGain = ctx.createGain();
-            noiseGain.gain.setValueAtTime(0.35, now);
-            noiseGain.gain.linearRampToValueAtTime(0.4, now + duration * 0.4);
-            noiseGain.gain.exponentialRampToValueAtTime(0.001, now + duration);
+      const noiseGain = ctx.createGain();
+      noiseGain.gain.setValueAtTime(0.35, now);
+      noiseGain.gain.linearRampToValueAtTime(0.4, now + duration * 0.4);
+      noiseGain.gain.exponentialRampToValueAtTime(0.001, now + duration);
 
-            noiseSource.connect(bandpass);
-            bandpass.connect(noiseGain);
-            noiseGain.connect(masterGain);
+      noiseSource.connect(bandpass);
+      bandpass.connect(noiseGain);
+      noiseGain.connect(masterGain);
 
-            noiseSource.start(now);
-            noiseSource.stop(now + duration);
-        }
-    } catch (e) {}
+      noiseSource.start(now);
+      noiseSource.stop(now + duration);
+    }
+  } catch (e) {}
 
-    // 2. Aufsteigender Pfeifton ("Wiiieeeep")
-    const whistleOsc = ctx.createOscillator();
-    const whistleGain = ctx.createGain();
-    whistleOsc.type = 'sine';
-    whistleOsc.frequency.setValueAtTime(450, now);
-    whistleOsc.frequency.exponentialRampToValueAtTime(2400, now + duration * 0.85);
+  // 2. Aufsteigender Pfeifton ("Wiiieeeep")
+  const whistleOsc = ctx.createOscillator();
+  const whistleGain = ctx.createGain();
+  whistleOsc.type = 'sine';
+  whistleOsc.frequency.setValueAtTime(450, now);
+  whistleOsc.frequency.exponentialRampToValueAtTime(2400, now + duration * 0.85);
 
-    whistleGain.gain.setValueAtTime(0.18, now);
-    whistleGain.gain.exponentialRampToValueAtTime(0.001, now + duration);
+  whistleGain.gain.setValueAtTime(0.18, now);
+  whistleGain.gain.exponentialRampToValueAtTime(0.001, now + duration);
 
-    whistleOsc.connect(whistleGain);
-    whistleGain.connect(masterGain);
-    whistleOsc.start(now);
-    whistleOsc.stop(now + duration);
+  whistleOsc.connect(whistleGain);
+  whistleGain.connect(masterGain);
+  whistleOsc.start(now);
+  whistleOsc.stop(now + duration);
 
-    // 3. Kurzer Abschuss-Poff (Druckwelle am Rohr)
-    const popOsc = ctx.createOscillator();
-    const popGain = ctx.createGain();
-    popOsc.type = 'triangle';
-    popOsc.frequency.setValueAtTime(200, now);
-    popOsc.frequency.exponentialRampToValueAtTime(50, now + 0.08);
+  // 3. Kurzer Abschuss-Poff (Druckwelle am Rohr)
+  const popOsc = ctx.createOscillator();
+  const popGain = ctx.createGain();
+  popOsc.type = 'triangle';
+  popOsc.frequency.setValueAtTime(200, now);
+  popOsc.frequency.exponentialRampToValueAtTime(50, now + 0.08);
 
-    popGain.gain.setValueAtTime(0.25, now);
-    popGain.gain.exponentialRampToValueAtTime(0.001, now + 0.08);
+  popGain.gain.setValueAtTime(0.25, now);
+  popGain.gain.exponentialRampToValueAtTime(0.001, now + 0.08);
 
-    popOsc.connect(popGain);
-    popGain.connect(masterGain);
-    popOsc.start(now);
-    popOsc.stop(now + 0.08);
+  popOsc.connect(popGain);
+  popGain.connect(masterGain);
+  popOsc.start(now);
+  popOsc.stop(now + 0.08);
 }
 
 export function playMissileExplosion() {
-    recordSound('missileExplosion');
-    if (isMuted) return;
-    const ctx = getAudioContext();
-    if (!ctx) return;
-    if (ctx.state === 'suspended') ctx.resume().catch(() => {});
+  recordSound('missileExplosion');
+  if (isMuted) return;
+  const ctx = getAudioContext();
+  if (!ctx) return;
+  if (ctx.state === 'suspended') ctx.resume().catch(() => {});
 
-    const now = ctx.currentTime;
-    const duration = 0.35;
+  const now = ctx.currentTime;
+  const duration = 0.35;
 
-    // 1. Zischendes Knall-Rauschen (High-frequency Bandpass Sizzle & Crackle)
-    try {
-        const noiseBuf = getNoiseBuffer(ctx);
-        if (noiseBuf) {
-            const noiseSource = ctx.createBufferSource();
-            noiseSource.buffer = noiseBuf;
-            noiseSource.loop = true;
+  // 1. Zischendes Knall-Rauschen (High-frequency Bandpass Sizzle & Crackle)
+  try {
+    const noiseBuf = getNoiseBuffer(ctx);
+    if (noiseBuf) {
+      const noiseSource = ctx.createBufferSource();
+      noiseSource.buffer = noiseBuf;
+      noiseSource.loop = true;
 
-            const bandpass = ctx.createBiquadFilter();
-            bandpass.type = 'bandpass';
-            bandpass.Q.setValueAtTime(2.5, now);
-            bandpass.frequency.setValueAtTime(2800, now);
-            bandpass.frequency.exponentialRampToValueAtTime(450, now + duration);
+      const bandpass = ctx.createBiquadFilter();
+      bandpass.type = 'bandpass';
+      bandpass.Q.setValueAtTime(2.5, now);
+      bandpass.frequency.setValueAtTime(2800, now);
+      bandpass.frequency.exponentialRampToValueAtTime(450, now + duration);
 
-            const noiseGain = ctx.createGain();
-            noiseGain.gain.setValueAtTime(0.45, now);
-            noiseGain.gain.exponentialRampToValueAtTime(0.001, now + duration);
+      const noiseGain = ctx.createGain();
+      noiseGain.gain.setValueAtTime(0.45, now);
+      noiseGain.gain.exponentialRampToValueAtTime(0.001, now + duration);
 
-            noiseSource.connect(bandpass);
-            bandpass.connect(noiseGain);
-            noiseGain.connect(masterGain);
+      noiseSource.connect(bandpass);
+      bandpass.connect(noiseGain);
+      noiseGain.connect(masterGain);
 
-            noiseSource.start(now);
-            noiseSource.stop(now + duration);
-        }
-    } catch (e) {}
+      noiseSource.start(now);
+      noiseSource.stop(now + duration);
+    }
+  } catch (e) {}
 
-    // 2. Knallender Mid-Bass Druckimpuls ("Paff/Bum")
-    const popOsc = ctx.createOscillator();
-    const popGain = ctx.createGain();
-    popOsc.type = 'triangle';
-    popOsc.frequency.setValueAtTime(260, now);
-    popOsc.frequency.exponentialRampToValueAtTime(45, now + 0.18);
+  // 2. Knallender Mid-Bass Druckimpuls ("Paff/Bum")
+  const popOsc = ctx.createOscillator();
+  const popGain = ctx.createGain();
+  popOsc.type = 'triangle';
+  popOsc.frequency.setValueAtTime(260, now);
+  popOsc.frequency.exponentialRampToValueAtTime(45, now + 0.18);
 
-    popGain.gain.setValueAtTime(0.35, now);
-    popGain.gain.exponentialRampToValueAtTime(0.001, now + 0.18);
+  popGain.gain.setValueAtTime(0.35, now);
+  popGain.gain.exponentialRampToValueAtTime(0.001, now + 0.18);
 
-    popOsc.connect(popGain);
-    popGain.connect(masterGain);
-    popOsc.start(now);
-    popOsc.stop(now + 0.18);
+  popOsc.connect(popGain);
+  popGain.connect(masterGain);
+  popOsc.start(now);
+  popOsc.stop(now + 0.18);
 }
 
 export function playBomb() {
-    recordSound('bomb');
-    if (isMuted) return;
-    const ctx = getAudioContext();
-    if (!ctx) return;
-    if (ctx.state === 'suspended') ctx.resume().catch(() => {});
+  recordSound('bomb');
+  if (isMuted) return;
+  const ctx = getAudioContext();
+  if (!ctx) return;
+  if (ctx.state === 'suspended') ctx.resume().catch(() => {});
 
-    const now = ctx.currentTime;
-    const osc = ctx.createOscillator();
-    const gain = ctx.createGain();
-    osc.type = 'sine';
-    osc.frequency.setValueAtTime(180, now);
-    osc.frequency.exponentialRampToValueAtTime(30, now + 0.35);
-    gain.gain.setValueAtTime(0.35, now);
-    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.4);
-    osc.connect(gain);
-    gain.connect(masterGain);
-    osc.start(now);
-    osc.stop(now + 0.4);
+  const now = ctx.currentTime;
+  const osc = ctx.createOscillator();
+  const gain = ctx.createGain();
+  osc.type = 'sine';
+  osc.frequency.setValueAtTime(180, now);
+  osc.frequency.exponentialRampToValueAtTime(30, now + 0.35);
+  gain.gain.setValueAtTime(0.35, now);
+  gain.gain.exponentialRampToValueAtTime(0.001, now + 0.4);
+  osc.connect(gain);
+  gain.connect(masterGain);
+  osc.start(now);
+  osc.stop(now + 0.4);
 }
 
 export function playBombBeep(urgency = 0, isBoss = false) {
-    recordSound('bombBeep', { urgency, isBoss });
-    if (isMuted) return;
-    const ctx = getAudioContext();
-    if (!ctx) return;
-    if (ctx.state === 'suspended') ctx.resume().catch(() => {});
+  recordSound('bombBeep', { urgency, isBoss });
+  if (isMuted) return;
+  const ctx = getAudioContext();
+  if (!ctx) return;
+  if (ctx.state === 'suspended') ctx.resume().catch(() => {});
 
-    const now = ctx.currentTime;
-    const osc = ctx.createOscillator();
-    const gain = ctx.createGain();
+  const now = ctx.currentTime;
+  const osc = ctx.createOscillator();
+  const gain = ctx.createGain();
 
-    const clampedUrgency = Math.max(0, Math.min(1, urgency));
-    // Frequenz steigt mit Dringlichkeit
-    const baseFreq = isBoss ? 500 : 900;
-    const maxFreq = isBoss ? 1500 : 2600;
-    const freq = baseFreq + clampedUrgency * (maxFreq - baseFreq);
+  const clampedUrgency = Math.max(0, Math.min(1, urgency));
+  // Frequenz steigt mit Dringlichkeit
+  const baseFreq = isBoss ? 500 : 900;
+  const maxFreq = isBoss ? 1500 : 2600;
+  const freq = baseFreq + clampedUrgency * (maxFreq - baseFreq);
 
-    osc.type = isBoss ? 'sawtooth' : 'sine';
-    osc.frequency.setValueAtTime(freq, now);
+  osc.type = isBoss ? 'sawtooth' : 'sine';
+  osc.frequency.setValueAtTime(freq, now);
 
-    const dur = isBoss ? 0.05 : 0.035;
-    const vol = isBoss ? 0.22 : 0.16;
+  const dur = isBoss ? 0.05 : 0.035;
+  const vol = isBoss ? 0.22 : 0.16;
 
-    gain.gain.setValueAtTime(vol, now);
-    gain.gain.exponentialRampToValueAtTime(0.001, now + dur);
+  gain.gain.setValueAtTime(vol, now);
+  gain.gain.exponentialRampToValueAtTime(0.001, now + dur);
 
-    osc.connect(gain);
-    gain.connect(masterGain);
+  osc.connect(gain);
+  gain.connect(masterGain);
 
-    osc.start(now);
-    osc.stop(now + dur);
+  osc.start(now);
+  osc.stop(now + dur);
 }
 
 export function playBossRocketFlight() {
-    recordSound('bossRocketFlight');
-    if (isMuted) return;
-    const ctx = getAudioContext();
-    if (!ctx) return;
-    if (ctx.state === 'suspended') ctx.resume().catch(() => {});
+  recordSound('bossRocketFlight');
+  if (isMuted) return;
+  const ctx = getAudioContext();
+  if (!ctx) return;
+  if (ctx.state === 'suspended') ctx.resume().catch(() => {});
 
-    const now = ctx.currentTime;
-    const dur = 0.12;
+  const now = ctx.currentTime;
+  const dur = 0.12;
 
-    try {
-        const noiseBuf = getNoiseBuffer(ctx);
-        if (noiseBuf) {
-            const noiseSource = ctx.createBufferSource();
-            noiseSource.buffer = noiseBuf;
-            noiseSource.loop = true;
+  try {
+    const noiseBuf = getNoiseBuffer(ctx);
+    if (noiseBuf) {
+      const noiseSource = ctx.createBufferSource();
+      noiseSource.buffer = noiseBuf;
+      noiseSource.loop = true;
 
-            const bandpass = ctx.createBiquadFilter();
-            bandpass.type = 'bandpass';
-            bandpass.Q.setValueAtTime(3.0, now);
-            bandpass.frequency.setValueAtTime(1200, now);
-            bandpass.frequency.linearRampToValueAtTime(1800, now + dur);
+      const bandpass = ctx.createBiquadFilter();
+      bandpass.type = 'bandpass';
+      bandpass.Q.setValueAtTime(3.0, now);
+      bandpass.frequency.setValueAtTime(1200, now);
+      bandpass.frequency.linearRampToValueAtTime(1800, now + dur);
 
-            const noiseGain = ctx.createGain();
-            noiseGain.gain.setValueAtTime(0.2, now);
-            noiseGain.gain.exponentialRampToValueAtTime(0.001, now + dur);
+      const noiseGain = ctx.createGain();
+      noiseGain.gain.setValueAtTime(0.2, now);
+      noiseGain.gain.exponentialRampToValueAtTime(0.001, now + dur);
 
-            noiseSource.connect(bandpass);
-            bandpass.connect(noiseGain);
-            noiseGain.connect(masterGain);
+      noiseSource.connect(bandpass);
+      bandpass.connect(noiseGain);
+      noiseGain.connect(masterGain);
 
-            noiseSource.start(now);
-            noiseSource.stop(now + dur);
-        }
-    } catch (e) {}
+      noiseSource.start(now);
+      noiseSource.stop(now + dur);
+    }
+  } catch (e) {}
 }
 
 export function playEnemyLaser() {
-    recordSound('enemyLaser');
-    if (isMuted) return;
-    const ctx = getAudioContext();
-    if (!ctx) return;
-    if (ctx.state === 'suspended') ctx.resume().catch(() => {});
+  recordSound('enemyLaser');
+  if (isMuted) return;
+  const ctx = getAudioContext();
+  if (!ctx) return;
+  if (ctx.state === 'suspended') ctx.resume().catch(() => {});
 
-    const now = ctx.currentTime;
-    const osc = ctx.createOscillator();
-    const gain = ctx.createGain();
+  const now = ctx.currentTime;
+  const osc = ctx.createOscillator();
+  const gain = ctx.createGain();
 
-    osc.type = 'sawtooth';
-    osc.frequency.setValueAtTime(750, now);
-    osc.frequency.exponentialRampToValueAtTime(150, now + 0.1);
+  osc.type = 'sawtooth';
+  osc.frequency.setValueAtTime(750, now);
+  osc.frequency.exponentialRampToValueAtTime(150, now + 0.1);
 
-    gain.gain.setValueAtTime(0.12, now);
-    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.1);
+  gain.gain.setValueAtTime(0.12, now);
+  gain.gain.exponentialRampToValueAtTime(0.001, now + 0.1);
 
-    osc.connect(gain);
-    gain.connect(masterGain);
+  osc.connect(gain);
+  gain.connect(masterGain);
 
-    osc.start(now);
-    osc.stop(now + 0.1);
+  osc.start(now);
+  osc.stop(now + 0.1);
 }
 
 export function playHack() {
-    recordSound('hack');
-    if (isMuted) return;
-    const ctx = getAudioContext();
-    if (!ctx) return;
-    if (ctx.state === 'suspended') ctx.resume().catch(() => {});
+  recordSound('hack');
+  if (isMuted) return;
+  const ctx = getAudioContext();
+  if (!ctx) return;
+  if (ctx.state === 'suspended') ctx.resume().catch(() => {});
 
-    // Digitales Stottern: schnelle Rechteck-Sprünge zwischen zufälligen Frequenzen
-    const now = ctx.currentTime;
-    const osc = ctx.createOscillator();
-    const gain = ctx.createGain();
-    osc.type = 'square';
-    for (let i = 0; i < 8; i++) {
-        osc.frequency.setValueAtTime(200 + Math.random() * 1400, now + i * 0.04);
-    }
-    gain.gain.setValueAtTime(0.1, now);
-    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.35);
-    osc.connect(gain);
-    gain.connect(masterGain);
-    osc.start(now);
-    osc.stop(now + 0.35);
+  // Digitales Stottern: schnelle Rechteck-Sprünge zwischen zufälligen Frequenzen
+  const now = ctx.currentTime;
+  const osc = ctx.createOscillator();
+  const gain = ctx.createGain();
+  osc.type = 'square';
+  for (let i = 0; i < 8; i++) {
+    osc.frequency.setValueAtTime(200 + Math.random() * 1400, now + i * 0.04);
+  }
+  gain.gain.setValueAtTime(0.1, now);
+  gain.gain.exponentialRampToValueAtTime(0.001, now + 0.35);
+  osc.connect(gain);
+  gain.connect(masterGain);
+  osc.start(now);
+  osc.stop(now + 0.35);
 }
 
 export function playBossLaser() {
-    recordSound('bossLaser');
-    if (isMuted) return;
-    const ctx = getAudioContext();
-    if (!ctx) return;
-    if (ctx.state === 'suspended') ctx.resume().catch(() => {});
+  recordSound('bossLaser');
+  if (isMuted) return;
+  const ctx = getAudioContext();
+  if (!ctx) return;
+  if (ctx.state === 'suspended') ctx.resume().catch(() => {});
 
-    const now = ctx.currentTime;
-    const osc = ctx.createOscillator();
-    const gain = ctx.createGain();
+  const now = ctx.currentTime;
+  const osc = ctx.createOscillator();
+  const gain = ctx.createGain();
 
-    osc.type = 'square';
-    osc.frequency.setValueAtTime(320, now);
-    osc.frequency.exponentialRampToValueAtTime(70, now + 0.18);
+  osc.type = 'square';
+  osc.frequency.setValueAtTime(320, now);
+  osc.frequency.exponentialRampToValueAtTime(70, now + 0.18);
 
-    gain.gain.setValueAtTime(0.2, now);
-    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.18);
+  gain.gain.setValueAtTime(0.2, now);
+  gain.gain.exponentialRampToValueAtTime(0.001, now + 0.18);
 
-    osc.connect(gain);
-    gain.connect(masterGain);
+  osc.connect(gain);
+  gain.connect(masterGain);
 
-    osc.start(now);
-    osc.stop(now + 0.18);
+  osc.start(now);
+  osc.stop(now + 0.18);
 }
 
 export function playBossBombLaunch() {
-    recordSound('bossBombLaunch');
-    if (isMuted) return;
-    const ctx = getAudioContext();
-    if (!ctx) return;
-    if (ctx.state === 'suspended') ctx.resume().catch(() => {});
+  recordSound('bossBombLaunch');
+  if (isMuted) return;
+  const ctx = getAudioContext();
+  if (!ctx) return;
+  if (ctx.state === 'suspended') ctx.resume().catch(() => {});
 
-    const now = ctx.currentTime;
-    const osc = ctx.createOscillator();
-    const gain = ctx.createGain();
+  const now = ctx.currentTime;
+  const osc = ctx.createOscillator();
+  const gain = ctx.createGain();
 
-    osc.type = 'sine';
-    osc.frequency.setValueAtTime(120, now);
-    osc.frequency.exponentialRampToValueAtTime(40, now + 0.3);
+  osc.type = 'sine';
+  osc.frequency.setValueAtTime(120, now);
+  osc.frequency.exponentialRampToValueAtTime(40, now + 0.3);
 
-    gain.gain.setValueAtTime(0.3, now);
-    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.3);
+  gain.gain.setValueAtTime(0.3, now);
+  gain.gain.exponentialRampToValueAtTime(0.001, now + 0.3);
 
-    osc.connect(gain);
-    gain.connect(masterGain);
+  osc.connect(gain);
+  gain.connect(masterGain);
 
-    osc.start(now);
-    osc.stop(now + 0.3);
+  osc.start(now);
+  osc.stop(now + 0.3);
 }
 
 export function playBossRocketLaunch() {
-    recordSound('bossRocketLaunch');
-    if (isMuted) return;
-    const ctx = getAudioContext();
-    if (!ctx) return;
-    if (ctx.state === 'suspended') ctx.resume().catch(() => {});
+  recordSound('bossRocketLaunch');
+  if (isMuted) return;
+  const ctx = getAudioContext();
+  if (!ctx) return;
+  if (ctx.state === 'suspended') ctx.resume().catch(() => {});
 
-    const now = ctx.currentTime;
-    const osc = ctx.createOscillator();
-    const gain = ctx.createGain();
+  const now = ctx.currentTime;
+  const osc = ctx.createOscillator();
+  const gain = ctx.createGain();
 
-    osc.type = 'sawtooth';
-    osc.frequency.setValueAtTime(250, now);
-    osc.frequency.linearRampToValueAtTime(600, now + 0.15);
+  osc.type = 'sawtooth';
+  osc.frequency.setValueAtTime(250, now);
+  osc.frequency.linearRampToValueAtTime(600, now + 0.15);
 
-    gain.gain.setValueAtTime(0.16, now);
-    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.15);
+  gain.gain.setValueAtTime(0.16, now);
+  gain.gain.exponentialRampToValueAtTime(0.001, now + 0.15);
 
-    osc.connect(gain);
-    gain.connect(masterGain);
+  osc.connect(gain);
+  gain.connect(masterGain);
 
-    osc.start(now);
-    osc.stop(now + 0.15);
+  osc.start(now);
+  osc.stop(now + 0.15);
 }
 
 export function playExplosion(type = 'small') {
-    recordSound('explosion', { type });
-    if (isMuted) return;
-    const ctx = getAudioContext();
-    if (!ctx) return;
-    if (ctx.state === 'suspended') ctx.resume().catch(() => {});
+  recordSound('explosion', { type });
+  if (isMuted) return;
+  const ctx = getAudioContext();
+  if (!ctx) return;
+  if (ctx.state === 'suspended') ctx.resume().catch(() => {});
 
-    const now = ctx.currentTime;
-    let duration = 0.25;
-    let startFreq = 400;
-    let vol = 0.25;
-    if (type === 'medium') { duration = 0.45; startFreq = 300; vol = 0.35; }
-    else if (type === 'large' || type === 'boss') { duration = 0.8; startFreq = 200; vol = 0.5; }
+  const now = ctx.currentTime;
+  let duration = 0.25;
+  let startFreq = 400;
+  let vol = 0.25;
+  if (type === 'medium') {
+    duration = 0.45;
+    startFreq = 300;
+    vol = 0.35;
+  } else if (type === 'large' || type === 'boss') {
+    duration = 0.8;
+    startFreq = 200;
+    vol = 0.5;
+  }
 
-    try {
-        const noiseBuf = getNoiseBuffer(ctx);
-        if (noiseBuf) {
-            const whiteNoise = ctx.createBufferSource();
-            whiteNoise.buffer = noiseBuf;
-            whiteNoise.loop = true;
+  try {
+    const noiseBuf = getNoiseBuffer(ctx);
+    if (noiseBuf) {
+      const whiteNoise = ctx.createBufferSource();
+      whiteNoise.buffer = noiseBuf;
+      whiteNoise.loop = true;
 
-            const filter = ctx.createBiquadFilter();
-            filter.type = 'lowpass';
-            filter.frequency.setValueAtTime(startFreq, now);
-            filter.frequency.exponentialRampToValueAtTime(40, now + duration);
+      const filter = ctx.createBiquadFilter();
+      filter.type = 'lowpass';
+      filter.frequency.setValueAtTime(startFreq, now);
+      filter.frequency.exponentialRampToValueAtTime(40, now + duration);
 
-            const noiseGain = ctx.createGain();
-            noiseGain.gain.setValueAtTime(vol, now);
-            noiseGain.gain.exponentialRampToValueAtTime(0.001, now + duration);
+      const noiseGain = ctx.createGain();
+      noiseGain.gain.setValueAtTime(vol, now);
+      noiseGain.gain.exponentialRampToValueAtTime(0.001, now + duration);
 
-            whiteNoise.connect(filter);
-            filter.connect(noiseGain);
-            noiseGain.connect(masterGain);
-            whiteNoise.start(now);
-            whiteNoise.stop(now + duration);
-        }
-    } catch (e) {}
+      whiteNoise.connect(filter);
+      filter.connect(noiseGain);
+      noiseGain.connect(masterGain);
+      whiteNoise.start(now);
+      whiteNoise.stop(now + duration);
+    }
+  } catch (e) {}
 
-    const bassOsc = ctx.createOscillator();
-    const bassGain = ctx.createGain();
-    bassOsc.type = 'sine';
-    bassOsc.frequency.setValueAtTime(140, now);
-    bassOsc.frequency.exponentialRampToValueAtTime(30, now + duration * 0.7);
-    bassGain.gain.setValueAtTime(vol * 0.8, now);
-    bassGain.gain.exponentialRampToValueAtTime(0.001, now + duration * 0.7);
-    bassOsc.connect(bassGain);
-    bassGain.connect(masterGain);
-    bassOsc.start(now);
-    bassOsc.stop(now + duration * 0.7);
+  const bassOsc = ctx.createOscillator();
+  const bassGain = ctx.createGain();
+  bassOsc.type = 'sine';
+  bassOsc.frequency.setValueAtTime(140, now);
+  bassOsc.frequency.exponentialRampToValueAtTime(30, now + duration * 0.7);
+  bassGain.gain.setValueAtTime(vol * 0.8, now);
+  bassGain.gain.exponentialRampToValueAtTime(0.001, now + duration * 0.7);
+  bassOsc.connect(bassGain);
+  bassGain.connect(masterGain);
+  bassOsc.start(now);
+  bassOsc.stop(now + duration * 0.7);
 }
 
 export function playHit(type = 'normal') {
-    recordSound('hit', { type });
-    if (isMuted) return;
-    const ctx = getAudioContext();
-    if (!ctx) return;
-    if (ctx.state === 'suspended') ctx.resume().catch(() => {});
+  recordSound('hit', { type });
+  if (isMuted) return;
+  const ctx = getAudioContext();
+  if (!ctx) return;
+  if (ctx.state === 'suspended') ctx.resume().catch(() => {});
 
-    const now = ctx.currentTime;
-    const osc = ctx.createOscillator();
-    const gain = ctx.createGain();
-    if (type === 'magma') {
-        osc.type = 'square';
-        osc.frequency.setValueAtTime(1200, now);
-        osc.frequency.exponentialRampToValueAtTime(400, now + 0.15);
-        gain.gain.setValueAtTime(0.2, now);
-        gain.gain.exponentialRampToValueAtTime(0.001, now + 0.15);
-    } else {
-        osc.type = 'sawtooth';
-        osc.frequency.setValueAtTime(250, now);
-        osc.frequency.exponentialRampToValueAtTime(50, now + 0.08);
-        gain.gain.setValueAtTime(0.15, now);
-        gain.gain.exponentialRampToValueAtTime(0.001, now + 0.08);
-    }
-    osc.connect(gain);
-    gain.connect(masterGain);
-    osc.start(now);
-    osc.stop(now + (type === 'magma' ? 0.15 : 0.08));
+  const now = ctx.currentTime;
+  const osc = ctx.createOscillator();
+  const gain = ctx.createGain();
+  if (type === 'magma') {
+    osc.type = 'square';
+    osc.frequency.setValueAtTime(1200, now);
+    osc.frequency.exponentialRampToValueAtTime(400, now + 0.15);
+    gain.gain.setValueAtTime(0.2, now);
+    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.15);
+  } else {
+    osc.type = 'sawtooth';
+    osc.frequency.setValueAtTime(250, now);
+    osc.frequency.exponentialRampToValueAtTime(50, now + 0.08);
+    gain.gain.setValueAtTime(0.15, now);
+    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.08);
+  }
+  osc.connect(gain);
+  gain.connect(masterGain);
+  osc.start(now);
+  osc.stop(now + (type === 'magma' ? 0.15 : 0.08));
 }
 
 export function playPowerup(type = '') {
-    recordSound('powerup', { type });
-    if (isMuted) return;
-    const ctx = getAudioContext();
-    if (!ctx) return;
-    if (ctx.state === 'suspended') ctx.resume().catch(() => {});
+  recordSound('powerup', { type });
+  if (isMuted) return;
+  const ctx = getAudioContext();
+  if (!ctx) return;
+  if (ctx.state === 'suspended') ctx.resume().catch(() => {});
 
-    const now = ctx.currentTime;
-    const notes = [523.25, 659.25, 783.99, 1046.50]; // C5, E5, G5, C6
-    notes.forEach((freq, idx) => {
-        const osc = ctx.createOscillator();
-        const gain = ctx.createGain();
-        osc.type = 'sine';
-        osc.frequency.setValueAtTime(freq, now + idx * 0.05);
-        gain.gain.setValueAtTime(0, now);
-        gain.gain.setValueAtTime(0.18, now + idx * 0.05);
-        gain.gain.exponentialRampToValueAtTime(0.001, now + idx * 0.05 + 0.15);
-        osc.connect(gain);
-        gain.connect(masterGain);
-        osc.start(now + idx * 0.05);
-        osc.stop(now + idx * 0.05 + 0.15);
-    });
+  const now = ctx.currentTime;
+  const notes = [523.25, 659.25, 783.99, 1046.5]; // C5, E5, G5, C6
+  notes.forEach((freq, idx) => {
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.type = 'sine';
+    osc.frequency.setValueAtTime(freq, now + idx * 0.05);
+    gain.gain.setValueAtTime(0, now);
+    gain.gain.setValueAtTime(0.18, now + idx * 0.05);
+    gain.gain.exponentialRampToValueAtTime(0.001, now + idx * 0.05 + 0.15);
+    osc.connect(gain);
+    gain.connect(masterGain);
+    osc.start(now + idx * 0.05);
+    osc.stop(now + idx * 0.05 + 0.15);
+  });
 }
 
 export function playShieldRegen() {
-    recordSound('shieldRegen');
-    if (isMuted) return;
-    const ctx = getAudioContext();
-    if (!ctx) return;
-    if (ctx.state === 'suspended') ctx.resume().catch(() => {});
+  recordSound('shieldRegen');
+  if (isMuted) return;
+  const ctx = getAudioContext();
+  if (!ctx) return;
+  if (ctx.state === 'suspended') ctx.resume().catch(() => {});
 
-    const now = ctx.currentTime;
-    const osc = ctx.createOscillator();
-    const gain = ctx.createGain();
-    osc.type = 'sine';
-    osc.frequency.setValueAtTime(440, now);
-    osc.frequency.exponentialRampToValueAtTime(880, now + 0.3);
-    gain.gain.setValueAtTime(0.15, now);
-    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.3);
-    osc.connect(gain);
-    gain.connect(masterGain);
-    osc.start(now);
-    osc.stop(now + 0.3);
+  const now = ctx.currentTime;
+  const osc = ctx.createOscillator();
+  const gain = ctx.createGain();
+  osc.type = 'sine';
+  osc.frequency.setValueAtTime(440, now);
+  osc.frequency.exponentialRampToValueAtTime(880, now + 0.3);
+  gain.gain.setValueAtTime(0.15, now);
+  gain.gain.exponentialRampToValueAtTime(0.001, now + 0.3);
+  osc.connect(gain);
+  gain.connect(masterGain);
+  osc.start(now);
+  osc.stop(now + 0.3);
 }
 
 export function playBossAlert() {
-    recordSound('bossAlert');
-    if (isMuted) return;
-    const ctx = getAudioContext();
-    if (!ctx) return;
-    if (ctx.state === 'suspended') ctx.resume().catch(() => {});
+  recordSound('bossAlert');
+  if (isMuted) return;
+  const ctx = getAudioContext();
+  if (!ctx) return;
+  if (ctx.state === 'suspended') ctx.resume().catch(() => {});
 
-    const now = ctx.currentTime;
-    const osc = ctx.createOscillator();
-    const gain = ctx.createGain();
-    osc.type = 'sawtooth';
-    osc.frequency.setValueAtTime(220, now);
-    osc.frequency.linearRampToValueAtTime(110, now + 0.25);
-    osc.frequency.linearRampToValueAtTime(220, now + 0.5);
-    osc.frequency.linearRampToValueAtTime(110, now + 0.75);
-    gain.gain.setValueAtTime(0.25, now);
-    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.8);
-    osc.connect(gain);
-    gain.connect(masterGain);
-    osc.start(now);
-    osc.stop(now + 0.8);
+  const now = ctx.currentTime;
+  const osc = ctx.createOscillator();
+  const gain = ctx.createGain();
+  osc.type = 'sawtooth';
+  osc.frequency.setValueAtTime(220, now);
+  osc.frequency.linearRampToValueAtTime(110, now + 0.25);
+  osc.frequency.linearRampToValueAtTime(220, now + 0.5);
+  osc.frequency.linearRampToValueAtTime(110, now + 0.75);
+  gain.gain.setValueAtTime(0.25, now);
+  gain.gain.exponentialRampToValueAtTime(0.001, now + 0.8);
+  osc.connect(gain);
+  gain.connect(masterGain);
+  osc.start(now);
+  osc.stop(now + 0.8);
 }
 
 export function playGameOver() {
-    recordSound('gameOver');
-    if (isMuted) return;
-    const ctx = getAudioContext();
-    if (!ctx) return;
-    if (ctx.state === 'suspended') ctx.resume().catch(() => {});
+  recordSound('gameOver');
+  if (isMuted) return;
+  const ctx = getAudioContext();
+  if (!ctx) return;
+  if (ctx.state === 'suspended') ctx.resume().catch(() => {});
 
-    const now = ctx.currentTime;
-    const notes = [392.00, 349.23, 311.13, 261.63]; // G4, F4, Eb4, C4
-    notes.forEach((freq, idx) => {
-        const osc = ctx.createOscillator();
-        const gain = ctx.createGain();
-        osc.type = 'triangle';
-        osc.frequency.setValueAtTime(freq, now + idx * 0.15);
-        gain.gain.setValueAtTime(0, now);
-        gain.gain.setValueAtTime(0.25, now + idx * 0.15);
-        gain.gain.exponentialRampToValueAtTime(0.001, now + idx * 0.15 + 0.25);
-        osc.connect(gain);
-        gain.connect(masterGain);
-        osc.start(now + idx * 0.15);
-        osc.stop(now + idx * 0.15 + 0.25);
-    });
+  const now = ctx.currentTime;
+  const notes = [392.0, 349.23, 311.13, 261.63]; // G4, F4, Eb4, C4
+  notes.forEach((freq, idx) => {
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.type = 'triangle';
+    osc.frequency.setValueAtTime(freq, now + idx * 0.15);
+    gain.gain.setValueAtTime(0, now);
+    gain.gain.setValueAtTime(0.25, now + idx * 0.15);
+    gain.gain.exponentialRampToValueAtTime(0.001, now + idx * 0.15 + 0.25);
+    osc.connect(gain);
+    gain.connect(masterGain);
+    osc.start(now + idx * 0.15);
+    osc.stop(now + idx * 0.15 + 0.25);
+  });
 }
 
 export function playAlienChatter() {
-    recordSound('alienChatter');
-    if (isMuted) return;
-    const ctx = getAudioContext();
-    if (!ctx) return;
-    if (ctx.state === 'suspended') ctx.resume().catch(() => {});
+  recordSound('alienChatter');
+  if (isMuted) return;
+  const ctx = getAudioContext();
+  if (!ctx) return;
+  if (ctx.state === 'suspended') ctx.resume().catch(() => {});
 
-    const now = ctx.currentTime;
-    // Glitchy modular FM / square chirps
-    for (let i = 0; i < 4; i++) {
-        const osc = ctx.createOscillator();
-        const gain = ctx.createGain();
-        osc.type = i % 2 === 0 ? 'square' : 'sawtooth';
-        const startFreq = 600 + Math.random() * 1200;
-        const endFreq = 400 + Math.random() * 800;
-        const startTime = now + i * 0.06;
-        const dur = 0.05;
-        osc.frequency.setValueAtTime(startFreq, startTime);
-        osc.frequency.exponentialRampToValueAtTime(endFreq, startTime + dur);
-        gain.gain.setValueAtTime(0.08, startTime);
-        gain.gain.exponentialRampToValueAtTime(0.001, startTime + dur);
-        osc.connect(gain);
-        gain.connect(masterGain);
-        osc.start(startTime);
-        osc.stop(startTime + dur);
-    }
+  const now = ctx.currentTime;
+  // Glitchy modular FM / square chirps
+  for (let i = 0; i < 4; i++) {
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.type = i % 2 === 0 ? 'square' : 'sawtooth';
+    const startFreq = 600 + Math.random() * 1200;
+    const endFreq = 400 + Math.random() * 800;
+    const startTime = now + i * 0.06;
+    const dur = 0.05;
+    osc.frequency.setValueAtTime(startFreq, startTime);
+    osc.frequency.exponentialRampToValueAtTime(endFreq, startTime + dur);
+    gain.gain.setValueAtTime(0.08, startTime);
+    gain.gain.exponentialRampToValueAtTime(0.001, startTime + dur);
+    osc.connect(gain);
+    gain.connect(masterGain);
+    osc.start(startTime);
+    osc.stop(startTime + dur);
+  }
 }
 
 export function playIncomingArtillery() {
-    recordSound('incomingArtillery');
-    if (isMuted) return;
-    const ctx = getAudioContext();
-    if (!ctx) return;
-    if (ctx.state === 'suspended') ctx.resume().catch(() => {});
+  recordSound('incomingArtillery');
+  if (isMuted) return;
+  const ctx = getAudioContext();
+  if (!ctx) return;
+  if (ctx.state === 'suspended') ctx.resume().catch(() => {});
 
-    const now = ctx.currentTime;
-    const osc = ctx.createOscillator();
-    const gain = ctx.createGain();
-    osc.type = 'sawtooth';
-    osc.frequency.setValueAtTime(1400, now);
-    osc.frequency.exponentialRampToValueAtTime(150, now + 0.35);
-    gain.gain.setValueAtTime(0.2, now);
-    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.35);
-    osc.connect(gain);
-    gain.connect(masterGain);
-    osc.start(now);
-    osc.stop(now + 0.35);
+  const now = ctx.currentTime;
+  const osc = ctx.createOscillator();
+  const gain = ctx.createGain();
+  osc.type = 'sawtooth';
+  osc.frequency.setValueAtTime(1400, now);
+  osc.frequency.exponentialRampToValueAtTime(150, now + 0.35);
+  gain.gain.setValueAtTime(0.2, now);
+  gain.gain.exponentialRampToValueAtTime(0.001, now + 0.35);
+  osc.connect(gain);
+  gain.connect(masterGain);
+  osc.start(now);
+  osc.stop(now + 0.35);
 }
 
 export function playLightBeamWhoosh() {
-    recordSound('lightBeamWhoosh');
-    if (isMuted) return;
-    const ctx = getAudioContext();
-    if (!ctx) return;
-    if (ctx.state === 'suspended') ctx.resume().catch(() => {});
+  recordSound('lightBeamWhoosh');
+  if (isMuted) return;
+  const ctx = getAudioContext();
+  if (!ctx) return;
+  if (ctx.state === 'suspended') ctx.resume().catch(() => {});
 
-    const now = ctx.currentTime;
-    const osc = ctx.createOscillator();
-    const gain = ctx.createGain();
-    osc.type = 'sine';
-    osc.frequency.setValueAtTime(220, now);
-    osc.frequency.exponentialRampToValueAtTime(880, now + 0.8);
-    gain.gain.setValueAtTime(0.01, now);
-    gain.gain.linearRampToValueAtTime(0.25, now + 0.4);
-    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.9);
-    osc.connect(gain);
-    gain.connect(masterGain);
-    osc.start(now);
-    osc.stop(now + 0.9);
+  const now = ctx.currentTime;
+  const osc = ctx.createOscillator();
+  const gain = ctx.createGain();
+  osc.type = 'sine';
+  osc.frequency.setValueAtTime(220, now);
+  osc.frequency.exponentialRampToValueAtTime(880, now + 0.8);
+  gain.gain.setValueAtTime(0.01, now);
+  gain.gain.linearRampToValueAtTime(0.25, now + 0.4);
+  gain.gain.exponentialRampToValueAtTime(0.001, now + 0.9);
+  osc.connect(gain);
+  gain.connect(masterGain);
+  osc.start(now);
+  osc.stop(now + 0.9);
 }
 
 // Gleve-Dash: kurzer "Whoosh" (Rausch-Sweep nach oben) mit tiefem Schub-Ton
 export function playDash(level = 1) {
-    recordSound('dash', { level });
-    if (isMuted) return;
-    const ctx = getAudioContext();
-    if (!ctx) return;
-    if (ctx.state === 'suspended') ctx.resume().catch(() => {});
+  recordSound('dash', { level });
+  if (isMuted) return;
+  const ctx = getAudioContext();
+  if (!ctx) return;
+  if (ctx.state === 'suspended') ctx.resume().catch(() => {});
 
-    const now = ctx.currentTime;
-    const duration = 0.22;
+  const now = ctx.currentTime;
+  const duration = 0.22;
 
-    // 1. Luftzug: Bandpass-Rauschen, Frequenz steigt schnell und fällt wieder
-    try {
-        const noiseBuf = getNoiseBuffer(ctx);
-        if (noiseBuf) {
-            const noiseSource = ctx.createBufferSource();
-            noiseSource.buffer = noiseBuf;
-            noiseSource.loop = true;
+  // 1. Luftzug: Bandpass-Rauschen, Frequenz steigt schnell und fällt wieder
+  try {
+    const noiseBuf = getNoiseBuffer(ctx);
+    if (noiseBuf) {
+      const noiseSource = ctx.createBufferSource();
+      noiseSource.buffer = noiseBuf;
+      noiseSource.loop = true;
 
-            const bandpass = ctx.createBiquadFilter();
-            bandpass.type = 'bandpass';
-            bandpass.Q.setValueAtTime(2.5, now);
-            bandpass.frequency.setValueAtTime(500, now);
-            bandpass.frequency.exponentialRampToValueAtTime(3000 + level * 300, now + duration * 0.4);
-            bandpass.frequency.exponentialRampToValueAtTime(700, now + duration);
+      const bandpass = ctx.createBiquadFilter();
+      bandpass.type = 'bandpass';
+      bandpass.Q.setValueAtTime(2.5, now);
+      bandpass.frequency.setValueAtTime(500, now);
+      bandpass.frequency.exponentialRampToValueAtTime(3000 + level * 300, now + duration * 0.4);
+      bandpass.frequency.exponentialRampToValueAtTime(700, now + duration);
 
-            const noiseGain = ctx.createGain();
-            noiseGain.gain.setValueAtTime(0.05, now);
-            noiseGain.gain.linearRampToValueAtTime(0.4, now + duration * 0.3);
-            noiseGain.gain.exponentialRampToValueAtTime(0.001, now + duration);
+      const noiseGain = ctx.createGain();
+      noiseGain.gain.setValueAtTime(0.05, now);
+      noiseGain.gain.linearRampToValueAtTime(0.4, now + duration * 0.3);
+      noiseGain.gain.exponentialRampToValueAtTime(0.001, now + duration);
 
-            noiseSource.connect(bandpass);
-            bandpass.connect(noiseGain);
-            noiseGain.connect(masterGain);
+      noiseSource.connect(bandpass);
+      bandpass.connect(noiseGain);
+      noiseGain.connect(masterGain);
 
-            noiseSource.start(now);
-            noiseSource.stop(now + duration);
-        }
-    } catch (e) {}
+      noiseSource.start(now);
+      noiseSource.stop(now + duration);
+    }
+  } catch (e) {}
 
-    // 2. Schub-Ton: tiefer Sägezahn, der kurz nach oben gezogen wird
-    const osc = ctx.createOscillator();
-    const gain = ctx.createGain();
-    osc.type = 'sawtooth';
-    osc.frequency.setValueAtTime(140, now);
-    osc.frequency.exponentialRampToValueAtTime(420 + level * 40, now + duration * 0.5);
-    osc.frequency.exponentialRampToValueAtTime(90, now + duration);
-    gain.gain.setValueAtTime(0.12, now);
-    gain.gain.exponentialRampToValueAtTime(0.001, now + duration);
-    osc.connect(gain);
-    gain.connect(masterGain);
-    osc.start(now);
-    osc.stop(now + duration);
+  // 2. Schub-Ton: tiefer Sägezahn, der kurz nach oben gezogen wird
+  const osc = ctx.createOscillator();
+  const gain = ctx.createGain();
+  osc.type = 'sawtooth';
+  osc.frequency.setValueAtTime(140, now);
+  osc.frequency.exponentialRampToValueAtTime(420 + level * 40, now + duration * 0.5);
+  osc.frequency.exponentialRampToValueAtTime(90, now + duration);
+  gain.gain.setValueAtTime(0.12, now);
+  gain.gain.exponentialRampToValueAtTime(0.001, now + duration);
+  osc.connect(gain);
+  gain.connect(masterGain);
+  osc.start(now);
+  osc.stop(now + duration);
 }
 
 // Sniper-Schuss (Fadenkreuz-Laser): trockener, tiefer Knall mit kurzem hellem Zischen; hoehere Stufen klingen kraeftiger,
 // `ladung` (0-1) macht ihn laenger, lauter und tiefer
 export function playSniperSchuss(level = 1, ladung = 0) {
-    recordSound('sniperSchuss', { level, ladung });
-    if (isMuted) return;
-    const ctx = getAudioContext();
-    if (!ctx) return;
-    if (ctx.state === 'suspended') ctx.resume().catch(() => {});
+  recordSound('sniperSchuss', { level, ladung });
+  if (isMuted) return;
+  const ctx = getAudioContext();
+  if (!ctx) return;
+  if (ctx.state === 'suspended') ctx.resume().catch(() => {});
 
-    const now = ctx.currentTime;
-    const osc = ctx.createOscillator();
-    const gain = ctx.createGain();
-    osc.type = 'square';
-    osc.frequency.setValueAtTime(1400 + level * 120, now);
-    osc.frequency.exponentialRampToValueAtTime(60 - ladung * 25, now + 0.16 + ladung * 0.2);
-    gain.gain.setValueAtTime(0.12 + level * 0.02 + ladung * 0.08, now);
-    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.16 + ladung * 0.2);
-    osc.connect(gain);
-    gain.connect(masterGain);
-    osc.start(now);
-    osc.stop(now + 0.16 + ladung * 0.2);
+  const now = ctx.currentTime;
+  const osc = ctx.createOscillator();
+  const gain = ctx.createGain();
+  osc.type = 'square';
+  osc.frequency.setValueAtTime(1400 + level * 120, now);
+  osc.frequency.exponentialRampToValueAtTime(60 - ladung * 25, now + 0.16 + ladung * 0.2);
+  gain.gain.setValueAtTime(0.12 + level * 0.02 + ladung * 0.08, now);
+  gain.gain.exponentialRampToValueAtTime(0.001, now + 0.16 + ladung * 0.2);
+  osc.connect(gain);
+  gain.connect(masterGain);
+  osc.start(now);
+  osc.stop(now + 0.16 + ladung * 0.2);
 }
 
 // Sniper: Ladung voll (einmal pro Ladevorgang), zwei helle steigende Toene
 export function playSniperVoll() {
-    recordSound('sniperVoll');
-    if (isMuted) return;
-    const ctx = getAudioContext();
-    if (!ctx) return;
-    if (ctx.state === 'suspended') ctx.resume().catch(() => {});
+  recordSound('sniperVoll');
+  if (isMuted) return;
+  const ctx = getAudioContext();
+  if (!ctx) return;
+  if (ctx.state === 'suspended') ctx.resume().catch(() => {});
 
-    const now = ctx.currentTime;
-    [880, 1320].forEach((freq, i) => {
-        const osc = ctx.createOscillator();
-        const gain = ctx.createGain();
-        osc.type = 'sine';
-        osc.frequency.setValueAtTime(freq, now + i * 0.07);
-        gain.gain.setValueAtTime(0.001, now + i * 0.07);
-        gain.gain.exponentialRampToValueAtTime(0.14, now + i * 0.07 + 0.01);
-        gain.gain.exponentialRampToValueAtTime(0.001, now + i * 0.07 + 0.14);
-        osc.connect(gain);
-        gain.connect(masterGain);
-        osc.start(now + i * 0.07);
-        osc.stop(now + i * 0.07 + 0.15);
-    });
+  const now = ctx.currentTime;
+  [880, 1320].forEach((freq, i) => {
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.type = 'sine';
+    osc.frequency.setValueAtTime(freq, now + i * 0.07);
+    gain.gain.setValueAtTime(0.001, now + i * 0.07);
+    gain.gain.exponentialRampToValueAtTime(0.14, now + i * 0.07 + 0.01);
+    gain.gain.exponentialRampToValueAtTime(0.001, now + i * 0.07 + 0.14);
+    osc.connect(gain);
+    gain.connect(masterGain);
+    osc.start(now + i * 0.07);
+    osc.stop(now + i * 0.07 + 0.15);
+  });
 }
 
 // Sniper-Granate: dumpfer Druckwellen-Knall (tiefer Sinus faellt ab) mit kurzem hellem Nachklang
 export function playGranate() {
-    recordSound('granate');
-    if (isMuted) return;
-    const ctx = getAudioContext();
-    if (!ctx) return;
-    if (ctx.state === 'suspended') ctx.resume().catch(() => {});
+  recordSound('granate');
+  if (isMuted) return;
+  const ctx = getAudioContext();
+  if (!ctx) return;
+  if (ctx.state === 'suspended') ctx.resume().catch(() => {});
 
-    const now = ctx.currentTime;
-    const osc = ctx.createOscillator();
-    const gain = ctx.createGain();
-    osc.type = 'sine';
-    osc.frequency.setValueAtTime(180, now);
-    osc.frequency.exponentialRampToValueAtTime(35, now + 0.35);
-    gain.gain.setValueAtTime(0.3, now);
-    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.4);
-    osc.connect(gain);
-    gain.connect(masterGain);
-    osc.start(now);
-    osc.stop(now + 0.42);
+  const now = ctx.currentTime;
+  const osc = ctx.createOscillator();
+  const gain = ctx.createGain();
+  osc.type = 'sine';
+  osc.frequency.setValueAtTime(180, now);
+  osc.frequency.exponentialRampToValueAtTime(35, now + 0.35);
+  gain.gain.setValueAtTime(0.3, now);
+  gain.gain.exponentialRampToValueAtTime(0.001, now + 0.4);
+  osc.connect(gain);
+  gain.connect(masterGain);
+  osc.start(now);
+  osc.stop(now + 0.42);
 
-    const osc2 = ctx.createOscillator();
-    const gain2 = ctx.createGain();
-    osc2.type = 'triangle';
-    osc2.frequency.setValueAtTime(900, now);
-    osc2.frequency.exponentialRampToValueAtTime(200, now + 0.2);
-    gain2.gain.setValueAtTime(0.1, now);
-    gain2.gain.exponentialRampToValueAtTime(0.001, now + 0.22);
-    osc2.connect(gain2);
-    gain2.connect(masterGain);
-    osc2.start(now);
-    osc2.stop(now + 0.24);
+  const osc2 = ctx.createOscillator();
+  const gain2 = ctx.createGain();
+  osc2.type = 'triangle';
+  osc2.frequency.setValueAtTime(900, now);
+  osc2.frequency.exponentialRampToValueAtTime(200, now + 0.2);
+  gain2.gain.setValueAtTime(0.1, now);
+  gain2.gain.exponentialRampToValueAtTime(0.001, now + 0.22);
+  osc2.connect(gain2);
+  gain2.connect(masterGain);
+  osc2.start(now);
+  osc2.stop(now + 0.24);
 }
 
 // Sniper-Mine legen: kurzes dumpfes Klicken
 export function playMineLegen() {
-    recordSound('mine_legen');
-    if (isMuted) return;
-    const ctx = getAudioContext();
-    if (!ctx) return;
-    if (ctx.state === 'suspended') ctx.resume().catch(() => {});
+  recordSound('mine_legen');
+  if (isMuted) return;
+  const ctx = getAudioContext();
+  if (!ctx) return;
+  if (ctx.state === 'suspended') ctx.resume().catch(() => {});
 
-    const now = ctx.currentTime;
-    const osc = ctx.createOscillator();
-    const gain = ctx.createGain();
-    osc.type = 'square';
-    osc.frequency.setValueAtTime(260, now);
-    osc.frequency.exponentialRampToValueAtTime(110, now + 0.08);
-    gain.gain.setValueAtTime(0.1, now);
-    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.1);
-    osc.connect(gain);
-    gain.connect(masterGain);
-    osc.start(now);
-    osc.stop(now + 0.12);
+  const now = ctx.currentTime;
+  const osc = ctx.createOscillator();
+  const gain = ctx.createGain();
+  osc.type = 'square';
+  osc.frequency.setValueAtTime(260, now);
+  osc.frequency.exponentialRampToValueAtTime(110, now + 0.08);
+  gain.gain.setValueAtTime(0.1, now);
+  gain.gain.exponentialRampToValueAtTime(0.001, now + 0.1);
+  osc.connect(gain);
+  gain.connect(masterGain);
+  osc.start(now);
+  osc.stop(now + 0.12);
 }
 
 // Sniper-Mine haftet / zaehlt herunter: kurzer heller Piep
 export function playMinePiep() {
-    recordSound('mine_piep');
-    if (isMuted) return;
-    const ctx = getAudioContext();
-    if (!ctx) return;
-    if (ctx.state === 'suspended') ctx.resume().catch(() => {});
+  recordSound('mine_piep');
+  if (isMuted) return;
+  const ctx = getAudioContext();
+  if (!ctx) return;
+  if (ctx.state === 'suspended') ctx.resume().catch(() => {});
 
-    const now = ctx.currentTime;
-    const osc = ctx.createOscillator();
-    const gain = ctx.createGain();
-    osc.type = 'sine';
-    osc.frequency.setValueAtTime(1500, now);
-    gain.gain.setValueAtTime(0.08, now);
-    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.08);
-    osc.connect(gain);
-    gain.connect(masterGain);
-    osc.start(now);
-    osc.stop(now + 0.09);
+  const now = ctx.currentTime;
+  const osc = ctx.createOscillator();
+  const gain = ctx.createGain();
+  osc.type = 'sine';
+  osc.frequency.setValueAtTime(1500, now);
+  gain.gain.setValueAtTime(0.08, now);
+  gain.gain.exponentialRampToValueAtTime(0.001, now + 0.08);
+  osc.connect(gain);
+  gain.connect(masterGain);
+  osc.start(now);
+  osc.stop(now + 0.09);
 }
 
 // Sniper-Mine explodiert: kurzer, trockener Knall
 export function playMineExplosion() {
-    recordSound('mine_explosion');
-    if (isMuted) return;
-    const ctx = getAudioContext();
-    if (!ctx) return;
-    if (ctx.state === 'suspended') ctx.resume().catch(() => {});
+  recordSound('mine_explosion');
+  if (isMuted) return;
+  const ctx = getAudioContext();
+  if (!ctx) return;
+  if (ctx.state === 'suspended') ctx.resume().catch(() => {});
 
-    const now = ctx.currentTime;
-    const osc = ctx.createOscillator();
-    const gain = ctx.createGain();
-    osc.type = 'sawtooth';
-    osc.frequency.setValueAtTime(320, now);
-    osc.frequency.exponentialRampToValueAtTime(50, now + 0.2);
-    gain.gain.setValueAtTime(0.2, now);
-    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.24);
-    osc.connect(gain);
-    gain.connect(masterGain);
-    osc.start(now);
-    osc.stop(now + 0.26);
+  const now = ctx.currentTime;
+  const osc = ctx.createOscillator();
+  const gain = ctx.createGain();
+  osc.type = 'sawtooth';
+  osc.frequency.setValueAtTime(320, now);
+  osc.frequency.exponentialRampToValueAtTime(50, now + 0.2);
+  gain.gain.setValueAtTime(0.2, now);
+  gain.gain.exponentialRampToValueAtTime(0.001, now + 0.24);
+  osc.connect(gain);
+  gain.connect(masterGain);
+  osc.start(now);
+  osc.stop(now + 0.26);
 }
 
 // Sniper-EMP: elektrisches Knistern (Saegezahn faellt ab, Sinus steigt)
 export function playEmp() {
-    recordSound('emp');
-    if (isMuted) return;
-    const ctx = getAudioContext();
-    if (!ctx) return;
-    if (ctx.state === 'suspended') ctx.resume().catch(() => {});
+  recordSound('emp');
+  if (isMuted) return;
+  const ctx = getAudioContext();
+  if (!ctx) return;
+  if (ctx.state === 'suspended') ctx.resume().catch(() => {});
 
-    const now = ctx.currentTime;
-    const osc = ctx.createOscillator();
-    const gain = ctx.createGain();
-    osc.type = 'sawtooth';
-    osc.frequency.setValueAtTime(1400, now);
-    osc.frequency.exponentialRampToValueAtTime(120, now + 0.25);
-    gain.gain.setValueAtTime(0.12, now);
-    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.28);
-    osc.connect(gain);
-    gain.connect(masterGain);
-    osc.start(now);
-    osc.stop(now + 0.3);
+  const now = ctx.currentTime;
+  const osc = ctx.createOscillator();
+  const gain = ctx.createGain();
+  osc.type = 'sawtooth';
+  osc.frequency.setValueAtTime(1400, now);
+  osc.frequency.exponentialRampToValueAtTime(120, now + 0.25);
+  gain.gain.setValueAtTime(0.12, now);
+  gain.gain.exponentialRampToValueAtTime(0.001, now + 0.28);
+  osc.connect(gain);
+  gain.connect(masterGain);
+  osc.start(now);
+  osc.stop(now + 0.3);
 
-    const osc2 = ctx.createOscillator();
-    const gain2 = ctx.createGain();
-    osc2.type = 'sine';
-    osc2.frequency.setValueAtTime(300, now);
-    osc2.frequency.exponentialRampToValueAtTime(900, now + 0.15);
-    gain2.gain.setValueAtTime(0.15, now);
-    gain2.gain.exponentialRampToValueAtTime(0.001, now + 0.2);
-    osc2.connect(gain2);
-    gain2.connect(masterGain);
-    osc2.start(now);
-    osc2.stop(now + 0.22);
+  const osc2 = ctx.createOscillator();
+  const gain2 = ctx.createGain();
+  osc2.type = 'sine';
+  osc2.frequency.setValueAtTime(300, now);
+  osc2.frequency.exponentialRampToValueAtTime(900, now + 0.15);
+  gain2.gain.setValueAtTime(0.15, now);
+  gain2.gain.exponentialRampToValueAtTime(0.001, now + 0.2);
+  osc2.connect(gain2);
+  gain2.connect(masterGain);
+  osc2.start(now);
+  osc2.stop(now + 0.22);
 }
 
 // Viper-Ausweichrolle: kurzes, leichtes Wusch (Rauschen steigt und faellt) mit schnellem Sinus-Glissando
 export function playRolle() {
-    recordSound('rolle');
-    if (isMuted) return;
-    const ctx = getAudioContext();
-    if (!ctx) return;
-    if (ctx.state === 'suspended') ctx.resume().catch(() => {});
+  recordSound('rolle');
+  if (isMuted) return;
+  const ctx = getAudioContext();
+  if (!ctx) return;
+  if (ctx.state === 'suspended') ctx.resume().catch(() => {});
 
-    const now = ctx.currentTime;
-    const duration = 0.18;
+  const now = ctx.currentTime;
+  const duration = 0.18;
 
-    try {
-        const noiseBuf = getNoiseBuffer(ctx);
-        if (noiseBuf) {
-            const noiseSource = ctx.createBufferSource();
-            noiseSource.buffer = noiseBuf;
-            noiseSource.loop = true;
-            const bandpass = ctx.createBiquadFilter();
-            bandpass.type = 'bandpass';
-            bandpass.Q.setValueAtTime(1.8, now);
-            bandpass.frequency.setValueAtTime(900, now);
-            bandpass.frequency.exponentialRampToValueAtTime(2600, now + duration * 0.5);
-            bandpass.frequency.exponentialRampToValueAtTime(1000, now + duration);
-            const noiseGain = ctx.createGain();
-            noiseGain.gain.setValueAtTime(0.03, now);
-            noiseGain.gain.linearRampToValueAtTime(0.25, now + duration * 0.35);
-            noiseGain.gain.exponentialRampToValueAtTime(0.001, now + duration);
-            noiseSource.connect(bandpass);
-            bandpass.connect(noiseGain);
-            noiseGain.connect(masterGain);
-            noiseSource.start(now);
-            noiseSource.stop(now + duration);
-        }
-    } catch (e) {}
+  try {
+    const noiseBuf = getNoiseBuffer(ctx);
+    if (noiseBuf) {
+      const noiseSource = ctx.createBufferSource();
+      noiseSource.buffer = noiseBuf;
+      noiseSource.loop = true;
+      const bandpass = ctx.createBiquadFilter();
+      bandpass.type = 'bandpass';
+      bandpass.Q.setValueAtTime(1.8, now);
+      bandpass.frequency.setValueAtTime(900, now);
+      bandpass.frequency.exponentialRampToValueAtTime(2600, now + duration * 0.5);
+      bandpass.frequency.exponentialRampToValueAtTime(1000, now + duration);
+      const noiseGain = ctx.createGain();
+      noiseGain.gain.setValueAtTime(0.03, now);
+      noiseGain.gain.linearRampToValueAtTime(0.25, now + duration * 0.35);
+      noiseGain.gain.exponentialRampToValueAtTime(0.001, now + duration);
+      noiseSource.connect(bandpass);
+      bandpass.connect(noiseGain);
+      noiseGain.connect(masterGain);
+      noiseSource.start(now);
+      noiseSource.stop(now + duration);
+    }
+  } catch (e) {}
 
-    const osc = ctx.createOscillator();
-    const gain = ctx.createGain();
-    osc.type = 'sine';
-    osc.frequency.setValueAtTime(320, now);
-    osc.frequency.exponentialRampToValueAtTime(760, now + duration * 0.5);
-    osc.frequency.exponentialRampToValueAtTime(400, now + duration);
-    gain.gain.setValueAtTime(0.1, now);
-    gain.gain.exponentialRampToValueAtTime(0.001, now + duration);
-    osc.connect(gain);
-    gain.connect(masterGain);
-    osc.start(now);
-    osc.stop(now + duration);
+  const osc = ctx.createOscillator();
+  const gain = ctx.createGain();
+  osc.type = 'sine';
+  osc.frequency.setValueAtTime(320, now);
+  osc.frequency.exponentialRampToValueAtTime(760, now + duration * 0.5);
+  osc.frequency.exponentialRampToValueAtTime(400, now + duration);
+  gain.gain.setValueAtTime(0.1, now);
+  gain.gain.exponentialRampToValueAtTime(0.001, now + duration);
+  osc.connect(gain);
+  gain.connect(masterGain);
+  osc.start(now);
+  osc.stop(now + duration);
 }
 
 // Viper Near-Miss: sehr kurzes, leises Zisch-Ticken
 export function playNearMiss() {
-    recordSound('nearMiss');
-    if (isMuted) return;
-    const ctx = getAudioContext();
-    if (!ctx) return;
-    if (ctx.state === 'suspended') ctx.resume().catch(() => {});
-    const now = ctx.currentTime;
-    const duration = 0.06;
+  recordSound('nearMiss');
+  if (isMuted) return;
+  const ctx = getAudioContext();
+  if (!ctx) return;
+  if (ctx.state === 'suspended') ctx.resume().catch(() => {});
+  const now = ctx.currentTime;
+  const duration = 0.06;
+  const osc = ctx.createOscillator();
+  const gain = ctx.createGain();
+  osc.type = 'sine';
+  osc.frequency.setValueAtTime(1500, now);
+  osc.frequency.exponentialRampToValueAtTime(2400, now + duration);
+  gain.gain.setValueAtTime(0.035, now);
+  gain.gain.exponentialRampToValueAtTime(0.001, now + duration);
+  osc.connect(gain);
+  gain.connect(masterGain);
+  osc.start(now);
+  osc.stop(now + duration);
+}
+
+// Viper-Kill-Kombo erreicht 5/10/20: kurzer Doppelton, hoeher je Stufe (stufe 1..3)
+export function playKombo(stufe = 1) {
+  recordSound('kombo', { stufe });
+  if (isMuted) return;
+  const ctx = getAudioContext();
+  if (!ctx) return;
+  if (ctx.state === 'suspended') ctx.resume().catch(() => {});
+  const now = ctx.currentTime;
+  const basis = 520 * Math.pow(1.26, Math.max(1, stufe) - 1);
+  [
+    [basis, 0],
+    [basis * 1.5, 0.06],
+  ].forEach(([freq, versatz]) => {
     const osc = ctx.createOscillator();
     const gain = ctx.createGain();
-    osc.type = 'sine';
-    osc.frequency.setValueAtTime(1500, now);
-    osc.frequency.exponentialRampToValueAtTime(2400, now + duration);
-    gain.gain.setValueAtTime(0.035, now);
+    osc.type = 'square';
+    osc.frequency.setValueAtTime(freq, now + versatz);
+    gain.gain.setValueAtTime(0.001, now + versatz);
+    gain.gain.linearRampToValueAtTime(0.05, now + versatz + 0.01);
+    gain.gain.exponentialRampToValueAtTime(0.001, now + versatz + 0.1);
+    osc.connect(gain);
+    gain.connect(masterGain);
+    osc.start(now + versatz);
+    osc.stop(now + versatz + 0.12);
+  });
+}
+
+// Viper-Overdrive startet: aufsteigender Dreiklang
+export function playOverdrive() {
+  recordSound('overdrive');
+  if (isMuted) return;
+  const ctx = getAudioContext();
+  if (!ctx) return;
+  if (ctx.state === 'suspended') ctx.resume().catch(() => {});
+  const now = ctx.currentTime;
+  [
+    [440, 0],
+    [660, 0.07],
+    [880, 0.14],
+  ].forEach(([freq, versatz]) => {
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.type = 'triangle';
+    osc.frequency.setValueAtTime(freq, now + versatz);
+    gain.gain.setValueAtTime(0.001, now + versatz);
+    gain.gain.linearRampToValueAtTime(0.12, now + versatz + 0.02);
+    gain.gain.exponentialRampToValueAtTime(0.001, now + versatz + 0.3);
+    osc.connect(gain);
+    gain.connect(masterGain);
+    osc.start(now + versatz);
+    osc.stop(now + versatz + 0.32);
+  });
+}
+
+// Gleve-Laser-Sweep: heller, singender Klingen-Ton mit kurzem Zisch-Rauschen
+export function playSweep(level = 1) {
+  recordSound('sweep', { level });
+  if (isMuted) return;
+  const ctx = getAudioContext();
+  if (!ctx) return;
+  if (ctx.state === 'suspended') ctx.resume().catch(() => {});
+
+  const now = ctx.currentTime;
+  const duration = 0.25;
+
+  // 1. Zischen: Hochpass-Rauschen, schnell ein- und ausgeblendet
+  try {
+    const noiseBuf = getNoiseBuffer(ctx);
+    if (noiseBuf) {
+      const noiseSource = ctx.createBufferSource();
+      noiseSource.buffer = noiseBuf;
+      noiseSource.loop = true;
+
+      const highpass = ctx.createBiquadFilter();
+      highpass.type = 'highpass';
+      highpass.frequency.setValueAtTime(2500, now);
+      highpass.frequency.exponentialRampToValueAtTime(5000, now + duration);
+
+      const noiseGain = ctx.createGain();
+      noiseGain.gain.setValueAtTime(0.02, now);
+      noiseGain.gain.linearRampToValueAtTime(0.18, now + duration * 0.25);
+      noiseGain.gain.exponentialRampToValueAtTime(0.001, now + duration);
+
+      noiseSource.connect(highpass);
+      highpass.connect(noiseGain);
+      noiseGain.connect(masterGain);
+
+      noiseSource.start(now);
+      noiseSource.stop(now + duration);
+    }
+  } catch (e) {}
+
+  // 2. Klinge: zwei leicht verstimmte Dreiecks-Toene, die nach oben gleiten
+  [0, 7].forEach(verstimmung => {
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.type = 'triangle';
+    osc.frequency.setValueAtTime(600 + level * 50 + verstimmung, now);
+    osc.frequency.exponentialRampToValueAtTime(1400 + level * 80 + verstimmung, now + duration * 0.6);
+    osc.frequency.exponentialRampToValueAtTime(900 + verstimmung, now + duration);
+    gain.gain.setValueAtTime(0.08, now);
     gain.gain.exponentialRampToValueAtTime(0.001, now + duration);
     osc.connect(gain);
     gain.connect(masterGain);
     osc.start(now);
     osc.stop(now + duration);
-}
-
-// Viper-Kill-Kombo erreicht 5/10/20: kurzer Doppelton, hoeher je Stufe (stufe 1..3)
-export function playKombo(stufe = 1) {
-    recordSound('kombo', { stufe });
-    if (isMuted) return;
-    const ctx = getAudioContext();
-    if (!ctx) return;
-    if (ctx.state === 'suspended') ctx.resume().catch(() => {});
-    const now = ctx.currentTime;
-    const basis = 520 * Math.pow(1.26, Math.max(1, stufe) - 1);
-    [[basis, 0], [basis * 1.5, 0.06]].forEach(([freq, versatz]) => {
-        const osc = ctx.createOscillator();
-        const gain = ctx.createGain();
-        osc.type = 'square';
-        osc.frequency.setValueAtTime(freq, now + versatz);
-        gain.gain.setValueAtTime(0.001, now + versatz);
-        gain.gain.linearRampToValueAtTime(0.05, now + versatz + 0.01);
-        gain.gain.exponentialRampToValueAtTime(0.001, now + versatz + 0.1);
-        osc.connect(gain);
-        gain.connect(masterGain);
-        osc.start(now + versatz);
-        osc.stop(now + versatz + 0.12);
-    });
-}
-
-// Viper-Overdrive startet: aufsteigender Dreiklang
-export function playOverdrive() {
-    recordSound('overdrive');
-    if (isMuted) return;
-    const ctx = getAudioContext();
-    if (!ctx) return;
-    if (ctx.state === 'suspended') ctx.resume().catch(() => {});
-    const now = ctx.currentTime;
-    [[440, 0], [660, 0.07], [880, 0.14]].forEach(([freq, versatz]) => {
-        const osc = ctx.createOscillator();
-        const gain = ctx.createGain();
-        osc.type = 'triangle';
-        osc.frequency.setValueAtTime(freq, now + versatz);
-        gain.gain.setValueAtTime(0.001, now + versatz);
-        gain.gain.linearRampToValueAtTime(0.12, now + versatz + 0.02);
-        gain.gain.exponentialRampToValueAtTime(0.001, now + versatz + 0.3);
-        osc.connect(gain);
-        gain.connect(masterGain);
-        osc.start(now + versatz);
-        osc.stop(now + versatz + 0.32);
-    });
-}
-
-// Gleve-Laser-Sweep: heller, singender Klingen-Ton mit kurzem Zisch-Rauschen
-export function playSweep(level = 1) {
-    recordSound('sweep', { level });
-    if (isMuted) return;
-    const ctx = getAudioContext();
-    if (!ctx) return;
-    if (ctx.state === 'suspended') ctx.resume().catch(() => {});
-
-    const now = ctx.currentTime;
-    const duration = 0.25;
-
-    // 1. Zischen: Hochpass-Rauschen, schnell ein- und ausgeblendet
-    try {
-        const noiseBuf = getNoiseBuffer(ctx);
-        if (noiseBuf) {
-            const noiseSource = ctx.createBufferSource();
-            noiseSource.buffer = noiseBuf;
-            noiseSource.loop = true;
-
-            const highpass = ctx.createBiquadFilter();
-            highpass.type = 'highpass';
-            highpass.frequency.setValueAtTime(2500, now);
-            highpass.frequency.exponentialRampToValueAtTime(5000, now + duration);
-
-            const noiseGain = ctx.createGain();
-            noiseGain.gain.setValueAtTime(0.02, now);
-            noiseGain.gain.linearRampToValueAtTime(0.18, now + duration * 0.25);
-            noiseGain.gain.exponentialRampToValueAtTime(0.001, now + duration);
-
-            noiseSource.connect(highpass);
-            highpass.connect(noiseGain);
-            noiseGain.connect(masterGain);
-
-            noiseSource.start(now);
-            noiseSource.stop(now + duration);
-        }
-    } catch (e) {}
-
-    // 2. Klinge: zwei leicht verstimmte Dreiecks-Toene, die nach oben gleiten
-    [0, 7].forEach(verstimmung => {
-        const osc = ctx.createOscillator();
-        const gain = ctx.createGain();
-        osc.type = 'triangle';
-        osc.frequency.setValueAtTime(600 + level * 50 + verstimmung, now);
-        osc.frequency.exponentialRampToValueAtTime(1400 + level * 80 + verstimmung, now + duration * 0.6);
-        osc.frequency.exponentialRampToValueAtTime(900 + verstimmung, now + duration);
-        gain.gain.setValueAtTime(0.08, now);
-        gain.gain.exponentialRampToValueAtTime(0.001, now + duration);
-        osc.connect(gain);
-        gain.connect(masterGain);
-        osc.start(now);
-        osc.stop(now + duration);
-    });
+  });
 }

@@ -1,4 +1,3 @@
-
 import { state, dom, config, arrays } from './state.js';
 import * as Utils from './utils.js';
 import * as Entities from './entities.js';
@@ -10,7 +9,13 @@ import * as Viper from './viper.js';
 import * as Anzeige from './anzeige.js';
 import { animierenPartikel } from './partikel.js';
 import { aktualisiereEffekte } from './effekte.js';
-import { verwalteFeindSpawns, aktualisiereAsteroiden, aktualisiereFeinde, aktualisiereFeindLaser, aktualisiereHackProjektile } from './gegner.js';
+import {
+  verwalteFeindSpawns,
+  aktualisiereAsteroiden,
+  aktualisiereFeinde,
+  aktualisiereFeindLaser,
+  aktualisiereHackProjektile,
+} from './gegner.js';
 import { aktualisiereBosse, aktualisiereBossBomben, aktualisiereBossRaketen } from './boss.js';
 import { aktualisierePowerups } from './powerups.js';
 import { aktualisiereUnverwundbarkeit, bewegeSpieler, aktualisiereEnergie, regeneriereSchild } from './spieler.js';
@@ -61,12 +66,26 @@ function simuliere() {
   if (!state.spielLaeuft) {
     const whatsNew = document.getElementById('whats-new-overlay');
     const steuerungOffen = document.getElementById('steuerung-overlay');
-    const isWhatsNewOpen = (whatsNew && whatsNew.style.display !== 'none') ||
-                           (steuerungOffen && steuerungOffen.style.display !== 'none');
+    const isWhatsNewOpen =
+      (whatsNew && whatsNew.style.display !== 'none') || (steuerungOffen && steuerungOffen.style.display !== 'none');
     const keys = state.tastenGedrueckt;
-    const startKeyPressed = keys.w || keys.a || keys.s || keys.d || keys.l || keys.k || keys[' '] ||
-                            keys.b || keys.v || keys.c || keys.ä || keys.ö ||
-                            keys.arrowup || keys.arrowdown || keys.arrowleft || keys.arrowright;
+    const startKeyPressed =
+      keys.w ||
+      keys.a ||
+      keys.s ||
+      keys.d ||
+      keys.l ||
+      keys.k ||
+      keys[' '] ||
+      keys.b ||
+      keys.v ||
+      keys.c ||
+      keys.ä ||
+      keys.ö ||
+      keys.arrowup ||
+      keys.arrowdown ||
+      keys.arrowleft ||
+      keys.arrowright;
     if (!isWhatsNewOpen && startKeyPressed) {
       if (state.gameMode === 'online') {
         if (state.network && state.network.isHost && state.network.connected) {
@@ -205,10 +224,8 @@ function simuliere() {
   animierenPartikel();
   aktualisiereEffekte();
 
-
   // Network Syncing in Online Mode (der Client sendet seine Eingaben in clientSchritt)
   if (state.frameZaehler % 2 === 0) sendeHostSnapshot();
-
 }
 
 // --- FESTE SIMULATIONSSCHRITTE (60 Hz, unabhaengig von der Monitor-Bildrate) ---
@@ -217,8 +234,8 @@ export const MAX_SCHRITTE_PRO_FRAME = 5;
 
 // Wie viele feste Simulationsschritte fuer die vergangene Zeit faellig sind
 export function berechneSchritte(kontoMs, deltaMs) {
-  const delta = (typeof deltaMs === 'number' && deltaMs > 0) ? deltaMs : 0;
-  const konto = (typeof kontoMs === 'number' && kontoMs > 0) ? kontoMs : 0;
+  const delta = typeof deltaMs === 'number' && deltaMs > 0 ? deltaMs : 0;
+  const konto = typeof kontoMs === 'number' && kontoMs > 0 ? kontoMs : 0;
   let neuesKonto = konto + delta;
   const schritte = Math.floor(neuesKonto / SCHRITT_MS);
   if (schritte > MAX_SCHRITTE_PRO_FRAME) {

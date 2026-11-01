@@ -58,7 +58,7 @@ export function komboFaktor(pState) {
 // Projektil-Laser-Cooldown in Schritten: normal 6, Kombo >= 5 -> 5, >= 10 -> 4, Overdrive 3 (Minimum)
 export function schussCooldown(pState) {
   if (istOverdrive(pState)) return 3;
-  const kombo = istViper(pState) ? (pState.viperKombo || 0) : 0;
+  const kombo = istViper(pState) ? pState.viperKombo || 0 : 0;
   return kombo >= 10 ? 4 : kombo >= 5 ? 5 : 6;
 }
 
@@ -85,7 +85,6 @@ function tickKombo(p) {
   }
 }
 
-
 function schiffFarbe(pState) {
   const c = shipColors[pState.selectedShipColor];
   return c ? c.prim : '#ffffff';
@@ -101,7 +100,7 @@ function erkenneRichtung(p, e) {
   const flankeR = Boolean(e.rechts) && !p.viperRechtsGehalten;
   p.viperLinksGehalten = Boolean(e.links);
   p.viperRechtsGehalten = Boolean(e.rechts);
-  const flanke = flankeL === flankeR ? 0 : (flankeR ? 1 : -1);
+  const flanke = flankeL === flankeR ? 0 : flankeR ? 1 : -1;
   if (flanke) {
     if (flanke === p.viperTapRichtung && p.viperTapAlter <= DOPPELTIPP_FENSTER) {
       richtung = flanke;
@@ -145,7 +144,13 @@ function starteRolle(p, richtung) {
 }
 
 function rolleSchritt(p) {
-  p.x = Math.max(0, Math.min(config.spielfeldBreite - config.spielerGroesse, p.x + p.viperRolleRichtung * ROLLE_DISTANZ / ROLLE_FRAMES));
+  p.x = Math.max(
+    0,
+    Math.min(
+      config.spielfeldBreite - config.spielerGroesse,
+      p.x + (p.viperRolleRichtung * ROLLE_DISTANZ) / ROLLE_FRAMES,
+    ),
+  );
   erzeugeNachbild(p);
 }
 
@@ -180,7 +185,7 @@ export function aktualisiereViper(pState, pKey, eingabe, anfrage = 0) {
 function tickOverdrive(p) {
   if ((p.viperOverdriveTimer || 0) > 0) {
     p.viperOverdriveTimer--;
-    p.viperOverdriveLeiste = Math.ceil(p.viperOverdriveTimer * 100 / OVERDRIVE_DAUER);
+    p.viperOverdriveLeiste = Math.ceil((p.viperOverdriveTimer * 100) / OVERDRIVE_DAUER);
   }
 }
 
@@ -200,7 +205,10 @@ function nearMissFuer(p, markeKey, geschosse) {
       const abstand = rechteckAbstand(p.x, p.y, g, g, s.x, s.y, s.width, s.height);
       if (abstand <= NEAR_MISS_ABSTAND) {
         if (typeof s[markeKey] !== 'number' || abstand < s[markeKey]) s[markeKey] = abstand;
-        else if (abstand > s[markeKey]) { s[markeKey] = true; zaehleNearMiss(p); } // entfernt sich wieder
+        else if (abstand > s[markeKey]) {
+          s[markeKey] = true;
+          zaehleNearMiss(p);
+        } // entfernt sich wieder
       } else if (typeof s[markeKey] === 'number') {
         s[markeKey] = true; // war nah dran und ist jetzt weiter weg
         zaehleNearMiss(p);
@@ -231,7 +239,15 @@ export function pruefeNearMiss() {
 
 // Kleines Plus am Schiff (sparsam: ein Zeichen, steigt kurz auf)
 function zeigeNearMissPlus(p) {
-  erzeugePartikel({ sorte: 'nearMissPlus', x: p.x + config.spielerGroesse / 2 - 4, y: p.y - 6, vx: 0, vy: -1.5, leben: 0.8, zerfall: 0.06 });
+  erzeugePartikel({
+    sorte: 'nearMissPlus',
+    x: p.x + config.spielerGroesse / 2 - 4,
+    y: p.y - 6,
+    vx: 0,
+    vy: -1.5,
+    leben: 0.8,
+    zerfall: 0.06,
+  });
 }
 
 // Tastenzustand eines Spielers fuer aktualisiereViper (Joystick nur, wenn er aktiv ist)
@@ -307,7 +323,7 @@ export function zeigeRollenHud(pKey, pState, sichtbar = true) {
   const el = document.getElementById(pKey === 'p2' ? 'viper-rolle-hud-p2' : 'viper-rolle-hud');
   if (!el) return;
   const zeigen = sichtbar && istViper(pState);
-  const cd = pState ? (pState.viperRolleCooldown || 0) : 0;
+  const cd = pState ? pState.viperRolleCooldown || 0 : 0;
   const bereit = zeigen && cd <= 0 && !istRolleAktiv(pState);
   const fuell = zeigen ? Math.round((1 - cd / ROLLE_COOLDOWN) * 100) : 0;
   zeigeOverdriveHud(pKey, pState, zeigen);
@@ -332,7 +348,8 @@ function zeigeKomboHud(pKey, pState, zeigen) {
   const stieg = kombo > komboHudWert[pKey];
   komboHudWert[pKey] = kombo;
   el.style.display = kombo > 0 ? 'block' : 'none';
-  if (kombo > 0) el.textContent = 'KOMBO ' + kombo + ' · x' + Math.min(KOMBO_MAX_FAKTOR, 1 + KOMBO_SCHRITT * kombo).toFixed(1);
+  if (kombo > 0)
+    el.textContent = 'KOMBO ' + kombo + ' · x' + Math.min(KOMBO_MAX_FAKTOR, 1 + KOMBO_SCHRITT * kombo).toFixed(1);
   el.classList.remove('puls');
   if (stieg) {
     void el.offsetWidth; // Animation neu starten
@@ -388,6 +405,6 @@ function erzeugeNachbild(pState) {
     vx: -(pState.viperRolleRichtung || 0) * 1.2,
     vy: 0,
     leben: 1.0,
-    zerfall: 0.07
+    zerfall: 0.07,
   });
 }

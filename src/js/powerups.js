@@ -1,10 +1,8 @@
-
 import { state, dom, config, arrays, isCoopMode } from './state.js';
 import * as Utils from './utils.js';
 import * as Audio from './audio.js';
 import * as Network from './network.js';
 import * as Anzeige from './anzeige.js';
-
 
 function wendePowerupAn(p, targetKey = 'p1') {
   const isP1 = targetKey === 'p1';
@@ -149,8 +147,13 @@ export function aktualisierePowerups() {
         const slotIdx = p1Towed.indexOf(p);
         let targetX = state.x + config.spielerGroesse / 2 - p.groesse / 2;
         let targetY = state.y + config.spielerGroesse + 16;
-        if (slotIdx === 1) { targetX -= 18; targetY += 16; }
-        else if (slotIdx === 2) { targetX += 18; targetY += 16; }
+        if (slotIdx === 1) {
+          targetX -= 18;
+          targetY += 16;
+        } else if (slotIdx === 2) {
+          targetX += 18;
+          targetY += 16;
+        }
 
         p.x += (targetX - p.x) * 0.28;
         p.y += (targetY - p.y) * 0.28;
@@ -158,10 +161,16 @@ export function aktualisierePowerups() {
         updateTractorBeam(p, state.x + config.spielerGroesse / 2, state.y + config.spielerGroesse);
 
         // Übergabe an Spieler 2 prüfen
-        if (isCoopMode() && state.p2 && !state.p2.isDead &&
-            state.p2.x < p.x + p.groesse && state.p2.x + config.spielerGroesse > p.x &&
-            state.p2.y < p.y + p.groesse && state.p2.y + config.spielerGroesse > p.y) {
-                    wendePowerupAn(p, 'p2');
+        if (
+          isCoopMode() &&
+          state.p2 &&
+          !state.p2.isDead &&
+          state.p2.x < p.x + p.groesse &&
+          state.p2.x + config.spielerGroesse > p.x &&
+          state.p2.y < p.y + p.groesse &&
+          state.p2.y + config.spielerGroesse > p.y
+        ) {
+          wendePowerupAn(p, 'p2');
           Anzeige.entferne(p);
           arrays.powerups.splice(i, 1);
           continue;
@@ -180,8 +189,13 @@ export function aktualisierePowerups() {
         const slotIdx = p2Towed.indexOf(p);
         let targetX = state.p2.x + config.spielerGroesse / 2 - p.groesse / 2;
         let targetY = state.p2.y + config.spielerGroesse + 16;
-        if (slotIdx === 1) { targetX -= 18; targetY += 16; }
-        else if (slotIdx === 2) { targetX += 18; targetY += 16; }
+        if (slotIdx === 1) {
+          targetX -= 18;
+          targetY += 16;
+        } else if (slotIdx === 2) {
+          targetX += 18;
+          targetY += 16;
+        }
 
         p.x += (targetX - p.x) * 0.28;
         p.y += (targetY - p.y) * 0.28;
@@ -189,10 +203,14 @@ export function aktualisierePowerups() {
         updateTractorBeam(p, state.p2.x + config.spielerGroesse / 2, state.p2.y + config.spielerGroesse);
 
         // Übergabe an Spieler 1 prüfen
-        if (!state.isDead &&
-            state.x < p.x + p.groesse && state.x + config.spielerGroesse > p.x &&
-            state.y < p.y + p.groesse && state.y + config.spielerGroesse > p.y) {
-                    wendePowerupAn(p, 'p1');
+        if (
+          !state.isDead &&
+          state.x < p.x + p.groesse &&
+          state.x + config.spielerGroesse > p.x &&
+          state.y < p.y + p.groesse &&
+          state.y + config.spielerGroesse > p.y
+        ) {
+          wendePowerupAn(p, 'p1');
           Anzeige.entferne(p);
           arrays.powerups.splice(i, 1);
           continue;
@@ -210,14 +228,22 @@ export function aktualisierePowerups() {
     }
 
     // Prüfe Einsammeln durch Spieler 1
-    const p1Col = !state.isDead &&
-      state.x < p.x + p.groesse && state.x + config.spielerGroesse > p.x &&
-      state.y < p.y + p.groesse && state.y + config.spielerGroesse > p.y;
+    const p1Col =
+      !state.isDead &&
+      state.x < p.x + p.groesse &&
+      state.x + config.spielerGroesse > p.x &&
+      state.y < p.y + p.groesse &&
+      state.y + config.spielerGroesse > p.y;
 
     // Prüfe Einsammeln durch Spieler 2 (Co-op)
-    const p2Col = isCoopMode() && state.p2 && !state.p2.isDead &&
-      state.p2.x < p.x + p.groesse && state.p2.x + config.spielerGroesse > p.x &&
-      state.p2.y < p.y + p.groesse && state.p2.y + config.spielerGroesse > p.y;
+    const p2Col =
+      isCoopMode() &&
+      state.p2 &&
+      !state.p2.isDead &&
+      state.p2.x < p.x + p.groesse &&
+      state.p2.x + config.spielerGroesse > p.x &&
+      state.p2.y < p.y + p.groesse &&
+      state.p2.y + config.spielerGroesse > p.y;
 
     if (p1Col) {
       if (!p.owner || p.owner === 'p1') {

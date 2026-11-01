@@ -5,18 +5,24 @@ const { setzeSpielstand, starteSpiel } = require('./helfer');
 const MODI = ['single', 'coop', 'online'];
 const ANSICHTEN = [
   { name: 'Desktop 800x600', viewport: { width: 800, height: 600 } },
-  { name: 'Handy 412x915', viewport: { width: 412, height: 915 } }
+  { name: 'Handy 412x915', viewport: { width: 412, height: 915 } },
 ];
 
 test.beforeEach(async ({ page }) => {
-  await page.route('**/api/highscores*', route => route.fulfill({
-    status: 200, contentType: 'application/json',
-    body: JSON.stringify({ success: true, mode: 'single', highscores: [] })
-  }));
-  await page.route('**/api/turn*', route => route.fulfill({
-    status: 503, contentType: 'application/json',
-    body: JSON.stringify({ success: false, error: 'TURN nicht konfiguriert' })
-  }));
+  await page.route('**/api/highscores*', route =>
+    route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({ success: true, mode: 'single', highscores: [] }),
+    }),
+  );
+  await page.route('**/api/turn*', route =>
+    route.fulfill({
+      status: 503,
+      contentType: 'application/json',
+      body: JSON.stringify({ success: false, error: 'TURN nicht konfiguriert' }),
+    }),
+  );
   await setzeSpielstand(page);
 });
 
@@ -31,7 +37,7 @@ async function miss(page) {
   // Breiten-Transition des Spielfelds (0,25 s) abwarten
   await page.waitForFunction(() => document.getElementById('spielfeld').getAnimations().length === 0);
   return page.evaluate(() => {
-    const r = (sel) => {
+    const r = sel => {
       const b = document.querySelector(sel).getBoundingClientRect();
       return { top: b.top, left: b.left, width: b.width, height: b.height };
     };
@@ -46,7 +52,7 @@ async function miss(page) {
       clientHoehe: menue.clientHeight,
       feldBreite: document.getElementById('spielfeld').clientWidth,
       feldStyleBreite: document.getElementById('spielfeld').style.width,
-      configBreite: window.__game.config.spielfeldBreite
+      configBreite: window.__game.config.spielfeldBreite,
     };
   });
 }
@@ -63,8 +69,10 @@ for (const ansicht of ANSICHTEN) {
       for (const modus of ['coop', 'online']) {
         for (const teil of ['titel', 'hangarName', 'startText', 'optionen', 'menue']) {
           for (const achse of ['top', 'left']) {
-            expect(Math.abs(werte[modus][teil][achse] - werte.single[teil][achse]),
-              `${teil}.${achse} ${modus} vs single`).toBeLessThanOrEqual(1);
+            expect(
+              Math.abs(werte[modus][teil][achse] - werte.single[teil][achse]),
+              `${teil}.${achse} ${modus} vs single`,
+            ).toBeLessThanOrEqual(1);
           }
         }
         expect(Math.abs(werte[modus].menue.height - werte.single.menue.height)).toBeLessThanOrEqual(1);
@@ -80,7 +88,9 @@ for (const ansicht of ANSICHTEN) {
         const feld = await page.evaluate(() => document.getElementById('spielfeld').getBoundingClientRect().toJSON());
         expect(w.menue.height, `Menuehoehe ${modus}`).toBeLessThanOrEqual(feld.height);
         expect(w.titel.top, `Titel oben ${modus}`).toBeGreaterThanOrEqual(feld.top);
-        expect(w.startText.top + w.startText.height, `Start-Text unten ${modus}`).toBeLessThanOrEqual(feld.top + feld.height);
+        expect(w.startText.top + w.startText.height, `Start-Text unten ${modus}`).toBeLessThanOrEqual(
+          feld.top + feld.height,
+        );
       }
     });
 
@@ -97,19 +107,27 @@ for (const ansicht of ANSICHTEN) {
   });
 }
 
-test('Online-Lobby ist so breit wie der Hangar und zentriert; Lobby-Zustaende sprengen die feste Hoehe nicht', async ({ page }) => {
+test('Online-Lobby ist so breit wie der Hangar und zentriert; Lobby-Zustaende sprengen die feste Hoehe nicht', async ({
+  page,
+}) => {
   await oeffneMenue(page, { width: 800, height: 600 });
   await page.click('#gamemode-btn-online');
-  const mass = () => page.evaluate(() => {
-    const l = document.getElementById('online-lobby-container').getBoundingClientRect();
-    const h = document.getElementById('hangar-container').getBoundingClientRect();
-    const o = document.getElementById('modus-optionen').getBoundingClientRect();
-    const lobby = document.getElementById('online-lobby-container');
-    return {
-      lobbyBreite: l.width, hangarBreite: h.width, lobbyLinks: l.left, hangarLinks: h.left, lobbyHoehe: l.height, optionenHoehe: o.height,
-      lobbyScrollt: lobby.scrollHeight > lobby.clientHeight
-    };
-  });
+  const mass = () =>
+    page.evaluate(() => {
+      const l = document.getElementById('online-lobby-container').getBoundingClientRect();
+      const h = document.getElementById('hangar-container').getBoundingClientRect();
+      const o = document.getElementById('modus-optionen').getBoundingClientRect();
+      const lobby = document.getElementById('online-lobby-container');
+      return {
+        lobbyBreite: l.width,
+        hangarBreite: h.width,
+        lobbyLinks: l.left,
+        hangarLinks: h.left,
+        lobbyHoehe: l.height,
+        optionenHoehe: o.height,
+        lobbyScrollt: lobby.scrollHeight > lobby.clientHeight,
+      };
+    });
   let m = await mass();
   expect(Math.abs(m.lobbyBreite - m.hangarBreite)).toBeLessThanOrEqual(1);
   expect(Math.abs(m.lobbyLinks - m.hangarLinks)).toBeLessThanOrEqual(1);
@@ -120,8 +138,9 @@ test('Online-Lobby ist so breit wie der Hangar und zentriert; Lobby-Zustaende sp
   await page.evaluate(() => {
     const s = document.getElementById('online-status');
     s.style.display = 'block';
-    s.innerHTML = '<div class="vp-kopf">RAUM-CODE: ABCDE</div><div class="vp-schritt">3/5 WARTE AUF MITSPIELER (0:12)</div>'
-      + '<div class="vp-balken"><span class="aktiv"></span><span class="aktiv"></span><span class="aktiv"></span><span></span><span></span></div>';
+    s.innerHTML =
+      '<div class="vp-kopf">RAUM-CODE: ABCDE</div><div class="vp-schritt">3/5 WARTE AUF MITSPIELER (0:12)</div>' +
+      '<div class="vp-balken"><span class="aktiv"></span><span class="aktiv"></span><span class="aktiv"></span><span></span><span></span></div>';
   });
   m = await mass();
   expect(m.lobbyHoehe).toBeLessThanOrEqual(m.optionenHoehe);
@@ -151,7 +170,7 @@ test('Menue passt fuer jedes Schiff und jeden Modus in die Spielfeldhoehe', asyn
       await page.click(`#gamemode-btn-${modus}`);
       const w = await miss(page);
       expect(w.scrollHoehe, `${modell} ${modus}`).toBeLessThanOrEqual(w.clientHoehe);
-      expect(w.menue.height, `${modell} ${modus}`).toBeLessThanOrEqual(600 * 0.95 * 600 / 600 + 1);
+      expect(w.menue.height, `${modell} ${modus}`).toBeLessThanOrEqual((600 * 0.95 * 600) / 600 + 1);
     }
   }
 });
@@ -185,9 +204,10 @@ test('Co-op-Steuerung: zwei Spalten mit je vier Zeilen "Taste -> Aktion", ohne U
         return {
           text: z.textContent.replace(/\s+/g, ' ').trim(),
           einzeilig: b.height < 18 && Math.abs(k.top - a.top) < 2,
-          passt: b.right <= spalte.right + 0.5 && z.scrollWidth <= z.clientWidth
+          passt: b.right <= spalte.right + 0.5 && z.scrollWidth <= z.clientWidth,
         };
-      }));
+      }),
+    );
   });
   expect(spalten).toHaveLength(2);
   for (const spalte of spalten) {
@@ -201,7 +221,9 @@ test('Co-op-Steuerung: zwei Spalten mit je vier Zeilen "Taste -> Aktion", ohne U
   expect(spalten[1][0].text).toContain('Bewegen');
 });
 
-test('Co-op: Spielfeld wird erst beim Spielstart 600 px breit, nach Pause -> Hauptmenue wieder Menuebreite', async ({ page }) => {
+test('Co-op: Spielfeld wird erst beim Spielstart 600 px breit, nach Pause -> Hauptmenue wieder Menuebreite', async ({
+  page,
+}) => {
   await oeffneMenue(page, { width: 800, height: 600 });
   await page.click('#gamemode-btn-coop');
   expect((await miss(page)).configBreite).toBe(400);
@@ -286,7 +308,9 @@ test.describe('Menue aufgeraeumt: Steuerung-Overlay und Perk-Chips', () => {
     await expect(page.locator('#start-screen')).toBeVisible();
     await page.keyboard.press('Escape');
     await page.keyboard.down('KeyW');
-    await expect.poll(() => page.evaluate(() => window.__game.state.cutsceneAktiv || window.__game.state.spielLaeuft)).toBeTruthy();
+    await expect
+      .poll(() => page.evaluate(() => window.__game.state.cutsceneAktiv || window.__game.state.spielLaeuft))
+      .toBeTruthy();
     await page.keyboard.up('KeyW');
   });
 
@@ -306,7 +330,10 @@ test.describe('Menue aufgeraeumt: Steuerung-Overlay und Perk-Chips', () => {
     await oeffneMenue(page, { width: 800, height: 600 });
     for (const modell of ['viper', 'phantom', 'gleve', 'sniper']) {
       await page.click(`.hangar-model-btn[data-model="${modell}"]`);
-      const perks = await page.evaluate((m) => window.__game.shipModels[m].perks.map(p => ({ label: p.label, desc: p.desc })), modell);
+      const perks = await page.evaluate(
+        m => window.__game.shipModels[m].perks.map(p => ({ label: p.label, desc: p.desc })),
+        modell,
+      );
       const chips = page.locator('#hangar-ship-perks .hangar-perk-chip');
       await expect(chips).toHaveCount(perks.length);
       await expect(page.locator('#hangar-perk-detail')).toContainText('antippen');
@@ -324,12 +351,17 @@ test.describe('Menue aufgeraeumt: Steuerung-Overlay und Perk-Chips', () => {
     for (const modell of ['viper', 'phantom', 'gleve', 'sniper']) {
       await page.click(`.hangar-model-btn[data-model="${modell}"]`);
       await page.locator('#hangar-ship-perks .hangar-perk-chip').last().click();
-      hoehen.push(await page.evaluate(() => ({
-        hangar: document.getElementById('hangar-container').getBoundingClientRect().height,
-        perks: document.getElementById('hangar-ship-perks').getBoundingClientRect().height,
-        detail: document.getElementById('hangar-perk-detail').scrollHeight - document.getElementById('hangar-perk-detail').clientHeight,
-        scroll: document.getElementById('start-screen').scrollHeight - document.getElementById('start-screen').clientHeight
-      })));
+      hoehen.push(
+        await page.evaluate(() => ({
+          hangar: document.getElementById('hangar-container').getBoundingClientRect().height,
+          perks: document.getElementById('hangar-ship-perks').getBoundingClientRect().height,
+          detail:
+            document.getElementById('hangar-perk-detail').scrollHeight -
+            document.getElementById('hangar-perk-detail').clientHeight,
+          scroll:
+            document.getElementById('start-screen').scrollHeight - document.getElementById('start-screen').clientHeight,
+        })),
+      );
     }
     for (const h of hoehen) {
       expect(Math.abs(h.hangar - hoehen[0].hangar)).toBeLessThanOrEqual(0.5);

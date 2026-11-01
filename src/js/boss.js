@@ -1,4 +1,3 @@
-
 import { state, dom, config, arrays, isCoopMode } from './state.js';
 import * as Utils from './utils.js';
 import * as Entities from './entities.js';
@@ -7,7 +6,6 @@ import { naechsterSpielerMitte, tickBetaeubung } from './gegner.js';
 import * as Anzeige from './anzeige.js';
 import { erzeugePartikel } from './partikel.js';
 import { erzeugeEffekt } from './effekte.js';
-
 
 const BOSS_HACK_AB_LEVEL = 5;
 const BOSS_HACK_INTERVALL = 300; // 5 s
@@ -42,7 +40,7 @@ export function aktualisiereBosse() {
           l.vx += dx > 0 ? kraft : -kraft;
         }
       });
-      dom.bossHpBalken.style.width = Math.max(0, b.hp / b.maxHp * 100) + '%';
+      dom.bossHpBalken.style.width = Math.max(0, (b.hp / b.maxHp) * 100) + '%';
       continue; // Überspringt Kampf-Bewegungen und Schießen
     } else {
       // Enrage Check für alle Typen
@@ -73,11 +71,15 @@ export function aktualisiereBosse() {
       } else if (b.bossTyp === 2) {
         // Jäger - verfolgt den näheren lebenden Spieler
         let zielX = naechsterSpielerMitte(b).x - b.groesse / 2;
-        if (b.x < zielX - 5) b.x += b.vx;else if (b.x > zielX + 5) b.x -= b.vx;
+        if (b.x < zielX - 5) b.x += b.vx;
+        else if (b.x > zielX + 5) b.x -= b.vx;
       } else if (b.bossTyp === 3) {
         // Träger
         b.zeit = (b.zeit || 0) + 0.02 * (b.enragePhaseAktiv ? 1.5 : 1);
-        b.x = config.spielfeldBreite / 2 - b.groesse / 2 + Math.sin(b.zeit) * (config.spielfeldBreite / 2 - b.groesse / 2 - 10);
+        b.x =
+          config.spielfeldBreite / 2 -
+          b.groesse / 2 +
+          Math.sin(b.zeit) * (config.spielfeldBreite / 2 - b.groesse / 2 - 10);
       } else if (b.bossTyp === 4) {
         // Festung
         b.x += b.vx * 0.5; // Bewegt sich sehr langsam
@@ -85,7 +87,7 @@ export function aktualisiereBosse() {
       }
 
       // Update HP Balken Breite
-      dom.bossHpBalken.style.width = Math.max(0, b.hp / b.maxHp * 100) + '%';
+      dom.bossHpBalken.style.width = Math.max(0, (b.hp / b.maxHp) * 100) + '%';
       if (b.enragePhaseAktiv) {
         Utils.erzeugeRauchFunken(b.x, b.y, b.groesse);
       }
@@ -125,7 +127,8 @@ export function aktualisiereBosse() {
         } else if (b.bossTyp === 3) {
           // Spawnt einen Feind
           Entities.erzeugeFeind(b.x + b.groesse / 2 - 15, b.y + b.groesse);
-          if (Math.random() < 0.5 || b.enragePhaseAktiv) Entities.erzeugeBossLaser(b.x + b.groesse / 2 - 4, b.y + b.groesse);
+          if (Math.random() < 0.5 || b.enragePhaseAktiv)
+            Entities.erzeugeBossLaser(b.x + b.groesse / 2 - 4, b.y + b.groesse);
         } else if (b.bossTyp === 4) {
           // Fächerschuss (Spread)
           let anzahl = b.enragePhaseAktiv ? 7 : 5;
@@ -140,14 +143,14 @@ export function aktualisiereBosse() {
       }
 
       // Boss-Bomben Abwurf
-      b.bombenTimer = (b.bombenTimer !== undefined ? b.bombenTimer : (Math.random() * 120 + 240)) - (betaeubt ? 0 : 1);
+      b.bombenTimer = (b.bombenTimer !== undefined ? b.bombenTimer : Math.random() * 120 + 240) - (betaeubt ? 0 : 1);
       if (!betaeubt && b.bombenTimer <= 0) {
         Entities.erzeugeBossBombe(b.x + b.groesse / 2 - 13, b.y + b.groesse * 0.7);
         b.bombenTimer = Math.max(160, 360 - (state.level - 1) * 30);
       }
 
       // Boss-Raketen Abwurf (seitlich zielsuchend)
-      b.raketenTimer = (b.raketenTimer !== undefined ? b.raketenTimer : (Math.random() * 140 + 200)) - (betaeubt ? 0 : 1);
+      b.raketenTimer = (b.raketenTimer !== undefined ? b.raketenTimer : Math.random() * 140 + 200) - (betaeubt ? 0 : 1);
       if (!betaeubt && b.raketenTimer <= 0) {
         let side = Math.random() < 0.5 ? -1 : 1;
         Entities.erzeugeBossRakete(b.x + (side < 0 ? 0 : b.groesse - 14), b.y + b.groesse * 0.5, side);
@@ -158,10 +161,26 @@ export function aktualisiereBosse() {
       }
     }
     let bossPadding = b.groesse * 0.15;
-    if (!state.isDead && !Utils.istDashUnverwundbar(state) && state.x < b.x + b.groesse - bossPadding && state.x + config.spielerGroesse > b.x + bossPadding && state.y < b.y + b.groesse - bossPadding && state.y + config.spielerGroesse > b.y + bossPadding) {
+    if (
+      !state.isDead &&
+      !Utils.istDashUnverwundbar(state) &&
+      state.x < b.x + b.groesse - bossPadding &&
+      state.x + config.spielerGroesse > b.x + bossPadding &&
+      state.y < b.y + b.groesse - bossPadding &&
+      state.y + config.spielerGroesse > b.y + bossPadding
+    ) {
       Utils.spielerGetroffen(b, false, 'p1');
     }
-    if (isCoopMode() && state.p2 && !state.p2.isDead && !Utils.istDashUnverwundbar(state.p2) && state.p2.x < b.x + b.groesse - bossPadding && state.p2.x + config.spielerGroesse > b.x + bossPadding && state.p2.y < b.y + b.groesse - bossPadding && state.p2.y + config.spielerGroesse > b.y + bossPadding) {
+    if (
+      isCoopMode() &&
+      state.p2 &&
+      !state.p2.isDead &&
+      !Utils.istDashUnverwundbar(state.p2) &&
+      state.p2.x < b.x + b.groesse - bossPadding &&
+      state.p2.x + config.spielerGroesse > b.x + bossPadding &&
+      state.p2.y < b.y + b.groesse - bossPadding &&
+      state.p2.y + config.spielerGroesse > b.y + bossPadding
+    ) {
       Utils.spielerGetroffen(b, false, 'p2');
     }
   }
@@ -177,13 +196,29 @@ export function aktualisiereBosse() {
     }
     // Von der Gleve seitlich weggeschleudert: trifft keine Spieler mehr
     if (bl.harmlos) continue;
-    if (!state.isDead && !Utils.istDashUnverwundbar(state) && state.x < bl.x + bl.width && state.x + config.spielerGroesse > bl.x && state.y < bl.y + bl.height && state.y + config.spielerGroesse > bl.y) {
+    if (
+      !state.isDead &&
+      !Utils.istDashUnverwundbar(state) &&
+      state.x < bl.x + bl.width &&
+      state.x + config.spielerGroesse > bl.x &&
+      state.y < bl.y + bl.height &&
+      state.y + config.spielerGroesse > bl.y
+    ) {
       Utils.spielerGetroffen(bl, false, 'p1');
       Anzeige.entferne(bl);
       arrays.bossLaserArray.splice(i, 1);
       continue;
     }
-    if (isCoopMode() && state.p2 && !state.p2.isDead && !Utils.istDashUnverwundbar(state.p2) && state.p2.x < bl.x + bl.width && state.p2.x + config.spielerGroesse > bl.x && state.p2.y < bl.y + bl.height && state.p2.y + config.spielerGroesse > bl.y) {
+    if (
+      isCoopMode() &&
+      state.p2 &&
+      !state.p2.isDead &&
+      !Utils.istDashUnverwundbar(state.p2) &&
+      state.p2.x < bl.x + bl.width &&
+      state.p2.x + config.spielerGroesse > bl.x &&
+      state.p2.y < bl.y + bl.height &&
+      state.p2.y + config.spielerGroesse > bl.y
+    ) {
       Utils.spielerGetroffen(bl, false, 'p2');
       Anzeige.entferne(bl);
       arrays.bossLaserArray.splice(i, 1);
@@ -231,12 +266,15 @@ export function aktualisiereBossBomben() {
 
       erzeugeEffekt({ art: 'bossWelle', x: cx, y: cy, radius: bb.radius, rest: 24 });
 
-      let distP1 = Math.hypot((state.x + config.spielerGroesse / 2) - cx, (state.y + config.spielerGroesse / 2) - cy);
+      let distP1 = Math.hypot(state.x + config.spielerGroesse / 2 - cx, state.y + config.spielerGroesse / 2 - cy);
       if (!state.isDead && distP1 <= bb.radius) {
         Utils.spielerGetroffen(bb, false, 'p1');
       }
       if (isCoopMode() && state.p2 && !state.p2.isDead) {
-        let distP2 = Math.hypot((state.p2.x + config.spielerGroesse / 2) - cx, (state.p2.y + config.spielerGroesse / 2) - cy);
+        let distP2 = Math.hypot(
+          state.p2.x + config.spielerGroesse / 2 - cx,
+          state.p2.y + config.spielerGroesse / 2 - cy,
+        );
         if (distP2 <= bb.radius) {
           Utils.spielerGetroffen(bb, false, 'p2');
         }
@@ -247,11 +285,27 @@ export function aktualisiereBossBomben() {
       continue;
     }
 
-    if (!state.isDead && !Utils.istDashUnverwundbar(state) && state.x < bb.x + bb.groesse && state.x + config.spielerGroesse > bb.x && state.y < bb.y + bb.groesse && state.y + config.spielerGroesse > bb.y) {
+    if (
+      !state.isDead &&
+      !Utils.istDashUnverwundbar(state) &&
+      state.x < bb.x + bb.groesse &&
+      state.x + config.spielerGroesse > bb.x &&
+      state.y < bb.y + bb.groesse &&
+      state.y + config.spielerGroesse > bb.y
+    ) {
       Utils.spielerGetroffen(bb, false, 'p1');
       bb.hp = 0;
     }
-    if (isCoopMode() && state.p2 && !state.p2.isDead && !Utils.istDashUnverwundbar(state.p2) && state.p2.x < bb.x + bb.groesse && state.p2.x + config.spielerGroesse > bb.x && state.p2.y < bb.y + bb.groesse && state.p2.y + config.spielerGroesse > bb.y) {
+    if (
+      isCoopMode() &&
+      state.p2 &&
+      !state.p2.isDead &&
+      !Utils.istDashUnverwundbar(state.p2) &&
+      state.p2.x < bb.x + bb.groesse &&
+      state.p2.x + config.spielerGroesse > bb.x &&
+      state.p2.y < bb.y + bb.groesse &&
+      state.p2.y + config.spielerGroesse > bb.y
+    ) {
       Utils.spielerGetroffen(bb, false, 'p2');
       bb.hp = 0;
     }
@@ -288,7 +342,7 @@ export function aktualisiereBossRaketen() {
 
     br.x += br.vx;
     br.y += br.vy;
-    br.rot = Math.atan2(br.vy, br.vx) * 180 / Math.PI + 90;
+    br.rot = (Math.atan2(br.vy, br.vx) * 180) / Math.PI + 90;
 
     // Partikel-Schweif
     if (Math.random() < 0.4) {
@@ -300,7 +354,7 @@ export function aktualisiereBossRaketen() {
         vx: (Math.random() - 0.5) * 0.4,
         vy: 0.5 + Math.random() * 0.5,
         leben: 0.8,
-        zerfall: 0.05
+        zerfall: 0.05,
       });
     }
 
@@ -322,7 +376,14 @@ export function aktualisiereBossRaketen() {
     }
 
     // Kollision mit Spieler
-    if (!state.isDead && !Utils.istDashUnverwundbar(state) && state.x < br.x + br.width && state.x + config.spielerGroesse > br.x && state.y < br.y + br.height && state.y + config.spielerGroesse > br.y) {
+    if (
+      !state.isDead &&
+      !Utils.istDashUnverwundbar(state) &&
+      state.x < br.x + br.width &&
+      state.x + config.spielerGroesse > br.x &&
+      state.y < br.y + br.height &&
+      state.y + config.spielerGroesse > br.y
+    ) {
       Utils.spielerGetroffen(br, false, 'p1');
       Audio.playMissileExplosion();
       Utils.erzeugeExplosion(br.x + br.width / 2, br.y + br.height / 2, '#e74c3c', 25);
@@ -330,7 +391,16 @@ export function aktualisiereBossRaketen() {
       arrays.bossRaketenArray.splice(i, 1);
       continue;
     }
-    if (isCoopMode() && state.p2 && !state.p2.isDead && !Utils.istDashUnverwundbar(state.p2) && state.p2.x < br.x + br.width && state.p2.x + config.spielerGroesse > br.x && state.p2.y < br.y + br.height && state.p2.y + config.spielerGroesse > br.y) {
+    if (
+      isCoopMode() &&
+      state.p2 &&
+      !state.p2.isDead &&
+      !Utils.istDashUnverwundbar(state.p2) &&
+      state.p2.x < br.x + br.width &&
+      state.p2.x + config.spielerGroesse > br.x &&
+      state.p2.y < br.y + br.height &&
+      state.p2.y + config.spielerGroesse > br.y
+    ) {
       Utils.spielerGetroffen(br, false, 'p2');
       Audio.playMissileExplosion();
       Utils.erzeugeExplosion(br.x + br.width / 2, br.y + br.height / 2, '#e74c3c', 25);

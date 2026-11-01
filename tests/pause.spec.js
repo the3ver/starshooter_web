@@ -2,14 +2,20 @@ const { test, expect } = require('@playwright/test');
 const { setzeSpielstand, starteSpiel } = require('./helfer');
 
 test.beforeEach(async ({ page }) => {
-  await page.route('**/api/highscores*', route => route.fulfill({
-    status: 200, contentType: 'application/json',
-    body: JSON.stringify({ success: true, mode: 'single', highscores: [] })
-  }));
-  await page.route('**/api/turn*', route => route.fulfill({
-    status: 503, contentType: 'application/json',
-    body: JSON.stringify({ success: false, error: 'TURN nicht konfiguriert' })
-  }));
+  await page.route('**/api/highscores*', route =>
+    route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({ success: true, mode: 'single', highscores: [] }),
+    }),
+  );
+  await page.route('**/api/turn*', route =>
+    route.fulfill({
+      status: 503,
+      contentType: 'application/json',
+      body: JSON.stringify({ success: false, error: 'TURN nicht konfiguriert' }),
+    }),
+  );
   await setzeSpielstand(page);
   await page.goto('/');
   await page.waitForFunction(() => window.__game && window.__game.state);
@@ -17,7 +23,7 @@ test.beforeEach(async ({ page }) => {
 
 // Versetzt die Seite in einen laufenden Online-Zustand (rolle 'host' oder 'client')
 async function online(page, rolle) {
-  await page.evaluate((rolle) => {
+  await page.evaluate(rolle => {
     const { state } = window.__game;
     state.gameMode = 'online';
     state.spielLaeuft = true;
@@ -49,19 +55,20 @@ test('Online-Client: P2-Blinken nach player_hit endet nach den I-Frames', async 
   expect(r.danach).toBe(false);
 });
 
-const pauseStatus = (page) => page.evaluate(() => {
-  const { state } = window.__game;
-  const el = (id) => document.getElementById(id);
-  return {
-    pausiert: state.pausiert,
-    von: state.pauseVon,
-    sichtbar: el('pause-overlay').style.display !== 'none',
-    titel: el('pause-titel').textContent,
-    info: el('pause-info').textContent,
-    hinweis: el('pause-hinweis').textContent,
-    letztes: state.network.lastSentEvent
-  };
-});
+const pauseStatus = page =>
+  page.evaluate(() => {
+    const { state } = window.__game;
+    const el = id => document.getElementById(id);
+    return {
+      pausiert: state.pausiert,
+      von: state.pauseVon,
+      sichtbar: el('pause-overlay').style.display !== 'none',
+      titel: el('pause-titel').textContent,
+      info: el('pause-info').textContent,
+      hinweis: el('pause-hinweis').textContent,
+      letztes: state.network.lastSentEvent,
+    };
+  });
 
 test('Pause a) Host drueckt P: pausiert, pauseVon p1, pause_start gesendet', async ({ page }) => {
   await online(page, 'host');
@@ -122,7 +129,10 @@ test('Pause d) Zeitablauf beendet die Pause, Host sendet pause_ende, Client been
   await online(page, 'host');
   await page.keyboard.press('KeyP');
   await page.waitForFunction(() => window.__game.state.pausiert);
-  await page.evaluate(() => { window.__game.state.pauseEndeZeit = Date.now() - 1; window.__game.state.network.lastSentEvent = null; });
+  await page.evaluate(() => {
+    window.__game.state.pauseEndeZeit = Date.now() - 1;
+    window.__game.state.network.lastSentEvent = null;
+  });
   await page.waitForFunction(() => !window.__game.state.pausiert);
   let s = await pauseStatus(page);
   expect(s.von).toBeNull();
@@ -195,10 +205,11 @@ async function startePausiert(page, modus) {
   await page.waitForFunction(() => window.__game.state.pausiert);
 }
 
-const sichtbar = (page, id) => page.evaluate((id) => {
-  const el = document.getElementById(id);
-  return Boolean(el) && el.offsetParent !== null && getComputedStyle(el).display !== 'none';
-}, id);
+const sichtbar = (page, id) =>
+  page.evaluate(id => {
+    const el = document.getElementById(id);
+    return Boolean(el) && el.offsetParent !== null && getComputedStyle(el).display !== 'none';
+  }, id);
 
 for (const modus of ['single', 'coop']) {
   test(`Pausenmenue (${modus}): Knoepfe, WEITER, ABBRECHEN, ESC`, async ({ page }) => {
@@ -236,7 +247,7 @@ for (const modus of ['single', 'coop']) {
     await page.click('#btn-pause-ja');
     const r = await page.evaluate(() => {
       const g = window.__game;
-      const el = (id) => document.getElementById(id);
+      const el = id => document.getElementById(id);
       const a = g.arrays;
       return {
         start: el('start-screen').style.display,
@@ -249,7 +260,7 @@ for (const modus of ['single', 'coop']) {
         feinde: a.feinde.length + a.asteroiden.length + a.laserArray.length + a.feindLaserArray.length,
         dom: document.querySelectorAll('.feind, .asteroid, .laser, .feind-laser').length,
         score: g.state.score,
-        scoreText: document.getElementById('score') ? document.getElementById('score').textContent : null
+        scoreText: document.getElementById('score') ? document.getElementById('score').textContent : null,
       };
     });
     expect(r.start).toBe('block');

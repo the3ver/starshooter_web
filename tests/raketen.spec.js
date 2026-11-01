@@ -2,10 +2,13 @@ const { test, expect } = require('@playwright/test');
 const { setzeSpielstand } = require('./helfer');
 
 test.beforeEach(async ({ page }) => {
-  await page.route('**/api/highscores*', route => route.fulfill({
-    status: 200, contentType: 'application/json',
-    body: JSON.stringify({ success: true, mode: 'single', highscores: [] })
-  }));
+  await page.route('**/api/highscores*', route =>
+    route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({ success: true, mode: 'single', highscores: [] }),
+    }),
+  );
   await setzeSpielstand(page);
   await page.goto('/');
 });
@@ -20,7 +23,7 @@ test('Raketen-Schockwelle erscheint an der Detonationsstelle', async ({ page }) 
     return {
       parent: sw.offsetParent === dom.spielfeld,
       cx: sw.offsetLeft + sw.offsetWidth / 2,
-      cy: sw.offsetTop + sw.offsetHeight / 2
+      cy: sw.offsetTop + sw.offsetHeight / 2,
     };
   });
   expect(r.parent).toBe(true);

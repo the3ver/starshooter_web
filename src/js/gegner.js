@@ -1,10 +1,8 @@
-
 import { state, config, arrays, isCoopMode } from './state.js';
 import * as Utils from './utils.js';
 import * as Entities from './entities.js';
 import * as Hack from './hack.js';
 import * as Anzeige from './anzeige.js';
-
 
 export function verwalteFeindSpawns() {
   // Hacker: Spezialeinheit ab Level 2, höchstens einer gleichzeitig
@@ -15,12 +13,12 @@ export function verwalteFeindSpawns() {
   }
 
   let pV = state.level >= 2 ? Math.min(0.25, 0.05 + (state.level - 2) * 0.05) : 0;
-  let pCross = state.level >= 1 ? Math.min(0.20, 0.05 + (state.level - 1) * 0.05) : 0;
-  let pSwoop = state.level >= 1 ? Math.min(0.20, 0.05 + (state.level - 1) * 0.05) : 0;
-  let pClingOn = state.level >= 1 ? Math.min(0.20, 0.05 + (state.level - 1) * 0.05) : 0;
-  
+  let pCross = state.level >= 1 ? Math.min(0.2, 0.05 + (state.level - 1) * 0.05) : 0;
+  let pSwoop = state.level >= 1 ? Math.min(0.2, 0.05 + (state.level - 1) * 0.05) : 0;
+  let pClingOn = state.level >= 1 ? Math.min(0.2, 0.05 + (state.level - 1) * 0.05) : 0;
+
   let r = Math.random();
-  
+
   if (r < pV) {
     // V-Formation (3 oder 5 Jäger)
     let count = Math.random() < 0.5 ? 3 : 5;
@@ -43,7 +41,12 @@ export function verwalteFeindSpawns() {
   } else if (r < pV + pCross + pSwoop) {
     // Swoop (1 Jäger von der Seite)
     let spawnLeft = Math.random() < 0.5;
-    Entities.erzeugeFeind(spawnLeft ? -30 : config.spielfeldBreite, 20 + Math.random() * 50, 'swoop', spawnLeft ? 3.5 : -3.5);
+    Entities.erzeugeFeind(
+      spawnLeft ? -30 : config.spielfeldBreite,
+      20 + Math.random() * 50,
+      'swoop',
+      spawnLeft ? 3.5 : -3.5,
+    );
   } else if (r < pV + pCross + pSwoop + pClingOn) {
     // Cling-on Feind an neuem Asteroid
     Entities.erzeugeClingOnFeind();
@@ -112,13 +115,29 @@ export function aktualisiereAsteroiden() {
       arrays.asteroiden.splice(i, 1);
       continue;
     }
-    if (!state.isDead && !Utils.istDashUnverwundbar(state) && state.x < ast.x + ast.groesse && state.x + config.spielerGroesse > ast.x && state.y < ast.y + ast.groesse && state.y + config.spielerGroesse > ast.y) {
+    if (
+      !state.isDead &&
+      !Utils.istDashUnverwundbar(state) &&
+      state.x < ast.x + ast.groesse &&
+      state.x + config.spielerGroesse > ast.x &&
+      state.y < ast.y + ast.groesse &&
+      state.y + config.spielerGroesse > ast.y
+    ) {
       Utils.spielerGetroffen(ast, true, 'p1');
       Anzeige.entferne(ast);
       arrays.asteroiden.splice(i, 1);
       continue;
     }
-    if (isCoopMode() && state.p2 && !state.p2.isDead && !Utils.istDashUnverwundbar(state.p2) && state.p2.x < ast.x + ast.groesse && state.p2.x + config.spielerGroesse > ast.x && state.p2.y < ast.y + ast.groesse && state.p2.y + config.spielerGroesse > ast.y) {
+    if (
+      isCoopMode() &&
+      state.p2 &&
+      !state.p2.isDead &&
+      !Utils.istDashUnverwundbar(state.p2) &&
+      state.p2.x < ast.x + ast.groesse &&
+      state.p2.x + config.spielerGroesse > ast.x &&
+      state.p2.y < ast.y + ast.groesse &&
+      state.p2.y + config.spielerGroesse > ast.y
+    ) {
       Utils.spielerGetroffen(ast, true, 'p2');
       Anzeige.entferne(ast);
       arrays.asteroiden.splice(i, 1);
@@ -168,7 +187,7 @@ export function aktualisiereFeinde() {
     } else if (f.muster === 'swoop' || f.muster === 'crossfire') {
       f.x += f.vx;
       f.y += f.vy * 1.5;
-      f.rot = Math.atan2(f.vy * 1.5, f.vx) * 180 / Math.PI - 90;
+      f.rot = (Math.atan2(f.vy * 1.5, f.vx) * 180) / Math.PI - 90;
     } else if (f.muster === 'clingOn') {
       if (f.phase === 'attached') {
         let asteroidExists = arrays.asteroiden.includes(f.attachedAsteroid);
@@ -176,7 +195,7 @@ export function aktualisiereFeinde() {
           f.phase = 'attack';
           f.vy = 2;
           f.schussTimer = 9999;
-                    
+
           const ziel = naechsterSpielerMitte(f);
           Entities.erzeugeFeindLaser(f.x + f.groesse / 2 - 2, f.y + f.groesse, ziel.x, ziel.y);
         } else {
@@ -190,12 +209,12 @@ export function aktualisiereFeinde() {
         let dy = ziel.y - (f.y + f.groesse / 2);
         let dist = Math.hypot(dx, dy);
         if (dist > 5) {
-          f.vx = dx / dist * 3;
-          f.vy = dy / dist * 3;
+          f.vx = (dx / dist) * 3;
+          f.vy = (dy / dist) * 3;
         }
         f.x += f.vx;
         f.y += f.vy;
-        f.rot = Math.atan2(f.vy, f.vx) * 180 / Math.PI - 90;
+        f.rot = (Math.atan2(f.vy, f.vx) * 180) / Math.PI - 90;
       }
     } else if (f.muster === 'hacker') {
       aktualisiereHacker(f);
@@ -204,7 +223,12 @@ export function aktualisiereFeinde() {
       f.zeit += 0.05;
       f.x = f.basisX + Math.sin(f.zeit) * 30;
     }
-    if (f.y > config.spielfeldHoehe || f.x < -f.groesse - 50 || f.x > config.spielfeldBreite + 50 || (f.phase === 'flucht' && f.y < -f.groesse - 10)) {
+    if (
+      f.y > config.spielfeldHoehe ||
+      f.x < -f.groesse - 50 ||
+      f.x > config.spielfeldBreite + 50 ||
+      (f.phase === 'flucht' && f.y < -f.groesse - 10)
+    ) {
       Anzeige.entferne(f);
       arrays.feinde.splice(i, 1);
       continue;
@@ -232,13 +256,29 @@ export function aktualisiereFeinde() {
         }
       }
     }
-    if (!state.isDead && !Utils.istDashUnverwundbar(state) && state.x < f.x + f.groesse && state.x + config.spielerGroesse > f.x && state.y < f.y + f.groesse && state.y + config.spielerGroesse > f.y) {
+    if (
+      !state.isDead &&
+      !Utils.istDashUnverwundbar(state) &&
+      state.x < f.x + f.groesse &&
+      state.x + config.spielerGroesse > f.x &&
+      state.y < f.y + f.groesse &&
+      state.y + config.spielerGroesse > f.y
+    ) {
       Utils.spielerGetroffen(f, true, 'p1');
       Anzeige.entferne(f);
       arrays.feinde.splice(i, 1);
       continue;
     }
-    if (isCoopMode() && state.p2 && !state.p2.isDead && !Utils.istDashUnverwundbar(state.p2) && state.p2.x < f.x + f.groesse && state.p2.x + config.spielerGroesse > f.x && state.p2.y < f.y + f.groesse && state.p2.y + config.spielerGroesse > f.y) {
+    if (
+      isCoopMode() &&
+      state.p2 &&
+      !state.p2.isDead &&
+      !Utils.istDashUnverwundbar(state.p2) &&
+      state.p2.x < f.x + f.groesse &&
+      state.p2.x + config.spielerGroesse > f.x &&
+      state.p2.y < f.y + f.groesse &&
+      state.p2.y + config.spielerGroesse > f.y
+    ) {
       Utils.spielerGetroffen(f, true, 'p2');
       Anzeige.entferne(f);
       arrays.feinde.splice(i, 1);
@@ -260,13 +300,29 @@ export function aktualisiereFeindLaser() {
     }
     // Von der Gleve seitlich weggeschleudert: trifft keine Spieler mehr
     if (fl.harmlos) continue;
-    if (!state.isDead && !Utils.istDashUnverwundbar(state) && state.x < fl.x + fl.width && state.x + config.spielerGroesse > fl.x && state.y < fl.y + fl.height && state.y + config.spielerGroesse > fl.y) {
+    if (
+      !state.isDead &&
+      !Utils.istDashUnverwundbar(state) &&
+      state.x < fl.x + fl.width &&
+      state.x + config.spielerGroesse > fl.x &&
+      state.y < fl.y + fl.height &&
+      state.y + config.spielerGroesse > fl.y
+    ) {
       Utils.spielerGetroffen(fl, false, 'p1');
       Anzeige.entferne(fl);
       arrays.feindLaserArray.splice(i, 1);
       continue;
     }
-    if (isCoopMode() && state.p2 && !state.p2.isDead && !Utils.istDashUnverwundbar(state.p2) && state.p2.x < fl.x + fl.width && state.p2.x + config.spielerGroesse > fl.x && state.p2.y < fl.y + fl.height && state.p2.y + config.spielerGroesse > fl.y) {
+    if (
+      isCoopMode() &&
+      state.p2 &&
+      !state.p2.isDead &&
+      !Utils.istDashUnverwundbar(state.p2) &&
+      state.p2.x < fl.x + fl.width &&
+      state.p2.x + config.spielerGroesse > fl.x &&
+      state.p2.y < fl.y + fl.height &&
+      state.p2.y + config.spielerGroesse > fl.y
+    ) {
       Utils.spielerGetroffen(fl, false, 'p2');
       Anzeige.entferne(fl);
       arrays.feindLaserArray.splice(i, 1);
@@ -301,9 +357,25 @@ export function aktualisiereHackProjektile() {
     // Von der Gleve seitlich weggeschleudert: trifft keine Spieler mehr
     if (hp.harmlos) continue;
     let getroffen = null;
-    if (!state.isDead && !Utils.istDashUnverwundbar(state) && state.x < hp.x + hp.width && state.x + config.spielerGroesse > hp.x && state.y < hp.y + hp.height && state.y + config.spielerGroesse > hp.y) {
+    if (
+      !state.isDead &&
+      !Utils.istDashUnverwundbar(state) &&
+      state.x < hp.x + hp.width &&
+      state.x + config.spielerGroesse > hp.x &&
+      state.y < hp.y + hp.height &&
+      state.y + config.spielerGroesse > hp.y
+    ) {
       getroffen = state;
-    } else if (isCoopMode() && state.p2 && !state.p2.isDead && !Utils.istDashUnverwundbar(state.p2) && state.p2.x < hp.x + hp.width && state.p2.x + config.spielerGroesse > hp.x && state.p2.y < hp.y + hp.height && state.p2.y + config.spielerGroesse > hp.y) {
+    } else if (
+      isCoopMode() &&
+      state.p2 &&
+      !state.p2.isDead &&
+      !Utils.istDashUnverwundbar(state.p2) &&
+      state.p2.x < hp.x + hp.width &&
+      state.p2.x + config.spielerGroesse > hp.x &&
+      state.p2.y < hp.y + hp.height &&
+      state.p2.y + config.spielerGroesse > hp.y
+    ) {
       getroffen = state.p2;
     }
     if (getroffen) {

@@ -4,10 +4,13 @@ const { setzeSpielstand } = require('./helfer');
 // Spectre-SR (sniper): Grundlage (Auswahl, Anzeige, HUD) und Fadenkreuz-Schuss (S2).
 
 test.beforeEach(async ({ page }) => {
-  await page.route('**/api/highscores*', route => route.fulfill({
-    status: 200, contentType: 'application/json',
-    body: JSON.stringify({ success: true, mode: 'single', highscores: [] })
-  }));
+  await page.route('**/api/highscores*', route =>
+    route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({ success: true, mode: 'single', highscores: [] }),
+    }),
+  );
   await page.route('**/api/turn*', route => route.fulfill({ status: 503, body: '' }));
   await setzeSpielstand(page);
   await page.goto('/');
@@ -19,7 +22,9 @@ async function startePerTaste(page) {
   await page.keyboard.up('KeyW');
 }
 
-test('Spectre-SR: im Hangar waehlbar, Name und Perks aus shipModels, Railgun-SVG, Werfer-Pods aus, HUD GRANATE', async ({ page }) => {
+test('Spectre-SR: im Hangar waehlbar, Name und Perks aus shipModels, Railgun-SVG, Werfer-Pods aus, HUD GRANATE', async ({
+  page,
+}) => {
   const btn = page.locator('.hangar-model-btn[data-model="sniper"]');
   await expect(btn).toBeVisible();
   await btn.click();
@@ -28,7 +33,13 @@ test('Spectre-SR: im Hangar waehlbar, Name und Perks aus shipModels, Railgun-SVG
   const werte = await page.evaluate(() => {
     const { state, shipModels } = window.__game;
     const m = shipModels.sniper;
-    return { model: state.selectedShipModel, name: m.name, speed: m.speed, regen: m.energyRegen, perks: m.perks.map(p => p.label) };
+    return {
+      model: state.selectedShipModel,
+      name: m.name,
+      speed: m.speed,
+      regen: m.energyRegen,
+      perks: m.perks.map(p => p.label),
+    };
   });
   expect(werte.model).toBe('sniper');
   expect(werte.speed).toBe(4.5);
@@ -77,7 +88,10 @@ test('Spectre-SR: im Coop fuer Spieler 2 waehlbar, P2-HUD, Highscore-Badge', asy
   await page.evaluate(() => window.__game.Utils.setGameMode('coop'));
   await page.locator('.hangar-player-tab[data-player="p2"]').click();
   await page.locator('.hangar-model-btn[data-model="sniper"]').click();
-  const modelle = await page.evaluate(() => ({ p1: window.__game.state.selectedShipModel, p2: window.__game.state.p2.selectedShipModel }));
+  const modelle = await page.evaluate(() => ({
+    p1: window.__game.state.selectedShipModel,
+    p2: window.__game.state.p2.selectedShipModel,
+  }));
   expect(modelle).toEqual({ p1: 'viper', p2: 'sniper' });
   await expect(page.locator('#raketen-cd-container-p2 .cooldown-letter')).toHaveText('GRANATE');
   await expect(page.locator('#energie-cd-container-p2 .cooldown-letter')).toHaveText('E');
@@ -85,7 +99,9 @@ test('Spectre-SR: im Coop fuer Spieler 2 waehlbar, P2-HUD, Highscore-Badge', asy
   expect(await page.locator('#spieler-2 svg').evaluate(el => el.innerHTML)).toContain('Railgun');
 
   const badge = await page.evaluate(() => {
-    window.__game.Utils.renderHighscoresTable('single', [{ name: 'AAA', score: 100, level: 1, shipP1: 'sniper', country: '', city: '' }]);
+    window.__game.Utils.renderHighscoresTable('single', [
+      { name: 'AAA', score: 100, level: 1, shipP1: 'sniper', country: '', city: '' },
+    ]);
     const b = document.querySelector('#highscore-body [class*="hs-ship-"]');
     return b ? { klasse: b.className, text: b.textContent } : null;
   });
@@ -94,7 +110,9 @@ test('Spectre-SR: im Coop fuer Spieler 2 waehlbar, P2-HUD, Highscore-Badge', asy
   expect(badge.klasse).not.toContain('hs-ship-viper');
 });
 
-test('Spectre-SR: Coop mit Bot und Dauerfeuer laeuft ohne Fehler und ohne normale Laserprojektile', async ({ page }) => {
+test('Spectre-SR: Coop mit Bot und Dauerfeuer laeuft ohne Fehler und ohne normale Laserprojektile', async ({
+  page,
+}) => {
   const fehler = [];
   page.on('pageerror', e => fehler.push(e.message));
   await page.evaluate(() => window.__game.Utils.setGameMode('coop'));
@@ -102,7 +120,9 @@ test('Spectre-SR: Coop mit Bot und Dauerfeuer laeuft ohne Fehler und ohne normal
   await page.locator('.hangar-model-btn[data-model="sniper"]').click();
   await page.locator('.hangar-player-tab[data-player="p1"]').click();
   await page.locator('.hangar-model-btn[data-model="sniper"]').click();
-  await page.evaluate(() => { window.__game.state.p2IsBot = true; });
+  await page.evaluate(() => {
+    window.__game.state.p2IsBot = true;
+  });
   await startePerTaste(page);
   const ergebnis = await page.evaluate(() => {
     const { state, arrays, Loop } = window.__game;
@@ -127,9 +147,15 @@ test('Spectre-SR: Menue bleibt mit vier Hangar-Knoepfen einzeilig und ohne Scrol
   const m = await page.evaluate(() => {
     const start = document.getElementById('start-screen');
     const knoepfe = [...document.querySelectorAll('.hangar-model-btn')].map(b => ({
-      top: Math.round(b.getBoundingClientRect().top), ueberlaeuft: b.scrollWidth > b.clientWidth
+      top: Math.round(b.getBoundingClientRect().top),
+      ueberlaeuft: b.scrollWidth > b.clientWidth,
     }));
-    return { anzahl: knoepfe.length, tops: new Set(knoepfe.map(k => k.top)).size, ueberlaeuft: knoepfe.some(k => k.ueberlaeuft), scroll: start.scrollHeight - start.clientHeight };
+    return {
+      anzahl: knoepfe.length,
+      tops: new Set(knoepfe.map(k => k.top)).size,
+      ueberlaeuft: knoepfe.some(k => k.ueberlaeuft),
+      scroll: start.scrollHeight - start.clientHeight,
+    };
   });
   expect(m.anzahl).toBe(4);
   expect(m.tops).toBe(1);
@@ -155,15 +181,28 @@ async function starteSniper(page, { coop = false } = {}) {
     window.__sn = {
       // Ausgangslage: leeres Feld, Schiff bei (185|400) -> Fadenkreuz-Mitte (200|180); P2 bei (385|400) -> (400|180)
       leeren() {
-        ['feinde', 'asteroiden', 'feindLaserArray', 'hackProjektilArray', 'bossLaserArray', 'bossBombenArray',
-          'bossRaketenArray', 'bosses', 'powerups', 'laserArray', 'raketenArray'].forEach(name => {
+        [
+          'feinde',
+          'asteroiden',
+          'feindLaserArray',
+          'hackProjektilArray',
+          'bossLaserArray',
+          'bossBombenArray',
+          'bossRaketenArray',
+          'bosses',
+          'powerups',
+          'laserArray',
+          'raketenArray',
+        ].forEach(name => {
           arrays[name].forEach(o => o.el && o.el.remove());
           arrays[name].length = 0;
         });
         arrays.sniperMinen.forEach(m => m.el && m.el.remove());
         arrays.sniperMinen.length = 0;
         document.querySelectorAll('.sniper-mine, .sniper-mine-explosion').forEach(e => e.remove());
-        Object.keys(state.tastenGedrueckt).forEach(k => { state.tastenGedrueckt[k] = false; });
+        Object.keys(state.tastenGedrueckt).forEach(k => {
+          state.tastenGedrueckt[k] = false;
+        });
         state.frameZaehler = 1;
         state.level = 1;
         state.bossAktiv = false;
@@ -190,8 +229,10 @@ async function starteSniper(page, { coop = false } = {}) {
         state.joystick.feuert = false;
         state.joystick.active = false;
         state.sniperLadeKnopf = false;
-        state.x = 185; state.y = 400;
-        state.p2.x = 385; state.p2.y = 400;
+        state.x = 185;
+        state.y = 400;
+        state.p2.x = 385;
+        state.p2.y = 400;
       },
       // Feind mit Mitte (cx|cy), ruhend, schiesst nicht, viel Leben
       feind(cx, cy, hp = 1000) {
@@ -207,7 +248,10 @@ async function starteSniper(page, { coop = false } = {}) {
         a.vRot = 0;
         a.festX = a.x;
         a.festY = a.y;
-        if (magma) { a.istUnzerstoerbar = true; a.istMagma = true; }
+        if (magma) {
+          a.istUnzerstoerbar = true;
+          a.istMagma = true;
+        }
         return a;
       },
       // Feinde und Asteroiden werden nach jedem Schritt an ihren Platz zurueckgesetzt (Pendeln/Fallen stoert die Messung)
@@ -223,11 +267,13 @@ async function starteSniper(page, { coop = false } = {}) {
           window.__game.Loop.simulationsSchritt();
           [...arrays.feinde, ...arrays.asteroiden].forEach(o => {
             if (o.festX === undefined) return;
-            o.x = o.festX; o.y = o.festY;
-            o.el.style.left = o.x + 'px'; o.el.style.top = o.y + 'px';
+            o.x = o.festX;
+            o.y = o.festY;
+            o.el.style.left = o.x + 'px';
+            o.el.style.top = o.y + 'px';
           });
         }
-      }
+      },
     };
   });
 }
@@ -240,18 +286,33 @@ test.describe('Spectre-SR Fadenkreuz', () => {
       const T = window.__sn;
       T.leeren();
       T.schritte(1);
-      const a = { x: state.sniperZielX, y: state.sniperZielY, el: document.querySelectorAll('.sniper-fadenkreuz').length };
-      state.x = 85; state.y = 350;
+      const a = {
+        x: state.sniperZielX,
+        y: state.sniperZielY,
+        el: document.querySelectorAll('.sniper-fadenkreuz').length,
+      };
+      state.x = 85;
+      state.y = 350;
       T.schritte(1);
       const b = { x: state.sniperZielX, y: state.sniperZielY };
       state.y = 100;
       T.schritte(1);
       const c = { y: state.sniperZielY };
-      state.y = 400; state.x = 185;
+      state.y = 400;
+      state.x = 185;
       T.schritte(1);
       const k = document.querySelector('.sniper-fadenkreuz');
       const rad = parseFloat(k.style.width) / 2;
-      return { a, b, c, mitteX: parseFloat(k.style.left) + rad, mitteY: parseFloat(k.style.top) + rad, rad, farbe: k.style.borderColor, striche: k.querySelectorAll('.sniper-strich').length };
+      return {
+        a,
+        b,
+        c,
+        mitteX: parseFloat(k.style.left) + rad,
+        mitteY: parseFloat(k.style.top) + rad,
+        rad,
+        farbe: k.style.borderColor,
+        striche: k.querySelectorAll('.sniper-strich').length,
+      };
     });
     expect(r.a).toEqual({ x: 200, y: 180, el: 1 });
     expect(r.b).toEqual({ x: 100, y: 130 });
@@ -307,7 +368,9 @@ test.describe('Spectre-SR Fadenkreuz', () => {
 });
 
 test.describe('Spectre-SR Schuss', () => {
-  test('trifft den Feind im Kreis, NICHT den zwischen Schiff und Fadenkreuz, NICHT einen knapp ausserhalb des Radius', async ({ page }) => {
+  test('trifft den Feind im Kreis, NICHT den zwischen Schiff und Fadenkreuz, NICHT einen knapp ausserhalb des Radius', async ({
+    page,
+  }) => {
     await starteSniper(page);
     const r = await page.evaluate(() => {
       const T = window.__sn;
@@ -339,7 +402,10 @@ test.describe('Spectre-SR Schuss', () => {
       const strahl = document.querySelector('.sniper-strahl');
       const hoehe = parseFloat(strahl.style.height);
       let schritte = 0;
-      while (document.querySelector('.sniper-strahl') && schritte < 30) { T.schritte(1); schritte++; }
+      while (document.querySelector('.sniper-strahl') && schritte < 30) {
+        T.schritte(1);
+        schritte++;
+      }
       return { hoehe, schritte };
     });
     expect(r.hoehe).toBeCloseTo(220, 5);
@@ -403,7 +469,10 @@ test.describe('Spectre-SR Schuss', () => {
           // Halten (laden), im ersten Schritt ohne Sperre loslassen, im naechsten gleich wieder druecken
           state.tastenGedrueckt.l = !(state.sniperGehalten && state.sniperCooldown <= 1);
           T.schritte(1);
-          if (f.hp < hp) { zeiten.push(i); hp = f.hp; }
+          if (f.hp < hp) {
+            zeiten.push(i);
+            hp = f.hp;
+          }
         }
         out.push(zeiten.slice(1).map((z, i) => z - zeiten[i]));
       }
@@ -432,7 +501,10 @@ test.describe('Spectre-SR Schuss', () => {
       T.tippe();
       const zuWenig = { hp: g.hp, energie: state.energie };
       let tipper = 1;
-      while (g.hp === 1000 && tipper < 10) { T.tippe(); tipper++; }
+      while (g.hp === 1000 && tipper < 10) {
+        T.tippe();
+        tipper++;
+      }
       return { nachSchuss, hp: f.hp, zuWenig, tipper };
     });
     expect(r.hp).toBe(970);
@@ -503,7 +575,10 @@ test.describe('Spectre-SR Schuss', () => {
       state.laserStufe = 5;
       state.tastenGedrueckt.l = true;
       let max = 0;
-      for (let i = 0; i < 120; i++) { T.schritte(1); max = Math.max(max, arrays.laserArray.length); }
+      for (let i = 0; i < 120; i++) {
+        T.schritte(1);
+        max = Math.max(max, arrays.laserArray.length);
+      }
       return { max, hitscan: getComputedStyle(document.getElementById('hitscan-laser')).display };
     });
     expect(r.max).toBe(0);
@@ -542,7 +617,9 @@ test.describe('Spectre-SR Auto-Zielen', () => {
     expect(r.zurueck.y).toBeCloseTo(180, 5);
   });
 
-  test('Stufe 5 gleitet mit 10 px/Schritt; Stufe 3 nicht; Ziele ausser Reichweite oder unter dem Schiff zaehlen nicht', async ({ page }) => {
+  test('Stufe 5 gleitet mit 10 px/Schritt; Stufe 3 nicht; Ziele ausser Reichweite oder unter dem Schiff zaehlen nicht', async ({
+    page,
+  }) => {
     await starteSniper(page);
     const r = await page.evaluate(() => {
       const { state } = window.__game;
@@ -609,7 +686,13 @@ test.describe('Spectre-SR Coop', () => {
       T.schritte(1);
       const ohneTaste = f.hp;
       T.tippe(1, 'ä');
-      const p2 = { x: state.p2.sniperZielX, y: state.p2.sniperZielY, hp: f.hp, energie: state.p2.energie, anzahl: document.querySelectorAll('.sniper-fadenkreuz').length };
+      const p2 = {
+        x: state.p2.sniperZielX,
+        y: state.p2.sniperZielY,
+        hp: f.hp,
+        energie: state.p2.energie,
+        anzahl: document.querySelectorAll('.sniper-fadenkreuz').length,
+      };
       return { ohneTaste, p2, gHp: g.hp, laser: arrays.laserArray.length, p1Ziel: state.sniperZielX };
     });
     expect(r.ohneTaste).toBe(1000);
@@ -623,7 +706,9 @@ test.describe('Spectre-SR Coop', () => {
     expect(r.p1Ziel).toBeNull();
   });
 
-  test('beide Sniper: zwei Fadenkreuze, P1 mit B, P2 mit Punkt; P2-Tod entfernt nur sein Fadenkreuz', async ({ page }) => {
+  test('beide Sniper: zwei Fadenkreuze, P1 mit B, P2 mit Punkt; P2-Tod entfernt nur sein Fadenkreuz', async ({
+    page,
+  }) => {
     await starteSniper(page, { coop: true });
     const r = await page.evaluate(() => {
       const { state } = window.__game;
@@ -650,7 +735,9 @@ test.describe('Spectre-SR Coop', () => {
 // (Schaden x1..x4, Radius x1..x1,5 bei 90 Schritten; voll: alle Ziele im Kreis, Schild ignoriert).
 
 test.describe('Spectre-SR Aufladen', () => {
-  test('Tippen (5 Schritte) ist ein Normalschuss; ein gehaltener Schuss faellt erst beim Loslassen', async ({ page }) => {
+  test('Tippen (5 Schritte) ist ein Normalschuss; ein gehaltener Schuss faellt erst beim Loslassen', async ({
+    page,
+  }) => {
     await starteSniper(page);
     const r = await page.evaluate(() => {
       const { state } = window.__game;
@@ -702,7 +789,12 @@ test.describe('Spectre-SR Aufladen', () => {
       T.leeren();
       const h = T.feind(200 + 15 + 8, 180);
       T.tippe(45);
-      return { schaden, stufe3, aussen: h.hp, breite: parseFloat(document.querySelector('.sniper-strahl').style.width) };
+      return {
+        schaden,
+        stufe3,
+        aussen: h.hp,
+        breite: parseFloat(document.querySelector('.sniper-strahl').style.width),
+      };
     });
     expect(r.schaden).toBeCloseTo(75, 5);
     expect(r.stufe3).toBeCloseTo(100, 5);
@@ -711,7 +803,9 @@ test.describe('Spectre-SR Aufladen', () => {
     expect(r.breite).toBeLessThan(12);
   });
 
-  test('Halten 90 Schritte: Faktor 4, Radius 1,5x, Schild wird ignoriert, alle Ziele im Kreis auch auf Stufe 1', async ({ page }) => {
+  test('Halten 90 Schritte: Faktor 4, Radius 1,5x, Schild wird ignoriert, alle Ziele im Kreis auch auf Stufe 1', async ({
+    page,
+  }) => {
     await starteSniper(page);
     const r = await page.evaluate(() => {
       const T = window.__sn;
@@ -832,11 +926,13 @@ test.describe('Spectre-SR Aufladen', () => {
     expect(r.nachVoll).toBeCloseTo(19, 5);
     expect(r.weiterGehalten).toBeCloseTo(19, 5);
     expect(r.voll).toBeCloseTo(25, 5);
-    expect(r.regenHalten).toBeCloseTo(30 - 19 * 20 / 80, 5);
+    expect(r.regenHalten).toBeCloseTo(30 - (19 * 20) / 80, 5);
     expect(r.regenLoslassen).toBeGreaterThan(r.regenHalten - 6 + 0.4);
   });
 
-  test('bei wenig Energie bleibt die Ladung stehen; unter 6 Energie beim Loslassen faellt kein Schuss', async ({ page }) => {
+  test('bei wenig Energie bleibt die Ladung stehen; unter 6 Energie beim Loslassen faellt kein Schuss', async ({
+    page,
+  }) => {
     await starteSniper(page);
     const r = await page.evaluate(() => {
       const { state, shipModels } = window.__game;
@@ -873,7 +969,7 @@ test.describe('Spectre-SR Aufladen', () => {
     expect(r.energieGehalten).toBeGreaterThanOrEqual(6);
     expect(r.schaden).toBeGreaterThan(30);
     expect(r.schaden).toBeLessThan(120);
-    expect(r.faktor).toBeCloseTo(1 + 3 * r.ladung50 / 90, 5);
+    expect(r.faktor).toBeCloseTo(1 + (3 * r.ladung50) / 90, 5);
     expect(r.energieNachSchuss).toBeCloseTo(r.energieGehalten - 6, 5);
     expect(r.zuWenig.hp).toBe(1000);
     expect(r.zuWenig.energie).toBeCloseTo(5, 5);
@@ -907,7 +1003,9 @@ test.describe('Spectre-SR Aufladen', () => {
     expect(r.nachSperre.energie).toBeCloseTo(r.nachErstem.energie - 6, 5);
   });
 
-  test('Ladering waechst mit der Ladung und wird bei voller Ladung hervorgehoben; Ton genau einmal', async ({ page }) => {
+  test('Ladering waechst mit der Ladung und wird bei voller Ladung hervorgehoben; Ton genau einmal', async ({
+    page,
+  }) => {
     await starteSniper(page);
     const r = await page.evaluate(() => {
       const { state, Audio } = window.__game;
@@ -917,7 +1015,9 @@ test.describe('Spectre-SR Aufladen', () => {
       const ring = () => document.querySelector('.sniper-ladering');
       const daten = () => {
         const el = ring();
-        return el ? { an: el.style.display !== 'none', breite: parseFloat(el.style.width), voll: el.classList.contains('voll') } : null;
+        return el
+          ? { an: el.style.display !== 'none', breite: parseFloat(el.style.width), voll: el.classList.contains('voll') }
+          : null;
       };
       const out = {};
       state.tastenGedrueckt.l = true;
@@ -981,7 +1081,12 @@ test.describe('Spectre-SR Aufladen', () => {
       T.schritte(1);
       const neu = state.sniperLadung; // Taste noch gehalten: Ladevorgang beginnt von vorn
       Utils.restartGame();
-      return { geladen, nachTod, neu, nachNeustart: { ladung: state.sniperLadung, voll: state.sniperVoll, p2: state.p2.sniperLadung } };
+      return {
+        geladen,
+        nachTod,
+        neu,
+        nachNeustart: { ladung: state.sniperLadung, voll: state.sniperVoll, p2: state.p2.sniperLadung },
+      };
     });
     expect(r.geladen).toBe(40);
     expect(r.nachTod).toEqual({ ladung: 0, gehalten: false });
@@ -1018,10 +1123,12 @@ test.describe('Spectre-SR Aufladen mobil', () => {
     await expect(page.locator('#mobile-controls')).toBeVisible();
     const r = await page.evaluate(() => {
       const { state, arrays, Loop, Audio } = window.__game;
-      ['feinde', 'asteroiden', 'feindLaserArray', 'hackProjektilArray', 'bossLaserArray', 'bosses', 'powerups'].forEach(name => {
-        arrays[name].forEach(o => o.el && o.el.remove());
-        arrays[name].length = 0;
-      });
+      ['feinde', 'asteroiden', 'feindLaserArray', 'hackProjektilArray', 'bossLaserArray', 'bosses', 'powerups'].forEach(
+        name => {
+          arrays[name].forEach(o => o.el && o.el.remove());
+          arrays[name].length = 0;
+        },
+      );
       state.frameZaehler = 1;
       state.godMode = true;
       state.maxEnergie = 50;
@@ -1033,22 +1140,36 @@ test.describe('Spectre-SR Aufladen mobil', () => {
       window.__game.Entities.erzeugeFeind(185, 165, 'normal', 0, false);
       const f = arrays.feinde[arrays.feinde.length - 1];
       Object.assign(f, { vx: 0, vy: 0, hp: 1000, maxHp: 1000, schussTimer: 999999 });
-      const festX = f.x, festY = f.y;
+      const festX = f.x,
+        festY = f.y;
       Audio.clearAudioHistory();
       const zone = document.getElementById('joystick-zone');
       const t = new Touch({ identifier: 1, target: zone, clientX: 100, clientY: 800 });
-      zone.dispatchEvent(new TouchEvent('touchstart', { touches: [t], changedTouches: [t], bubbles: true, cancelable: true }));
+      zone.dispatchEvent(
+        new TouchEvent('touchstart', { touches: [t], changedTouches: [t], bubbles: true, cancelable: true }),
+      );
       const zeiten = [];
       let hp = f.hp;
       let maxLadung = 0;
       for (let i = 1; i <= 100; i++) {
         Loop.simulationsSchritt();
-        f.x = festX; f.y = festY;
+        f.x = festX;
+        f.y = festY;
         maxLadung = Math.max(maxLadung, state.sniperLadung);
-        if (f.hp < hp) { zeiten.push({ i, schaden: hp - f.hp }); hp = f.hp; }
+        if (f.hp < hp) {
+          zeiten.push({ i, schaden: hp - f.hp });
+          hp = f.hp;
+        }
       }
-      zone.dispatchEvent(new TouchEvent('touchend', { touches: [], changedTouches: [t], bubbles: true, cancelable: true }));
-      return { zeiten, maxLadung, voll: Audio.audioHistory.filter(e => e.name === 'sniperVoll').length, feuert: state.joystick.feuert };
+      zone.dispatchEvent(
+        new TouchEvent('touchend', { touches: [], changedTouches: [t], bubbles: true, cancelable: true }),
+      );
+      return {
+        zeiten,
+        maxLadung,
+        voll: Audio.audioHistory.filter(e => e.name === 'sniperVoll').length,
+        feuert: state.joystick.feuert,
+      };
     });
     expect(r.zeiten.length).toBeGreaterThanOrEqual(4);
     expect(r.zeiten.every(z => z.schaden === 30)).toBe(true);
@@ -1074,10 +1195,12 @@ test.describe('Spectre-SR Aufladen mobil', () => {
 
     const r = await page.evaluate(() => {
       const { state, arrays, Loop, Audio } = window.__game;
-      ['feinde', 'asteroiden', 'feindLaserArray', 'hackProjektilArray', 'bossLaserArray', 'bosses', 'powerups'].forEach(name => {
-        arrays[name].forEach(o => o.el && o.el.remove());
-        arrays[name].length = 0;
-      });
+      ['feinde', 'asteroiden', 'feindLaserArray', 'hackProjektilArray', 'bossLaserArray', 'bosses', 'powerups'].forEach(
+        name => {
+          arrays[name].forEach(o => o.el && o.el.remove());
+          arrays[name].length = 0;
+        },
+      );
       state.frameZaehler = 1;
       state.godMode = true;
       state.maxEnergie = 50;
@@ -1089,14 +1212,33 @@ test.describe('Spectre-SR Aufladen mobil', () => {
       window.__game.Entities.erzeugeFeind(185, 165, 'normal', 0, false);
       const f = arrays.feinde[arrays.feinde.length - 1];
       Object.assign(f, { vx: 0, vy: 0, hp: 1000, maxHp: 1000, schussTimer: 999999 });
-      const festX = f.x, festY = f.y;
+      const festX = f.x,
+        festY = f.y;
       Audio.clearAudioHistory();
       const btn = document.getElementById('btn-laden');
-      const beruehre = (typ) => {
-        const t = new Touch({ identifier: 3, target: btn, clientX: btn.getBoundingClientRect().left + 20, clientY: btn.getBoundingClientRect().top + 20 });
-        btn.dispatchEvent(new TouchEvent(typ, { touches: typ === 'touchstart' ? [t] : [], changedTouches: [t], bubbles: true, cancelable: true }));
+      const beruehre = typ => {
+        const t = new Touch({
+          identifier: 3,
+          target: btn,
+          clientX: btn.getBoundingClientRect().left + 20,
+          clientY: btn.getBoundingClientRect().top + 20,
+        });
+        btn.dispatchEvent(
+          new TouchEvent(typ, {
+            touches: typ === 'touchstart' ? [t] : [],
+            changedTouches: [t],
+            bubbles: true,
+            cancelable: true,
+          }),
+        );
       };
-      const schritte = (n) => { for (let i = 0; i < n; i++) { Loop.simulationsSchritt(); f.x = festX; f.y = festY; } };
+      const schritte = n => {
+        for (let i = 0; i < n; i++) {
+          Loop.simulationsSchritt();
+          f.x = festX;
+          f.y = festY;
+        }
+      };
       beruehre('touchstart');
       const gedrueckt = state.sniperLadeKnopf;
       schritte(90);
@@ -1114,7 +1256,14 @@ test.describe('Spectre-SR Aufladen mobil', () => {
       beruehre('touchcancel');
       schritte(1);
       const cancel = hpVorher - f.hp;
-      return { gedrueckt, waehrendHalten, losgelassen, schaden, cancel, voll: Audio.audioHistory.filter(e => e.name === 'sniperVoll').length };
+      return {
+        gedrueckt,
+        waehrendHalten,
+        losgelassen,
+        schaden,
+        cancel,
+        voll: Audio.audioHistory.filter(e => e.name === 'sniperVoll').length,
+      };
     });
     expect(r.gedrueckt).toBe(true);
     expect(r.waehrendHalten).toEqual({ hp: 1000, ladung: 90 });
@@ -1142,16 +1291,27 @@ async function bereiteGranate(page, optionen = {}) {
     const { state, Loop } = window.__game;
     const T = window.__sn;
     window.__gr = {
-      frei(n) { for (let i = 0; i < n; i++) Loop.simulationsSchritt(); },
+      frei(n) {
+        for (let i = 0; i < n; i++) Loop.simulationsSchritt();
+      },
       // Stehender Feind mit Mitte (cx|cy), ohne Pendeln und ohne Schuesse
       feind(cx, cy) {
         const f = T.feind(cx, cy);
-        delete f.festX; delete f.festY;
-        f.muster = 'swoop'; f.vx = 0; f.vy = 0;
+        delete f.festX;
+        delete f.festY;
+        f.muster = 'swoop';
+        f.vx = 0;
+        f.vy = 0;
         return f;
       },
-      mitte(z) { const g = z.groesse; return { x: z.x + g / 2, y: z.y + g / 2 }; },
-      abstand(z, cx, cy) { const m = this.mitte(z); return Math.hypot(m.x - cx, m.y - cy); },
+      mitte(z) {
+        const g = z.groesse;
+        return { x: z.x + g / 2, y: z.y + g / 2 };
+      },
+      abstand(z, cx, cy) {
+        const m = this.mitte(z);
+        return Math.hypot(m.x - cx, m.y - cy);
+      },
       // Raketen-Taste antippen: einen Schritt gedrueckt, Loslassen im Folgeschritt loest Granate + EMP aus
       wirf(taste = 'v') {
         state.tastenGedrueckt[taste] = true;
@@ -1167,15 +1327,21 @@ async function bereiteGranate(page, optionen = {}) {
       loslassen(taste = 'v') {
         state.tastenGedrueckt[taste] = false;
         Loop.simulationsSchritt();
-      }
+      },
     };
     T.leeren();
-    for (const s of [state, state.p2]) { s.raketenStufe = 1; s.raketenCooldown = 0; s.sniperGranatenLadungen = 2; }
+    for (const s of [state, state.p2]) {
+      s.raketenStufe = 1;
+      s.raketenCooldown = 0;
+      s.sniperGranatenLadungen = 2;
+    }
   });
 }
 
 test.describe('Spectre-SR Granate', () => {
-  test('fliegt zum Fadenkreuz beim Wurf (nicht dorthin, wohin es sich danach bewegt) und explodiert nach ca. 30 Schritten mit Druckwelle und Ton', async ({ page }) => {
+  test('fliegt zum Fadenkreuz beim Wurf (nicht dorthin, wohin es sich danach bewegt) und explodiert nach ca. 30 Schritten mit Druckwelle und Ton', async ({
+    page,
+  }) => {
     await bereiteGranate(page);
     const r = await page.evaluate(() => {
       const { state, Audio } = window.__game;
@@ -1185,7 +1351,11 @@ test.describe('Spectre-SR Granate', () => {
       const nebenan = G.feind(100, 130); // liegt am Fadenkreuz NACH dem Verschieben des Schiffs (100|130), aber ausserhalb des Radius um (200|180)
       T.schritte(1);
       G.wirf();
-      const nachWurf = { granaten: document.querySelectorAll('.sniper-granate').length, cd: state.raketenCooldown, raketen: window.__game.arrays.raketenArray.length };
+      const nachWurf = {
+        granaten: document.querySelectorAll('.sniper-granate').length,
+        cd: state.raketenCooldown,
+        raketen: window.__game.arrays.raketenArray.length,
+      };
       state.x = 85; // Fadenkreuz wandert nach (100|130)
       let schritte = 1;
       const mitte = [];
@@ -1203,9 +1373,17 @@ test.describe('Spectre-SR Granate', () => {
       const breite2 = welle1 ? parseFloat(welle1.style.width) : -1;
       G.frei(12);
       return {
-        nachWurf, schritte, mitte, breite1, breite2, welleWeg: document.querySelectorAll('.sniper-druckwelle').length,
-        ziel: ziel.betaeubt, nebenan: nebenan.betaeubt, zielX: G.mitte(ziel).x, nebenanX: G.mitte(nebenan).x,
-        ton: Audio.audioHistory.filter(e => e.name === 'granate').length
+        nachWurf,
+        schritte,
+        mitte,
+        breite1,
+        breite2,
+        welleWeg: document.querySelectorAll('.sniper-druckwelle').length,
+        ziel: ziel.betaeubt,
+        nebenan: nebenan.betaeubt,
+        zielX: G.mitte(ziel).x,
+        nebenanX: G.mitte(nebenan).x,
+        ton: Audio.audioHistory.filter(e => e.name === 'granate').length,
       };
     });
     expect(r.nachWurf).toEqual({ granaten: 1, cd: 240, raketen: 0 });
@@ -1227,7 +1405,9 @@ test.describe('Spectre-SR Granate', () => {
     expect(r.nebenanX).toBe(100);
   });
 
-  test('Stufe 1: kein Schaden, Wegstossen um ca. 60 px (gleitend), Betaeubung 60 Schritte (steht still, schiesst nicht), danach wieder aktiv; ausserhalb unberuehrt', async ({ page }) => {
+  test('Stufe 1: kein Schaden, Wegstossen um ca. 60 px (gleitend), Betaeubung 60 Schritte (steht still, schiesst nicht), danach wieder aktiv; ausserhalb unberuehrt', async ({
+    page,
+  }) => {
     await bereiteGranate(page);
     const r = await page.evaluate(() => {
       const { arrays } = window.__game;
@@ -1236,7 +1416,10 @@ test.describe('Spectre-SR Granate', () => {
       const aussen = G.feind(200 + 70 + 15 + 10, 180); // Box beginnt 80 px neben dem Zentrum (Radius 70)
       G.wirf();
       let n = 1;
-      while (!f.betaeubt && n < 60) { G.frei(1); n++; }
+      while (!f.betaeubt && n < 60) {
+        G.frei(1);
+        n++;
+      }
       const start = { x: G.mitte(f).x, hp: f.hp, klasse: f.el.classList.contains('betaeubt'), betaeubt: f.betaeubt };
       f.vx = 2; // wuerde sich bewegen, wenn nicht betaeubt
       f.schussTimer = 1; // wuerde sofort schiessen
@@ -1254,12 +1437,18 @@ test.describe('Spectre-SR Granate', () => {
       const xEnde = G.mitte(f).x;
       G.frei(5);
       return {
-        start, weite, schritteBetaeubt, klasseDanach,
+        start,
+        weite,
+        schritteBetaeubt,
+        klasseDanach,
         bewegtWaehrend: Math.max(...xs.slice(10)) - Math.min(...xs.slice(10)), // nach dem Wegstossen (10 Schritte) keine Bewegung
         gleitend: xs[0] > start.x,
         laserWaehrend: Math.max(...laserWaehrend),
-        xNachher: G.mitte(f).x - xEnde, laserNachher: arrays.feindLaserArray.length,
-        aussenBetaeubt: aussen.betaeubt, aussenX: G.mitte(aussen).x, aussenHp: aussen.hp
+        xNachher: G.mitte(f).x - xEnde,
+        laserNachher: arrays.feindLaserArray.length,
+        aussenBetaeubt: aussen.betaeubt,
+        aussenX: G.mitte(aussen).x,
+        aussenHp: aussen.hp,
       };
     });
     expect(r.start.hp).toBe(1000);
@@ -1288,7 +1477,8 @@ test.describe('Spectre-SR Granate', () => {
       const lauf = (stufe, praep) => {
         T.leeren();
         state.raketenStufe = stufe;
-        state.raketenCooldown = 0; state.sniperGranatenLadungen = 3;
+        state.raketenCooldown = 0;
+        state.sniperGranatenLadungen = 3;
         const f = G.feind(240, 180);
         if (praep) praep(f);
         G.wirf();
@@ -1298,10 +1488,19 @@ test.describe('Spectre-SR Granate', () => {
       const s1 = lauf(1).hp;
       const s3 = lauf(3).hp;
       const s2 = lauf(2).hp;
-      const schild = lauf(3, f => { f.schildHp = 20; f.maxSchildHp = 20; });
+      const schild = lauf(3, f => {
+        f.schildHp = 20;
+        f.maxSchildHp = 20;
+      });
       // Am Rand: Feind 5 px vom rechten Feldrand, wird nach rechts gestossen -> bleibt im Feld
       const breite = window.__game.config.spielfeldBreite;
-      const rand = lauf(1, f => { state.x = breite - 60; f.x = breite - 30; f.y = 165; f.el.style.left = f.x + 'px'; G.frei(1); });
+      const rand = lauf(1, f => {
+        state.x = breite - 60;
+        f.x = breite - 30;
+        f.y = 165;
+        f.el.style.left = f.x + 'px';
+        G.frei(1);
+      });
       const randX = rand.x;
       return { s1, s3, s2, schildHp: schild.schildHp, schildHpLeben: schild.hp, randX, breite };
     });
@@ -1313,7 +1512,9 @@ test.describe('Spectre-SR Granate', () => {
     expect(r.randX).toBe(r.breite - 30); // wuerde nach rechts hinaus gestossen, bleibt am Feldrand
   });
 
-  test('Boss: kein Wegstossen, halbe Betaeubung, greift waehrend der Betaeubung nicht an (Schuss, Bombe, Rakete)', async ({ page }) => {
+  test('Boss: kein Wegstossen, halbe Betaeubung, greift waehrend der Betaeubung nicht an (Schuss, Bombe, Rakete)', async ({
+    page,
+  }) => {
     await bereiteGranate(page);
     const r = await page.evaluate(() => {
       const { state, arrays, Entities } = window.__game;
@@ -1322,31 +1523,48 @@ test.describe('Spectre-SR Granate', () => {
       Entities.erzeugeBoss();
       const b = arrays.bosses[0];
       b.phase = 'kampf';
-      b.x = 150; b.y = 40; // Box ohne Rand (165..235|55..125) schneidet den Kreis um (200|180) (Abstand 55 < 70)
+      b.x = 150;
+      b.y = 40; // Box ohne Rand (165..235|55..125) schneidet den Kreis um (200|180) (Abstand 55 < 70)
       b.hp = b.maxHp = 100000;
       b.vx = 0; // schwebt (Bewegung wird getrennt geprueft)
-      b.schussTimer = 99999; b.bombenTimer = 99999; b.raketenTimer = 99999;
+      b.schussTimer = 99999;
+      b.bombenTimer = 99999;
+      b.raketenTimer = 99999;
       G.wirf();
       let n = 1;
-      while (!b.betaeubt && n < 60) { G.frei(1); n++; }
+      while (!b.betaeubt && n < 60) {
+        G.frei(1);
+        n++;
+      }
       const betaeubt = b.betaeubt;
       const pos = { x: b.x, y: b.y };
       b.vx = 2;
-      b.schussTimer = 1; b.bombenTimer = 1; b.raketenTimer = 1;
+      b.schussTimer = 1;
+      b.bombenTimer = 1;
+      b.raketenTimer = 1;
       const vorher = arrays.bossLaserArray.length + arrays.bossBombenArray.length + arrays.bossRaketenArray.length;
       let neu = 0;
       let schritte = 0;
       while (b.betaeubt > 0 && schritte < 100) {
         G.frei(1);
         schritte++;
-        neu = Math.max(neu, arrays.bossLaserArray.length + arrays.bossBombenArray.length + arrays.bossRaketenArray.length - vorher);
+        neu = Math.max(
+          neu,
+          arrays.bossLaserArray.length + arrays.bossBombenArray.length + arrays.bossRaketenArray.length - vorher,
+        );
       }
       const bewegtWaehrend = b.x - pos.x;
       G.frei(3);
       return {
-        betaeubt, pos, bewegtWaehrend, schritte, neu, klasse: b.el.classList.contains('betaeubt'),
-        danachAngriffe: arrays.bossLaserArray.length + arrays.bossBombenArray.length + arrays.bossRaketenArray.length - vorher,
-        danachX: b.x - pos.x
+        betaeubt,
+        pos,
+        bewegtWaehrend,
+        schritte,
+        neu,
+        klasse: b.el.classList.contains('betaeubt'),
+        danachAngriffe:
+          arrays.bossLaserArray.length + arrays.bossBombenArray.length + arrays.bossRaketenArray.length - vorher,
+        danachX: b.x - pos.x,
       };
     });
     expect(r.betaeubt).toBeGreaterThanOrEqual(29);
@@ -1367,13 +1585,22 @@ test.describe('Spectre-SR Granate', () => {
       const G = window.__gr;
       state.raketenStufe = 3;
       const a = T.asteroid(240, 180);
-      delete a.festX; delete a.festY;
+      delete a.festX;
+      delete a.festY;
       const m = T.asteroid(160, 180, 30, true);
-      delete m.festX; delete m.festY;
+      delete m.festX;
+      delete m.festY;
       const ax = a.x;
       G.wirf();
       G.frei(45);
-      return { betaeubt: a.betaeubt, klasse: a.el.classList.contains('betaeubt'), weite: a.x - ax, hp: a.hp, magmaHp: m.hp, magmaBetaeubt: m.betaeubt };
+      return {
+        betaeubt: a.betaeubt,
+        klasse: a.el.classList.contains('betaeubt'),
+        weite: a.x - ax,
+        hp: a.hp,
+        magmaHp: m.hp,
+        magmaBetaeubt: m.betaeubt,
+      };
     });
     expect(r.betaeubt).toBeUndefined();
     expect(r.klasse).toBe(false);
@@ -1383,16 +1610,19 @@ test.describe('Spectre-SR Granate', () => {
     expect(r.magmaBetaeubt).toBeUndefined();
   });
 
-  test('Stufe 5 loescht feindliche Geschosse im Radius (Feind-, Boss-, Hack-Projektile); Stufe 4 nicht', async ({ page }) => {
+  test('Stufe 5 loescht feindliche Geschosse im Radius (Feind-, Boss-, Hack-Projektile); Stufe 4 nicht', async ({
+    page,
+  }) => {
     await bereiteGranate(page);
     const r = await page.evaluate(() => {
       const { state, arrays, Entities } = window.__game;
       const T = window.__sn;
       const G = window.__gr;
-      const lauf = (stufe) => {
+      const lauf = stufe => {
         T.leeren();
         state.raketenStufe = stufe;
-        state.raketenCooldown = 0; state.sniperGranatenLadungen = 3;
+        state.raketenCooldown = 0;
+        state.sniperGranatenLadungen = 3;
         G.wirf();
         // Ruhende Geschosse: je eines im Radius um (200|180) und eines weit ausserhalb
         Entities.erzeugeFeindLaser(200, 170);
@@ -1401,9 +1631,17 @@ test.describe('Spectre-SR Granate', () => {
         Entities.erzeugeFeindLaser(340, 170);
         Entities.erzeugeBossLaser(340, 170);
         Entities.erzeugeHackProjektil(340, 170, 340, 400, null);
-        [...arrays.feindLaserArray, ...arrays.bossLaserArray, ...arrays.hackProjektilArray].forEach(p => { p.vx = 0; p.vy = 0; p.lenkZeit = 0; });
+        [...arrays.feindLaserArray, ...arrays.bossLaserArray, ...arrays.hackProjektilArray].forEach(p => {
+          p.vx = 0;
+          p.vy = 0;
+          p.lenkZeit = 0;
+        });
         G.frei(35);
-        return { feind: arrays.feindLaserArray.length, boss: arrays.bossLaserArray.length, hack: arrays.hackProjektilArray.length };
+        return {
+          feind: arrays.feindLaserArray.length,
+          boss: arrays.bossLaserArray.length,
+          hack: arrays.hackProjektilArray.length,
+        };
       };
       return { s4: lauf(4), s5: lauf(5) };
     });
@@ -1411,7 +1649,9 @@ test.describe('Spectre-SR Granate', () => {
     expect(r.s5).toEqual({ feind: 1, boss: 1, hack: 1 });
   });
 
-  test('Ladezeit je Stufe (240/210/180/180/150), keine dritte Granate ohne Ladung; waffenOffline blockiert; keine Raketen', async ({ page }) => {
+  test('Ladezeit je Stufe (240/210/180/180/150), keine dritte Granate ohne Ladung; waffenOffline blockiert; keine Raketen', async ({
+    page,
+  }) => {
     await bereiteGranate(page);
     const r = await page.evaluate(async () => {
       const { state, arrays } = window.__game;
@@ -1422,7 +1662,8 @@ test.describe('Spectre-SR Granate', () => {
       for (let stufe = 1; stufe <= 5; stufe++) {
         T.leeren();
         state.raketenStufe = stufe;
-        state.raketenCooldown = 0; state.sniperGranatenLadungen = 3;
+        state.raketenCooldown = 0;
+        state.sniperGranatenLadungen = 3;
         G.wirf();
         cds.push(state.raketenCooldown);
       }
@@ -1430,18 +1671,27 @@ test.describe('Spectre-SR Granate', () => {
       document.querySelectorAll('.sniper-granate').forEach(e => e.remove());
       G.frei(1);
       state.raketenStufe = 1;
-      state.raketenCooldown = 0; state.sniperGranatenLadungen = 3;
+      state.raketenCooldown = 0;
+      state.sniperGranatenLadungen = 3;
       G.wirf();
       G.wirf();
       G.wirf();
       const granaten = document.querySelectorAll('.sniper-granate').length;
       const ladungen = state.sniperGranatenLadungen;
       const balken = parseFloat(document.getElementById('raketen-cd-balken').style.width);
-      state.raketenCooldown = 0; state.sniperGranatenLadungen = 3;
+      state.raketenCooldown = 0;
+      state.sniperGranatenLadungen = 3;
       Hack.hackeSpieler(state, 'waffenOffline');
       const vorher = document.querySelectorAll('.sniper-granate').length;
       G.wirf();
-      return { cds, granaten, ladungen, balken, blockiert: document.querySelectorAll('.sniper-granate').length === vorher, raketen: arrays.raketenArray.length };
+      return {
+        cds,
+        granaten,
+        ladungen,
+        balken,
+        blockiert: document.querySelectorAll('.sniper-granate').length === vorher,
+        raketen: arrays.raketenArray.length,
+      };
     });
     expect(r.cds).toEqual([240, 210, 180, 180, 150]);
     expect(r.granaten).toBe(2); // zwei Ladungen: zwei Granaten direkt nacheinander, die dritte nicht
@@ -1463,7 +1713,14 @@ test.describe('Spectre-SR Granate', () => {
       G.wirf('ö');
       const granaten = document.querySelectorAll('.sniper-granate').length;
       G.frei(45);
-      return { granaten, cdP2: state.p2.raketenCooldown, cdP1: state.raketenCooldown, betaeubt: f.betaeubt, weite: G.mitte(f).x - x0, balken: document.getElementById('raketen-cd-balken-p2').style.width };
+      return {
+        granaten,
+        cdP2: state.p2.raketenCooldown,
+        cdP1: state.raketenCooldown,
+        betaeubt: f.betaeubt,
+        weite: G.mitte(f).x - x0,
+        balken: document.getElementById('raketen-cd-balken-p2').style.width,
+      };
     });
     expect(r.granaten).toBe(1);
     expect(r.cdP2).toBeGreaterThan(190);
@@ -1484,7 +1741,12 @@ test.describe('Spectre-SR Granate', () => {
       Utils.triggerGameOver();
       const gameOver = document.querySelectorAll('.sniper-granate, .sniper-druckwelle').length;
       Utils.restartGame();
-      return { imFlug, gameOver, neustart: document.querySelectorAll('.sniper-granate, .sniper-druckwelle').length, f: !!f };
+      return {
+        imFlug,
+        gameOver,
+        neustart: document.querySelectorAll('.sniper-granate, .sniper-druckwelle').length,
+        f: !!f,
+      };
     });
     expect(r.imFlug).toBe(1);
     expect(r.gameOver).toBe(0);
@@ -1520,19 +1782,25 @@ async function bereiteOnlineHost(page) {
     T.leeren();
     state.p2.selectedShipModel = 'sniper';
     state.p2.raketenStufe = 1;
-    state.p2.raketenCooldown = 0; state.p2.sniperGranatenLadungen = 3;
+    state.p2.raketenCooldown = 0;
+    state.p2.sniperGranatenLadungen = 3;
     state.p2.laserInputRequested = false;
     state.p2.raketeGehalten = false;
     state.p2.netzLaserAnfrage = false;
     state.p2.sniperAutoInput = false;
     state.p2.networkFireRakete = false;
     // Client-Eingabe wie aus einem Paket (Position des Clients: P2-Schiff bei (385|400) -> Fadenkreuz (400|180))
-    window.__eingabe = (e) => Network.applyPlayerInput(Object.assign({ x: 385, y: 400, rotate: 0, laser: false, rakete: false, bombe: false }, e));
+    window.__eingabe = e =>
+      Network.applyPlayerInput(
+        Object.assign({ x: 385, y: 400, rotate: 0, laser: false, rakete: false, bombe: false }, e),
+      );
   });
 }
 
 test.describe('Spectre-SR online (Host)', () => {
-  test('kurzer Tipp des Clients (Druck und Loslassen vor demselben Host-Schritt) wird zu genau einem Schuss', async ({ page }) => {
+  test('kurzer Tipp des Clients (Druck und Loslassen vor demselben Host-Schritt) wird zu genau einem Schuss', async ({
+    page,
+  }) => {
     await bereiteOnlineHost(page);
     const r = await page.evaluate(() => {
       const { state, Audio } = window.__game;
@@ -1570,7 +1838,9 @@ test.describe('Spectre-SR online (Host)', () => {
     expect(r.hpEnde).toBe(910);
   });
 
-  test('gehaltene Laser-Eingabe laedt bis voll (Ton, kein Schuss beim Halten), Loslassen feuert den Ladeschuss', async ({ page }) => {
+  test('gehaltene Laser-Eingabe laedt bis voll (Ton, kein Schuss beim Halten), Loslassen feuert den Ladeschuss', async ({
+    page,
+  }) => {
     await bereiteOnlineHost(page);
     const r = await page.evaluate(() => {
       const { state, Audio } = window.__game;
@@ -1580,7 +1850,12 @@ test.describe('Spectre-SR online (Host)', () => {
       Audio.clearAudioHistory();
       E({ laser: true });
       T.schritte(100);
-      const geladen = { ladung: state.p2.sniperLadung, voll: state.p2.sniperVoll, ton: Audio.audioHistory.filter(a => a.name === 'sniperVoll').length, hp: ziel.hp };
+      const geladen = {
+        ladung: state.p2.sniperLadung,
+        voll: state.p2.sniperVoll,
+        ton: Audio.audioHistory.filter(a => a.name === 'sniperVoll').length,
+        hp: ziel.hp,
+      };
       E({ laser: false });
       T.schritte(2);
       return { geladen, hp: ziel.hp, ladungDanach: state.p2.sniperLadung };
@@ -1604,7 +1879,13 @@ test.describe('Spectre-SR online (Host)', () => {
       const gehalten = state.p2.sniperGehalten;
       E({ laser: false });
       T.schritte(2);
-      return { schuesse: Audio.audioHistory.filter(a => a.name === 'sniperSchuss').length, hp: ziel.hp, maxLadung, gehalten, ton: Audio.audioHistory.filter(a => a.name === 'sniperVoll').length };
+      return {
+        schuesse: Audio.audioHistory.filter(a => a.name === 'sniperSchuss').length,
+        hp: ziel.hp,
+        maxLadung,
+        gehalten,
+        ton: Audio.audioHistory.filter(a => a.name === 'sniperVoll').length,
+      };
     });
     // Stufe 1: Schussabstand 24 Schritte -> Schuesse in den Schritten 1, 25, 49
     expect(r.schuesse).toBe(3);
@@ -1614,7 +1895,9 @@ test.describe('Spectre-SR online (Host)', () => {
     expect(r.ton).toBe(0);
   });
 
-  test('Granate ueber die Raketen-Eingabe (auch kurzer Tipp) fliegt zum Fadenkreuz des Clients und betaeubt dort', async ({ page }) => {
+  test('Granate ueber die Raketen-Eingabe (auch kurzer Tipp) fliegt zum Fadenkreuz des Clients und betaeubt dort', async ({
+    page,
+  }) => {
     await bereiteOnlineHost(page);
     const r = await page.evaluate(() => {
       const { state } = window.__game;
@@ -1626,11 +1909,20 @@ test.describe('Spectre-SR online (Host)', () => {
       E({ rakete: true });
       E({ rakete: false });
       T.schritte(2); // Schritt 1 zaehlt den Druck, Schritt 2 das Loslassen (Tippen)
-      const nachWurf = { granaten: document.querySelectorAll('.sniper-granate').length, cd: state.p2.raketenCooldown, host: state.raketenCooldown };
+      const nachWurf = {
+        granaten: document.querySelectorAll('.sniper-granate').length,
+        cd: state.p2.raketenCooldown,
+        host: state.raketenCooldown,
+      };
       // Das Schiff des Clients zieht weiter: die Granate zielt trotzdem auf die Position beim Wurf
       E({ x: 285, y: 400 });
       G.frei(31);
-      return { nachWurf, ziel: ziel.betaeubt > 0, fern: fern.betaeubt || 0, welle: document.querySelectorAll('.sniper-druckwelle').length };
+      return {
+        nachWurf,
+        ziel: ziel.betaeubt > 0,
+        fern: fern.betaeubt || 0,
+        welle: document.querySelectorAll('.sniper-druckwelle').length,
+      };
     });
     expect(r.nachWurf).toEqual({ granaten: 1, cd: 240, host: 0 });
     expect(r.ziel).toBe(true);
@@ -1638,7 +1930,9 @@ test.describe('Spectre-SR online (Host)', () => {
     expect(r.welle).toBe(1);
   });
 
-  test('Host sendet fuer die Druckwelle ein Ereignis und die Granate im Snapshot; Betaeubung steht am Feind im Snapshot', async ({ page }) => {
+  test('Host sendet fuer die Druckwelle ein Ereignis und die Granate im Snapshot; Betaeubung steht am Feind im Snapshot', async ({
+    page,
+  }) => {
     await bereiteOnlineHost(page);
     const r = await page.evaluate(() => {
       const { state, Network } = window.__game;
@@ -1677,11 +1971,15 @@ test.describe('Spectre-SR Bot', () => {
           state.p2IsBot = true;
           state.p2BotDifficulty = 'hard';
           Bot.resetBot();
-          state.p2.x = 285; state.p2.y = 480;
-          state.p2.botFireLaser = false; state.p2.botFireRakete = false;
-          state.p2.raketenCooldown = 0; state.p2.sniperGranatenLadungen = 3;
-          state.x = 40; state.y = 540; // P1 aus dem Weg
-        }
+          state.p2.x = 285;
+          state.p2.y = 480;
+          state.p2.botFireLaser = false;
+          state.p2.botFireRakete = false;
+          state.p2.raketenCooldown = 0;
+          state.p2.sniperGranatenLadungen = 3;
+          state.x = 40;
+          state.y = 540; // P1 aus dem Weg
+        },
       };
     });
   }
@@ -1714,14 +2012,27 @@ test.describe('Spectre-SR Bot', () => {
       window.__bot.start();
       Entities.erzeugeBoss();
       const b = arrays.bosses[0];
-      Object.assign(b, { phase: 'kampf', x: 250, y: 20, vx: 0, vy: 0, hp: 1e6, maxHp: 1e6, schussTimer: 9999, bombenTimer: 9999, raketenTimer: 9999 });
+      Object.assign(b, {
+        phase: 'kampf',
+        x: 250,
+        y: 20,
+        vx: 0,
+        vy: 0,
+        hp: 1e6,
+        maxHp: 1e6,
+        schussTimer: 9999,
+        bombenTimer: 9999,
+        raketenTimer: 9999,
+      });
       let voll = 0;
       let vorher = 0;
       for (let i = 0; i < 600; i++) {
         window.__gr.frei(1);
         if (state.p2.sniperVoll && !vorher) voll++;
         vorher = state.p2.sniperVoll ? 1 : 0;
-        b.x = 250; b.y = 20; b.phase = 'kampf';
+        b.x = 250;
+        b.y = 20;
+        b.phase = 'kampf';
       }
       return { voll, bossHp: b.hp };
     });
@@ -1735,14 +2046,18 @@ test.describe('Spectre-SR Bot', () => {
       const { state, arrays } = window.__game;
       window.__bot.start();
       const G = window.__gr;
-      G.feind(300, 150); G.feind(340, 160); G.feind(320, 190);
+      G.feind(300, 150);
+      G.feind(340, 160);
+      G.feind(320, 190);
       let granaten = 0;
       let cd = 0;
       for (let i = 0; i < 200; i++) {
         G.frei(1);
         granaten = Math.max(granaten, document.querySelectorAll('.sniper-granate').length);
         cd = Math.max(cd, state.p2.raketenCooldown);
-        arrays.feinde.forEach(f => { f.hp = f.maxHp = 1e6; });
+        arrays.feinde.forEach(f => {
+          f.hp = f.maxHp = 1e6;
+        });
         if (granaten) break;
       }
       return { granaten, cd };
@@ -1794,33 +2109,62 @@ async function bereiteEmp(page, optionen = {}) {
         else if (art === 'bossLaser') Entities.erzeugeBossLaser(x, y);
         else if (art === 'hack') Entities.erzeugeHackProjektil(x, y, x, y + 100);
         else if (art === 'bossRakete') Entities.erzeugeBossRakete(x, y, 1);
-        const liste = { feindLaser: arrays.feindLaserArray, bossLaser: arrays.bossLaserArray, hack: arrays.hackProjektilArray, bossRakete: arrays.bossRaketenArray }[art];
+        const liste = {
+          feindLaser: arrays.feindLaserArray,
+          bossLaser: arrays.bossLaserArray,
+          hack: arrays.hackProjektilArray,
+          bossRakete: arrays.bossRaketenArray,
+        }[art];
         const g = liste[liste.length - 1];
-        g.x = x; g.y = y; g.vx = 0; g.vy = 0;
+        g.x = x;
+        g.y = y;
+        g.vx = 0;
+        g.vy = 0;
         return g;
       },
       anzahl() {
-        return arrays.feindLaserArray.length + arrays.bossLaserArray.length + arrays.hackProjektilArray.length + arrays.bossRaketenArray.length;
-      }
+        return (
+          arrays.feindLaserArray.length +
+          arrays.bossLaserArray.length +
+          arrays.hackProjektilArray.length +
+          arrays.bossRaketenArray.length
+        );
+      },
     };
   });
 }
 
 test.describe('Spectre-SR Granaten-Taste und EMP', () => {
-  test('Tippen wirft die Granate und loest das EMP aus (Ring, Ton, Cooldown); der Wurf faellt erst beim Loslassen', async ({ page }) => {
+  test('Tippen wirft die Granate und loest das EMP aus (Ring, Ton, Cooldown); der Wurf faellt erst beim Loslassen', async ({
+    page,
+  }) => {
     await bereiteEmp(page);
     const r = await page.evaluate(() => {
       const { state, Audio } = window.__game;
       const G = window.__gr;
       Audio.clearAudioHistory();
       G.halte(1);
-      const waehrendDruck = { granaten: document.querySelectorAll('.sniper-granate').length, emp: document.querySelectorAll('.sniper-emp').length, cd: state.raketenCooldown };
+      const waehrendDruck = {
+        granaten: document.querySelectorAll('.sniper-granate').length,
+        emp: document.querySelectorAll('.sniper-emp').length,
+        cd: state.raketenCooldown,
+      };
       G.loslassen();
-      const danach = { granaten: document.querySelectorAll('.sniper-granate').length, emp: document.querySelectorAll('.sniper-emp').length, cd: state.raketenCooldown };
+      const danach = {
+        granaten: document.querySelectorAll('.sniper-granate').length,
+        emp: document.querySelectorAll('.sniper-emp').length,
+        cd: state.raketenCooldown,
+      };
       G.frei(4);
       const breite = parseFloat(document.querySelector('.sniper-emp').style.width);
       G.frei(10);
-      return { waehrendDruck, danach, breite, empWeg: document.querySelectorAll('.sniper-emp').length, ton: Audio.audioHistory.filter(e => e.name === 'emp').length };
+      return {
+        waehrendDruck,
+        danach,
+        breite,
+        empWeg: document.querySelectorAll('.sniper-emp').length,
+        ton: Audio.audioHistory.filter(e => e.name === 'emp').length,
+      };
     });
     expect(r.waehrendDruck).toEqual({ granaten: 0, emp: 0, cd: 0 });
     expect(r.danach).toEqual({ granaten: 1, emp: 1, cd: 240 });
@@ -1830,16 +2174,31 @@ test.describe('Spectre-SR Granaten-Taste und EMP', () => {
     expect(r.ton).toBe(1);
   });
 
-  test('Halten ab 10 Schritten (20 Schritte) wirft nichts und loest kein EMP aus; die erste Mine verbraucht genau eine Ladung und startet das Nachladen', async ({ page }) => {
+  test('Halten ab 10 Schritten (20 Schritte) wirft nichts und loest kein EMP aus; die erste Mine verbraucht genau eine Ladung und startet das Nachladen', async ({
+    page,
+  }) => {
     await bereiteEmp(page);
     const r = await page.evaluate(() => {
       const { state } = window.__game;
       const G = window.__gr;
       G.halte(20);
-      const waehrend = { granaten: document.querySelectorAll('.sniper-granate').length, emp: document.querySelectorAll('.sniper-emp').length, ladungen: state.sniperGranatenLadungen, cd: state.raketenCooldown };
+      const waehrend = {
+        granaten: document.querySelectorAll('.sniper-granate').length,
+        emp: document.querySelectorAll('.sniper-emp').length,
+        ladungen: state.sniperGranatenLadungen,
+        cd: state.raketenCooldown,
+      };
       G.loslassen();
       G.frei(3);
-      return { waehrend, danach: { granaten: document.querySelectorAll('.sniper-granate').length, emp: document.querySelectorAll('.sniper-emp').length, ladungen: state.sniperGranatenLadungen, cd: state.raketenCooldown } };
+      return {
+        waehrend,
+        danach: {
+          granaten: document.querySelectorAll('.sniper-granate').length,
+          emp: document.querySelectorAll('.sniper-emp').length,
+          ladungen: state.sniperGranatenLadungen,
+          cd: state.raketenCooldown,
+        },
+      };
     });
     expect(r.waehrend).toMatchObject({ granaten: 0, emp: 0, ladungen: 1 });
     expect(r.waehrend.cd).toBeGreaterThan(220); // Nachladen laeuft seit der ersten Mine
@@ -1856,7 +2215,8 @@ test.describe('Spectre-SR Granaten-Taste und EMP', () => {
       G.loslassen();
       const neun = state.raketenCooldown;
       G.frei(1);
-      state.raketenCooldown = 0; state.sniperGranatenLadungen = 3;
+      state.raketenCooldown = 0;
+      state.sniperGranatenLadungen = 3;
       document.querySelectorAll('.sniper-granate, .sniper-emp').forEach(e => e.remove());
       G.halte(10);
       G.loslassen();
@@ -1873,32 +2233,49 @@ test.describe('Spectre-SR Granaten-Taste und EMP', () => {
       const { state } = window.__game;
       const Hack = await import('./js/hack.js');
       const G = window.__gr;
-      state.raketenCooldown = 100; state.sniperGranatenLadungen = 0;
+      state.raketenCooldown = 100;
+      state.sniperGranatenLadungen = 0;
       G.wirf();
-      const imCooldown = { granaten: document.querySelectorAll('.sniper-granate').length, emp: document.querySelectorAll('.sniper-emp').length };
-      state.raketenCooldown = 0; state.sniperGranatenLadungen = 3;
+      const imCooldown = {
+        granaten: document.querySelectorAll('.sniper-granate').length,
+        emp: document.querySelectorAll('.sniper-emp').length,
+      };
+      state.raketenCooldown = 0;
+      state.sniperGranatenLadungen = 3;
       Hack.hackeSpieler(state, 'waffenOffline');
       G.wirf();
-      return { imCooldown, offline: { granaten: document.querySelectorAll('.sniper-granate').length, emp: document.querySelectorAll('.sniper-emp').length } };
+      return {
+        imCooldown,
+        offline: {
+          granaten: document.querySelectorAll('.sniper-granate').length,
+          emp: document.querySelectorAll('.sniper-emp').length,
+        },
+      };
     });
     expect(r.imCooldown).toEqual({ granaten: 0, emp: 0 });
     expect(r.offline).toEqual({ granaten: 0, emp: 0 });
   });
 
-  test('EMP zerstoert Feindlaser, Boss-Laser, Hack-Projektil und Boss-Rakete im Radius, nicht ausserhalb', async ({ page }) => {
+  test('EMP zerstoert Feindlaser, Boss-Laser, Hack-Projektil und Boss-Rakete im Radius, nicht ausserhalb', async ({
+    page,
+  }) => {
     await bereiteEmp(page);
     const r = await page.evaluate(() => {
       const { arrays, state } = window.__game;
       const E = window.__emp;
-      for (const a of ['feindLaser', 'bossLaser', 'hack', 'bossRakete']) { E.geschoss(a, 40, -30); E.geschoss(a, 150, 0); }
+      for (const a of ['feindLaser', 'bossLaser', 'hack', 'bossRakete']) {
+        E.geschoss(a, 40, -30);
+        E.geschoss(a, 150, 0);
+      }
       const vorher = E.anzahl();
       E.Sn.loeseEmpAus(state, 'p1');
       const mx = E.mitte().x;
       return {
-        vorher, nachher: E.anzahl(),
+        vorher,
+        nachher: E.anzahl(),
         feindLaser: arrays.feindLaserArray.map(g => Math.round(g.x - mx)),
         bossRakete: arrays.bossRaketenArray.map(g => Math.round(g.x - mx)),
-        els: document.querySelectorAll('.feind-laser').length
+        els: document.querySelectorAll('.feind-laser').length,
       };
     });
     expect(r.vorher).toBe(8);
@@ -1917,8 +2294,10 @@ test.describe('Spectre-SR Granaten-Taste und EMP', () => {
       Entities.erzeugeBossBombe(m.x + 20, m.y - 40);
       Entities.erzeugeBossBombe(m.x + 160, m.y);
       const b = arrays.bossBombenArray;
-      b[0].x = m.x + 20; b[0].y = m.y - 40;
-      b[1].x = m.x + 160; b[1].y = m.y;
+      b[0].x = m.x + 20;
+      b[0].y = m.y - 40;
+      b[1].x = m.x + 160;
+      b[1].y = m.y;
       E.Sn.loeseEmpAus(state, 'p1');
       return { rest: b.length, x: Math.round(b[0].x - m.x) };
     });
@@ -1926,7 +2305,9 @@ test.describe('Spectre-SR Granaten-Taste und EMP', () => {
     expect(r.x).toBe(160);
   });
 
-  test('EMP betaeubt Feinde im Radius 30 Schritte (Maximum, keine Verkuerzung), Boss und Asteroid nicht, kein Schaden', async ({ page }) => {
+  test('EMP betaeubt Feinde im Radius 30 Schritte (Maximum, keine Verkuerzung), Boss und Asteroid nicht, kein Schaden', async ({
+    page,
+  }) => {
     await bereiteEmp(page);
     const r = await page.evaluate(async () => {
       const Anzeige = await import('./js/anzeige.js');
@@ -1947,8 +2328,13 @@ test.describe('Spectre-SR Granaten-Taste und EMP', () => {
       E.Sn.loeseEmpAus(state, 'p1');
       Anzeige.zeichneWelt(); // die Klasse 'betaeubt' setzt die Anzeige aus dem Feld betaeubt
       return {
-        nah: nah.betaeubt, lang: lang.betaeubt, fern: fern.betaeubt || 0, ast: ast.betaeubt || 0, boss: boss.betaeubt || 0,
-        klasse: nah.el.classList.contains('betaeubt'), hpGleich: [nah.hp, lang.hp, ast.hp, boss.hp].every((h, i) => h === hp[i])
+        nah: nah.betaeubt,
+        lang: lang.betaeubt,
+        fern: fern.betaeubt || 0,
+        ast: ast.betaeubt || 0,
+        boss: boss.betaeubt || 0,
+        klasse: nah.el.classList.contains('betaeubt'),
+        hpGleich: [nah.hp, lang.hp, ast.hp, boss.hp].every((h, i) => h === hp[i]),
       };
     });
     expect(r.nah).toBe(30);
@@ -1960,7 +2346,9 @@ test.describe('Spectre-SR Granaten-Taste und EMP', () => {
     expect(r.hpGleich).toBe(true);
   });
 
-  test('EMP-Radius je Raketen-Stufe 70/80/90/100/110: Geschoss knapp innerhalb wird zerstoert, knapp ausserhalb nicht', async ({ page }) => {
+  test('EMP-Radius je Raketen-Stufe 70/80/90/100/110: Geschoss knapp innerhalb wird zerstoert, knapp ausserhalb nicht', async ({
+    page,
+  }) => {
     await bereiteEmp(page);
     const r = await page.evaluate(() => {
       const { state, arrays } = window.__game;
@@ -1982,7 +2370,13 @@ test.describe('Spectre-SR Granaten-Taste und EMP', () => {
       return { radien, wirkung, ringe: document.querySelectorAll('.sniper-emp').length };
     });
     expect(r.radien).toEqual([70, 80, 90, 100, 110]);
-    expect(r.wirkung).toEqual([[true, true], [true, true], [true, true], [true, true], [true, true]]);
+    expect(r.wirkung).toEqual([
+      [true, true],
+      [true, true],
+      [true, true],
+      [true, true],
+      [true, true],
+    ]);
     expect(r.ringe).toBe(5);
   });
 
@@ -2026,8 +2420,10 @@ test.describe('Spectre-SR Granaten-Taste und EMP', () => {
       const ring = document.querySelector('.sniper-emp');
       const rad = parseFloat(ring.style.width) / 2;
       return {
-        cdP2: state.p2.raketenCooldown, cdP1: state.raketenCooldown, ringe: document.querySelectorAll('.sniper-emp').length,
-        abstandX: Math.abs(parseFloat(ring.style.left) + rad - (state.p2.x + config.spielerGroesse / 2))
+        cdP2: state.p2.raketenCooldown,
+        cdP1: state.raketenCooldown,
+        ringe: document.querySelectorAll('.sniper-emp').length,
+        abstandX: Math.abs(parseFloat(ring.style.left) + rad - (state.p2.x + config.spielerGroesse / 2)),
       };
     });
     expect(r.cdP2).toBeGreaterThan(0);
@@ -2038,7 +2434,9 @@ test.describe('Spectre-SR Granaten-Taste und EMP', () => {
 });
 
 test.describe('Spectre-SR EMP online', () => {
-  test('Host: Client-Tipp zwischen zwei Host-Schritten ergibt genau einen Wurf samt EMP-Ereignis; Halten wirft nichts', async ({ page }) => {
+  test('Host: Client-Tipp zwischen zwei Host-Schritten ergibt genau einen Wurf samt EMP-Ereignis; Halten wirft nichts', async ({
+    page,
+  }) => {
     await bereiteOnlineHost(page);
     const r = await page.evaluate(() => {
       const { state } = window.__game;
@@ -2048,16 +2446,31 @@ test.describe('Spectre-SR EMP online', () => {
       E({ rakete: true });
       E({ rakete: false });
       G.frei(2);
-      const tipp = { granaten: document.querySelectorAll('.sniper-granate').length, emp: document.querySelectorAll('.sniper-emp').length, cd: state.p2.raketenCooldown, ereignis: state.network.lastSentEvent };
+      const tipp = {
+        granaten: document.querySelectorAll('.sniper-granate').length,
+        emp: document.querySelectorAll('.sniper-emp').length,
+        cd: state.p2.raketenCooldown,
+        ereignis: state.network.lastSentEvent,
+      };
       G.frei(40);
-      state.p2.raketenCooldown = 0; state.p2.sniperGranatenLadungen = 3;
+      state.p2.raketenCooldown = 0;
+      state.p2.sniperGranatenLadungen = 3;
       document.querySelectorAll('.sniper-granate, .sniper-emp').forEach(e => e.remove());
       E({ rakete: true });
       G.frei(20);
-      const halten = { granaten: document.querySelectorAll('.sniper-granate').length, emp: document.querySelectorAll('.sniper-emp').length, cd: state.p2.raketenCooldown, ladungen: state.p2.sniperGranatenLadungen };
+      const halten = {
+        granaten: document.querySelectorAll('.sniper-granate').length,
+        emp: document.querySelectorAll('.sniper-emp').length,
+        cd: state.p2.raketenCooldown,
+        ladungen: state.p2.sniperGranatenLadungen,
+      };
       E({ rakete: false });
       G.frei(3);
-      return { tipp, halten, nachHalten: { granaten: document.querySelectorAll('.sniper-granate').length, cd: state.p2.raketenCooldown } };
+      return {
+        tipp,
+        halten,
+        nachHalten: { granaten: document.querySelectorAll('.sniper-granate').length, cd: state.p2.raketenCooldown },
+      };
     });
     expect(r.tipp.granaten).toBe(1);
     expect(r.tipp.emp).toBe(1);
@@ -2068,7 +2481,9 @@ test.describe('Spectre-SR EMP online', () => {
     expect(r.nachHalten.cd).toBeGreaterThan(200); // eine Mine wurde gelegt -> Cooldown nach dem Loslassen
   });
 
-  test('Client zeigt den EMP-Ring aus dem Ereignis (Ton, wachsender Ring, danach weg); ungueltige Daten werden ignoriert', async ({ page }) => {
+  test('Client zeigt den EMP-Ring aus dem Ereignis (Ton, wachsender Ring, danach weg); ungueltige Daten werden ignoriert', async ({
+    page,
+  }) => {
     await bereiteGranate(page);
     const r = await page.evaluate(async () => {
       const Sn = await import('./js/sniper.js');
@@ -2080,10 +2495,21 @@ test.describe('Spectre-SR EMP online', () => {
       Sn.zeigeEmp({ x: NaN, y: 1, radius: 90 });
       Sn.zeigeEmp(null);
       const ring = document.querySelectorAll('.sniper-emp').length;
-      for (let i = 0; i < 6; i++) { aktualisiereEffekte(); Anzeige.zeichneWelt(); }
+      for (let i = 0; i < 6; i++) {
+        aktualisiereEffekte();
+        Anzeige.zeichneWelt();
+      }
       const breite = parseFloat(document.querySelector('.sniper-emp').style.width);
-      for (let i = 0; i < 6; i++) { aktualisiereEffekte(); Anzeige.zeichneWelt(); }
-      return { ring, breite, weg: document.querySelectorAll('.sniper-emp').length, ton: Audio.audioHistory.filter(e => e.name === 'emp').length };
+      for (let i = 0; i < 6; i++) {
+        aktualisiereEffekte();
+        Anzeige.zeichneWelt();
+      }
+      return {
+        ring,
+        breite,
+        weg: document.querySelectorAll('.sniper-emp').length,
+        ton: Audio.audioHistory.filter(e => e.name === 'emp').length,
+      };
     });
     expect(r.ring).toBe(1);
     expect(r.breite).toBeGreaterThan(0);
@@ -2099,7 +2525,9 @@ test.describe('Spectre-SR EMP online', () => {
 });
 
 test.describe('Spectre-SR Bot: EMP', () => {
-  test('Bot tippt kurz (wenige Schritte true, dann false) bei naher Boss-Rakete; die Rakete verschwindet, Cooldown startet', async ({ page }) => {
+  test('Bot tippt kurz (wenige Schritte true, dann false) bei naher Boss-Rakete; die Rakete verschwindet, Cooldown startet', async ({
+    page,
+  }) => {
     await bereiteEmp(page, { coop: true });
     const r = await page.evaluate(async () => {
       const Bot = await import('./js/bot.js');
@@ -2109,15 +2537,22 @@ test.describe('Spectre-SR Bot: EMP', () => {
       state.p2IsBot = true;
       state.p2BotDifficulty = 'hard';
       Bot.resetBot();
-      state.p2.x = 285; state.p2.y = 480;
-      state.p2.botFireLaser = false; state.p2.botFireRakete = false;
-      state.p2.raketenCooldown = 0; state.p2.sniperGranatenLadungen = 3;
-      state.x = 40; state.y = 540;
+      state.p2.x = 285;
+      state.p2.y = 480;
+      state.p2.botFireLaser = false;
+      state.p2.botFireRakete = false;
+      state.p2.raketenCooldown = 0;
+      state.p2.sniperGranatenLadungen = 3;
+      state.x = 40;
+      state.y = 540;
       const mx = state.p2.x + 15;
       const my = state.p2.y + 15;
       Entities.erzeugeBossRakete(mx, my - 50, 1);
       const rk = arrays.bossRaketenArray[0];
-      rk.x = mx; rk.y = my - 50; rk.vx = 0; rk.vy = 0;
+      rk.x = mx;
+      rk.y = my - 50;
+      rk.vx = 0;
+      rk.vy = 0;
       const folge = [];
       let weg = -1;
       for (let i = 0; i < 12; i++) {
@@ -2145,14 +2580,21 @@ test.describe('Spectre-SR Bot: EMP', () => {
       state.p2IsBot = true;
       state.p2BotDifficulty = 'hard';
       Bot.resetBot();
-      state.p2.x = 285; state.p2.y = 480;
-      state.p2.raketenCooldown = 0; state.p2.sniperGranatenLadungen = 3;
-      state.x = 40; state.y = 540;
+      state.p2.x = 285;
+      state.p2.y = 480;
+      state.p2.raketenCooldown = 0;
+      state.p2.sniperGranatenLadungen = 3;
+      state.x = 40;
+      state.y = 540;
       Entities.erzeugeBossRakete(state.p2.x + 15, state.p2.y - 200, 1);
       const rk = arrays.bossRaketenArray[0];
-      rk.vx = 0; rk.vy = 0;
+      rk.vx = 0;
+      rk.vy = 0;
       let getippt = 0;
-      for (let i = 0; i < 20; i++) { G.frei(1); if (state.p2.botFireRakete) getippt++; }
+      for (let i = 0; i < 20; i++) {
+        G.frei(1);
+        if (state.p2.botFireRakete) getippt++;
+      }
       return { getippt, rakete: arrays.bossRaketenArray.length };
     });
     expect(r.getippt).toBe(0);
@@ -2175,8 +2617,10 @@ async function bereiteMinen(page, optionen = {}) {
       eineMine() {
         G.halte(12);
         G.loslassen();
-        state.raketenCooldown = 0; state.sniperGranatenLadungen = 3;
-        state.x = 0; state.y = 100;
+        state.raketenCooldown = 0;
+        state.sniperGranatenLadungen = 3;
+        state.x = 0;
+        state.y = 100;
         return arrays.sniperMinen[arrays.sniperMinen.length - 1];
       },
       setzeFeind(cx, cy, hp = 1000) {
@@ -2188,18 +2632,22 @@ async function bereiteMinen(page, optionen = {}) {
       bisHaftet(z, dx, dy, n = 40) {
         const m = arrays.sniperMinen[0];
         for (let i = 0; i < n && !m.ziel; i++) {
-          z.x += dx; z.y += dy;
-          z.el.style.left = z.x + 'px'; z.el.style.top = z.y + 'px';
+          z.x += dx;
+          z.y += dy;
+          z.el.style.left = z.x + 'px';
+          z.el.style.top = z.y + 'px';
           G.frei(1);
         }
         return m;
-      }
+      },
     };
   });
 }
 
 test.describe('Spectre-SR Haftminen', () => {
-  test('Halten 70 Schritte legt 5 Minen im 12er-Takt an den jeweiligen Schiffspositionen, ohne Granate und EMP; danach Cooldown', async ({ page }) => {
+  test('Halten 70 Schritte legt 5 Minen im 12er-Takt an den jeweiligen Schiffspositionen, ohne Granate und EMP; danach Cooldown', async ({
+    page,
+  }) => {
     await bereiteMinen(page);
     const r = await page.evaluate(() => {
       const { state, arrays, Audio } = window.__game;
@@ -2211,13 +2659,23 @@ test.describe('Spectre-SR Haftminen', () => {
         window.__game.Loop.simulationsSchritt();
         anzahl.push(arrays.sniperMinen.length);
       }
-      const waehrend = { granaten: document.querySelectorAll('.sniper-granate').length, emp: document.querySelectorAll('.sniper-emp').length, ladungen: state.sniperGranatenLadungen };
+      const waehrend = {
+        granaten: document.querySelectorAll('.sniper-granate').length,
+        emp: document.querySelectorAll('.sniper-emp').length,
+        ladungen: state.sniperGranatenLadungen,
+      };
       state.tastenGedrueckt.v = false;
       window.__game.Loop.simulationsSchritt();
       return {
-        anzahl, waehrend, cd: state.raketenCooldown, xs: arrays.sniperMinen.map(m => m.x), ys: arrays.sniperMinen.map(m => m.y),
-        owner: arrays.sniperMinen.map(m => m.pKey), els: document.querySelectorAll('.sniper-mine').length,
-        toene: Audio.audioHistory.filter(e => e.name === 'mine_legen').length, emp: Audio.audioHistory.filter(e => e.name === 'emp').length
+        anzahl,
+        waehrend,
+        cd: state.raketenCooldown,
+        xs: arrays.sniperMinen.map(m => m.x),
+        ys: arrays.sniperMinen.map(m => m.y),
+        owner: arrays.sniperMinen.map(m => m.pKey),
+        els: document.querySelectorAll('.sniper-mine').length,
+        toene: Audio.audioHistory.filter(e => e.name === 'mine_legen').length,
+        emp: Audio.audioHistory.filter(e => e.name === 'emp').length,
       };
     });
     // Mine k (k = 0..4) faellt in Schritt 10 + 12k (Index 9 + 12k): Schiff steht dann bei x = 100 + (9 + 12k) * 2
@@ -2247,11 +2705,22 @@ test.describe('Spectre-SR Haftminen', () => {
       const G = window.__gr;
       G.halte(12);
       G.loslassen();
-      const eins = { minen: arrays.sniperMinen.length, ladungen: state.sniperGranatenLadungen, cd: state.raketenCooldown };
+      const eins = {
+        minen: arrays.sniperMinen.length,
+        ladungen: state.sniperGranatenLadungen,
+        cd: state.raketenCooldown,
+      };
       state.sniperGranatenLadungen = 0;
       G.halte(40);
       G.loslassen();
-      return { eins, ohneLadung: { minen: arrays.sniperMinen.length, ladungen: state.sniperGranatenLadungen, cd: state.raketenCooldown } };
+      return {
+        eins,
+        ohneLadung: {
+          minen: arrays.sniperMinen.length,
+          ladungen: state.sniperGranatenLadungen,
+          cd: state.raketenCooldown,
+        },
+      };
     });
     expect(r.eins).toMatchObject({ minen: 1, ladungen: 1 });
     expect(r.eins.cd).toBeGreaterThan(230);
@@ -2267,13 +2736,19 @@ test.describe('Spectre-SR Haftminen', () => {
       const G = window.__gr;
       const ids = [];
       for (let i = 0; i < 2; i++) {
-        state.raketenCooldown = 0; state.sniperGranatenLadungen = 3;
+        state.raketenCooldown = 0;
+        state.sniperGranatenLadungen = 3;
         G.halte(70);
         G.loslassen();
         ids.push(...arrays.sniperMinen.map(m => m.id));
       }
       const erste = ids[0];
-      return { anzahl: arrays.sniperMinen.length, els: document.querySelectorAll('.sniper-mine').length, ersteNochDa: arrays.sniperMinen.some(m => m.id === erste), gesamt: new Set(ids).size };
+      return {
+        anzahl: arrays.sniperMinen.length,
+        els: document.querySelectorAll('.sniper-mine').length,
+        ersteNochDa: arrays.sniperMinen.some(m => m.id === erste),
+        gesamt: new Set(ids).size,
+      };
     });
     expect(r.anzahl).toBe(8);
     expect(r.els).toBe(8);
@@ -2281,15 +2756,23 @@ test.describe('Spectre-SR Haftminen', () => {
     expect(r.gesamt).toBeGreaterThanOrEqual(10);
   });
 
-  test('Mine driftet langsam nach oben; Lebensdauer 360 Schritte, ab 300 blinkend, danach weg ohne Explosion', async ({ page }) => {
+  test('Mine driftet langsam nach oben; Lebensdauer 360 Schritte, ab 300 blinkend, danach weg ohne Explosion', async ({
+    page,
+  }) => {
     await bereiteMinen(page);
     const r = await page.evaluate(() => {
       const { state, Loop } = window.__game;
       const M = window.__mi;
       // Ohne natuerliche Spawns: die nach oben driftende Mine soll keinen zufaellig erscheinenden Gegner treffen
-      const frei = n => { for (let i = 0; i < n; i++) { state.frameZaehler = 1; Loop.simulationsSchritt(); } };
+      const frei = n => {
+        for (let i = 0; i < n; i++) {
+          state.frameZaehler = 1;
+          Loop.simulationsSchritt();
+        }
+      };
       const m = M.eineMine();
-      const x0 = m.x; const y0 = m.y;
+      const x0 = m.x;
+      const y0 = m.y;
       frei(100);
       const drift = { x: m.x - x0, y: m.y - y0 };
       frei(190); // gesamt 290 Schritte nach dem Legen
@@ -2299,7 +2782,15 @@ test.describe('Spectre-SR Haftminen', () => {
       frei(50);
       const bei355 = M.minen().includes(m);
       frei(10);
-      return { drift, bei290, bei305, bei355, weg: !M.minen().includes(m), elWeg: !m.el.isConnected, explosion: document.querySelectorAll('.sniper-mine-explosion').length };
+      return {
+        drift,
+        bei290,
+        bei305,
+        bei355,
+        weg: !M.minen().includes(m),
+        elWeg: !m.el.isConnected,
+        explosion: document.querySelectorAll('.sniper-mine-explosion').length,
+      };
     });
     // 100 Schritte zu je 0,6 px nach oben, seitlich keine Bewegung
     expect(r.drift.x).toBe(0);
@@ -2312,7 +2803,9 @@ test.describe('Spectre-SR Haftminen', () => {
     expect(r.explosion).toBe(0);
   });
 
-  test('Boss-Rakete beruehrt die Mine: Mine explodiert sofort und zerstoert Rakete und Boss-Bombe im Radius', async ({ page }) => {
+  test('Boss-Rakete beruehrt die Mine: Mine explodiert sofort und zerstoert Rakete und Boss-Bombe im Radius', async ({
+    page,
+  }) => {
     await bereiteMinen(page);
     const r = await page.evaluate(() => {
       const { arrays, Entities } = window.__game;
@@ -2331,8 +2824,11 @@ test.describe('Spectre-SR Haftminen', () => {
       Object.assign(rakete, { x: m.x - 5, y: m.y - 8, vx: 0, vy: 0 });
       G.frei(1);
       return {
-        nachBombe, mineWeg: !M.minen().includes(m), raketeWeg: !arrays.bossRaketenArray.includes(rakete),
-        bombeWeg: !arrays.bossBombenArray.includes(bombe), explosion: document.querySelectorAll('.sniper-mine-explosion').length
+        nachBombe,
+        mineWeg: !M.minen().includes(m),
+        raketeWeg: !arrays.bossRaketenArray.includes(rakete),
+        bombeWeg: !arrays.bossBombenArray.includes(bombe),
+        explosion: document.querySelectorAll('.sniper-mine-explosion').length,
       };
     });
     expect(r.nachBombe).toEqual({ mineDa: true, bombeDa: true });
@@ -2351,7 +2847,8 @@ test.describe('Spectre-SR Haftminen', () => {
       const m = M.eineMine();
       // Magma-Asteroid direkt auf der Mine: keine Reaktion
       const magma = window.__sn.asteroid(m.x, m.y, 30, true);
-      delete magma.festX; delete magma.festY;
+      delete magma.festX;
+      delete magma.festY;
       G.frei(5);
       const magmaHaftet = !!m.ziel;
       magma.el.remove();
@@ -2365,8 +2862,22 @@ test.describe('Spectre-SR Haftminen', () => {
       const klasse = m.el.classList.contains('haftet');
       const piept = Audio.audioHistory.filter(e => e.name === 'mine_piep').length;
       // Feind wandert: Mine folgt
-      for (let i = 0; i < 5; i++) { f.x += 2; f.y -= 1; f.el.style.left = f.x + 'px'; f.el.style.top = f.y + 'px'; G.frei(1); }
-      return { magmaHaftet, haftet, klasse, piept, folgeX: m.x - (f.x + 15) - offX, folgeY: m.y - (f.y + 15) - offY, zuender: m.zuender };
+      for (let i = 0; i < 5; i++) {
+        f.x += 2;
+        f.y -= 1;
+        f.el.style.left = f.x + 'px';
+        f.el.style.top = f.y + 'px';
+        G.frei(1);
+      }
+      return {
+        magmaHaftet,
+        haftet,
+        klasse,
+        piept,
+        folgeX: m.x - (f.x + 15) - offX,
+        folgeY: m.y - (f.y + 15) - offY,
+        zuender: m.zuender,
+      };
     });
     expect(r.magmaHaftet).toBe(false);
     expect(r.haftet).toBe(true);
@@ -2377,7 +2888,9 @@ test.describe('Spectre-SR Haftminen', () => {
     expect(r.zuender).toBeLessThan(30);
   });
 
-  test('haftet am Ziel und explodiert nach 30 Schritten: Schaden der Stufe im Radius 30, Nachbar im Radius auch, Ziel ausserhalb nicht', async ({ page }) => {
+  test('haftet am Ziel und explodiert nach 30 Schritten: Schaden der Stufe im Radius 30, Nachbar im Radius auch, Ziel ausserhalb nicht', async ({
+    page,
+  }) => {
     await bereiteMinen(page);
     const r = await page.evaluate(() => {
       const { state, arrays, Audio } = window.__game;
@@ -2396,9 +2909,14 @@ test.describe('Spectre-SR Haftminen', () => {
       const vor30 = arrays.sniperMinen.includes(m);
       G.frei(1); // 30.
       return {
-        vor, vor30, nach: arrays.sniperMinen.includes(m), a: a.hp, nah: nah.hp, fern: fern.hp,
+        vor,
+        vor30,
+        nach: arrays.sniperMinen.includes(m),
+        a: a.hp,
+        nah: nah.hp,
+        fern: fern.hp,
         welle: document.querySelectorAll('.sniper-mine-explosion').length,
-        ton: Audio.audioHistory.filter(e => e.name === 'mine_explosion').length
+        ton: Audio.audioHistory.filter(e => e.name === 'mine_explosion').length,
       };
     });
     expect(r.vor).toEqual({ hp: 1000, nah: 1000, da: true });
@@ -2421,7 +2939,8 @@ test.describe('Spectre-SR Haftminen', () => {
       for (let stufe = 1; stufe <= 5; stufe++) {
         window.__sn.leeren();
         state.raketenStufe = stufe;
-        state.raketenCooldown = 0; state.sniperGranatenLadungen = 3;
+        state.raketenCooldown = 0;
+        state.sniperGranatenLadungen = 3;
         const m = M.eineMine();
         const f = M.setzeFeind(m.x, m.y + 40);
         M.bisHaftet(f, 0, -3);
@@ -2432,7 +2951,8 @@ test.describe('Spectre-SR Haftminen', () => {
       state.raketenStufe = 1;
       const m = M.eineMine();
       const f = M.setzeFeind(m.x, m.y + 40);
-      f.schildHp = 50; f.hatSchild = true;
+      f.schildHp = 50;
+      f.hatSchild = true;
       M.bisHaftet(f, 0, -3);
       G.frei(31);
       return { hp, schild: f.schildHp, hpSchild: f.hp };
@@ -2453,13 +2973,17 @@ test.describe('Spectre-SR Haftminen', () => {
       const nah = M.setzeFeind(225, 430);
       M.bisHaftet(a, 0, -3);
       G.frei(10);
-      const px = m.x; const py = m.y;
+      const px = m.x;
+      const py = m.y;
       Utils.zerstoereZiel(a, 'p1');
       G.frei(1);
       const w = document.querySelector('.sniper-mine-explosion');
       return {
-        weg: !arrays.sniperMinen.includes(m), nah: nah.hp,
-        welleX: w ? parseFloat(w.style.left) + parseFloat(w.style.width) / 2 : null, px, py
+        weg: !arrays.sniperMinen.includes(m),
+        nah: nah.hp,
+        welleX: w ? parseFloat(w.style.left) + parseFloat(w.style.width) / 2 : null,
+        px,
+        py,
       };
     });
     expect(r.weg).toBe(true);
@@ -2474,12 +2998,19 @@ test.describe('Spectre-SR Haftminen', () => {
       const G = window.__gr;
       G.halte(23, 'ö');
       G.loslassen('ö');
-      const p2 = { minen: arrays.sniperMinen.map(m => [m.pKey, m.x, m.y]), cd: state.p2.raketenCooldown, cdP1: state.raketenCooldown };
+      const p2 = {
+        minen: arrays.sniperMinen.map(m => [m.pKey, m.x, m.y]),
+        cd: state.p2.raketenCooldown,
+        cdP1: state.raketenCooldown,
+      };
       const el = document.querySelectorAll('.sniper-mine-p2').length;
       return { p2, el };
     });
     // An der Position von P2 gelegt (x 400, y 430), seitdem leicht nach oben gedriftet
-    expect(r.p2.minen.map(m => [m[0], m[1]])).toEqual([['p2', 400], ['p2', 400]]);
+    expect(r.p2.minen.map(m => [m[0], m[1]])).toEqual([
+      ['p2', 400],
+      ['p2', 400],
+    ]);
     expect(r.p2.minen.every(m => m[2] <= 430 && m[2] > 430 - 0.6 * 30)).toBe(true);
     expect(r.p2.cd).toBeGreaterThan(200); // Nachladen seit der ersten Mine
     expect(r.p2.cdP1).toBe(0);
@@ -2509,13 +3040,18 @@ test.describe('Spectre-SR Bot: Minen', () => {
       state.p2IsBot = true;
       state.p2BotDifficulty = 'hard';
       Bot.resetBot();
-      state.p2.x = 285; state.p2.y = 480;
-      state.p2.raketenCooldown = 0; state.p2.sniperGranatenLadungen = 3;
-      state.x = 40; state.y = 540;
+      state.p2.x = 285;
+      state.p2.y = 480;
+      state.p2.raketenCooldown = 0;
+      state.p2.sniperGranatenLadungen = 3;
+      state.x = 40;
+      state.y = 540;
     });
   }
 
-  test('Bot haelt die Raketen-Taste und legt Minen, wenn ein Feind heranfliegt (max. 5), dann loslassen und Cooldown', async ({ page }) => {
+  test('Bot haelt die Raketen-Taste und legt Minen, wenn ein Feind heranfliegt (max. 5), dann loslassen und Cooldown', async ({
+    page,
+  }) => {
     await bereiteBotMinen(page);
     const r = await page.evaluate(() => {
       const { state, arrays } = window.__game;
@@ -2527,15 +3063,24 @@ test.describe('Spectre-SR Bot: Minen', () => {
       let granaten = 0;
       for (let i = 0; i < 80; i++) {
         // Schiff fest, Feind naehert sich jeden Schritt um 1,2 px von 148 auf etwa 60 px Abstand
-        state.p2.x = 285; state.p2.y = 480;
-        f.x = 285; f.y = 480 - 148 + Math.min(i, 73) * 1.2;
-        f.el.style.left = f.x + 'px'; f.el.style.top = f.y + 'px';
+        state.p2.x = 285;
+        state.p2.y = 480;
+        f.x = 285;
+        f.y = 480 - 148 + Math.min(i, 73) * 1.2;
+        f.el.style.left = f.x + 'px';
+        f.el.style.top = f.y + 'px';
         G.frei(1);
         if (state.p2.botFireRakete) gehalten++;
         maxMinen = Math.max(maxMinen, arrays.sniperMinen.filter(m => m.pKey === 'p2').length);
         granaten = Math.max(granaten, document.querySelectorAll('.sniper-granate').length);
       }
-      return { maxMinen, gehalten, granaten, cd: state.p2.raketenCooldown, andere: arrays.sniperMinen.filter(m => m.pKey !== 'p2').length };
+      return {
+        maxMinen,
+        gehalten,
+        granaten,
+        cd: state.p2.raketenCooldown,
+        andere: arrays.sniperMinen.filter(m => m.pKey !== 'p2').length,
+      };
     });
     expect(r.maxMinen).toBe(5);
     expect(r.gehalten).toBeGreaterThanOrEqual(55);
@@ -2553,7 +3098,10 @@ test.describe('Spectre-SR Bot: Minen', () => {
       G.feind(300, 480 + 15 - 100); // nah, aber ruhend: naehert sich nicht
       G.feind(100, 100);
       let gehalten = 0;
-      for (let i = 0; i < 40; i++) { G.frei(1); if (state.p2.botFireRakete) gehalten++; }
+      for (let i = 0; i < 40; i++) {
+        G.frei(1);
+        if (state.p2.botFireRakete) gehalten++;
+      }
       return { gehalten, minen: arrays.sniperMinen.length };
     });
     expect(r.gehalten).toBe(0);
@@ -2562,7 +3110,9 @@ test.describe('Spectre-SR Bot: Minen', () => {
 });
 
 test.describe('Spectre-SR Haftminen online (Host)', () => {
-  test('Host: Snapshot enthaelt die Minen (id, x, y, owner, haftet, Timer, blinkt) und ein Ereignis bei der Explosion', async ({ page }) => {
+  test('Host: Snapshot enthaelt die Minen (id, x, y, owner, haftet, Timer, blinkt) und ein Ereignis bei der Explosion', async ({
+    page,
+  }) => {
     await bereiteOnlineHost(page);
     const r = await page.evaluate(async () => {
       const { state, Network, arrays } = window.__game;
@@ -2574,7 +3124,15 @@ test.describe('Spectre-SR Haftminen online (Host)', () => {
       E({ rakete: false });
       G.frei(2);
       const snap = Network.serializeGameState();
-      const liste = snap.sniperMinen.map(m => ({ id: typeof m.id, x: m.x, y: m.y, owner: m.owner, haftet: m.haftet, rest: m.rest > 300, blinkt: m.blinkt }));
+      const liste = snap.sniperMinen.map(m => ({
+        id: typeof m.id,
+        x: m.x,
+        y: m.y,
+        owner: m.owner,
+        haftet: m.haftet,
+        rest: m.rest > 300,
+        blinkt: m.blinkt,
+      }));
       const k = new NK.SnapshotKodierer();
       const dek = new NK.SnapshotDekodierer().dekodiere(JSON.parse(JSON.stringify(k.kodiere(snap, 0))));
       // Schiff zur Seite, damit der Feind es nicht rammt; Feind mittig auf die erste Mine (Minen driften) -> haftet
@@ -2585,11 +3143,25 @@ test.describe('Spectre-SR Haftminen online (Host)', () => {
       const haftet = Network.serializeGameState().sniperMinen.find(m => m.id === m0.id);
       state.network.lastSentEvent = null;
       G.frei(32);
-      return { liste, dekodiert: dek.sniperMinen.length, haftet: haftet && [haftet.haftet, haftet.zuender > 0], ereignis: state.network.lastSentEvent, hp: f.hp };
+      return {
+        liste,
+        dekodiert: dek.sniperMinen.length,
+        haftet: haftet && [haftet.haftet, haftet.zuender > 0],
+        ereignis: state.network.lastSentEvent,
+        hp: f.hp,
+      };
     });
     expect(r.liste).toHaveLength(2);
     // y: unter P2 gelegt (430) und seitdem nach oben gedriftet
-    expect({ ...r.liste[0], y: undefined }).toEqual({ id: 'string', x: 400, y: undefined, owner: 'p2', haftet: false, rest: true, blinkt: false });
+    expect({ ...r.liste[0], y: undefined }).toEqual({
+      id: 'string',
+      x: 400,
+      y: undefined,
+      owner: 'p2',
+      haftet: false,
+      rest: true,
+      blinkt: false,
+    });
     expect(r.liste[0].y).toBeLessThanOrEqual(430);
     expect(r.liste[0].y).toBeGreaterThan(430 - 0.6 * 30);
     expect(r.dekodiert).toBe(2);
@@ -2609,15 +3181,35 @@ test.describe('Spectre-SR Granaten-Ladungen', () => {
       const { state } = window.__game;
       const Sniper = await import('./js/sniper.js');
       const G = window.__gr;
-      state.sniperGranatenLadungen = 0; state.raketenCooldown = 99;
+      state.sniperGranatenLadungen = 0;
+      state.raketenCooldown = 99;
       Sniper.setzeZurueck(state);
-      const start = { ladungen: state.sniperGranatenLadungen, cd: state.raketenCooldown, p2: state.p2.sniperGranatenLadungen };
+      const start = {
+        ladungen: state.sniperGranatenLadungen,
+        cd: state.raketenCooldown,
+        p2: state.p2.sniperGranatenLadungen,
+      };
       G.wirf();
-      const nachEins = { granaten: document.querySelectorAll('.sniper-granate').length, ladungen: state.sniperGranatenLadungen };
+      const nachEins = {
+        granaten: document.querySelectorAll('.sniper-granate').length,
+        ladungen: state.sniperGranatenLadungen,
+      };
       G.wirf();
-      const nachZwei = { granaten: document.querySelectorAll('.sniper-granate').length, emp: document.querySelectorAll('.sniper-emp').length, ladungen: state.sniperGranatenLadungen };
+      const nachZwei = {
+        granaten: document.querySelectorAll('.sniper-granate').length,
+        emp: document.querySelectorAll('.sniper-emp').length,
+        ladungen: state.sniperGranatenLadungen,
+      };
       G.wirf();
-      return { start, nachEins, nachZwei, nachDrei: { granaten: document.querySelectorAll('.sniper-granate').length, ladungen: state.sniperGranatenLadungen } };
+      return {
+        start,
+        nachEins,
+        nachZwei,
+        nachDrei: {
+          granaten: document.querySelectorAll('.sniper-granate').length,
+          ladungen: state.sniperGranatenLadungen,
+        },
+      };
     });
     expect(r.start).toEqual({ ladungen: 2, cd: 0, p2: 2 });
     expect(r.nachEins).toEqual({ granaten: 1, ladungen: 1 });
@@ -2625,13 +3217,17 @@ test.describe('Spectre-SR Granaten-Ladungen', () => {
     expect(r.nachDrei).toEqual({ granaten: 2, ladungen: 0 });
   });
 
-  test('Nachladen nacheinander: je Ladezeit der Stufe (240 auf Stufe 1, 210 auf Stufe 2), nur eine Ladezeit laeuft', async ({ page }) => {
+  test('Nachladen nacheinander: je Ladezeit der Stufe (240 auf Stufe 1, 210 auf Stufe 2), nur eine Ladezeit laeuft', async ({
+    page,
+  }) => {
     await bereiteGranate(page);
     const r = await page.evaluate(() => {
       const { state } = window.__game;
       const G = window.__gr;
-      const messe = (stufe) => {
-        state.raketenStufe = stufe; state.raketenCooldown = 0; state.sniperGranatenLadungen = 2;
+      const messe = stufe => {
+        state.raketenStufe = stufe;
+        state.raketenCooldown = 0;
+        state.sniperGranatenLadungen = 2;
         G.frei(1);
         G.wirf();
         G.wirf();
@@ -2639,14 +3235,21 @@ test.describe('Spectre-SR Granaten-Ladungen', () => {
         const zeiten = [];
         let letzte = state.sniperGranatenLadungen;
         while (state.sniperGranatenLadungen < 2 && schritte < 600) {
-          G.frei(1); schritte++;
-          if (state.sniperGranatenLadungen !== letzte) { zeiten.push(schritte); letzte = state.sniperGranatenLadungen; }
+          G.frei(1);
+          schritte++;
+          if (state.sniperGranatenLadungen !== letzte) {
+            zeiten.push(schritte);
+            letzte = state.sniperGranatenLadungen;
+          }
         }
         return { zeiten, ladungen: state.sniperGranatenLadungen, cd: state.raketenCooldown };
       };
       return { s1: messe(1), s2: messe(2) };
     });
-    for (const [s, ladezeit] of [[r.s1, 240], [r.s2, 210]]) {
+    for (const [s, ladezeit] of [
+      [r.s1, 240],
+      [r.s2, 210],
+    ]) {
       expect(s.zeiten).toHaveLength(2);
       expect(s.zeiten[0]).toBeGreaterThan(ladezeit - 6);
       expect(s.zeiten[0]).toBeLessThanOrEqual(ladezeit);
@@ -2662,7 +3265,10 @@ test.describe('Spectre-SR Granaten-Ladungen', () => {
       const { state } = window.__game;
       const Sniper = await import('./js/sniper.js');
       const G = window.__gr;
-      const max = (s) => { state.raketenStufe = s; return Sniper.granatenMax(state); };
+      const max = s => {
+        state.raketenStufe = s;
+        return Sniper.granatenMax(state);
+      };
       const maxe = [1, 2, 3, 4, 5].map(max);
       state.raketenStufe = 1;
       G.frei(2);
@@ -2704,16 +3310,28 @@ test.describe('Spectre-SR Granaten-Ladungen', () => {
     expect(r.ohne).toEqual({ minen: 0, ladungen: 0 });
   });
 
-  test('HUD: Punkte neben dem GRANATE-Balken (P1 und P2), Balken zeigt den Ladefortschritt, Mobil-Knopf zeigt die Anzahl', async ({ page }) => {
+  test('HUD: Punkte neben dem GRANATE-Balken (P1 und P2), Balken zeigt den Ladefortschritt, Mobil-Knopf zeigt die Anzahl', async ({
+    page,
+  }) => {
     await bereiteGranate(page, { coop: true });
     const r = await page.evaluate(() => {
       const G = window.__gr;
-      const punkte = (id) => {
+      const punkte = id => {
         const el = document.getElementById(id);
-        return { sichtbar: getComputedStyle(el).display !== 'none', gesamt: el.querySelectorAll('.dash-ladung').length, voll: el.querySelectorAll('.dash-ladung.voll').length };
+        return {
+          sichtbar: getComputedStyle(el).display !== 'none',
+          gesamt: el.querySelectorAll('.dash-ladung').length,
+          voll: el.querySelectorAll('.dash-ladung.voll').length,
+        };
       };
       const zahl = document.getElementById('btn-rakete-ladungen');
-      const lies = () => ({ p1: punkte('dash-ladungen'), p2: punkte('dash-ladungen-p2'), zahl: zahl.textContent, zahlSichtbar: getComputedStyle(zahl).display !== 'none', balken: parseFloat(document.getElementById('raketen-cd-balken').style.width) });
+      const lies = () => ({
+        p1: punkte('dash-ladungen'),
+        p2: punkte('dash-ladungen-p2'),
+        zahl: zahl.textContent,
+        zahlSichtbar: getComputedStyle(zahl).display !== 'none',
+        balken: parseFloat(document.getElementById('raketen-cd-balken').style.width),
+      });
       G.frei(2);
       const voll = lies();
       G.wirf();
@@ -2724,7 +3342,13 @@ test.describe('Spectre-SR Granaten-Ladungen', () => {
       const p2Eine = lies();
       return { voll, eine, keine, p2Eine };
     });
-    expect(r.voll).toMatchObject({ p1: { sichtbar: true, gesamt: 2, voll: 2 }, p2: { sichtbar: true, gesamt: 2, voll: 2 }, zahl: '2', zahlSichtbar: true, balken: 100 });
+    expect(r.voll).toMatchObject({
+      p1: { sichtbar: true, gesamt: 2, voll: 2 },
+      p2: { sichtbar: true, gesamt: 2, voll: 2 },
+      zahl: '2',
+      zahlSichtbar: true,
+      balken: 100,
+    });
     expect(r.eine).toMatchObject({ p1: { gesamt: 2, voll: 1 }, p2: { voll: 2 }, zahl: '1' });
     expect(r.eine.balken).toBeLessThan(5);
     expect(r.keine).toMatchObject({ p1: { voll: 0 }, zahl: '0' });
@@ -2766,21 +3390,41 @@ test.describe('Spectre-SR Bot: Granaten-Ladungen', () => {
       state.p2IsBot = true;
       state.p2BotDifficulty = 'hard';
       Bot.resetBot();
-      state.p2.x = 285; state.p2.y = 480;
-      state.x = 40; state.y = 540;
+      state.p2.x = 285;
+      state.p2.y = 480;
+      state.x = 40;
+      state.y = 540;
       const mx = state.p2.x + 15;
       const my = state.p2.y + 15;
       Entities.erzeugeBossRakete(mx, my - 50, 1);
       const rk = arrays.bossRaketenArray[0];
-      rk.vx = 0; rk.vy = 0;
-      state.p2.sniperGranatenLadungen = 0; state.p2.raketenCooldown = 100;
+      rk.vx = 0;
+      rk.vy = 0;
+      state.p2.sniperGranatenLadungen = 0;
+      state.p2.raketenCooldown = 100;
       let ohne = 0;
-      for (let i = 0; i < 12; i++) { rk.x = state.p2.x + 15; rk.y = state.p2.y - 35; G.frei(1); if (state.p2.botFireRakete) ohne++; }
+      for (let i = 0; i < 12; i++) {
+        rk.x = state.p2.x + 15;
+        rk.y = state.p2.y - 35;
+        G.frei(1);
+        if (state.p2.botFireRakete) ohne++;
+      }
       const nochDa = arrays.bossRaketenArray.includes(rk);
       state.p2.sniperGranatenLadungen = 1;
       let mit = 0;
-      for (let i = 0; i < 6; i++) { rk.x = state.p2.x + 15; rk.y = state.p2.y - 35; G.frei(1); if (state.p2.botFireRakete) mit++; }
-      return { ohne, nochDa, mit, weg: !arrays.bossRaketenArray.includes(rk), ladungen: state.p2.sniperGranatenLadungen };
+      for (let i = 0; i < 6; i++) {
+        rk.x = state.p2.x + 15;
+        rk.y = state.p2.y - 35;
+        G.frei(1);
+        if (state.p2.botFireRakete) mit++;
+      }
+      return {
+        ohne,
+        nochDa,
+        mit,
+        weg: !arrays.bossRaketenArray.includes(rk),
+        ladungen: state.p2.sniperGranatenLadungen,
+      };
     });
     expect(r.ohne).toBe(0);
     expect(r.nochDa).toBe(true);

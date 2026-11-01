@@ -10,31 +10,35 @@ test.beforeEach(async ({ page }) => {
       await route.fulfill({
         status: 201,
         contentType: 'application/json',
-        body: JSON.stringify({ success: true, rank: 1, entry: {} })
+        body: JSON.stringify({ success: true, rank: 1, entry: {} }),
       });
     } else {
       await route.fulfill({
         status: 200,
         contentType: 'application/json',
-        body: JSON.stringify({ success: true, mode, highscores: [] })
+        body: JSON.stringify({ success: true, mode, highscores: [] }),
       });
     }
   });
   // TURN-Endpoint mocken: Tests sollen nicht vom echten Worker abhängen (Verhalten wie ohne TURN)
-  await page.route('**/api/turn*', route => route.fulfill({
-    status: 503,
-    contentType: 'application/json',
-    body: JSON.stringify({ success: false, error: 'TURN nicht konfiguriert' })
-  }));
+  await page.route('**/api/turn*', route =>
+    route.fulfill({
+      status: 503,
+      contentType: 'application/json',
+      body: JSON.stringify({ success: false, error: 'TURN nicht konfiguriert' }),
+    }),
+  );
   // Trystero nicht aus dem Internet laden: Tests sollen nicht vom CDN abhängen
-  await page.route('https://cdn.jsdelivr.net/npm/@trystero-p2p/**', route => route.fulfill({
-    status: 200,
-    contentType: 'application/javascript',
-    headers: { 'access-control-allow-origin': '*' },
-    body: `export function joinRoom() {
+  await page.route('https://cdn.jsdelivr.net/npm/@trystero-p2p/**', route =>
+    route.fulfill({
+      status: 200,
+      contentType: 'application/javascript',
+      headers: { 'access-control-allow-origin': '*' },
+      body: `export function joinRoom() {
   return { makeAction: () => [() => {}, () => {}], onPeerJoin: () => {}, onPeerLeave: () => {}, leave: () => {} };
-}`
-  }));
+}`,
+    }),
+  );
 
   // Standardmäßig als bereits gesehen markieren, damit die Tests direkt interagieren können
   await setzeSpielstand(page);
@@ -42,7 +46,6 @@ test.beforeEach(async ({ page }) => {
 });
 
 test.describe('Space Shooter', () => {
-
   test('Das Spiel lädt und der Start-Text wird angezeigt', async ({ page }) => {
     const startText = page.locator('#start-text');
     await expect(startText).toBeVisible();
@@ -76,7 +79,7 @@ test.describe('Space Shooter', () => {
     const borderRadius = await energieLetter.evaluate(el => window.getComputedStyle(el).borderRadius);
     expect(borderRadius).toBe('50%');
   });
-  
+
   test('Spiel startet nach Tastendruck und Sterne fliegen', async ({ page }) => {
     // Vorher ist spielLaeuft false
     const startText = page.locator('#start-text');
@@ -87,7 +90,7 @@ test.describe('Space Shooter', () => {
 
     // Start-Text verschwindet
     await expect(startText).toBeHidden();
-    
+
     // Taste wieder loslassen
     await page.keyboard.up('w');
   });
@@ -99,7 +102,9 @@ test.describe('Space Shooter', () => {
     // Schiff weit unter das Bomben-Ziel (Spielfeldmitte, y 285) setzen: vom Startpunkt (y 285) aus
     // detoniert die Bombe nach ~10 Frames, und bei 36 s Cooldown kommt keine zweite, falls die
     // Locator-Abfrage diese Frames verpasst
-    await page.evaluate(() => { window.__game.state.y = 500; });
+    await page.evaluate(() => {
+      window.__game.state.y = 500;
+    });
 
     // Bombe abfeuern mit Leertaste
     await page.keyboard.down('Space');
@@ -162,7 +167,9 @@ test.describe('Space Shooter', () => {
     expect(laserCount).toBe(0);
   });
 
-  test('Cheatcodes idkf1 bis idkf5 setzen alle Waffenstufen (1 bis 5), resetten Cooldowns und zeigen Overlay', async ({ page }) => {
+  test('Cheatcodes idkf1 bis idkf5 setzen alle Waffenstufen (1 bis 5), resetten Cooldowns und zeigen Overlay', async ({
+    page,
+  }) => {
     // Spiel starten
     await starteSpiel(page, 'KeyW');
 
@@ -189,7 +196,7 @@ test.describe('Space Shooter', () => {
           bombenCooldown: stateMod.state.bombenCooldown,
           raketenCooldown: stateMod.state.raketenCooldown,
           energie: stateMod.state.energie,
-          maxEnergie: stateMod.state.maxEnergie
+          maxEnergie: stateMod.state.maxEnergie,
         };
       });
 
@@ -207,7 +214,9 @@ test.describe('Space Shooter', () => {
     }
   });
 
-  test('Cheatcodes idkfl1 bis idkfl9 springen direkt in das entsprechende Level und aktualisieren das UI', async ({ page }) => {
+  test('Cheatcodes idkfl1 bis idkfl9 springen direkt in das entsprechende Level und aktualisieren das UI', async ({
+    page,
+  }) => {
     // Spiel starten
     await starteSpiel(page, 'KeyW');
 
@@ -220,7 +229,7 @@ test.describe('Space Shooter', () => {
         const stateMod = await import('./js/state.js');
         return {
           level: stateMod.state.level,
-          cheatUsed: stateMod.state.cheatUsed
+          cheatUsed: stateMod.state.cheatUsed,
         };
       });
 
@@ -264,7 +273,9 @@ test.describe('Space Shooter', () => {
     await expect(table).toContainText('XYZ');
   });
 
-  test('Highscore-Tabelle speichert und zeigt den verwendeten Schiffstyp hinter jedem Highscore an', async ({ page }) => {
+  test('Highscore-Tabelle speichert und zeigt den verwendeten Schiffstyp hinter jedem Highscore an', async ({
+    page,
+  }) => {
     await starteSpiel(page, 'KeyW');
 
     await page.evaluate(async () => {
@@ -359,7 +370,9 @@ test.describe('Space Shooter', () => {
     await page.keyboard.up('k');
   });
 
-  test('Auf Laser-Stufe 4 feuert das Schiff 4 parallele, gebündelte Laser ohne diagonale Streuung (vx = 0)', async ({ page }) => {
+  test('Auf Laser-Stufe 4 feuert das Schiff 4 parallele, gebündelte Laser ohne diagonale Streuung (vx = 0)', async ({
+    page,
+  }) => {
     // Spiel starten und Laserstufe 4 setzen
     await starteSpiel(page, 'KeyW');
 
@@ -379,7 +392,7 @@ test.describe('Space Shooter', () => {
       return stateMod.arrays.laserArray.map(l => ({
         vx: l.vx,
         vy: l.vy,
-        width: l.width
+        width: l.width,
       }));
     });
 
@@ -393,7 +406,9 @@ test.describe('Space Shooter', () => {
     }
   });
 
-  test('Automatischer Laser zielt nicht auf unzerstoerbare Asteroiden, sondern waehlt zerstoerbare Ziele', async ({ page }) => {
+  test('Automatischer Laser zielt nicht auf unzerstoerbare Asteroiden, sondern waehlt zerstoerbare Ziele', async ({
+    page,
+  }) => {
     // Spiel starten
     await page.keyboard.down('KeyW');
     await page.waitForFunction(() => window.__game.state.spielLaeuft);
@@ -549,7 +564,9 @@ test.describe('Space Shooter', () => {
     expect(viperDelta).toBeGreaterThan(phantomDelta);
   });
 
-  test('Schiff-Eigenschaften: Phantom-NX regeneriert Schild Stufe 1 nach Treffer und zeigt Uhr-Ladeanimation (O1)', async ({ page }) => {
+  test('Schiff-Eigenschaften: Phantom-NX regeneriert Schild Stufe 1 nach Treffer und zeigt Uhr-Ladeanimation (O1)', async ({
+    page,
+  }) => {
     // 1. Phantom-NX wählen
     const phantomBtn = page.locator('.hangar-model-btn[data-model="phantom"]');
     await phantomBtn.click();
@@ -590,7 +607,7 @@ test.describe('Space Shooter', () => {
       return {
         stufe: stateMod.state.schildStufe,
         hasShieldClass: spielerEl.classList.contains('schild-aktiv-1'),
-        timer: stateMod.state.phantomSchildRegenTimer
+        timer: stateMod.state.phantomSchildRegenTimer,
       };
     });
 
@@ -613,7 +630,7 @@ test.describe('Space Shooter', () => {
       const spielerEl = document.getElementById('spieler');
       return {
         stufe: stateMod.state.schildStufe,
-        hasShieldClass: spielerEl.classList.contains('schild-aktiv-1')
+        hasShieldClass: spielerEl.classList.contains('schild-aktiv-1'),
       };
     });
 
@@ -632,7 +649,7 @@ test.describe('Space Shooter', () => {
       const spielerEl = document.getElementById('spieler');
       return {
         stufe: stateMod.state.schildStufe,
-        hasShieldClass: spielerEl.classList.contains('schild-aktiv-1')
+        hasShieldClass: spielerEl.classList.contains('schild-aktiv-1'),
       };
     });
 
@@ -640,7 +657,9 @@ test.describe('Space Shooter', () => {
     expect(viperSchild.hasShieldClass).toBe(false);
   });
 
-  test('Schiff-Eigenschaften: Phantom-NX und Viper-X verlieren bei Treffern keine Upgrades (Viper: Kombo statt Verlust)', async ({ page }) => {
+  test('Schiff-Eigenschaften: Phantom-NX und Viper-X verlieren bei Treffern keine Upgrades (Viper: Kombo statt Verlust)', async ({
+    page,
+  }) => {
     // 1. Test mit Phantom-NX: Verliert KEINE Upgrades bei Treffer
     const phantomBtn = page.locator('.hangar-model-btn[data-model="phantom"]');
     await phantomBtn.click();
@@ -654,7 +673,7 @@ test.describe('Space Shooter', () => {
       stateMod.state.schildStufe = 0; // Kein Schild, damit Treffer direkt HP trifft
       stateMod.state.leben = 3;
       stateMod.state.invulnerableTimer = 0;
-      
+
       // Treffer simulieren
       utilsMod.spielerGetroffen({ x: 0, y: 0, el: document.createElement('div'), istFeind: true }, false);
     });
@@ -665,7 +684,7 @@ test.describe('Space Shooter', () => {
         laser: stateMod.state.laserStufe,
         raketen: stateMod.state.raketenStufe,
         bomben: stateMod.state.bombenStufe,
-        leben: stateMod.state.leben
+        leben: stateMod.state.leben,
       };
     });
 
@@ -701,7 +720,7 @@ test.describe('Space Shooter', () => {
         raketen: stateMod.state.raketenStufe,
         bomben: stateMod.state.bombenStufe,
         leben: stateMod.state.leben,
-        summe: stateMod.state.laserStufe + stateMod.state.raketenStufe + stateMod.state.bombenStufe
+        summe: stateMod.state.laserStufe + stateMod.state.raketenStufe + stateMod.state.bombenStufe,
       };
     });
 
@@ -730,7 +749,7 @@ test.describe('Space Shooter', () => {
       for (let i = 0; i < 30; i++) simulationsSchritt();
       return {
         energie: stateMod.state.energie,
-        configRegen: stateMod.shipModels.viper.energyRegen
+        configRegen: stateMod.shipModels.viper.energyRegen,
       };
     });
 
@@ -751,7 +770,7 @@ test.describe('Space Shooter', () => {
       for (let i = 0; i < 30; i++) simulationsSchritt();
       return {
         energie: stateMod.state.energie,
-        configRegen: stateMod.shipModels.phantom.energyRegen
+        configRegen: stateMod.shipModels.phantom.energyRegen,
       };
     });
 
@@ -760,7 +779,9 @@ test.describe('Space Shooter', () => {
     expect(viperRegen.energie).toBeGreaterThan(phantomRegen.energie);
   });
 
-  test('Schiff-Eigenschaften: Viper-X erhaelt bei Zerstoerung kleiner Gegner Energie zurueck (+5 Energie)', async ({ page }) => {
+  test('Schiff-Eigenschaften: Viper-X erhaelt bei Zerstoerung kleiner Gegner Energie zurueck (+5 Energie)', async ({
+    page,
+  }) => {
     // 1. Viper-X wählen (Standard)
     const viperBtn = page.locator('.hangar-model-btn[data-model="viper"]');
     await viperBtn.click();
@@ -796,10 +817,11 @@ test.describe('Space Shooter', () => {
     const detail = page.locator('#hangar-perk-detail');
 
     // Erwartete Perks kommen aus der Schiffs-Config, nicht aus festen Texten/Anzahlen
-    const getPerks = (modell) => page.evaluate((m) => window.__game.shipModels[m].perks.map(p => ({ label: p.label, type: p.type })), modell);
+    const getPerks = modell =>
+      page.evaluate(m => window.__game.shipModels[m].perks.map(p => ({ label: p.label, type: p.type })), modell);
 
     // Prueft, dass die angezeigten Badges exakt zu den Perks des Modells passen
-    const pruefeBadges = async (modell) => {
+    const pruefeBadges = async modell => {
       const perks = await getPerks(modell);
       expect(perks.length).toBeGreaterThan(0);
       await expect(badges).toHaveCount(perks.length);
@@ -834,19 +856,19 @@ test.describe('Space Shooter', () => {
   test('Spielfeld skaliert dynamisch je nach Fenstergröße', async ({ page }) => {
     const spielfeld = page.locator('#spielfeld');
     const container = page.locator('#spielfeld-container');
-    
+
     await expect(container).toBeAttached();
 
     // Initiale Transformation prüfen
-    let transform = await spielfeld.evaluate((el) => el.style.transform);
+    let transform = await spielfeld.evaluate(el => el.style.transform);
     expect(transform).toContain('scale');
 
     // Fenstergröße extrem ändern
     await page.setViewportSize({ width: 1920, height: 1080 });
     // Kurz warten bis Event Listener triggert
     await page.waitForTimeout(100);
-    
-    let newTransform = await spielfeld.evaluate((el) => el.style.transform);
+
+    let newTransform = await spielfeld.evaluate(el => el.style.transform);
     expect(newTransform).toContain('scale');
     expect(newTransform).not.toEqual(transform); // Scale factor sollte sich geändert haben
   });
@@ -870,7 +892,10 @@ test.describe('Was gibt es Neues Modal (Changelog)', () => {
     // Erwartete Werte aus dem Spielcode, damit der Test bei einem Release nicht angepasst werden muss
     const { version, anzahl } = await page.evaluate(async () => {
       const { GAME_VERSION, changelogData } = await import('./js/changelog.js');
-      return { version: GAME_VERSION, anzahl: changelogData[GAME_VERSION] ? changelogData[GAME_VERSION].highlights.length : 0 };
+      return {
+        version: GAME_VERSION,
+        anzahl: changelogData[GAME_VERSION] ? changelogData[GAME_VERSION].highlights.length : 0,
+      };
     });
     expect(anzahl).toBeGreaterThan(0); // jede Release-Version braucht einen Changelog-Eintrag
     await expect(intro).toContainText(version);
@@ -901,20 +926,20 @@ test.describe('Mobile UI Positionierung - Handy (Pixel)', () => {
   test('Buttons sind relativ zum Spielfeld korrekt platziert und ragen nicht unschön rein', async ({ page }) => {
     // Echten Tap auf Start-Text ausführen
     await page.tap('#start-text');
-    
+
     // Warten bis Controls da sind
     await expect(page.locator('#mobile-controls')).toBeVisible();
-    
+
     const raketeBtn = page.locator('#btn-rakete');
     const spielfeld = page.locator('#spielfeld');
-    
+
     const raketeBox = await raketeBtn.boundingBox();
     const feldBox = await spielfeld.boundingBox();
-    
+
     // Der Abstand vom rechten Button-Rand zum rechten Spielfeld-Rand sollte gering sein (unter 60px)
     const distanceToRightEdge = raketeBox.x + raketeBox.width - (feldBox.x + feldBox.width);
     expect(Math.abs(distanceToRightEdge)).toBeLessThan(60);
-    
+
     // Prüfen, dass der Button im unteren Bereich / unterhalb der Spielfläche liegt
     expect(raketeBox.y).toBeGreaterThanOrEqual(feldBox.y + feldBox.height - 50);
   });
@@ -926,25 +951,27 @@ test.describe('Mobile UI Positionierung - Tablet (iPad)', () => {
 
   test('Buttons kleben nicht am rechten Bildschirmrand, sondern am Spielfeld', async ({ page }) => {
     await page.tap('#start-text');
-    
+
     await expect(page.locator('#mobile-controls')).toBeVisible();
-    
+
     const raketeBtn = page.locator('#btn-rakete');
     const spielfeld = page.locator('#spielfeld');
-    
+
     const raketeBox = await raketeBtn.boundingBox();
     const feldBox = await spielfeld.boundingBox();
-    
-    const distanceToRightEdge = (raketeBox.x + raketeBox.width) - (feldBox.x + feldBox.width);
+
+    const distanceToRightEdge = raketeBox.x + raketeBox.width - (feldBox.x + feldBox.width);
     expect(Math.abs(distanceToRightEdge)).toBeLessThan(60);
-    
+
     // Prüfen, dass der Button im unteren Bereich / unterhalb der Spielfläche liegt
     expect(raketeBox.y).toBeGreaterThanOrEqual(feldBox.y + feldBox.height - 50);
   });
 });
 
 test.describe('Raketenwerfer am Schiff', () => {
-  test('Zeigt auf Stufe 1 bei Viper-X nur den linken Werfer, bei Phantom-NX nur den rechten Werfer', async ({ page }) => {
+  test('Zeigt auf Stufe 1 bei Viper-X nur den linken Werfer, bei Phantom-NX nur den rechten Werfer', async ({
+    page,
+  }) => {
     // Spiel starten mit Viper-X (Standard)
     await starteSpiel(page, 'KeyW');
 
@@ -969,7 +996,9 @@ test.describe('Raketenwerfer am Schiff', () => {
     await expect(werferCenter).toBeHidden();
   });
 
-  test('Auf Stufe 3 und 4 erscheinen beide seitlichen Werfer, auf Stufe 5 der dritte mittlere Werfer', async ({ page }) => {
+  test('Auf Stufe 3 und 4 erscheinen beide seitlichen Werfer, auf Stufe 5 der dritte mittlere Werfer', async ({
+    page,
+  }) => {
     await starteSpiel(page, 'KeyW');
 
     const werferLinks = page.locator('#spieler .werfer-links');
@@ -1153,7 +1182,9 @@ test.describe('Late-Game Difficulty & Gegner-Mechaniken', () => {
     expect(laserCount).toBeGreaterThanOrEqual(2);
   });
 
-  test('Schild-Gegner besitzen ab Level 3 einen schützenden Energieschild, der erst zerstört werden muss', async ({ page }) => {
+  test('Schild-Gegner besitzen ab Level 3 einen schützenden Energieschild, der erst zerstört werden muss', async ({
+    page,
+  }) => {
     await starteSpiel(page, 'KeyW');
 
     // Feind mit Schild spawnen
@@ -1205,7 +1236,9 @@ test.describe('Late-Game Difficulty & Gegner-Mechaniken', () => {
     await expect(schildEl).toBeHidden();
   });
 
-  test('Boss kann eine zerstörbare Boss-Bombe abwerfen, die vor der Detonation abgeschossen werden kann', async ({ page }) => {
+  test('Boss kann eine zerstörbare Boss-Bombe abwerfen, die vor der Detonation abgeschossen werden kann', async ({
+    page,
+  }) => {
     await starteSpiel(page, 'KeyW');
 
     // Aufbau und feste Simulationsschritte in einem synchronen Block (kein Echtzeit-Warten).
@@ -1248,10 +1281,17 @@ test.describe('Late-Game Difficulty & Gegner-Mechaniken', () => {
       state.tastenGedrueckt.l = false;
 
       return {
-        startHp, timerStart, schritte, hpStufen: hpVerlauf.size,
-        timerRest: bombe.timer, bombeNochDa: arrays.bossBombenArray.includes(bombe),
-        scoreDiff: state.score - scoreVorher, lebenDiff: state.leben - lebenVorher,
-        shockwaves, bombeY: bombe.y, maxY: config.spielfeldHoehe - 60
+        startHp,
+        timerStart,
+        schritte,
+        hpStufen: hpVerlauf.size,
+        timerRest: bombe.timer,
+        bombeNochDa: arrays.bossBombenArray.includes(bombe),
+        scoreDiff: state.score - scoreVorher,
+        lebenDiff: state.leben - lebenVorher,
+        shockwaves,
+        bombeY: bombe.y,
+        maxY: config.spielfeldHoehe - 60,
       };
     });
 
@@ -1268,7 +1308,9 @@ test.describe('Late-Game Difficulty & Gegner-Mechaniken', () => {
     expect(r.lebenDiff).toBe(0);
   });
 
-  test('Boss feuert seitlich startende, zielsuchende Raketen ab, die vom Spieler im Flug abgeschossen werden können', async ({ page }) => {
+  test('Boss feuert seitlich startende, zielsuchende Raketen ab, die vom Spieler im Flug abgeschossen werden können', async ({
+    page,
+  }) => {
     await starteSpiel(page, 'KeyW');
 
     // 1. Boss-Rakete seitlich ausklinken
@@ -1379,7 +1421,9 @@ test.describe('Late-Game Difficulty & Gegner-Mechaniken', () => {
     expect(r.schritte).toBeLessThan(60);
     expect(r.nachDrittem).toBe(r.nachErstem - 1);
   });
-  test('Sound-Mute Toggle: M-Taste und Sound-Button schalten Sound um und synchronisieren mit localStorage', async ({ page }) => {
+  test('Sound-Mute Toggle: M-Taste und Sound-Button schalten Sound um und synchronisieren mit localStorage', async ({
+    page,
+  }) => {
     const soundBtn = page.locator('#btn-sound-toggle');
     await expect(soundBtn).toBeVisible();
     await expect(soundBtn).toHaveText('🔊');
@@ -1500,7 +1544,9 @@ test.describe('Late-Game Difficulty & Gegner-Mechaniken', () => {
     expect(bombEvents.length).toBeGreaterThan(0);
   });
 
-  test('Sound-Trigger: Zerstörung, Treffer und Magma-Abpraller lösen playExplosion bzw. playHit aus', async ({ page }) => {
+  test('Sound-Trigger: Zerstörung, Treffer und Magma-Abpraller lösen playExplosion bzw. playHit aus', async ({
+    page,
+  }) => {
     await starteSpiel(page, 'KeyW');
 
     // 1. Ziel-Zerstörung testen
@@ -1511,9 +1557,14 @@ test.describe('Late-Game Difficulty & Gegner-Mechaniken', () => {
       audioMod.clearAudioHistory();
 
       const dummyTarget = {
-        x: 100, y: 100, groesse: 30, maxHp: 30, hp: 0,
+        x: 100,
+        y: 100,
+        groesse: 30,
+        maxHp: 30,
+        hp: 0,
         el: document.createElement('div'),
-        istBoss: false, istFeind: true
+        istBoss: false,
+        istFeind: true,
       };
       stateMod.arrays.feinde.push(dummyTarget);
       utilsMod.zerstoereZiel(dummyTarget);
@@ -1546,7 +1597,9 @@ test.describe('Late-Game Difficulty & Gegner-Mechaniken', () => {
     expect(hitEvents.length).toBeGreaterThan(0);
   });
 
-  test('Sound-Trigger: Powerup-Einsammeln und Schild-Regeneration lösen playPowerup bzw. playShieldRegen aus', async ({ page }) => {
+  test('Sound-Trigger: Powerup-Einsammeln und Schild-Regeneration lösen playPowerup bzw. playShieldRegen aus', async ({
+    page,
+  }) => {
     await starteSpiel(page, 'KeyW');
 
     // 1. Powerup einsammeln testen
@@ -1669,7 +1722,9 @@ test.describe('Late-Game Difficulty & Gegner-Mechaniken', () => {
     expect(bossLaserEvents.length).toBeGreaterThan(0);
   });
 
-  test('Sound-Trigger: Boss-Bomben und Boss-Raketen lösen playBossBombLaunch bzw. playBossRocketLaunch aus', async ({ page }) => {
+  test('Sound-Trigger: Boss-Bomben und Boss-Raketen lösen playBossBombLaunch bzw. playBossRocketLaunch aus', async ({
+    page,
+  }) => {
     await starteSpiel(page, 'KeyW');
 
     // 1. Boss-Bombe spawnen
@@ -1703,7 +1758,9 @@ test.describe('Late-Game Difficulty & Gegner-Mechaniken', () => {
     expect(rocketLaunchEvents.length).toBeGreaterThan(0);
   });
 
-  test('Sound-Synthesizer: playMissile erzeugt ein realistisches Silvester-Raketen-Zischen mit Rauschfilter', async ({ page }) => {
+  test('Sound-Synthesizer: playMissile erzeugt ein realistisches Silvester-Raketen-Zischen mit Rauschfilter', async ({
+    page,
+  }) => {
     await starteSpiel(page, 'KeyW');
 
     const result = await page.evaluate(async () => {
@@ -1744,7 +1801,7 @@ test.describe('Late-Game Difficulty & Gegner-Mechaniken', () => {
         history: audioMod.audioHistory,
         hasNoiseBuffer: !!audioMod.getNoiseBuffer(audioMod.getAudioContext()),
         filterTypes: filters.map(f => f.type),
-        loopingNoiseSources: sources.filter(s => s.buffer != null && s.loop === true).length
+        loopingNoiseSources: sources.filter(s => s.buffer != null && s.loop === true).length,
       };
     });
 
@@ -1781,7 +1838,7 @@ test.describe('Late-Game Difficulty & Gegner-Mechaniken', () => {
         stufe: 1,
         radius: 60,
         schaden: 50,
-        isHoming: false
+        isHoming: false,
       });
 
       // Feind in Zündnähe
@@ -1799,7 +1856,9 @@ test.describe('Late-Game Difficulty & Gegner-Mechaniken', () => {
     expect(missileExpEvents.length).toBeGreaterThan(0);
   });
 
-  test('Sound-Trigger: Fliegende Bomben (Spieler & Boss) erzeugen ein beschleunigendes Piepsen (playBombBeep)', async ({ page }) => {
+  test('Sound-Trigger: Fliegende Bomben (Spieler & Boss) erzeugen ein beschleunigendes Piepsen (playBombBeep)', async ({
+    page,
+  }) => {
     await starteSpiel(page, 'KeyW');
 
     // 1. Boss-Bombe spawnen und fliegen lassen
@@ -1822,7 +1881,9 @@ test.describe('Late-Game Difficulty & Gegner-Mechaniken', () => {
     expect(bombBeepEvents.length).toBeGreaterThan(0);
   });
 
-  test('Sound-Trigger: Boss-Raketen erzeugen im Flug periodisch Triebwerksgeräusche (playBossRocketFlight)', async ({ page }) => {
+  test('Sound-Trigger: Boss-Raketen erzeugen im Flug periodisch Triebwerksgeräusche (playBossRocketFlight)', async ({
+    page,
+  }) => {
     await starteSpiel(page, 'KeyW');
 
     // Boss-Rakete spawnen und fliegen lassen
@@ -1847,7 +1908,6 @@ test.describe('Late-Game Difficulty & Gegner-Mechaniken', () => {
 });
 
 test.describe('Story Intro-Cutszene', () => {
-
   test.beforeEach(async ({ page }) => {
     await page.addInitScript(() => {
       localStorage.removeItem('starshooter_skip_cutscene');
@@ -1904,7 +1964,9 @@ test.describe('Story Intro-Cutszene', () => {
     await expect(escorts).toHaveCount(2);
 
     // Prüfen, dass die Schiffe fliegen (Animation / Bewegung von links nach rechts)
-    const initialX = await playerConvoyShip.evaluate(el => parseFloat(el.style.left || window.getComputedStyle(el).left));
+    const initialX = await playerConvoyShip.evaluate(el =>
+      parseFloat(el.style.left || window.getComputedStyle(el).left),
+    );
     await page.waitForTimeout(300);
     const newX = await playerConvoyShip.evaluate(el => parseFloat(el.style.left || window.getComputedStyle(el).left));
     expect(newX).toBeGreaterThan(initialX);
@@ -1921,7 +1983,9 @@ test.describe('Story Intro-Cutszene', () => {
     await page.keyboard.up('w');
   }
 
-  test('Alien-Sprechblasen erscheinen mit unleserlichen Glyphen im Vordergrund und lösen Audio aus', async ({ page }) => {
+  test('Alien-Sprechblasen erscheinen mit unleserlichen Glyphen im Vordergrund und lösen Audio aus', async ({
+    page,
+  }) => {
     await starteCutszeneMitUhr(page);
 
     // Warten auf die erste Alien-Sprechblase (Seitenzeit, ~2,2 s)
@@ -1945,7 +2009,9 @@ test.describe('Story Intro-Cutszene', () => {
 
   // Frueher zwei Tests mit gleicher Vorbedingung und gleichem Ablauf (Angriff, dann Lichtstrahl) mit
   // zusammen ~28 s Echtzeit. Jetzt eine Cutszene mit Fake-Uhr; die Zeitfenster gelten in Seitenzeit ab Start.
-  test('Überraschungsangriff zerstört alle Begleitschiffe bis auf das Spielerschiff, danach Lichtstrahl und nahtloser Übergang ins Spiel', async ({ page }) => {
+  test('Überraschungsangriff zerstört alle Begleitschiffe bis auf das Spielerschiff, danach Lichtstrahl und nahtloser Übergang ins Spiel', async ({
+    page,
+  }) => {
     await starteCutszeneMitUhr(page);
 
     const destroyer = page.locator('.cutscene-ship.ship-destroyer');
@@ -1961,8 +2027,15 @@ test.describe('Story Intro-Cutszene', () => {
     await expect(fireball.first()).toBeAttached();
 
     // Nach Abschluss der Zerstörungsphase (bis 14 s) sind alle Begleitschiffe weg
-    zeit += await spuleBis(page, async () => (await destroyer.isHidden()) && (await freighter.isHidden()) &&
-      (await hospitalShip.isHidden()) && (await escorts.count()) === 0, 14000 - zeit);
+    zeit += await spuleBis(
+      page,
+      async () =>
+        (await destroyer.isHidden()) &&
+        (await freighter.isHidden()) &&
+        (await hospitalShip.isHidden()) &&
+        (await escorts.count()) === 0,
+      14000 - zeit,
+    );
     await expect(destroyer).toBeHidden();
     await expect(freighter).toBeHidden();
     await expect(hospitalShip).toBeHidden();
@@ -1994,7 +2067,7 @@ test.describe('Story Intro-Cutszene', () => {
       const stateMod = await import('./js/state.js');
       return {
         spielLaeuft: stateMod.state.spielLaeuft,
-        cutsceneAktiv: stateMod.state.cutsceneAktiv
+        cutsceneAktiv: stateMod.state.cutsceneAktiv,
       };
     });
     expect(gameState.spielLaeuft).toBe(true);
@@ -2055,7 +2128,9 @@ test.describe('Story Intro-Cutszene', () => {
     expect(isRunning).toBe(true);
   });
 
-  test('Neustart nach Bosskampf entfernt alle Boss-Raketen, Boss-Bomben und Artefakte vollständig', async ({ page }) => {
+  test('Neustart nach Bosskampf entfernt alle Boss-Raketen, Boss-Bomben und Artefakte vollständig', async ({
+    page,
+  }) => {
     // Spiel starten und künstlich Boss-Rakete & Boss-Bombe erzeugen
     await starteSpiel(page);
 
@@ -2088,7 +2163,7 @@ test.describe('Story Intro-Cutszene', () => {
       const stateMod = await import('./js/state.js');
       return {
         bossRaketen: stateMod.arrays.bossRaketenArray.length,
-        bossBomben: stateMod.arrays.bossBombenArray.length
+        bossBomben: stateMod.arrays.bossBombenArray.length,
       };
     });
     expect(arrayLengths.bossRaketen).toBe(0);
@@ -2097,7 +2172,9 @@ test.describe('Story Intro-Cutszene', () => {
 });
 
 test.describe('2-Spieler-Modus (Co-op)', () => {
-  test('Modus-Auswahl auf Startscreen schaltet zwischen 1-Spieler (400px) und 2-Spieler Co-op (600px) um', async ({ page }) => {
+  test('Modus-Auswahl auf Startscreen schaltet zwischen 1-Spieler (400px) und 2-Spieler Co-op (600px) um', async ({
+    page,
+  }) => {
     const btnSingle = page.locator('#gamemode-btn-single');
     const btnCoop = page.locator('#gamemode-btn-coop');
 
@@ -2185,7 +2262,7 @@ test.describe('2-Spieler-Modus (Co-op)', () => {
         p1Model: state.selectedShipModel,
         p1Color: state.selectedShipColor,
         p2Model: state.p2.selectedShipModel,
-        p2Color: state.p2.selectedShipColor
+        p2Color: state.p2.selectedShipColor,
       };
     });
     expect(shipsState.p1Model).toBe('viper');
@@ -2204,7 +2281,9 @@ test.describe('2-Spieler-Modus (Co-op)', () => {
     await expect(page.locator('.hangar-color-btn[data-color="green"]')).toHaveClass(/active/);
   });
 
-  test('Tastatur-Steuerung im 2-Spieler Modus: Spieler 1 bewegt sich mit WASD, Spieler 2 mit den Pfeiltasten unabhängig voneinander', async ({ page }) => {
+  test('Tastatur-Steuerung im 2-Spieler Modus: Spieler 1 bewegt sich mit WASD, Spieler 2 mit den Pfeiltasten unabhängig voneinander', async ({
+    page,
+  }) => {
     // 2-Spieler Modus aktivieren und Spiel starten
     await page.locator('#gamemode-btn-coop').click();
 
@@ -2222,7 +2301,7 @@ test.describe('2-Spieler-Modus (Co-op)', () => {
         p1X: state.x,
         p1Y: state.y,
         p2X: state.p2.x,
-        p2Y: state.p2.y
+        p2Y: state.p2.y,
       };
     });
 
@@ -2237,7 +2316,7 @@ test.describe('2-Spieler-Modus (Co-op)', () => {
         p1X: state.x,
         p1Y: state.y,
         p2X: state.p2.x,
-        p2Y: state.p2.y
+        p2Y: state.p2.y,
       };
     });
 
@@ -2255,7 +2334,7 @@ test.describe('2-Spieler-Modus (Co-op)', () => {
         p1X: state.x,
         p1Y: state.y,
         p2X: state.p2.x,
-        p2Y: state.p2.y
+        p2Y: state.p2.y,
       };
     });
 
@@ -2263,7 +2342,9 @@ test.describe('2-Spieler-Modus (Co-op)', () => {
     expect(posAfterP2Move.p1X).toBe(posAfterP1Move.p1X); // P1 hat sich nicht bewegt
   });
 
-  test('Waffen-Systeme im 2-Spieler Modus: P1 feuert mit B/V/C, P2 mit Ä/Ö/L mit separaten Cooldowns und Energiebalken', async ({ page }) => {
+  test('Waffen-Systeme im 2-Spieler Modus: P1 feuert mit B/V/C, P2 mit Ä/Ö/L mit separaten Cooldowns und Energiebalken', async ({
+    page,
+  }) => {
     // 2-Spieler Modus aktivieren und Spiel starten
     await page.locator('#gamemode-btn-coop').click();
 
@@ -2281,7 +2362,7 @@ test.describe('2-Spieler-Modus (Co-op)', () => {
         p2Energie: state.p2.energie,
         laserCount: arrays.laserArray.length,
         p1Lasers: arrays.laserArray.filter(l => l.owner === 'p1').length,
-        p2Lasers: arrays.laserArray.filter(l => l.owner === 'p2').length
+        p2Lasers: arrays.laserArray.filter(l => l.owner === 'p2').length,
       };
     });
 
@@ -2300,7 +2381,7 @@ test.describe('2-Spieler-Modus (Co-op)', () => {
       return {
         p1Energie: state.energie,
         p2Energie: state.p2.energie,
-        p2Lasers: arrays.laserArray.filter(l => l.owner === 'p2').length
+        p2Lasers: arrays.laserArray.filter(l => l.owner === 'p2').length,
       };
     });
 
@@ -2317,7 +2398,7 @@ test.describe('2-Spieler-Modus (Co-op)', () => {
       return {
         p1RaketenCd: state.raketenCooldown,
         p2RaketenCd: state.p2.raketenCooldown,
-        raketenCount: arrays.raketenArray.length
+        raketenCount: arrays.raketenArray.length,
       };
     });
 
@@ -2333,7 +2414,7 @@ test.describe('2-Spieler-Modus (Co-op)', () => {
     weaponState = await page.evaluate(async () => {
       const { state } = await import('./js/state.js');
       return {
-        p2RaketenCd: state.p2.raketenCooldown
+        p2RaketenCd: state.p2.raketenCooldown,
       };
     });
     expect(weaponState.p2RaketenCd).toBeGreaterThan(0);
@@ -2348,7 +2429,7 @@ test.describe('2-Spieler-Modus (Co-op)', () => {
       return {
         p1BombenCd: state.bombenCooldown,
         p2BombenCd: state.p2.bombenCooldown,
-        bombenCount: arrays.bombenArray.length
+        bombenCount: arrays.bombenArray.length,
       };
     });
 
@@ -2364,13 +2445,15 @@ test.describe('2-Spieler-Modus (Co-op)', () => {
     weaponState = await page.evaluate(async () => {
       const { state } = await import('./js/state.js');
       return {
-        p2BombenCd: state.p2.bombenCooldown
+        p2BombenCd: state.p2.bombenCooldown,
       };
     });
     expect(weaponState.p2BombenCd).toBeGreaterThan(0);
   });
 
-  test('Dedicated Loot-System im 2-Spieler Modus: Powerups sind P1 oder P2 zugeordnet und können nur vom jeweiligen Spieler aufgesammelt werden', async ({ page }) => {
+  test('Dedicated Loot-System im 2-Spieler Modus: Powerups sind P1 oder P2 zugeordnet und können nur vom jeweiligen Spieler aufgesammelt werden', async ({
+    page,
+  }) => {
     // 2-Spieler Modus aktivieren und Spiel starten
     await page.locator('#gamemode-btn-coop').click();
 
@@ -2397,7 +2480,7 @@ test.describe('2-Spieler-Modus (Co-op)', () => {
       return {
         p1LaserStufe: state.laserStufe,
         p2LaserStufe: state.p2.laserStufe,
-        powerupCount: arrays.powerups.length
+        powerupCount: arrays.powerups.length,
       };
     });
 
@@ -2422,7 +2505,7 @@ test.describe('2-Spieler-Modus (Co-op)', () => {
       return {
         p1LaserStufe: state.laserStufe,
         p2LaserStufe: state.p2.laserStufe,
-        powerupCount: arrays.powerups.length
+        powerupCount: arrays.powerups.length,
       };
     });
 
@@ -2448,7 +2531,7 @@ test.describe('2-Spieler-Modus (Co-op)', () => {
       return {
         p1RaketenStufe: state.raketenStufe,
         p2RaketenStufe: state.p2.raketenStufe,
-        powerupCount: arrays.powerups.length
+        powerupCount: arrays.powerups.length,
       };
     });
 
@@ -2473,7 +2556,7 @@ test.describe('2-Spieler-Modus (Co-op)', () => {
       return {
         p1RaketenStufe: state.raketenStufe,
         p2RaketenStufe: state.p2.raketenStufe,
-        powerupCount: arrays.powerups.length
+        powerupCount: arrays.powerups.length,
       };
     });
 
@@ -2481,7 +2564,9 @@ test.describe('2-Spieler-Modus (Co-op)', () => {
     expect(lootState.powerupCount).toBe(0);
   });
 
-  test('Balancing & Spawns im 2-Spieler Modus: Breiteres Spielfeld (600px) nutzt angepasste Feind-Formationen und ausgewogenes HP-Scaling', async ({ page }) => {
+  test('Balancing & Spawns im 2-Spieler Modus: Breiteres Spielfeld (600px) nutzt angepasste Feind-Formationen und ausgewogenes HP-Scaling', async ({
+    page,
+  }) => {
     // 1. SOLO-MODUS PRÜFUNG: Standard HP
     await page.locator('#gamemode-btn-single').click();
     let soloHp = await page.evaluate(async () => {
@@ -2493,7 +2578,7 @@ test.describe('2-Spieler-Modus (Co-op)', () => {
       const boss = arrays.bosses[arrays.bosses.length - 1];
       return {
         feindHp: feind.hp,
-        bossHp: boss.hp
+        bossHp: boss.hp,
       };
     });
 
@@ -2511,7 +2596,7 @@ test.describe('2-Spieler-Modus (Co-op)', () => {
       const boss = arrays.bosses[arrays.bosses.length - 1];
       return {
         feindHp: feind.hp,
-        bossHp: boss.hp
+        bossHp: boss.hp,
       };
     });
 
@@ -2522,7 +2607,9 @@ test.describe('2-Spieler-Modus (Co-op)', () => {
     expect(coopHp.bossHp).toBe(Math.round(soloHp.bossHp * 1.4));
   });
 
-  test('Lebens- & Revive-System im 2-Spieler Modus: Separate Leben, Game Over erst wenn beide Spieler zerstört sind, Revive bei Boss-Sieg', async ({ page }) => {
+  test('Lebens- & Revive-System im 2-Spieler Modus: Separate Leben, Game Over erst wenn beide Spieler zerstört sind, Revive bei Boss-Sieg', async ({
+    page,
+  }) => {
     // 2-Spieler Modus aktivieren und Spiel starten
     await page.locator('#gamemode-btn-coop').click();
 
@@ -2548,7 +2635,7 @@ test.describe('2-Spieler-Modus (Co-op)', () => {
         p1Display: dom.spieler.style.display,
         p2Leben: state.p2.leben,
         p2Dead: state.p2.isDead,
-        gameOver: state.gameOverAktiv
+        gameOver: state.gameOverAktiv,
       };
     });
 
@@ -2575,7 +2662,7 @@ test.describe('2-Spieler-Modus (Co-op)', () => {
         p1Leben: state.leben,
         p1Dead: state.isDead,
         p1Display: dom.spieler.style.display,
-        p1Invuln: state.invulnerableTimer > 0
+        p1Invuln: state.invulnerableTimer > 0,
       };
     });
 
@@ -2607,7 +2694,7 @@ test.describe('2-Spieler-Modus (Co-op)', () => {
       return {
         p1Dead: state.isDead,
         p2Dead: state.p2.isDead,
-        gameOver: state.gameOverAktiv
+        gameOver: state.gameOverAktiv,
       };
     });
 
@@ -2617,7 +2704,9 @@ test.describe('2-Spieler-Modus (Co-op)', () => {
     await expect(page.locator('#game-over-screen')).toBeVisible();
   });
 
-  test('Spieler 2 Energiebalken: #energie-container-p2 und #energie-balken-p2 sind im 2-Spieler Modus sichtbar und korrekt gestylt', async ({ page }) => {
+  test('Spieler 2 Energiebalken: #energie-container-p2 und #energie-balken-p2 sind im 2-Spieler Modus sichtbar und korrekt gestylt', async ({
+    page,
+  }) => {
     await page.locator('#gamemode-btn-coop').click();
     await starteSpiel(page);
 
@@ -2635,7 +2724,9 @@ test.describe('2-Spieler-Modus (Co-op)', () => {
     expect(balkenBox.height).toBeGreaterThanOrEqual(6);
   });
 
-  test('Spieler 2 Schild: #spieler-2 zeigt bei aktiver Schildstufe (1, 2, 3) visuelle Schild-Aura ::after an', async ({ page }) => {
+  test('Spieler 2 Schild: #spieler-2 zeigt bei aktiver Schildstufe (1, 2, 3) visuelle Schild-Aura ::after an', async ({
+    page,
+  }) => {
     await page.locator('#gamemode-btn-coop').click();
     await starteSpiel(page);
 
@@ -2651,7 +2742,7 @@ test.describe('2-Spieler-Modus (Co-op)', () => {
       const afterStyle = window.getComputedStyle(el, '::after');
       return {
         boxShadow: afterStyle.boxShadow,
-        borderRadius: afterStyle.borderRadius
+        borderRadius: afterStyle.borderRadius,
       };
     });
 
@@ -2659,19 +2750,20 @@ test.describe('2-Spieler-Modus (Co-op)', () => {
     expect(shieldAfter1.boxShadow).toContain('52, 152, 219'); // #3498db
 
     // Treffer ueber den echten Spielcode: Stufe 3 -> 2, Klasse muss vom Spiel gesetzt werden
-    const treffer = () => page.evaluate(async () => {
-      const { state, dom } = await import('./js/state.js');
-      const Utils = await import('./js/utils.js');
-      const lebenVorher = state.p2.leben;
-      state.p2.invulnerableTimer = 0;
-      Utils.spielerGetroffen({ x: 0, y: 0 }, false, 'p2');
-      return {
-        stufe: state.p2.schildStufe,
-        leben: state.p2.leben,
-        lebenVorher,
-        klassen: Array.from(dom.spieler2.classList).filter(k => k.startsWith('schild-aktiv-'))
-      };
-    });
+    const treffer = () =>
+      page.evaluate(async () => {
+        const { state, dom } = await import('./js/state.js');
+        const Utils = await import('./js/utils.js');
+        const lebenVorher = state.p2.leben;
+        state.p2.invulnerableTimer = 0;
+        Utils.spielerGetroffen({ x: 0, y: 0 }, false, 'p2');
+        return {
+          stufe: state.p2.schildStufe,
+          leben: state.p2.leben,
+          lebenVorher,
+          klassen: Array.from(dom.spieler2.classList).filter(k => k.startsWith('schild-aktiv-')),
+        };
+      });
 
     await page.evaluate(async () => {
       const { state, dom } = await import('./js/state.js');
@@ -2703,7 +2795,9 @@ test.describe('2-Spieler-Modus (Co-op)', () => {
     expect(nachTreffer3.leben).toBe(nachTreffer3.lebenVorher);
   });
 
-  test('Boss-Zielerfassung im Co-op: Wenn Spieler 1 stirbt, verfolgt und visiert Boss Typ 2 (Jäger) Spieler 2 an', async ({ page }) => {
+  test('Boss-Zielerfassung im Co-op: Wenn Spieler 1 stirbt, verfolgt und visiert Boss Typ 2 (Jäger) Spieler 2 an', async ({
+    page,
+  }) => {
     await page.locator('#gamemode-btn-coop').click();
     await starteSpiel(page);
 
@@ -2737,7 +2831,7 @@ test.describe('2-Spieler-Modus (Co-op)', () => {
       const { arrays } = await import('./js/state.js');
       const boss = arrays.bosses[arrays.bosses.length - 1];
       return {
-        x: boss.x
+        x: boss.x,
       };
     });
 
@@ -2746,7 +2840,9 @@ test.describe('2-Spieler-Modus (Co-op)', () => {
     expect(bossState.x).toBeGreaterThan(200);
   });
 
-  test('Tastensteuerung Spieler 2: Taste L feuert im Co-op Modus nur die Bombe und NICHT den Laser', async ({ page }) => {
+  test('Tastensteuerung Spieler 2: Taste L feuert im Co-op Modus nur die Bombe und NICHT den Laser', async ({
+    page,
+  }) => {
     await page.locator('#gamemode-btn-coop').click();
     await starteSpiel(page);
 
@@ -2769,7 +2865,7 @@ test.describe('2-Spieler-Modus (Co-op)', () => {
       return {
         bombenCount: arrays.bombenArray.length,
         laserCount: arrays.laserArray.length,
-        p2LaserSchiesst: state.p2.laserSchiesst
+        p2LaserSchiesst: state.p2.laserSchiesst,
       };
     });
 
@@ -2780,7 +2876,9 @@ test.describe('2-Spieler-Modus (Co-op)', () => {
     expect(shotState.p2LaserSchiesst).toBe(false);
   });
 
-  test('HUD Layout im Co-op Modus: Punkte- und Levelanzeige sind zentriert und überdecken nicht das P2-HUD', async ({ page }) => {
+  test('HUD Layout im Co-op Modus: Punkte- und Levelanzeige sind zentriert und überdecken nicht das P2-HUD', async ({
+    page,
+  }) => {
     await page.locator('#gamemode-btn-coop').click();
     await starteSpiel(page);
 
@@ -2797,7 +2895,9 @@ test.describe('2-Spieler-Modus (Co-op)', () => {
     expect(levelBox.x + levelBox.width).toBeLessThanOrEqual(uiP2Box.x + 5);
   });
 
-  test('Dedicated Loot bei alleinigem Überleben: Wenn ein Spieler tot ist, spawnen nur Powerups für den lebenden Spieler', async ({ page }) => {
+  test('Dedicated Loot bei alleinigem Überleben: Wenn ein Spieler tot ist, spawnen nur Powerups für den lebenden Spieler', async ({
+    page,
+  }) => {
     await page.locator('#gamemode-btn-coop').click();
     await starteSpiel(page);
 
@@ -2842,7 +2942,9 @@ test.describe('2-Spieler-Modus (Co-op)', () => {
     expect(p1OnlyOwners).toEqual(['p1', 'p1', 'p1', 'p1']);
   });
 
-  test('Highscore-Trennung: saveHighscore und getHighscores speichern Solo- und Co-op-Bestenlisten in separaten localStorage-Keys', async ({ page }) => {
+  test('Highscore-Trennung: saveHighscore und getHighscores speichern Solo- und Co-op-Bestenlisten in separaten localStorage-Keys', async ({
+    page,
+  }) => {
     const result = await page.evaluate(async () => {
       localStorage.removeItem('spaceShooterHighscores');
       localStorage.removeItem('spaceShooterHighscores_coop');
@@ -2855,7 +2957,7 @@ test.describe('2-Spieler-Modus (Co-op)', () => {
         singleList: Utils.getHighscores('single'),
         coopList: Utils.getHighscores('coop'),
         rawSingleStorage: localStorage.getItem('spaceShooterHighscores'),
-        rawCoopStorage: localStorage.getItem('spaceShooterHighscores_coop')
+        rawCoopStorage: localStorage.getItem('spaceShooterHighscores_coop'),
       };
     });
 
@@ -2875,7 +2977,9 @@ test.describe('2-Spieler-Modus (Co-op)', () => {
     expect(result.rawCoopStorage).not.toContain('SOL');
   });
 
-  test('Game Over im Co-op Modus: Highscore-Eingabe qualifiziert sich für Co-op Bestenliste und speichert Schiffe beider Spieler', async ({ page }) => {
+  test('Game Over im Co-op Modus: Highscore-Eingabe qualifiziert sich für Co-op Bestenliste und speichert Schiffe beider Spieler', async ({
+    page,
+  }) => {
     await page.locator('#gamemode-btn-coop').click();
     await starteSpiel(page);
 
@@ -2904,7 +3008,7 @@ test.describe('2-Spieler-Modus (Co-op)', () => {
       const Utils = await import('./js/utils.js');
       return {
         coopList: Utils.getHighscores('coop'),
-        singleList: Utils.getHighscores('single')
+        singleList: Utils.getHighscores('single'),
       };
     });
 
@@ -2955,7 +3059,9 @@ test.describe('2-Spieler-Modus (Co-op)', () => {
 
   // Frueher zwei Tests mit gleicher Vorbedingung (Co-op, Cutszene an) und gleichem Ablauf, einer davon
   // mit ~14 s Echtzeit. Jetzt eine Cutszene mit angehaltener Fake-Uhr.
-  test('Co-op Cutszene: Beide Spielerschiffe (P1 und P2) erscheinen im Konvoi, überleben den Angriff und steigen gemeinsam im Lichtstrahl auf', async ({ page }) => {
+  test('Co-op Cutszene: Beide Spielerschiffe (P1 und P2) erscheinen im Konvoi, überleben den Angriff und steigen gemeinsam im Lichtstrahl auf', async ({
+    page,
+  }) => {
     await page.addInitScript(() => {
       localStorage.removeItem('starshooter_skip_cutscene');
     });
@@ -2994,8 +3100,12 @@ test.describe('2-Spieler-Modus (Co-op)', () => {
     await expect(page.locator('#cutscene-light-beam')).toBeVisible();
 
     // style.top statt getBoundingClientRect: die CSS-Transition folgt nicht der Fake-Uhr
-    const hoehen = () => page.evaluate(() => ['.ship-player-p1', '.ship-player-p2']
-      .map(sel => parseFloat(document.querySelector('.cutscene-ship' + sel).style.top)));
+    const hoehen = () =>
+      page.evaluate(() =>
+        ['.ship-player-p1', '.ship-player-p2'].map(sel =>
+          parseFloat(document.querySelector('.cutscene-ship' + sel).style.top),
+        ),
+      );
     for (const y of await hoehen()) expect(y).toBeGreaterThanOrEqual(200);
 
     // Nach weiteren 1 s (Aufstieg ab 13,5 s, Cutszenen-Ende 14,4 s) steigen beide nach oben auf (top < 200)
@@ -3003,7 +3113,9 @@ test.describe('2-Spieler-Modus (Co-op)', () => {
     for (const y of await hoehen()) expect(y).toBeLessThan(200);
   });
 
-  test('Spieler 2 Raketenwerfer-Visuals: Zeigt je nach Schiffsmodell und Level die korrekten Werfer-Pods auf Spieler 2 an', async ({ page }) => {
+  test('Spieler 2 Raketenwerfer-Visuals: Zeigt je nach Schiffsmodell und Level die korrekten Werfer-Pods auf Spieler 2 an', async ({
+    page,
+  }) => {
     await page.locator('#gamemode-btn-coop').click();
 
     // Wähle für P2 Viper-X
@@ -3060,7 +3172,9 @@ test.describe('2-Spieler-Modus (Co-op)', () => {
     await expect(p2Center).toBeVisible();
   });
 
-  test('Boss-Raketen Ausrichtung: Raketen fliegen vorwärts mit der Spitze in Flugrichtung auf den Spieler zu', async ({ page }) => {
+  test('Boss-Raketen Ausrichtung: Raketen fliegen vorwärts mit der Spitze in Flugrichtung auf den Spieler zu', async ({
+    page,
+  }) => {
     // Spiel starten
     await starteSpiel(page);
 
@@ -3085,7 +3199,7 @@ test.describe('2-Spieler-Modus (Co-op)', () => {
       return {
         vx: br.vx,
         vy: br.vy,
-        transform: br.el.style.transform
+        transform: br.el.style.transform,
       };
     });
 
@@ -3096,7 +3210,9 @@ test.describe('2-Spieler-Modus (Co-op)', () => {
     expect(Math.abs(deg - 180)).toBeLessThan(5);
   });
 
-  test('Spieler-Raketen Flugdynamik & Homing: Raketen fliegen mit 3-Phasen-Physik und tracken Feinde im 600px Modus', async ({ page }) => {
+  test('Spieler-Raketen Flugdynamik & Homing: Raketen fliegen mit 3-Phasen-Physik und tracken Feinde im 600px Modus', async ({
+    page,
+  }) => {
     await page.locator('#gamemode-btn-coop').click();
 
     // Start
@@ -3108,9 +3224,13 @@ test.describe('2-Spieler-Modus (Co-op)', () => {
       const { simulationsSchritt } = await import('./js/loop.js');
 
       // Leere bisherige Feinde und Raketen
-      arrays.feinde.forEach(f => { if (f.el) f.el.remove(); });
+      arrays.feinde.forEach(f => {
+        if (f.el) f.el.remove();
+      });
       arrays.feinde.length = 0;
-      arrays.raketenArray.forEach(r => { if (r.el) r.el.remove(); });
+      arrays.raketenArray.forEach(r => {
+        if (r.el) r.el.remove();
+      });
       arrays.raketenArray.length = 0;
 
       // Erzeuge Feind auf der rechten Seite des 600px Feldes
@@ -3132,7 +3252,7 @@ test.describe('2-Spieler-Modus (Co-op)', () => {
         homing: true,
         owner: 'p1',
         age: 0,
-        detoniert: false
+        detoniert: false,
       };
       arrays.raketenArray.push(rocket);
 
@@ -3150,7 +3270,7 @@ test.describe('2-Spieler-Modus (Co-op)', () => {
         finalX: rocket.x,
         finalVx: rocket.vx,
         vyAtPhase2: vyAtPhase2,
-        maxVy: maxObservedVy
+        maxVy: maxObservedVy,
       };
     });
 
@@ -3163,78 +3283,102 @@ test.describe('2-Spieler-Modus (Co-op)', () => {
     expect(testResult.finalX).toBeGreaterThan(160);
   });
 
-  test('Raketen Balancing Co-op: Raketen haben im Co-op höhere Maxgeschwindigkeit, größeren Homing-Suchbereich und stärkere Lenkrate als im Solo-Modus', async ({ page }) => {
+  test('Raketen Balancing Co-op: Raketen haben im Co-op höhere Maxgeschwindigkeit, größeren Homing-Suchbereich und stärkere Lenkrate als im Solo-Modus', async ({
+    page,
+  }) => {
     // Echtes Spielverhalten (waffen.js, Raketen-Phase 3) wird per simulationsSchritt() ausgefuehrt,
     // einmal im Co-op- und einmal im Solo-Modus mit identischen Startbedingungen.
     await page.locator('#gamemode-btn-coop').click();
     await starteSpiel(page);
 
-    const messeModus = (modus) => page.evaluate((modus) => {
-      const { state, arrays, config, Utils, Entities, Loop } = window.__game;
-      Utils.setGameMode(modus);
+    const messeModus = modus =>
+      page.evaluate(modus => {
+        const { state, arrays, config, Utils, Entities, Loop } = window.__game;
+        Utils.setGameMode(modus);
 
-      function leereFeld() {
-        for (const key of Object.keys(arrays)) {
-          const arr = arrays[key];
-          if (!Array.isArray(arr)) continue;
-          arr.forEach(e => { if (e && e.el && e.el.remove) e.el.remove(); });
-          arr.length = 0;
+        function leereFeld() {
+          for (const key of Object.keys(arrays)) {
+            const arr = arrays[key];
+            if (!Array.isArray(arr)) continue;
+            arr.forEach(e => {
+              if (e && e.el && e.el.remove) e.el.remove();
+            });
+            arr.length = 0;
+          }
         }
-      }
-      function schritt() {
-        state.frameZaehler = 1; // verhindert zeitgesteuerte Spawns
-        Loop.simulationsSchritt();
-      }
-      // Rakete direkt vor Phase 3 (age 18), gleiche Felder wie feuerRaketenFuerSpieler
-      function erzeugeRakete(x, y, homing) {
-        const el = document.createElement('div');
-        el.className = 'raketen-projektil';
-        document.getElementById('spielfeld').appendChild(el);
-        const r = { id: 'test-rakete', el, x, y, vx: 0, vy: 1, schaden: 30, radius: 80, homing, owner: 'p1', age: 18, detoniert: false };
-        arrays.raketenArray.push(r);
-        return r;
-      }
-      function erzeugeZiel(zcx, zcy) {
-        Entities.erzeugeFeind(0, 0, 'normal');
-        const f = arrays.feinde[arrays.feinde.length - 1];
-        f.vx = 0; f.vy = 0; f.speed = 0; f.schussTimer = 100000;
-        f.x = zcx - (f.groesse || 20) / 2;
-        f.y = zcy - (f.groesse || 20) / 2;
-        f.basisX = f.x; // Feind-Bewegung pendelt um basisX
-        return f;
-      }
-      const winkel = (r) => Math.atan2(-r.vy, r.vx || 0.0001);
+        function schritt() {
+          state.frameZaehler = 1; // verhindert zeitgesteuerte Spawns
+          Loop.simulationsSchritt();
+        }
+        // Rakete direkt vor Phase 3 (age 18), gleiche Felder wie feuerRaketenFuerSpieler
+        function erzeugeRakete(x, y, homing) {
+          const el = document.createElement('div');
+          el.className = 'raketen-projektil';
+          document.getElementById('spielfeld').appendChild(el);
+          const r = {
+            id: 'test-rakete',
+            el,
+            x,
+            y,
+            vx: 0,
+            vy: 1,
+            schaden: 30,
+            radius: 80,
+            homing,
+            owner: 'p1',
+            age: 18,
+            detoniert: false,
+          };
+          arrays.raketenArray.push(r);
+          return r;
+        }
+        function erzeugeZiel(zcx, zcy) {
+          Entities.erzeugeFeind(0, 0, 'normal');
+          const f = arrays.feinde[arrays.feinde.length - 1];
+          f.vx = 0;
+          f.vy = 0;
+          f.speed = 0;
+          f.schussTimer = 100000;
+          f.x = zcx - (f.groesse || 20) / 2;
+          f.y = zcy - (f.groesse || 20) / 2;
+          f.basisX = f.x; // Feind-Bewegung pendelt um basisX
+          return f;
+        }
+        const winkel = r => Math.atan2(-r.vy, r.vx || 0.0001);
 
-      // (a) Maximale Geschwindigkeit: Rakete ohne Ziel von unten nach oben fliegen lassen
-      leereFeld();
-      const rA = erzeugeRakete(config.spielfeldBreite / 2, config.spielfeldHoehe - 10, false);
-      let maxVy = 0;
-      let imFeld = true;
-      for (let i = 0; i < 40; i++) {
+        // (a) Maximale Geschwindigkeit: Rakete ohne Ziel von unten nach oben fliegen lassen
+        leereFeld();
+        const rA = erzeugeRakete(config.spielfeldBreite / 2, config.spielfeldHoehe - 10, false);
+        let maxVy = 0;
+        let imFeld = true;
+        for (let i = 0; i < 40; i++) {
+          schritt();
+          if (!arrays.raketenArray.includes(rA)) {
+            imFeld = false;
+            break;
+          }
+          maxVy = Math.max(maxVy, rA.vy);
+        }
+
+        // (b) Homing-Suchbereich: Ziel 170 px unterhalb der Rakete (zwischen 140 und 200), seitlich versetzt
+        leereFeld();
+        const rB = erzeugeRakete(100, 300, true);
+        const zielB = erzeugeZiel(rB.x + 3 + 100, rB.y + 170);
         schritt();
-        if (!arrays.raketenArray.includes(rA)) { imFeld = false; break; }
-        maxVy = Math.max(maxVy, rA.vy);
-      }
+        const homingErfasst = rB.vx > 0.1;
+        const zielBGeblieben = arrays.feinde.includes(zielB);
 
-      // (b) Homing-Suchbereich: Ziel 170 px unterhalb der Rakete (zwischen 140 und 200), seitlich versetzt
-      leereFeld();
-      const rB = erzeugeRakete(100, 300, true);
-      const zielB = erzeugeZiel(rB.x + 3 + 100, rB.y + 170);
-      schritt();
-      const homingErfasst = rB.vx > 0.1;
-      const zielBGeblieben = arrays.feinde.includes(zielB);
+        // (c) Lenkrate: Ziel weit oben rechts, Winkelaenderung eines Schritts (durch maxTurn begrenzt)
+        leereFeld();
+        const rC = erzeugeRakete(100, 500, true);
+        erzeugeZiel(rC.x + 3 + 300, 400);
+        const winkelVor = winkel(rC);
+        schritt();
+        const lenkwinkel = Math.abs(winkel(rC) - winkelVor);
 
-      // (c) Lenkrate: Ziel weit oben rechts, Winkelaenderung eines Schritts (durch maxTurn begrenzt)
-      leereFeld();
-      const rC = erzeugeRakete(100, 500, true);
-      erzeugeZiel(rC.x + 3 + 300, 400);
-      const winkelVor = winkel(rC);
-      schritt();
-      const lenkwinkel = Math.abs(winkel(rC) - winkelVor);
-
-      leereFeld();
-      return { maxVy, imFeld, homingErfasst, zielBGeblieben, lenkwinkel };
-    }, modus);
+        leereFeld();
+        return { maxVy, imFeld, homingErfasst, zielBGeblieben, lenkwinkel };
+      }, modus);
 
     const coop = await messeModus('coop');
     const solo = await messeModus('single');
@@ -3259,7 +3403,9 @@ test.describe('2-Spieler-Modus (Co-op)', () => {
     expect(solo.lenkwinkel).toBeCloseTo(0.22, 2);
   });
 
-  test('Traktorstrahl-Kopplung im 2-Spieler Modus: Spieler koppelt bis zu 3 Powerups für den Partner an', async ({ page }) => {
+  test('Traktorstrahl-Kopplung im 2-Spieler Modus: Spieler koppelt bis zu 3 Powerups für den Partner an', async ({
+    page,
+  }) => {
     await page.locator('#gamemode-btn-coop').click();
 
     // Start
@@ -3271,7 +3417,9 @@ test.describe('2-Spieler-Modus (Co-op)', () => {
       const { simulationsSchritt } = await import('./js/loop.js');
 
       // Leere vorhandene Powerups
-      arrays.powerups.forEach(p => { if (p.el) p.el.remove(); });
+      arrays.powerups.forEach(p => {
+        if (p.el) p.el.remove();
+      });
       arrays.powerups.length = 0;
 
       // Erzeuge 4 Powerups für Spieler 2 an der gleichen X/Y-Position von Spieler 1
@@ -3293,7 +3441,7 @@ test.describe('2-Spieler-Modus (Co-op)', () => {
       return {
         totalPowerups: arrays.powerups.length,
         towedCount: arrays.powerups.filter(p => p.towedBy === 'p1').length,
-        untowedCount: arrays.powerups.filter(p => !p.towedBy).length
+        untowedCount: arrays.powerups.filter(p => !p.towedBy).length,
       };
     });
 
@@ -3302,7 +3450,9 @@ test.describe('2-Spieler-Modus (Co-op)', () => {
     expect(result.untowedCount).toBe(1);
   });
 
-  test('Traktorstrahl-Kopplung: Jedes gezogene Powerup verlangsamt das Schiff um 10% (1=90%, 2=80%, 3=70%)', async ({ page }) => {
+  test('Traktorstrahl-Kopplung: Jedes gezogene Powerup verlangsamt das Schiff um 10% (1=90%, 2=80%, 3=70%)', async ({
+    page,
+  }) => {
     await page.locator('#gamemode-btn-coop').click();
 
     // Start
@@ -3313,7 +3463,9 @@ test.describe('2-Spieler-Modus (Co-op)', () => {
       const { erzeugePowerup } = await import('./js/entities.js');
       const { simulationsSchritt } = await import('./js/loop.js');
 
-      arrays.powerups.forEach(p => { if (p.el) p.el.remove(); });
+      arrays.powerups.forEach(p => {
+        if (p.el) p.el.remove();
+      });
       arrays.powerups.length = 0;
 
       // Base Speed mit 0 Powerups
@@ -3354,7 +3506,7 @@ test.describe('2-Spieler-Modus (Co-op)', () => {
         dist0: Math.round(dist0 * 100) / 100,
         dist1: Math.round(dist1 * 100) / 100,
         dist2: Math.round(dist2 * 100) / 100,
-        dist3: Math.round(dist3 * 100) / 100
+        dist3: Math.round(dist3 * 100) / 100,
       };
     });
 
@@ -3365,7 +3517,9 @@ test.describe('2-Spieler-Modus (Co-op)', () => {
     expect(testSpeeds.dist3 / testSpeeds.dist0).toBeCloseTo(0.7, 2);
   });
 
-  test('Traktorstrahl-Kopplung: Partner sammelt gezogenes Powerup durch Berührung ein und löst den Strahl', async ({ page }) => {
+  test('Traktorstrahl-Kopplung: Partner sammelt gezogenes Powerup durch Berührung ein und löst den Strahl', async ({
+    page,
+  }) => {
     await page.locator('#gamemode-btn-coop').click();
 
     // Start
@@ -3376,7 +3530,9 @@ test.describe('2-Spieler-Modus (Co-op)', () => {
       const { erzeugePowerup } = await import('./js/entities.js');
       const { simulationsSchritt } = await import('./js/loop.js');
 
-      arrays.powerups.forEach(p => { if (p.el) p.el.remove(); });
+      arrays.powerups.forEach(p => {
+        if (p.el) p.el.remove();
+      });
       arrays.powerups.length = 0;
 
       state.laserStufe = 1;
@@ -3396,7 +3552,7 @@ test.describe('2-Spieler-Modus (Co-op)', () => {
         isTowed: pu && pu.towedBy === 'p1',
         p1Laser: state.laserStufe,
         p2Laser: state.p2.laserStufe,
-        hasBeam: !!document.querySelector('.tractor-beam-svg')
+        hasBeam: !!document.querySelector('.tractor-beam-svg'),
       };
 
       // P2 bewegt sich auf das gezogene Powerup zu
@@ -3409,12 +3565,12 @@ test.describe('2-Spieler-Modus (Co-op)', () => {
         totalPowerups: arrays.powerups.length,
         p1Laser: state.laserStufe,
         p2Laser: state.p2.laserStufe,
-        hasBeam: !!document.querySelector('.tractor-beam-svg')
+        hasBeam: !!document.querySelector('.tractor-beam-svg'),
       };
 
       return {
         afterAttach,
-        afterHandoff
+        afterHandoff,
       };
     });
 
@@ -3429,7 +3585,9 @@ test.describe('2-Spieler-Modus (Co-op)', () => {
     expect(result.afterHandoff.hasBeam).toBe(false); // Strahl wurde entfernt!
   });
 
-  test('Traktorstrahl-Kopplung: Wenn der ziehende Spieler stirbt, löst sich der Traktorstrahl und das Powerup treibt frei weiter', async ({ page }) => {
+  test('Traktorstrahl-Kopplung: Wenn der ziehende Spieler stirbt, löst sich der Traktorstrahl und das Powerup treibt frei weiter', async ({
+    page,
+  }) => {
     await page.locator('#gamemode-btn-coop').click();
 
     // Start
@@ -3440,7 +3598,9 @@ test.describe('2-Spieler-Modus (Co-op)', () => {
       const { erzeugePowerup } = await import('./js/entities.js');
       const { simulationsSchritt } = await import('./js/loop.js');
 
-      arrays.powerups.forEach(p => { if (p.el) p.el.remove(); });
+      arrays.powerups.forEach(p => {
+        if (p.el) p.el.remove();
+      });
       arrays.powerups.length = 0;
 
       // P1 koppelt Powerup an
@@ -3452,7 +3612,7 @@ test.describe('2-Spieler-Modus (Co-op)', () => {
       const pu = arrays.powerups[0];
       const beforeDeath = {
         isTowed: pu && pu.towedBy === 'p1',
-        hasBeam: !!document.querySelector('.tractor-beam-svg')
+        hasBeam: !!document.querySelector('.tractor-beam-svg'),
       };
 
       // P1 wird zerstört
@@ -3462,12 +3622,12 @@ test.describe('2-Spieler-Modus (Co-op)', () => {
       const afterDeath = {
         isTowed: pu && pu.towedBy !== null,
         hasBeam: !!document.querySelector('.tractor-beam-svg'),
-        powerupExists: arrays.powerups.length === 1
+        powerupExists: arrays.powerups.length === 1,
       };
 
       return {
         beforeDeath,
-        afterDeath
+        afterDeath,
       };
     });
 
@@ -3479,7 +3639,9 @@ test.describe('2-Spieler-Modus (Co-op)', () => {
     expect(result.afterDeath.powerupExists).toBe(true);
   });
 
-  test('Viper Splitter-Drop: Jeder 10. vom Viper zerstörte Feind droppt einen Splitter (Rot oder Weiß), während Phantom keine Splitter erzeugt', async ({ page }) => {
+  test('Viper Splitter-Drop: Jeder 10. vom Viper zerstörte Feind droppt einen Splitter (Rot oder Weiß), während Phantom keine Splitter erzeugt', async ({
+    page,
+  }) => {
     // Start game
     await starteSpiel(page);
 
@@ -3488,9 +3650,13 @@ test.describe('2-Spieler-Modus (Co-op)', () => {
       const { erzeugeFeind } = await import('./js/entities.js');
       const { zerstoereZiel } = await import('./js/utils.js');
 
-      arrays.powerups.forEach(p => { if (p.el) p.el.remove(); });
+      arrays.powerups.forEach(p => {
+        if (p.el) p.el.remove();
+      });
       arrays.powerups.length = 0;
-      arrays.feinde.forEach(f => { if (f.el) f.el.remove(); });
+      arrays.feinde.forEach(f => {
+        if (f.el) f.el.remove();
+      });
       arrays.feinde.length = 0;
 
       state.selectedShipModel = 'viper';
@@ -3534,7 +3700,9 @@ test.describe('2-Spieler-Modus (Co-op)', () => {
       const countAfter20 = arrays.powerups.length;
 
       // 5. Phantom-Check: Zerstöre 10 Feinde mit Phantom -> 0 Drops
-      arrays.powerups.forEach(p => { if (p.el) p.el.remove(); });
+      arrays.powerups.forEach(p => {
+        if (p.el) p.el.remove();
+      });
       arrays.powerups.length = 0;
       state.selectedShipModel = 'phantom';
 
@@ -3553,7 +3721,7 @@ test.describe('2-Spieler-Modus (Co-op)', () => {
         dropType10,
         countAfter19,
         countAfter20,
-        phantomDrops
+        phantomDrops,
       };
     });
 
@@ -3565,7 +3733,9 @@ test.describe('2-Spieler-Modus (Co-op)', () => {
     expect(result.phantomDrops).toBe(0);
   });
 
-  test('Viper Roter Splitter: Einsammeln von 10 roten Splittern gewährt +1 Leben und setzt den Zähler zurück', async ({ page }) => {
+  test('Viper Roter Splitter: Einsammeln von 10 roten Splittern gewährt +1 Leben und setzt den Zähler zurück', async ({
+    page,
+  }) => {
     // Start game
     await starteSpiel(page);
 
@@ -3574,7 +3744,9 @@ test.describe('2-Spieler-Modus (Co-op)', () => {
       const { erzeugePowerup } = await import('./js/entities.js');
       const { simulationsSchritt } = await import('./js/loop.js');
 
-      arrays.powerups.forEach(p => { if (p.el) p.el.remove(); });
+      arrays.powerups.forEach(p => {
+        if (p.el) p.el.remove();
+      });
       arrays.powerups.length = 0;
 
       state.selectedShipModel = 'viper';
@@ -3589,7 +3761,7 @@ test.describe('2-Spieler-Modus (Co-op)', () => {
 
       const after1 = {
         splitterRot: state.splitterRot,
-        leben: state.leben
+        leben: state.leben,
       };
 
       // Setze Zähler auf 9 und sammle den 10. Splitter ein
@@ -3600,12 +3772,12 @@ test.describe('2-Spieler-Modus (Co-op)', () => {
       const after10 = {
         splitterRot: state.splitterRot,
         leben: state.leben,
-        herzenCount: dom.lebenAnzeige.querySelectorAll('.leben-herz').length
+        herzenCount: dom.lebenAnzeige.querySelectorAll('.leben-herz').length,
       };
 
       return {
         after1,
-        after10
+        after10,
       };
     });
 
@@ -3617,7 +3789,9 @@ test.describe('2-Spieler-Modus (Co-op)', () => {
     expect(result.after10.herzenCount).toBe(4);
   });
 
-  test('Viper Weißer Splitter: Einsammeln von 10 weißen Splittern aktiviert die Super-Waffe und setzt den Zähler zurück', async ({ page }) => {
+  test('Viper Weißer Splitter: Einsammeln von 10 weißen Splittern aktiviert die Super-Waffe und setzt den Zähler zurück', async ({
+    page,
+  }) => {
     // Start game
     await starteSpiel(page);
 
@@ -3626,7 +3800,9 @@ test.describe('2-Spieler-Modus (Co-op)', () => {
       const { erzeugePowerup } = await import('./js/entities.js');
       const { simulationsSchritt } = await import('./js/loop.js');
 
-      arrays.powerups.forEach(p => { if (p.el) p.el.remove(); });
+      arrays.powerups.forEach(p => {
+        if (p.el) p.el.remove();
+      });
       arrays.powerups.length = 0;
 
       state.selectedShipModel = 'viper';
@@ -3645,7 +3821,7 @@ test.describe('2-Spieler-Modus (Co-op)', () => {
         splitterWeiss: state.splitterWeiss,
         laserStufe: state.laserStufe,
         raketenStufe: state.raketenStufe,
-        bombenStufe: state.bombenStufe
+        bombenStufe: state.bombenStufe,
       };
 
       // Setze Zähler auf 9 und sammle den 10. Splitter ein
@@ -3658,12 +3834,12 @@ test.describe('2-Spieler-Modus (Co-op)', () => {
         laserStufe: state.laserStufe,
         raketenStufe: state.raketenStufe,
         bombenStufe: state.bombenStufe,
-        activePuText: dom.aktivePowerupsContainer.textContent
+        activePuText: dom.aktivePowerupsContainer.textContent,
       };
 
       return {
         after1,
-        after10
+        after10,
       };
     });
 
@@ -3678,7 +3854,9 @@ test.describe('2-Spieler-Modus (Co-op)', () => {
     expect(result.after10.bombenStufe).toBe(2);
   });
 
-  test('Co-op Splitter-System: Unabhängige Zählung für Spieler 1 & 2 und Schiff-spezifische HUD-Sichtbarkeit', async ({ page }) => {
+  test('Co-op Splitter-System: Unabhängige Zählung für Spieler 1 & 2 und Schiff-spezifische HUD-Sichtbarkeit', async ({
+    page,
+  }) => {
     await page.locator('#gamemode-btn-coop').click();
 
     // Start
@@ -3690,7 +3868,9 @@ test.describe('2-Spieler-Modus (Co-op)', () => {
       const { simulationsSchritt } = await import('./js/loop.js');
       const { updateSplitterUI, updateSplitterP2UI } = await import('./js/utils.js');
 
-      arrays.powerups.forEach(p => { if (p.el) p.el.remove(); });
+      arrays.powerups.forEach(p => {
+        if (p.el) p.el.remove();
+      });
       arrays.powerups.length = 0;
 
       // P1 ist Viper, P2 ist Viper
@@ -3706,16 +3886,18 @@ test.describe('2-Spieler-Modus (Co-op)', () => {
 
       const initialHud = {
         p1HudDisplay: dom.splitterHudP1 ? dom.splitterHudP1.style.display : null,
-        p2HudDisplay: dom.splitterHudP2 ? dom.splitterHudP2.style.display : null
+        p2HudDisplay: dom.splitterHudP2 ? dom.splitterHudP2.style.display : null,
       };
 
       // P1 sammelt roten Splitter
-      state.x = 100; state.y = 200;
+      state.x = 100;
+      state.y = 200;
       erzeugePowerup(100, 200, 'splitterRot', 'p1');
       simulationsSchritt();
 
       // P2 sammelt weißen Splitter
-      state.p2.x = 400; state.p2.y = 200;
+      state.p2.x = 400;
+      state.p2.y = 200;
       erzeugePowerup(400, 200, 'splitterWeiss', 'p2');
       simulationsSchritt();
 
@@ -3725,7 +3907,7 @@ test.describe('2-Spieler-Modus (Co-op)', () => {
         p2Rot: state.p2.splitterRot,
         p2Weiss: state.p2.splitterWeiss,
         p1RotText: dom.splitterRotCountP1 ? dom.splitterRotCountP1.textContent : '',
-        p2WeissText: dom.splitterWeissCountP2 ? dom.splitterWeissCountP2.textContent : ''
+        p2WeissText: dom.splitterWeissCountP2 ? dom.splitterWeissCountP2.textContent : '',
       };
 
       // Wenn P2 Phantom ist, soll P2-HUD ausgeblendet sein
@@ -3734,13 +3916,13 @@ test.describe('2-Spieler-Modus (Co-op)', () => {
 
       const phantomCheck = {
         p1HudDisplay: dom.splitterHudP1 ? dom.splitterHudP1.style.display : null,
-        p2HudDisplay: dom.splitterHudP2 ? dom.splitterHudP2.style.display : null
+        p2HudDisplay: dom.splitterHudP2 ? dom.splitterHudP2.style.display : null,
       };
 
       return {
         initialHud,
         afterPickups,
-        phantomCheck
+        phantomCheck,
       };
     });
 
@@ -3758,7 +3940,9 @@ test.describe('2-Spieler-Modus (Co-op)', () => {
     expect(result.phantomCheck.p2HudDisplay).toBe('none');
   });
 
-  test('Boss Splitter-Drops: Besiegter Boss droppt immer garantiert 3 Splitter (Rot oder Weiß) zusätzlich zu seinen Belohnungen', async ({ page }) => {
+  test('Boss Splitter-Drops: Besiegter Boss droppt immer garantiert 3 Splitter (Rot oder Weiß) zusätzlich zu seinen Belohnungen', async ({
+    page,
+  }) => {
     // Start game
     await starteSpiel(page);
 
@@ -3767,9 +3951,13 @@ test.describe('2-Spieler-Modus (Co-op)', () => {
       const { erzeugeBoss } = await import('./js/entities.js');
       const { zerstoereZiel } = await import('./js/utils.js');
 
-      arrays.powerups.forEach(p => { if (p.el) p.el.remove(); });
+      arrays.powerups.forEach(p => {
+        if (p.el) p.el.remove();
+      });
       arrays.powerups.length = 0;
-      arrays.bosses.forEach(b => { if (b.el) b.el.remove(); });
+      arrays.bosses.forEach(b => {
+        if (b.el) b.el.remove();
+      });
       arrays.bosses.length = 0;
 
       erzeugeBoss();
@@ -3785,7 +3973,7 @@ test.describe('2-Spieler-Modus (Co-op)', () => {
         totalPowerups: allDrops.length,
         shardCount: shardDrops.length,
         regularCount: regularDrops.length,
-        hasSuperWaffe: regularDrops.includes('superWaffe')
+        hasSuperWaffe: regularDrops.includes('superWaffe'),
       };
     });
 
@@ -3795,12 +3983,16 @@ test.describe('2-Spieler-Modus (Co-op)', () => {
     expect(result.hasSuperWaffe).toBe(true);
   });
 
-  test('Splitter-Optik: Splitter werden als spitze, ungleichseitige Dreiecke ohne Buchstaben gerendert', async ({ page }) => {
+  test('Splitter-Optik: Splitter werden als spitze, ungleichseitige Dreiecke ohne Buchstaben gerendert', async ({
+    page,
+  }) => {
     const result = await page.evaluate(async () => {
       const { arrays } = await import('./js/state.js');
       const { erzeugePowerup } = await import('./js/entities.js');
 
-      arrays.powerups.forEach(p => { if (p.el) p.el.remove(); });
+      arrays.powerups.forEach(p => {
+        if (p.el) p.el.remove();
+      });
       arrays.powerups.length = 0;
 
       erzeugePowerup(100, 100, 'splitterRot');
@@ -3822,7 +4014,7 @@ test.describe('2-Spieler-Modus (Co-op)', () => {
         weissText: weissPu.el.textContent.trim(),
         rotHasSvgPolygon: !!rotPolygon,
         weissHasSvgPolygon: !!weissPolygon,
-        rotPoints: rotPolygon ? rotPolygon.getAttribute('points') : null
+        rotPoints: rotPolygon ? rotPolygon.getAttribute('points') : null,
       };
     });
 
@@ -3836,9 +4028,7 @@ test.describe('2-Spieler-Modus (Co-op)', () => {
   });
 });
 
-
 test.describe('Bot-Partner', () => {
-
   test('Bot-Toggle erscheint im Coop-Modus bei P2-Tab und setzt p2IsBot', async ({ page }) => {
     // What's New Overlay schließen falls es erscheint
     const whatsNewOverlay = page.locator('#whats-new-overlay');
@@ -3914,13 +4104,17 @@ test.describe('Bot-Partner', () => {
     await starteSpiel(page);
 
     // Warten bis Cutscene vorbei und Spiel läuft
-    await page.waitForFunction(() => {
-      const mod = window.__game;
-      if (mod && mod.state) return mod.state.spielLaeuft;
-      // Fallback: Prüfe ob Spieler sichtbar
-      const spieler = document.getElementById('spieler');
-      return spieler && spieler.style.display !== 'none';
-    }, null, { timeout: 5000 });
+    await page.waitForFunction(
+      () => {
+        const mod = window.__game;
+        if (mod && mod.state) return mod.state.spielLaeuft;
+        // Fallback: Prüfe ob Spieler sichtbar
+        const spieler = document.getElementById('spieler');
+        return spieler && spieler.style.display !== 'none';
+      },
+      null,
+      { timeout: 5000 },
+    );
 
     // P2 Startposition erfassen, Feind links von P2 spawnen und 30 feste Simulationsschritte (~0,5 s)
     // synchron ausführen, damit der Bot reagiert (unabhängig von Wanduhr und Bildrate)
@@ -3950,10 +4144,14 @@ test.describe('Bot-Partner', () => {
     await starteSpiel(page);
 
     // Warten bis Spiel läuft
-    await page.waitForFunction(() => {
-      const mod = window.__game;
-      return mod && mod.state && mod.state.spielLaeuft;
-    }, null, { timeout: 5000 });
+    await page.waitForFunction(
+      () => {
+        const mod = window.__game;
+        return mod && mod.state && mod.state.spielLaeuft;
+      },
+      null,
+      { timeout: 5000 },
+    );
 
     // Feind genau in den P2-Korridor setzen, dann 18 feste Simulationsschritte (~0,3 s)
     const laserFired = await page.evaluate(() => {
@@ -3961,7 +4159,7 @@ test.describe('Bot-Partner', () => {
       const s = mod.state;
       mod.Entities.erzeugeFeind(s.p2.x, 50, 'stop_and_go', 0);
       for (let i = 0; i < 18; i++) mod.Loop.simulationsSchritt();
-      return s.p2.laserSchiesst || s.p2.botFireLaser || (s.p2.energie < s.p2.maxEnergie);
+      return s.p2.laserSchiesst || s.p2.botFireLaser || s.p2.energie < s.p2.maxEnergie;
     });
 
     expect(laserFired).toBe(true);
@@ -3977,10 +4175,14 @@ test.describe('Bot-Partner', () => {
     await starteSpiel(page);
 
     // Warten bis Spiel läuft
-    await page.waitForFunction(() => {
-      const mod = window.__game;
-      return mod && mod.state && mod.state.spielLaeuft;
-    }, null, { timeout: 5000 });
+    await page.waitForFunction(
+      () => {
+        const mod = window.__game;
+        return mod && mod.state && mod.state.spielLaeuft;
+      },
+      null,
+      { timeout: 5000 },
+    );
 
     // Asteroid nahe P2 rechts spawnen und eine feste Anzahl Simulationsschritte
     // synchron ausführen (unabhängig von Wanduhrzeit und Bildrate). Nach ca. 20
@@ -4012,10 +4214,14 @@ test.describe('Bot-Partner', () => {
     await starteSpiel(page);
 
     // Warten bis Spiel läuft
-    await page.waitForFunction(() => {
-      const mod = window.__game;
-      return mod && mod.state && mod.state.spielLaeuft;
-    }, null, { timeout: 5000 });
+    await page.waitForFunction(
+      () => {
+        const mod = window.__game;
+        return mod && mod.state && mod.state.spielLaeuft;
+      },
+      null,
+      { timeout: 5000 },
+    );
 
     // Vorherige Entitäten aufräumen und Powerup rechts von P2 spawnen
     const initialData = await page.evaluate(() => {
@@ -4049,10 +4255,14 @@ test.describe('Bot-Partner', () => {
     await starteSpiel(page);
 
     // Warten bis Spiel läuft
-    await page.waitForFunction(() => {
-      const mod = window.__game;
-      return mod && mod.state && mod.state.spielLaeuft;
-    }, null, { timeout: 5000 });
+    await page.waitForFunction(
+      () => {
+        const mod = window.__game;
+        return mod && mod.state && mod.state.spielLaeuft;
+      },
+      null,
+      { timeout: 5000 },
+    );
 
     // 1. Raketen-Test: Feind in Raketen-Reichweite spawnen (<120px)
     await page.evaluate(() => {
@@ -4095,10 +4305,14 @@ test.describe('Bot-Partner', () => {
     // Spiel starten
     await starteSpiel(page);
 
-    await page.waitForFunction(() => {
-      const mod = window.__game;
-      return mod && mod.state && mod.state.spielLaeuft;
-    }, null, { timeout: 5000 });
+    await page.waitForFunction(
+      () => {
+        const mod = window.__game;
+        return mod && mod.state && mod.state.spielLaeuft;
+      },
+      null,
+      { timeout: 5000 },
+    );
 
     // Je Stufe gleiche Ausgangslage: ein stehender Feindlaser rechts von P2 im Abstand d.
     // P1 steht so, dass die Formationsbewegung P2 nicht verschiebt; Bewegung kommt nur vom Ausweichen.
@@ -4155,10 +4369,14 @@ test.describe('Bot-Partner', () => {
     await starteSpiel(page);
 
     // Warten bis Spiel läuft
-    await page.waitForFunction(() => {
-      const mod = window.__game;
-      return mod && mod.state && mod.state.spielLaeuft;
-    }, null, { timeout: 5000 });
+    await page.waitForFunction(
+      () => {
+        const mod = window.__game;
+        return mod && mod.state && mod.state.spielLaeuft;
+      },
+      null,
+      { timeout: 5000 },
+    );
 
     // Alle Entitäten wegräumen und P1 / P2 gezielt positionieren
     const initialData = await page.evaluate(() => {
@@ -4167,7 +4385,9 @@ test.describe('Bot-Partner', () => {
       mod.arrays.feinde.length = 0;
       mod.arrays.asteroiden.forEach(a => a.el.remove());
       mod.arrays.asteroiden.length = 0;
-      mod.arrays.powerups.forEach(p => { if (p.el) p.el.remove(); });
+      mod.arrays.powerups.forEach(p => {
+        if (p.el) p.el.remove();
+      });
       mod.arrays.powerups.length = 0;
 
       // P1 auf x=100 setzen, P2 auf x=400 (weit rechts)
@@ -4187,7 +4407,9 @@ test.describe('Bot-Partner', () => {
     expect(endX).toBeLessThan(initialData.p2StartX);
   });
 
-  test('Nach Tod von Spieler 1 im 2-Spieler Modus und Neustart lässt sich Spieler 1 wieder steuern', async ({ page }) => {
+  test('Nach Tod von Spieler 1 im 2-Spieler Modus und Neustart lässt sich Spieler 1 wieder steuern', async ({
+    page,
+  }) => {
     // Coop-Modus aktivieren + Bot aktivieren
     await page.click('#gamemode-btn-coop');
     await page.click('.hangar-player-tab[data-player="p2"]');
@@ -4197,10 +4419,14 @@ test.describe('Bot-Partner', () => {
     await starteSpiel(page);
 
     // Warten bis Spiel läuft
-    await page.waitForFunction(() => {
-      const mod = window.__game;
-      return mod && mod.state && mod.state.spielLaeuft;
-    }, null, { timeout: 5000 });
+    await page.waitForFunction(
+      () => {
+        const mod = window.__game;
+        return mod && mod.state && mod.state.spielLaeuft;
+      },
+      null,
+      { timeout: 5000 },
+    );
 
     // Spieler 1 stirbt zuerst (isDead = true), dann auch P2 -> Game Over
     await page.evaluate(() => {
@@ -4223,10 +4449,14 @@ test.describe('Bot-Partner', () => {
     await starteSpiel(page);
 
     // Warten bis Spiel 2 läuft
-    await page.waitForFunction(() => {
-      const mod = window.__game;
-      return mod && mod.state && mod.state.spielLaeuft;
-    }, null, { timeout: 5000 });
+    await page.waitForFunction(
+      () => {
+        const mod = window.__game;
+        return mod && mod.state && mod.state.spielLaeuft;
+      },
+      null,
+      { timeout: 5000 },
+    );
 
     // Startposition von P1 erfassen
     const startX = await page.evaluate(() => window.__game.state.x);
@@ -4252,10 +4482,14 @@ test.describe('Bot-Partner', () => {
     await starteSpiel(page);
 
     // Warten bis Spiel läuft
-    await page.waitForFunction(() => {
-      const mod = window.__game;
-      return mod && mod.state && mod.state.spielLaeuft;
-    }, null, { timeout: 5000 });
+    await page.waitForFunction(
+      () => {
+        const mod = window.__game;
+        return mod && mod.state && mod.state.spielLaeuft;
+      },
+      null,
+      { timeout: 5000 },
+    );
 
     // Boss 1 oben spawnen (y=60) und 60 feste Simulationsschritte (~1 s) laufen lassen
     // (ohne Baseline-Taktik würde der Bot nach oben zu y=180 fliegen)
@@ -4271,7 +4505,9 @@ test.describe('Bot-Partner', () => {
     expect(botY).toBeGreaterThanOrEqual(450);
   });
 
-  test('Online-Multiplayer › Modus-Auswahl schaltet auf Online-Modus um und zeigt Online-Lobby an', async ({ page }) => {
+  test('Online-Multiplayer › Modus-Auswahl schaltet auf Online-Modus um und zeigt Online-Lobby an', async ({
+    page,
+  }) => {
     const btnOnline = page.locator('#gamemode-btn-online');
     await expect(btnOnline).toBeVisible();
 
@@ -4360,10 +4596,14 @@ test.describe('Bot-Partner', () => {
     });
 
     // Warten bis das Spiel läuft
-    await page.waitForFunction(() => {
-      const mod = window.__game;
-      return mod && mod.state && mod.state.spielLaeuft;
-    }, null, { timeout: 5000 });
+    await page.waitForFunction(
+      () => {
+        const mod = window.__game;
+        return mod && mod.state && mod.state.spielLaeuft;
+      },
+      null,
+      { timeout: 5000 },
+    );
 
     // Beide Schiffe und das P2-HUD müssen sichtbar sein
     const spieler1 = page.locator('#spieler');
@@ -4390,10 +4630,14 @@ test.describe('Bot-Partner', () => {
       mod.Network.onPeerJoined('mock_peer_123');
     });
 
-    await page.waitForFunction(() => {
-      const mod = window.__game;
-      return mod && mod.state && mod.state.spielLaeuft;
-    }, null, { timeout: 5000 });
+    await page.waitForFunction(
+      () => {
+        const mod = window.__game;
+        return mod && mod.state && mod.state.spielLaeuft;
+      },
+      null,
+      { timeout: 5000 },
+    );
 
     // 1. Host-Serialisierung prüfen
     const snapshot = await page.evaluate(() => {
@@ -4424,8 +4668,17 @@ test.describe('Bot-Partner', () => {
         feinde: [{ id: 'f_test_1', x: 250, y: 180, hp: 10, maxHp: 10, groesse: 24, typ: 1, muster: 'normal' }],
         asteroiden: [
           { id: 'a_test_1', x: 100, y: 220, groesse: 30, istMagma: false, istUnzerstoerbar: false, rot: 45 },
-          { id: 'a_test_magma_destructible', x: 150, y: 200, groesse: 35, istMagma: true, istUnzerstoerbar: false, traegtPowerup: true, rot: 10 },
-          { id: 'a_test_magma_solid', x: 180, y: 240, groesse: 40, istMagma: true, istUnzerstoerbar: true, rot: 20 }
+          {
+            id: 'a_test_magma_destructible',
+            x: 150,
+            y: 200,
+            groesse: 35,
+            istMagma: true,
+            istUnzerstoerbar: false,
+            traegtPowerup: true,
+            rot: 10,
+          },
+          { id: 'a_test_magma_solid', x: 180, y: 240, groesse: 40, istMagma: true, istUnzerstoerbar: true, rot: 20 },
         ],
         bosses: [{ id: 'b_test_1', x: 200, y: 50, hp: 300, maxHp: 400, groesse: 100, typ: 1 }],
         laser: [{ id: 'l_test_1', x: 125, y: 300, vx: 0, vy: 15, width: 4, height: 20, owner: 'p1', color: '#00ffff' }],
@@ -4436,8 +4689,8 @@ test.describe('Bot-Partner', () => {
         bossBomben: [{ id: 'bb_test_1', x: 230, y: 140, groesse: 26 }],
         powerups: [
           { id: 'pu_test_1', x: 110, y: 310, type: 'schild', owner: 'p1' },
-          { id: 'pu_test_2', x: 160, y: 310, type: 'splitterRot', owner: 'p2' }
-        ]
+          { id: 'pu_test_2', x: 160, y: 310, type: 'splitterRot', owner: 'p2' },
+        ],
       };
 
       mod.Network.applyGameStateSnapshot(mockSnapshot);
@@ -4456,7 +4709,7 @@ test.describe('Bot-Partner', () => {
       const el = document.querySelector('.feind-schiff');
       return {
         exists: !!el,
-        hasSvg: el ? !!el.querySelector('svg') : false
+        hasSvg: el ? !!el.querySelector('svg') : false,
       };
     });
     expect(enemyInfo.exists).toBe(true);
@@ -4469,7 +4722,7 @@ test.describe('Bot-Partner', () => {
       return {
         total: all.length,
         hasSolidMagma: !!solidMagma,
-        hasDestructibleMagma: all.some(a => a.querySelector('.riss-layer'))
+        hasDestructibleMagma: all.some(a => a.querySelector('.riss-layer')),
       };
     });
     expect(asteroidCheck.total).toBe(3);
@@ -4480,7 +4733,7 @@ test.describe('Bot-Partner', () => {
     const playerProjectiles = await page.evaluate(() => ({
       hasLaser: !!document.querySelector('.laser-projektil'),
       hasRakete: !!document.querySelector('.raketen-projektil'),
-      hasBombe: !!document.querySelector('.bomben-projektil')
+      hasBombe: !!document.querySelector('.bomben-projektil'),
     }));
     expect(playerProjectiles.hasLaser).toBe(true);
     expect(playerProjectiles.hasRakete).toBe(true);
@@ -4490,7 +4743,7 @@ test.describe('Bot-Partner', () => {
     const bossProjectiles = await page.evaluate(() => ({
       hasBossLaser: !!document.querySelector('.boss-laser'),
       hasBossRakete: !!document.querySelector('.boss-rakete'),
-      hasBossBombe: !!document.querySelector('.boss-bombe')
+      hasBossBombe: !!document.querySelector('.boss-bombe'),
     }));
     expect(bossProjectiles.hasBossLaser).toBe(true);
     expect(bossProjectiles.hasBossRakete).toBe(true);
@@ -4503,9 +4756,9 @@ test.describe('Bot-Partner', () => {
       const p2Splitter = pus.find(p => p.classList.contains('powerup-splitter'));
       return {
         count: pus.length,
-        hasP1Border: p1Pu ? (p1Pu.style.border !== '' && p1Pu.style.border !== 'none') : false,
+        hasP1Border: p1Pu ? p1Pu.style.border !== '' && p1Pu.style.border !== 'none' : false,
         hasP1Tag: p1Pu ? !!p1Pu.querySelector('.pu-owner-tag') : false,
-        hasSplitterSvg: p2Splitter ? !!p2Splitter.querySelector('svg') : false
+        hasSplitterSvg: p2Splitter ? !!p2Splitter.querySelector('svg') : false,
       };
     });
     expect(powerupCheck.count).toBe(2);
@@ -4525,10 +4778,14 @@ test.describe('Bot-Partner', () => {
       mod.Network.onPeerJoined('mock_peer_123');
     });
 
-    await page.waitForFunction(() => {
-      const mod = window.__game;
-      return mod && mod.state && mod.state.spielLaeuft;
-    }, null, { timeout: 5000 });
+    await page.waitForFunction(
+      () => {
+        const mod = window.__game;
+        return mod && mod.state && mod.state.spielLaeuft;
+      },
+      null,
+      { timeout: 5000 },
+    );
 
     // 1. Client-Input-Serialisierung testen (Solo-Steuerung: WASD, L, K, Space)
     const clientInput = await page.evaluate(() => {
@@ -4557,7 +4814,7 @@ test.describe('Bot-Partner', () => {
         rotate: -15,
         laser: true,
         rakete: true,
-        bombe: true
+        bombe: true,
       };
       mod.Network.applyPlayerInput(remoteInput);
       return {
@@ -4566,7 +4823,7 @@ test.describe('Bot-Partner', () => {
         rotate: mod.state.p2.rotate,
         laserInputRequested: mod.state.p2.laserInputRequested,
         networkFireRakete: mod.state.p2.networkFireRakete,
-        networkFireBombe: mod.state.p2.networkFireBombe
+        networkFireBombe: mod.state.p2.networkFireBombe,
       };
     });
 
@@ -4578,7 +4835,9 @@ test.describe('Bot-Partner', () => {
     expect(p2State.networkFireBombe).toBe(true);
   });
 
-  test('Online-Multiplayer › Cutszene synchron mit ESC überspringen & Schadens-Flash nur auf dem Rechner des getroffenen Spielers', async ({ page }) => {
+  test('Online-Multiplayer › Cutszene synchron mit ESC überspringen & Schadens-Flash nur auf dem Rechner des getroffenen Spielers', async ({
+    page,
+  }) => {
     // 1. Cutszene-Synchronisation testen
     await page.click('#gamemode-btn-online');
     await page.click('#btn-online-host');
@@ -4589,14 +4848,17 @@ test.describe('Bot-Partner', () => {
       mod.state.network.connected = true;
       mod.state.network.isOnline = true;
       mod.state.network.isHost = true;
-      
+
       // Alle gesendeten Events mitschreiben (sendNetworkEvent setzt immer lastSentEvent)
       const sentEvents = [];
       let lastSent = null;
       Object.defineProperty(mod.state.network, 'lastSentEvent', {
         configurable: true,
         get: () => lastSent,
-        set: (v) => { lastSent = v; sentEvents.push(v); }
+        set: v => {
+          lastSent = v;
+          sentEvents.push(v);
+        },
       });
 
       // Cutszene starten und überspringen
@@ -4609,7 +4871,7 @@ test.describe('Bot-Partner', () => {
         activeBeforeSkip,
         cutsceneActive: mod.Cutscene.isCutsceneActive(),
         gameRunning: mod.state.spielLaeuft,
-        sentTypes: sentEvents.filter(Boolean).map((e) => e.type)
+        sentTypes: sentEvents.filter(Boolean).map(e => e.type),
       };
     });
 
@@ -4639,7 +4901,7 @@ test.describe('Bot-Partner', () => {
 
       return {
         hostBgAfterP2Hit: hostBgAfterP2Hit,
-        lastSentEvent: mod.state.network.lastSentEvent
+        lastSentEvent: mod.state.network.lastSentEvent,
       };
     });
 
@@ -4650,7 +4912,9 @@ test.describe('Bot-Partner', () => {
     expect(flashCheck.lastSentEvent.target).toBe('p2');
   });
 
-  test('Online-Multiplayer › Highscore-Koordination: Beide Spieler geben Kürzel ein und werden als AAA+BBB in der Coop-Bestenliste gespeichert', async ({ page }) => {
+  test('Online-Multiplayer › Highscore-Koordination: Beide Spieler geben Kürzel ein und werden als AAA+BBB in der Coop-Bestenliste gespeichert', async ({
+    page,
+  }) => {
     await page.click('#gamemode-btn-online');
     await page.click('#btn-online-host');
 
@@ -4683,7 +4947,7 @@ test.describe('Bot-Partner', () => {
       return {
         lastSentEvent: mod.state.network.lastSentEvent,
         waitingMsgText: waitingMsg ? waitingMsg.textContent : '',
-        waitingMsgVisible: waitingMsg && waitingMsg.style.display !== 'none'
+        waitingMsgVisible: waitingMsg && waitingMsg.style.display !== 'none',
       };
     });
 
@@ -4719,7 +4983,9 @@ test.describe('Bot-Partner', () => {
     expect(firstRowText).toContain('7500');
   });
 
-  test('Online-Multiplayer › Cheatcodes sind im Online-Modus deaktiviert (weder Host noch Client)', async ({ page }) => {
+  test('Online-Multiplayer › Cheatcodes sind im Online-Modus deaktiviert (weder Host noch Client)', async ({
+    page,
+  }) => {
     // 1. Online Modus aktivieren
     await page.click('#gamemode-btn-online');
     await page.click('#btn-online-host');
@@ -4745,7 +5011,7 @@ test.describe('Bot-Partner', () => {
       laserStufe: window.__game.state.laserStufe,
       schildStufe: window.__game.state.schildStufe,
       cheatUsed: window.__game.state.cheatUsed,
-      godMode: window.__game.state.godMode
+      godMode: window.__game.state.godMode,
     }));
 
     // Im Online-Modus darf der Cheat nicht gegriffen haben
@@ -4758,14 +5024,16 @@ test.describe('Bot-Partner', () => {
 
     const stateAfterGod = await page.evaluate(() => ({
       godMode: window.__game.state.godMode,
-      cheatUsed: window.__game.state.cheatUsed
+      cheatUsed: window.__game.state.cheatUsed,
     }));
 
     expect(stateAfterGod.godMode).toBe(false);
     expect(stateAfterGod.cheatUsed).toBe(false);
   });
 
-  test('Mobile/Touch › Antippen der Modus-Buttons (Coop / Online) und Hangar-Optionen startet das Spiel nicht', async ({ page }) => {
+  test('Mobile/Touch › Antippen der Modus-Buttons (Coop / Online) und Hangar-Optionen startet das Spiel nicht', async ({
+    page,
+  }) => {
     // 1. Touchstart auf Modus-Buttons auslösen
     await page.dispatchEvent('#gamemode-btn-coop', 'touchstart');
     await page.click('#gamemode-btn-coop');
@@ -4773,7 +5041,7 @@ test.describe('Bot-Partner', () => {
     const stateAfterCoopTouch = await page.evaluate(() => ({
       gameMode: window.__game.state.gameMode,
       spielLaeuft: window.__game.state.spielLaeuft,
-      cutsceneAktiv: window.__game.state.cutsceneAktiv
+      cutsceneAktiv: window.__game.state.cutsceneAktiv,
     }));
 
     expect(stateAfterCoopTouch.gameMode).toBe('coop');
@@ -4787,7 +5055,7 @@ test.describe('Bot-Partner', () => {
     const stateAfterOnlineTouch = await page.evaluate(() => ({
       gameMode: window.__game.state.gameMode,
       spielLaeuft: window.__game.state.spielLaeuft,
-      cutsceneAktiv: window.__game.state.cutsceneAktiv
+      cutsceneAktiv: window.__game.state.cutsceneAktiv,
     }));
 
     expect(stateAfterOnlineTouch.gameMode).toBe('online');
@@ -4806,7 +5074,7 @@ test.describe('Bot-Partner', () => {
     const stateAfterHangar = await page.evaluate(() => ({
       spielLaeuft: window.__game.state.spielLaeuft,
       cutsceneAktiv: window.__game.state.cutsceneAktiv,
-      model: window.__game.state.selectedShipModel
+      model: window.__game.state.selectedShipModel,
     }));
     expect(stateAfterHangar.spielLaeuft).toBe(false);
     expect(stateAfterHangar.cutsceneAktiv).toBe(false);
@@ -4818,12 +5086,14 @@ test.describe('Bot-Partner', () => {
 
     const stateAfterStartText = await page.evaluate(() => ({
       spielLaeuft: window.__game.state.spielLaeuft,
-      cutsceneAktiv: window.__game.state.cutsceneAktiv
+      cutsceneAktiv: window.__game.state.cutsceneAktiv,
     }));
     expect(stateAfterStartText.spielLaeuft || stateAfterStartText.cutsceneAktiv).toBe(true);
   });
 
-  test('Online-Multiplayer › Bomben- & Raketen-Detonationen erzeugen Schockwellen und Partikel auf dem Client', async ({ page }) => {
+  test('Online-Multiplayer › Bomben- & Raketen-Detonationen erzeugen Schockwellen und Partikel auf dem Client', async ({
+    page,
+  }) => {
     // 1. Online-Client Modus vorbereiten
     await page.click('#gamemode-btn-online');
     await page.fill('#online-room-input', 'ABCDE');
@@ -4856,7 +5126,9 @@ test.describe('Bot-Partner', () => {
     expect(shockwaveCount).toBeGreaterThanOrEqual(1);
   });
 
-  test('Online-Multiplayer › Rematch & Neustart: Host sieht Spiel-Starten-Button bei verbundener Session und kann Rematch starten', async ({ page }) => {
+  test('Online-Multiplayer › Rematch & Neustart: Host sieht Spiel-Starten-Button bei verbundener Session und kann Rematch starten', async ({
+    page,
+  }) => {
     // 1. Online-Host im verbundenen Zustand einstellen
     await page.click('#gamemode-btn-online');
     await page.evaluate(() => {
@@ -4887,7 +5159,7 @@ test.describe('Bot-Partner', () => {
     const stateAfterStart = await page.evaluate(() => ({
       spielLaeuft: window.__game.state.spielLaeuft,
       cutsceneAktiv: window.__game.state.cutsceneAktiv,
-      lastEvent: window.__game.state.network.lastSentEvent
+      lastEvent: window.__game.state.network.lastSentEvent,
     }));
     expect(stateAfterStart.spielLaeuft || stateAfterStart.cutsceneAktiv).toBe(true);
     expect(stateAfterStart.lastEvent.type).toBe('game_start');
@@ -4901,7 +5173,9 @@ test.describe('Bot-Partner', () => {
     expect(actionsVisible).toBe(true);
   });
 
-  test('Globale Bestenliste: Highscore-Tabs (SOLO, BOT CO-OP, ONLINE CO-OP) im Game-Over-Screen vorhanden und umschaltbar', async ({ page }) => {
+  test('Globale Bestenliste: Highscore-Tabs (SOLO, BOT CO-OP, ONLINE CO-OP) im Game-Over-Screen vorhanden und umschaltbar', async ({
+    page,
+  }) => {
     // 1. GameOver auslösen
     await page.evaluate(() => {
       window.__game.state.score = 5000;
@@ -4939,7 +5213,9 @@ test.describe('Bot-Partner', () => {
     await expect(tabOnline).not.toHaveClass(/active/);
   });
 
-  test('Globale Bestenliste: Globale Highscores laden und rendern mit Geo-Location (Flagge und Stadt), Rang und Schiffen', async ({ page }) => {
+  test('Globale Bestenliste: Globale Highscores laden und rendern mit Geo-Location (Flagge und Stadt), Rang und Schiffen', async ({
+    page,
+  }) => {
     // Mock API Route für globale Highscores
     await page.route('**/api/highscores?mode=single*', async route => {
       await route.fulfill({
@@ -4951,9 +5227,9 @@ test.describe('Bot-Partner', () => {
           highscores: [
             { id: 1, name: 'FRK', score: 95000, level: 10, shipP1: 'viper', country: 'DE', city: 'Frankfurt' },
             { id: 2, name: 'PET', score: 82000, level: 8, shipP1: 'phantom', country: 'US', city: 'New York' },
-            { id: 3, name: 'BEN', score: 71000, level: 7, shipP1: 'viper', country: 'JP', city: 'Tokyo' }
-          ]
-        })
+            { id: 3, name: 'BEN', score: 71000, level: 7, shipP1: 'viper', country: 'JP', city: 'Tokyo' },
+          ],
+        }),
       });
     });
 
@@ -4995,7 +5271,9 @@ test.describe('Bot-Partner', () => {
     await expect(row3).toContainText('71000');
   });
 
-  test('Globale Bestenliste: Highscore-Submit übermittelt Modus, Name, Score, Schiffe und validen SHA-256 Hash', async ({ page }) => {
+  test('Globale Bestenliste: Highscore-Submit übermittelt Modus, Name, Score, Schiffe und validen SHA-256 Hash', async ({
+    page,
+  }) => {
     let capturedRequest = null;
 
     // Route für POST abfangen
@@ -5015,15 +5293,15 @@ test.describe('Bot-Partner', () => {
               level: capturedRequest.level,
               shipP1: capturedRequest.shipP1,
               country: 'DE',
-              city: 'Berlin'
-            }
-          })
+              city: 'Berlin',
+            },
+          }),
         });
       } else {
         await route.fulfill({
           status: 200,
           contentType: 'application/json',
-          body: JSON.stringify({ success: true, mode: 'single', highscores: [] })
+          body: JSON.stringify({ success: true, mode: 'single', highscores: [] }),
         });
       }
     });
@@ -5056,12 +5334,15 @@ test.describe('Bot-Partner', () => {
     expect(capturedRequest.hash).toMatch(/^[a-f0-9]{64}$/); // Valider 64-stelliger SHA-256 Hex Hash
   });
 
-  test('Globale Bestenliste: Offline-Fallback schaltet bei Server-Fehler auf lokale Highscores um', async ({ page }) => {
+  test('Globale Bestenliste: Offline-Fallback schaltet bei Server-Fehler auf lokale Highscores um', async ({
+    page,
+  }) => {
     // 1. Lokale Highscores im LocalStorage vorbereiten
     await page.evaluate(() => {
-      localStorage.setItem('spaceShooterHighscores', JSON.stringify([
-        { name: 'LOC', score: 3333, ship: 'viper', mode: 'single' }
-      ]));
+      localStorage.setItem(
+        'spaceShooterHighscores',
+        JSON.stringify([{ name: 'LOC', score: 3333, ship: 'viper', mode: 'single' }]),
+      );
     });
 
     // 2. Route so konfigurieren, dass sie mit 500 Internal Server Error fehlschlägt
@@ -5069,7 +5350,7 @@ test.describe('Bot-Partner', () => {
       await route.fulfill({
         status: 500,
         contentType: 'application/json',
-        body: JSON.stringify({ success: false, error: 'Server unavailable' })
+        body: JSON.stringify({ success: false, error: 'Server unavailable' }),
       });
     });
 
@@ -5099,7 +5380,11 @@ test.describe('Bot-Partner', () => {
         postRequestSent = true;
         await route.fulfill({ status: 201, contentType: 'application/json', body: '{}' });
       } else {
-        await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ success: true, mode: 'single', highscores: [] }) });
+        await route.fulfill({
+          status: 200,
+          contentType: 'application/json',
+          body: JSON.stringify({ success: true, mode: 'single', highscores: [] }),
+        });
       }
     });
 
@@ -5116,7 +5401,9 @@ test.describe('Bot-Partner', () => {
     expect(postRequestSent).toBe(false);
   });
 
-  test('Online-Multiplayer Bug 1: Schiffsauswahl von Host und Client wird korrekt synchronisiert und nicht vertauscht', async ({ page }) => {
+  test('Online-Multiplayer Bug 1: Schiffsauswahl von Host und Client wird korrekt synchronisiert und nicht vertauscht', async ({
+    page,
+  }) => {
     // 1. Client-Szenario: Client wählt im Hangar 'viper' aus und tritt Online-Lobby bei
     await page.evaluate(() => {
       const mod = window.__game;
@@ -5131,7 +5418,7 @@ test.describe('Bot-Partner', () => {
       mod.Network.handleNetworkEvent({
         type: 'game_start',
         hostShipModel: 'phantom',
-        hostShipColor: 'blue'
+        hostShipColor: 'blue',
       });
     });
 
@@ -5139,7 +5426,7 @@ test.describe('Bot-Partner', () => {
       const mod = window.__game;
       return {
         p1Model: mod.state.selectedShipModel,
-        p2Model: mod.state.p2.selectedShipModel
+        p2Model: mod.state.p2.selectedShipModel,
       };
     });
 
@@ -5162,7 +5449,7 @@ test.describe('Bot-Partner', () => {
       mod.Network.handleNetworkEvent({
         type: 'client_ready',
         clientShipModel: 'viper',
-        clientShipColor: 'red'
+        clientShipColor: 'red',
       });
     });
 
@@ -5171,7 +5458,7 @@ test.describe('Bot-Partner', () => {
       return {
         p1Model: mod.state.selectedShipModel,
         p2Model: mod.state.p2.selectedShipModel,
-        p2Color: mod.state.p2.selectedShipColor
+        p2Color: mod.state.p2.selectedShipColor,
       };
     });
 
@@ -5181,7 +5468,9 @@ test.describe('Bot-Partner', () => {
     expect(hostState.p2Color).toBe('red');
   });
 
-  test('Online-Multiplayer Bug 3: Partikel auf dem Client animieren, zerfallen und werden aus DOM und Array entfernt', async ({ page }) => {
+  test('Online-Multiplayer Bug 3: Partikel auf dem Client animieren, zerfallen und werden aus DOM und Array entfernt', async ({
+    page,
+  }) => {
     await page.evaluate(() => {
       const mod = window.__game;
       mod.state.gameMode = 'online';
@@ -5213,7 +5502,7 @@ test.describe('Bot-Partner', () => {
       const domParticles = document.querySelectorAll('.partikel');
       return {
         arrayCount: mod.arrays.partikelArray.length,
-        domCount: domParticles.length
+        domCount: domParticles.length,
       };
     });
 
@@ -5221,16 +5510,26 @@ test.describe('Bot-Partner', () => {
     expect(result.domCount).toBe(0);
   });
 
-  test('Online-Multiplayer Bug 4: Im Online-Modus sendet nur der Host genau EINEN globalen Highscore-Submit mit korrekten Schiffen', async ({ page }) => {
+  test('Online-Multiplayer Bug 4: Im Online-Modus sendet nur der Host genau EINEN globalen Highscore-Submit mit korrekten Schiffen', async ({
+    page,
+  }) => {
     let postRequests = [];
 
     await page.route('**/api/highscores*', async route => {
       if (route.request().method() === 'POST') {
         const payload = JSON.parse(route.request().postData() || '{}');
         postRequests.push(payload);
-        await route.fulfill({ status: 201, contentType: 'application/json', body: JSON.stringify({ success: true, rank: 1, entry: payload }) });
+        await route.fulfill({
+          status: 201,
+          contentType: 'application/json',
+          body: JSON.stringify({ success: true, rank: 1, entry: payload }),
+        });
       } else {
-        await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ success: true, mode: 'online', highscores: [] }) });
+        await route.fulfill({
+          status: 200,
+          contentType: 'application/json',
+          body: JSON.stringify({ success: true, mode: 'online', highscores: [] }),
+        });
       }
     });
 
@@ -5282,7 +5581,9 @@ test.describe('Bot-Partner', () => {
     expect(postRequests[0].shipP2).toBe('viper');
   });
 
-  test('Online-Multiplayer Issue 1: Energie- & Cooldown-HUD wird auf Client synchronisiert und Host blockiert Laser bei unzureichender Mindestenergie', async ({ page }) => {
+  test('Online-Multiplayer Issue 1: Energie- & Cooldown-HUD wird auf Client synchronisiert und Host blockiert Laser bei unzureichender Mindestenergie', async ({
+    page,
+  }) => {
     // 1. Client-HUD-Sync testen
     await page.evaluate(() => {
       const mod = window.__game;
@@ -5301,7 +5602,7 @@ test.describe('Bot-Partner', () => {
           maxEnergie: 100,
           raketenCooldown: 90,
           bombenCooldown: 600,
-          laserSchiesst: false
+          laserSchiesst: false,
         },
         feinde: [],
         asteroiden: [],
@@ -5309,7 +5610,7 @@ test.describe('Bot-Partner', () => {
         laser: [],
         raketen: [],
         bomben: [],
-        powerups: []
+        powerups: [],
       };
 
       mod.Network.applyGameStateSnapshot(mockSnapshot);
@@ -5323,7 +5624,7 @@ test.describe('Bot-Partner', () => {
         eWidth: eBalkenP2 ? eBalkenP2.style.width : '',
         eColor: eBalkenP2 ? eBalkenP2.style.backgroundColor : '',
         rWidth: rBalkenP2 ? rBalkenP2.style.width : '',
-        bWidth: bBalkenP2 ? bBalkenP2.style.width : ''
+        bWidth: bBalkenP2 ? bBalkenP2.style.width : '',
       };
     });
 
@@ -5358,7 +5659,9 @@ test.describe('Bot-Partner', () => {
     expect(hostP2Laser).toBe(false);
   });
 
-  test('Online-Multiplayer Issue 2: Host übernimmt Client-Schiffswahl aus client_ready und aktualisiert SVG und game_start Event', async ({ page }) => {
+  test('Online-Multiplayer Issue 2: Host übernimmt Client-Schiffswahl aus client_ready und aktualisiert SVG und game_start Event', async ({
+    page,
+  }) => {
     await page.evaluate(() => {
       const mod = window.__game;
       mod.state.gameMode = 'online';
@@ -5373,7 +5676,7 @@ test.describe('Bot-Partner', () => {
       mod.Network.handleNetworkEvent({
         type: 'client_ready',
         clientShipModel: 'viper',
-        clientShipColor: 'green'
+        clientShipColor: 'green',
       });
     });
 
@@ -5383,7 +5686,11 @@ test.describe('Bot-Partner', () => {
       return {
         model: mod.state.p2.selectedShipModel,
         color: mod.state.p2.selectedShipColor,
-        hasViperSvg: s2Svg ? s2Svg.innerHTML.includes('#2ecc71') || s2Svg.innerHTML.includes('#27ae60') || s2Svg.innerHTML.includes('viper') : false
+        hasViperSvg: s2Svg
+          ? s2Svg.innerHTML.includes('#2ecc71') ||
+            s2Svg.innerHTML.includes('#27ae60') ||
+            s2Svg.innerHTML.includes('viper')
+          : false,
       };
     });
 
@@ -5391,7 +5698,9 @@ test.describe('Bot-Partner', () => {
     expect(hostP2State.color).toBe('green');
   });
 
-  test('Online-Multiplayer Issue 3: Client aktualisiert Bestenliste nach highscore_committed Event vom Host', async ({ page }) => {
+  test('Online-Multiplayer Issue 3: Client aktualisiert Bestenliste nach highscore_committed Event vom Host', async ({
+    page,
+  }) => {
     // Route mocken: Vorher alte Liste, nach Refresh neue Liste
     let callCount = 0;
     await page.route('**/api/highscores*', async route => {
@@ -5403,8 +5712,8 @@ test.describe('Bot-Partner', () => {
           body: JSON.stringify({
             success: true,
             mode: 'online',
-            highscores: [{ name: 'OLD+OLD', score: 1000, shipP1: 'viper', shipP2: 'phantom', level: 1 }]
-          })
+            highscores: [{ name: 'OLD+OLD', score: 1000, shipP1: 'viper', shipP2: 'phantom', level: 1 }],
+          }),
         });
       } else {
         await route.fulfill({
@@ -5413,8 +5722,8 @@ test.describe('Bot-Partner', () => {
           body: JSON.stringify({
             success: true,
             mode: 'online',
-            highscores: [{ name: 'NEW+WIN', score: 9999, shipP1: 'viper', shipP2: 'viper', level: 5 }]
-          })
+            highscores: [{ name: 'NEW+WIN', score: 9999, shipP1: 'viper', shipP2: 'viper', level: 5 }],
+          }),
         });
       }
     });
@@ -5439,7 +5748,7 @@ test.describe('Bot-Partner', () => {
     await page.evaluate(() => {
       const mod = window.__game;
       mod.Network.handleNetworkEvent({
-        type: 'highscore_committed'
+        type: 'highscore_committed',
       });
     });
 
@@ -5451,7 +5760,9 @@ test.describe('Bot-Partner', () => {
     expect(updatedText).toContain('9999');
   });
 
-  test('Online-Multiplayer Issue 4: Nur L, K, Space (und WASD) steuern Aktionen; ö und ä sind im Online-Modus deaktiviert', async ({ page }) => {
+  test('Online-Multiplayer Issue 4: Nur L, K, Space (und WASD) steuern Aktionen; ö und ä sind im Online-Modus deaktiviert', async ({
+    page,
+  }) => {
     const inputResults = await page.evaluate(() => {
       const mod = window.__game;
       mod.state.gameMode = 'online';
@@ -5459,7 +5770,9 @@ test.describe('Bot-Partner', () => {
       mod.state.network.isClient = true;
 
       // Alle Tasten zurücksetzen
-      Object.keys(mod.state.tastenGedrueckt).forEach(k => { mod.state.tastenGedrueckt[k] = false; });
+      Object.keys(mod.state.tastenGedrueckt).forEach(k => {
+        mod.state.tastenGedrueckt[k] = false;
+      });
 
       // 1. Lokale Coop-Tasten ö und ä drücken
       mod.state.tastenGedrueckt['ö'] = true;
@@ -5476,7 +5789,7 @@ test.describe('Bot-Partner', () => {
 
       return {
         coopKeysInput,
-        standardKeysInput
+        standardKeysInput,
       };
     });
 
@@ -5490,7 +5803,9 @@ test.describe('Bot-Partner', () => {
     expect(inputResults.standardKeysInput.bombe).toBe(true);
   });
 
-  test('Im lokalen Co-op Modus mit Bot-Partner kann Spieler 1 die Standard-Steuerung L (Laser), K (Rakete) und Leertaste (Bombe) nutzen', async ({ page }) => {
+  test('Im lokalen Co-op Modus mit Bot-Partner kann Spieler 1 die Standard-Steuerung L (Laser), K (Rakete) und Leertaste (Bombe) nutzen', async ({
+    page,
+  }) => {
     await page.evaluate(() => {
       const mod = window.__game;
       mod.state.gameMode = 'coop';
@@ -5501,7 +5816,9 @@ test.describe('Bot-Partner', () => {
       mod.state.bombenCooldown = 0;
 
       // Tastendrücke zurücksetzen
-      Object.keys(mod.state.tastenGedrueckt).forEach(k => { mod.state.tastenGedrueckt[k] = false; });
+      Object.keys(mod.state.tastenGedrueckt).forEach(k => {
+        mod.state.tastenGedrueckt[k] = false;
+      });
 
       // L (Laser), K (Rakete), Space (Bombe) drücken
       mod.state.tastenGedrueckt.l = true;
@@ -5519,7 +5836,7 @@ test.describe('Bot-Partner', () => {
         raketenCooldown: mod.state.raketenCooldown,
         bombenCooldown: mod.state.bombenCooldown,
         raketenCount: mod.arrays.raketenArray.filter(r => r.owner === 'p1').length,
-        bombenCount: mod.arrays.bombenArray.filter(b => b.owner === 'p1').length
+        bombenCount: mod.arrays.bombenArray.filter(b => b.owner === 'p1').length,
       };
     });
 
@@ -5530,7 +5847,9 @@ test.describe('Bot-Partner', () => {
     expect(p1Actions.bombenCount).toBeGreaterThanOrEqual(1);
   });
 
-  test('Online-Multiplayer Schiffswahl: Client behält seine im Hangar gewählte Viper bei game_start und überschreibt diese nicht mit altem Host-Default', async ({ page }) => {
+  test('Online-Multiplayer Schiffswahl: Client behält seine im Hangar gewählte Viper bei game_start und überschreibt diese nicht mit altem Host-Default', async ({
+    page,
+  }) => {
     await page.evaluate(() => {
       const mod = window.__game;
       mod.state.gameMode = 'online';
@@ -5553,7 +5872,7 @@ test.describe('Bot-Partner', () => {
         hostShipModel: 'phantom',
         hostShipColor: 'blue',
         clientShipModel: 'phantom', // Stale Host Default
-        clientShipColor: 'blue'
+        clientShipColor: 'blue',
       });
     });
 
@@ -5565,7 +5884,7 @@ test.describe('Bot-Partner', () => {
         modelP2: mod.state.p2.selectedShipModel,
         colorP2: mod.state.p2.selectedShipColor,
         speedP2: speed,
-        hasViperSvg: s2Svg ? s2Svg.innerHTML.includes('#2ecc71') || s2Svg.innerHTML.includes('#27ae60') : false
+        hasViperSvg: s2Svg ? s2Svg.innerHTML.includes('#2ecc71') || s2Svg.innerHTML.includes('#27ae60') : false,
       };
     });
 
@@ -5577,7 +5896,9 @@ test.describe('Bot-Partner', () => {
     expect(clientP2State.hasViperSvg).toBe(true);
   });
 
-  test('Splitter-Drops: Im Solo-Modus mit Phantom-NX droppen bei Feinden und Bossen keine Splitter', async ({ page }) => {
+  test('Splitter-Drops: Im Solo-Modus mit Phantom-NX droppen bei Feinden und Bossen keine Splitter', async ({
+    page,
+  }) => {
     const dropResults = await page.evaluate(() => {
       const mod = window.__game;
       mod.state.gameMode = 'single';
@@ -5585,9 +5906,13 @@ test.describe('Bot-Partner', () => {
       mod.state.viperKillCount = 0;
 
       // Vorhandene Powerups leeren
-      mod.arrays.powerups.forEach(p => { if (p.el) p.el.remove(); });
+      mod.arrays.powerups.forEach(p => {
+        if (p.el) p.el.remove();
+      });
       mod.arrays.powerups.length = 0;
-      mod.arrays.bosses.forEach(b => { if (b.el) b.el.remove(); });
+      mod.arrays.bosses.forEach(b => {
+        if (b.el) b.el.remove();
+      });
       mod.arrays.bosses.length = 0;
 
       // 10 Feinde durch Phantom zerstören
@@ -5597,7 +5922,9 @@ test.describe('Bot-Partner', () => {
         mod.Utils.zerstoereZiel(feind, 'p1');
       }
 
-      const enemyDropShards = mod.arrays.powerups.filter(p => p.type === 'splitterRot' || p.type === 'splitterWeiss').length;
+      const enemyDropShards = mod.arrays.powerups.filter(
+        p => p.type === 'splitterRot' || p.type === 'splitterWeiss',
+      ).length;
 
       // Boss durch Phantom zerstören
       mod.Entities.erzeugeBoss();
@@ -5605,12 +5932,14 @@ test.describe('Bot-Partner', () => {
       mod.Utils.zerstoereZiel(boss, 'p1');
 
       const allShards = mod.arrays.powerups.filter(p => p.type === 'splitterRot' || p.type === 'splitterWeiss').length;
-      const regularPowerups = mod.arrays.powerups.filter(p => p.type !== 'splitterRot' && p.type !== 'splitterWeiss').length;
+      const regularPowerups = mod.arrays.powerups.filter(
+        p => p.type !== 'splitterRot' && p.type !== 'splitterWeiss',
+      ).length;
 
       return {
         enemyDropShards,
         allShards,
-        regularPowerups
+        regularPowerups,
       };
     });
 
@@ -5620,15 +5949,21 @@ test.describe('Bot-Partner', () => {
     expect(dropResults.regularPowerups).toBe(3); // Nur die 3 regulären Boss-Powerups
   });
 
-  test('Splitter-Drops: Im Co-op Modus droppen Splitter nur fuer Viper-Spieler und keine wenn beide Phantom fliegen', async ({ page }) => {
+  test('Splitter-Drops: Im Co-op Modus droppen Splitter nur fuer Viper-Spieler und keine wenn beide Phantom fliegen', async ({
+    page,
+  }) => {
     const coopResults = await page.evaluate(() => {
       const mod = window.__game;
       mod.state.gameMode = 'coop';
 
       function resetDrops() {
-        mod.arrays.powerups.forEach(p => { if (p.el) p.el.remove(); });
+        mod.arrays.powerups.forEach(p => {
+          if (p.el) p.el.remove();
+        });
         mod.arrays.powerups.length = 0;
-        mod.arrays.bosses.forEach(b => { if (b.el) b.el.remove(); });
+        mod.arrays.bosses.forEach(b => {
+          if (b.el) b.el.remove();
+        });
         mod.arrays.bosses.length = 0;
         mod.state.viperKillCount = 0;
         if (mod.state.p2) mod.state.p2.viperKillCount = 0;
@@ -5665,7 +6000,9 @@ test.describe('Bot-Partner', () => {
         mod.arrays.feinde.push(f);
         mod.Utils.zerstoereZiel(f, 'p1');
       }
-      const p1PhantomKillsShards = mod.arrays.powerups.filter(p => p.type === 'splitterRot' || p.type === 'splitterWeiss').length;
+      const p1PhantomKillsShards = mod.arrays.powerups.filter(
+        p => p.type === 'splitterRot' || p.type === 'splitterWeiss',
+      ).length;
 
       // 10 Kills P2 (Viper) -> 1 Drop für P2
       for (let i = 0; i < 10; i++) {
@@ -5673,20 +6010,26 @@ test.describe('Bot-Partner', () => {
         mod.arrays.feinde.push(f);
         mod.Utils.zerstoereZiel(f, 'p2');
       }
-      const p2ViperKillsShards = mod.arrays.powerups.filter(p => (p.type === 'splitterRot' || p.type === 'splitterWeiss') && p.owner === 'p2').length;
+      const p2ViperKillsShards = mod.arrays.powerups.filter(
+        p => (p.type === 'splitterRot' || p.type === 'splitterWeiss') && p.owner === 'p2',
+      ).length;
 
       // Boss Kill durch P1 (Phantom) -> Splitter gehen an P2 (Viper)
       mod.Entities.erzeugeBoss();
       mod.Utils.zerstoereZiel(mod.arrays.bosses[0], 'p1');
-      const bossShardsToP2 = mod.arrays.powerups.filter(p => (p.type === 'splitterRot' || p.type === 'splitterWeiss') && p.owner === 'p2').length;
-      const shardsToP1 = mod.arrays.powerups.filter(p => (p.type === 'splitterRot' || p.type === 'splitterWeiss') && p.owner === 'p1').length;
+      const bossShardsToP2 = mod.arrays.powerups.filter(
+        p => (p.type === 'splitterRot' || p.type === 'splitterWeiss') && p.owner === 'p2',
+      ).length;
+      const shardsToP1 = mod.arrays.powerups.filter(
+        p => (p.type === 'splitterRot' || p.type === 'splitterWeiss') && p.owner === 'p1',
+      ).length;
 
       return {
         bothPhantomShardCount: bothPhantomShards.length,
         p1PhantomKillsShards,
         p2ViperKillsShards,
         bossShardsToP2,
-        shardsToP1
+        shardsToP1,
       };
     });
 
@@ -5706,7 +6049,9 @@ test.describe('Bot-Partner', () => {
 
   test('Issue 11: Highscore-Liste mit vielen Eintraegen ist scrollbar und in der Hoehe begrenzt', async ({ page }) => {
     // Game-Over-Screen mit Bestenliste einblenden (wie utils.js beim Spielende)
-    await page.evaluate(() => { document.getElementById('game-over-screen').style.display = 'flex'; });
+    await page.evaluate(() => {
+      document.getElementById('game-over-screen').style.display = 'flex';
+    });
     const container = page.locator('.highscore-table-container');
     await expect(container).toBeVisible();
 
@@ -5721,7 +6066,7 @@ test.describe('Bot-Partner', () => {
       return {
         zeilen: document.querySelectorAll('#highscore-body tr').length,
         scrollHeight: el.scrollHeight,
-        clientHeight: el.clientHeight
+        clientHeight: el.clientHeight,
       };
     });
 
@@ -5732,15 +6077,10 @@ test.describe('Bot-Partner', () => {
     expect(masse.clientHeight).toBeLessThan(400);
 
     // Es laesst sich tatsaechlich scrollen
-    const gescrollt = await container.evaluate((el) => {
+    const gescrollt = await container.evaluate(el => {
       el.scrollTop = 50;
       return el.scrollTop;
     });
     expect(gescrollt).toBeGreaterThan(0);
   });
-
 });
-
-
-
-

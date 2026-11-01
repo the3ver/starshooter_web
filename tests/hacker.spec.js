@@ -6,7 +6,7 @@ test.beforeEach(async ({ page }) => {
     await route.fulfill({
       status: 200,
       contentType: 'application/json',
-      body: JSON.stringify({ success: true, mode: 'single', highscores: [] })
+      body: JSON.stringify({ success: true, mode: 'single', highscores: [] }),
     });
   });
   await setzeSpielstand(page);
@@ -29,7 +29,6 @@ async function starteSpiel(page) {
 }
 
 test.describe('Hacker-Gegner', () => {
-
   test('erzeugeFeind mit Muster hacker erzeugt gruenen Hacker ohne Schild mit 20 HP', async ({ page }) => {
     await starteSpiel(page);
     const f = await page.evaluate(async () => {
@@ -38,7 +37,13 @@ test.describe('Hacker-Gegner', () => {
       state.level = 5;
       Entities.erzeugeFeind(100, 50, 'hacker', 0);
       const f = arrays.feinde[arrays.feinde.length - 1];
-      return { muster: f.muster, hp: f.hp, schildHp: f.schildHp, color: f.el.dataset.baseColor, hatSvg: !!f.el.querySelector('svg') };
+      return {
+        muster: f.muster,
+        hp: f.hp,
+        schildHp: f.schildHp,
+        color: f.el.dataset.baseColor,
+        hatSvg: !!f.el.querySelector('svg'),
+      };
     });
     expect(f).toEqual({ muster: 'hacker', hp: 20, schildHp: 0, color: '#39ff14', hatSvg: true });
   });
@@ -58,7 +63,6 @@ test.describe('Hacker-Gegner', () => {
     expect(r).toEqual([true, false]);
   });
 
-
   test('Abschuss eines Hackers gibt doppelte Punkte (200)', async ({ page }) => {
     await starteSpiel(page);
     const diff = await page.evaluate(async () => {
@@ -75,7 +79,6 @@ test.describe('Hacker-Gegner', () => {
     expect(diff).toBe(200);
   });
 
-
   test('Hacker stoppt zwischen y 100 und 200 und feuert Hack-Projektile statt Laser', async ({ page }) => {
     await starteSpiel(page);
     // Anflug, Stopp und erster Schuss in 180 festen Simulationsschritten (~3 s), synchron ausgewertet
@@ -84,7 +87,8 @@ test.describe('Hacker-Gegner', () => {
       const Entities = await import('./js/entities.js');
       const { simulationsSchritt } = await import('./js/loop.js');
       state.godMode = true;
-      state.x = 0; state.y = 560;
+      state.x = 0;
+      state.y = 560;
       Entities.erzeugeFeind(200, -30, 'hacker', 0);
       for (let i = 0; i < 180; i++) simulationsSchritt();
       const f = arrays.feinde.find(f => f.muster === 'hacker');
@@ -98,17 +102,21 @@ test.describe('Hacker-Gegner', () => {
     await expect(page.locator('.hack-projektil').first()).toBeAttached();
   });
 
-
   test('Hack-Projektil hackt den Spieler ohne Schaden und ignoriert den Schild', async ({ page }) => {
     await starteSpiel(page);
     await page.evaluate(async () => {
       const { state, arrays } = await import('./js/state.js');
       const Entities = await import('./js/entities.js');
-      state.x = 185; state.y = 400;
+      state.x = 185;
+      state.y = 400;
       state.schildStufe = 2;
       Entities.erzeugeFeind(185, 50, 'hacker', 0);
       const f = arrays.feinde[arrays.feinde.length - 1];
-      f.phase = 'lauern'; f.lauerTimer = 9999; f.hackTimer = 9999; f.y = 100; f.stopY = 100;
+      f.phase = 'lauern';
+      f.lauerTimer = 9999;
+      f.hackTimer = 9999;
+      f.y = 100;
+      f.stopY = 100;
       Entities.erzeugeHackProjektil(194, 360, 200, 415, f);
     });
     await page.waitForFunction(() => window.__game.arrays.hackProjektilArray.length === 0);
@@ -120,7 +128,6 @@ test.describe('Hacker-Gegner', () => {
     expect(r).toEqual({ hacks: 1, leben: 3, schild: 2, gelandet: true });
   });
 
-
   test('Hacker flieht nach Treffer oder nach 10 s nach oben aus dem Bild', async ({ page }) => {
     await starteSpiel(page);
     await page.evaluate(async () => {
@@ -130,8 +137,15 @@ test.describe('Hacker-Gegner', () => {
       Entities.erzeugeFeind(100, 150, 'hacker', 0);
       Entities.erzeugeFeind(250, 150, 'hacker', 0);
       const [a, b] = arrays.feinde;
-      a.id = 'treffer'; a.phase = 'lauern'; a.lauerTimer = 9999; a.hackTimer = 9999; a.hackGelandet = true;
-      b.id = 'timeout'; b.phase = 'lauern'; b.lauerTimer = 1; b.hackTimer = 9999;
+      a.id = 'treffer';
+      a.phase = 'lauern';
+      a.lauerTimer = 9999;
+      a.hackTimer = 9999;
+      a.hackGelandet = true;
+      b.id = 'timeout';
+      b.phase = 'lauern';
+      b.lauerTimer = 1;
+      b.hackTimer = 9999;
     });
     // Feste Simulationsschritte statt Echtzeit: erst Phasenwechsel, dann Flucht aus dem Bild
     const r = await page.evaluate(() => {
@@ -139,7 +153,10 @@ test.describe('Hacker-Gegner', () => {
       for (let i = 0; i < 6; i++) Loop.simulationsSchritt();
       const phasen = arrays.feinde.map(f => f.phase);
       let schritte = 0;
-      while (arrays.feinde.length > 0 && schritte < 600) { Loop.simulationsSchritt(); schritte++; }
+      while (arrays.feinde.length > 0 && schritte < 600) {
+        Loop.simulationsSchritt();
+        schritte++;
+      }
       return { phasen, uebrig: arrays.feinde.length };
     });
     expect(r.phasen).toEqual(['flucht', 'flucht']);
@@ -151,10 +168,14 @@ test.describe('Hacker-Gegner', () => {
     await page.evaluate(async () => {
       const { state, arrays } = await import('./js/state.js');
       const Entities = await import('./js/entities.js');
-      state.x = 185; state.y = 400;
+      state.x = 185;
+      state.y = 400;
       Entities.erzeugeFeind(185, 50, 'hacker', 0);
       const f = arrays.feinde[0];
-      f.phase = 'lauern'; f.lauerTimer = 9999; f.hackTimer = 9999; f.y = 100;
+      f.phase = 'lauern';
+      f.lauerTimer = 9999;
+      f.hackTimer = 9999;
+      f.y = 100;
       Entities.erzeugeHackProjektil(194, 360, 200, 415, f);
       Entities.erzeugeHackProjektil(194, 330, 200, 415, f);
     });
@@ -162,7 +183,6 @@ test.describe('Hacker-Gegner', () => {
     const hacks = await page.evaluate(() => window.__game.state.hacks.length);
     expect(hacks).toBe(1);
   });
-
 
   test('Hack-Effekte stapeln sich und laufen nach 3 s ab (P1 und P2)', async ({ page }) => {
     await starteSpiel(page);
@@ -187,7 +207,6 @@ test.describe('Hacker-Gegner', () => {
     expect(r.nachher).toEqual([0, 0]);
   });
 
-
   test('Effekt invertiert: D bewegt das Schiff nach links', async ({ page }) => {
     await starteSpiel(page);
     const startX = await page.evaluate(async () => {
@@ -205,7 +224,6 @@ test.describe('Hacker-Gegner', () => {
     expect(x).toBeLessThan(startX - 20);
   });
 
-
   test('Effekt tastenVertauscht: jede Richtung wird auf eine andere Richtung abgebildet', async ({ page }) => {
     await starteSpiel(page);
     for (let lauf = 0; lauf < 5; lauf++) {
@@ -214,7 +232,12 @@ test.describe('Hacker-Gegner', () => {
         const Hack = await import('./js/hack.js');
         Hack.entferneHacks(state);
         Hack.hackeSpieler(state, 'tastenVertauscht');
-        const richtungen = [[0, -1], [0, 1], [-1, 0], [1, 0]];
+        const richtungen = [
+          [0, -1],
+          [0, 1],
+          [-1, 0],
+          [1, 0],
+        ];
         return richtungen.map(([dx, dy]) => {
           const b = Hack.hackeBewegung(state, dx, dy);
           return { gleich: b.dx === dx && b.dy === dy, ziel: `${b.dx},${b.dy}` };
@@ -224,7 +247,6 @@ test.describe('Hacker-Gegner', () => {
       expect(new Set(r.map(x => x.ziel)).size).toBe(4);
     }
   });
-
 
   test('Effekt waffenOffline: Laser, Raketen und Bomben feuern nicht', async ({ page }) => {
     await starteSpiel(page);
@@ -246,11 +268,14 @@ test.describe('Hacker-Gegner', () => {
     await page.keyboard.up('Space');
     const r = await page.evaluate(async () => {
       const { arrays } = await import('./js/state.js');
-      return { laser: arrays.laserArray.length, raketen: arrays.raketenArray.length, bomben: arrays.bombenArray.length };
+      return {
+        laser: arrays.laserArray.length,
+        raketen: arrays.raketenArray.length,
+        bomben: arrays.bombenArray.length,
+      };
     });
     expect(r).toEqual({ laser: 0, raketen: 0, bomben: 0 });
   });
-
 
   test('Effekt hudGlitch: HUD bekommt Glitch-Klasse, solange der Effekt aktiv ist', async ({ page }) => {
     await starteSpiel(page);
@@ -271,7 +296,6 @@ test.describe('Hacker-Gegner', () => {
     expect(r).toEqual({ amAnfang: true, kurzVorEnde: true, nachEnde: false });
     await expect(page.locator('#ui-container')).not.toHaveClass(/hud-glitch/);
   });
-
 
   test('Gehackter Spieler zeigt Label mit Effektnamen, Restzeit-Balken und Glitch am Schiff', async ({ page }) => {
     await starteSpiel(page);
@@ -294,14 +318,16 @@ test.describe('Hacker-Gegner', () => {
       const Hack = await import('./js/hack.js');
       const { simulationsSchritt } = await import('./js/loop.js');
       let n = 0;
-      while (state.hacks.length > 0 && n <= Hack.HACK_DAUER) { simulationsSchritt(); n++; }
+      while (state.hacks.length > 0 && n <= Hack.HACK_DAUER) {
+        simulationsSchritt();
+        n++;
+      }
       return n;
     });
     expect(schritte).toBeLessThanOrEqual(180);
     await expect(label).toBeHidden();
     await expect(page.locator('#spieler')).not.toHaveClass(/spieler-gehackt/);
   });
-
 
   test('Spawn: Hacker erst ab Level 2 und hoechstens einer gleichzeitig', async ({ page }) => {
     await starteSpiel(page);
@@ -325,7 +351,6 @@ test.describe('Hacker-Gegner', () => {
     expect(r).toEqual({ level1: 0, level2: 1, nochmal: 1 });
   });
 
-
   test('Koop: invertiert wirkt auch auf die Pfeiltasten von Spieler 2', async ({ page }) => {
     await starteSpiel(page);
     await page.evaluate(async () => {
@@ -347,22 +372,24 @@ test.describe('Hacker-Gegner', () => {
     expect(r.p2).toBeLessThan(280);
   });
 
-
   test('Koop: Bot-Partner wird ebenfalls gehackt (invertiert kehrt seine Bewegung um)', async ({ page }) => {
     await starteSpiel(page);
-    const setup = async (mitHack) => page.evaluate(async (mitHack) => {
-      const { state, config } = await import('./js/state.js');
-      const Hack = await import('./js/hack.js');
-      config.spielfeldBreite = 600;
-      state.godMode = true;
-      state.gameMode = 'coop';
-      state.p2IsBot = true;
-      state.p2.isDead = false;
-      state.x = 50; state.y = 400;
-      state.p2.x = 450; state.p2.y = 400;
-      Hack.entferneHacks(state.p2);
-      if (mitHack) Hack.hackeSpieler(state.p2, 'invertiert');
-    }, mitHack);
+    const setup = async mitHack =>
+      page.evaluate(async mitHack => {
+        const { state, config } = await import('./js/state.js');
+        const Hack = await import('./js/hack.js');
+        config.spielfeldBreite = 600;
+        state.godMode = true;
+        state.gameMode = 'coop';
+        state.p2IsBot = true;
+        state.p2.isDead = false;
+        state.x = 50;
+        state.y = 400;
+        state.p2.x = 450;
+        state.p2.y = 400;
+        Hack.entferneHacks(state.p2);
+        if (mitHack) Hack.hackeSpieler(state.p2, 'invertiert');
+      }, mitHack);
     await setup(false);
     await page.waitForTimeout(300);
     const ohne = await page.evaluate(() => window.__game.state.p2.x);
@@ -372,7 +399,6 @@ test.describe('Hacker-Gegner', () => {
     expect(ohne).toBeLessThan(450);
     expect(mit).toBeGreaterThan(450);
   });
-
 
   test('Online: Snapshot uebertraegt Hacks beider Spieler und Hack-Projektile', async ({ page }) => {
     await starteSpiel(page);
@@ -398,12 +424,11 @@ test.describe('Hacker-Gegner', () => {
         p2: state.p2.hacks.map(h => h.typ),
         permGleich: JSON.stringify(state.p2.hacks[0].perm) === JSON.stringify(perm),
         projektile: arrays.hackProjektilArray.length,
-        dom: document.querySelectorAll('.hack-projektil').length
+        dom: document.querySelectorAll('.hack-projektil').length,
       };
     });
     expect(r).toEqual({ p1: ['invertiert'], p2: ['tastenVertauscht'], permGleich: true, projektile: 1, dom: 1 });
   });
-
 
   test('Online-Client: Hack wirkt auf die lokale Steuerung und zeigt das Label', async ({ page }) => {
     await starteSpiel(page);
@@ -415,7 +440,8 @@ test.describe('Hacker-Gegner', () => {
       state.network.isClient = true;
       state.network.connected = true;
       state.p2.isDead = false;
-      state.p2.x = 300; state.p2.y = 400;
+      state.p2.x = 300;
+      state.p2.y = 400;
       Hack.hackeSpieler(state.p2, 'invertiert');
     });
     await page.keyboard.down('KeyD');
@@ -425,7 +451,6 @@ test.describe('Hacker-Gegner', () => {
     expect(x).toBeLessThan(280);
     await expect(page.locator('#hack-label-p2')).toContainText('INVERTED');
   });
-
 
   test('restartGame entfernt aktive Hacks beider Spieler', async ({ page }) => {
     await starteSpiel(page);
@@ -440,7 +465,6 @@ test.describe('Hacker-Gegner', () => {
     });
     expect(r).toEqual([0, 0]);
   });
-
 
   test('Neuer Hack spielt den Glitch-Sound', async ({ page }) => {
     await starteSpiel(page);
@@ -463,14 +487,14 @@ test.describe('Hacker-Gegner', () => {
     expect(anzahl).toBe(1);
   });
 
-
   test('Hack-Projektil lenkt in Richtung des Spielers', async ({ page }) => {
     await starteSpiel(page);
     await page.evaluate(async () => {
       const { state } = await import('./js/state.js');
       const Entities = await import('./js/entities.js');
       state.godMode = true;
-      state.x = 330; state.y = 500;
+      state.x = 330;
+      state.y = 500;
       // Startet senkrecht nach unten, Spieler steht weit rechts
       Entities.erzeugeHackProjektil(50, 100, 50, 500);
     });
@@ -479,37 +503,40 @@ test.describe('Hacker-Gegner', () => {
     expect(vx).toBeGreaterThan(0.5);
   });
 
-
   test('Hack-Projektil kann durch seitliches Ausweichen verfehlt werden', async ({ page }) => {
     await starteSpiel(page);
     // Feste Simulationsschritte; Taste D ueber state.tastenGedrueckt (wie der keydown-Handler) gehalten.
     // Gegenprobe ohne Ausweichen: derselbe Orb trifft.
-    const lauf = (ausweichen) => page.evaluate(async (ausweichen) => {
-      const { state, arrays } = await import('./js/state.js');
-      const Entities = await import('./js/entities.js');
-      const Hack = await import('./js/hack.js');
-      const { simulationsSchritt } = await import('./js/loop.js');
-      Hack.entferneHacks(state);
-      arrays.hackProjektilArray.forEach(h => h.el.remove());
-      arrays.hackProjektilArray.length = 0;
-      state.godMode = true;
-      state.x = 185; state.y = 450;
-      Entities.erzeugeHackProjektil(194, 250, 200, 465);
-      // Spaet ausweichen, wenn der Orb ca. 80 px entfernt ist
-      let n = 0;
-      while (arrays.hackProjektilArray[0] && arrays.hackProjektilArray[0].y <= 370 && n < 300) { simulationsSchritt(); n++; }
-      const orbVorAusweichen = !!arrays.hackProjektilArray[0];
-      if (ausweichen) state.tastenGedrueckt.d = true;
-      for (let i = 0; i < 120; i++) simulationsSchritt();
-      state.tastenGedrueckt.d = false;
-      return { orbVorAusweichen, hacks: state.hacks.length };
-    }, ausweichen);
+    const lauf = ausweichen =>
+      page.evaluate(async ausweichen => {
+        const { state, arrays } = await import('./js/state.js');
+        const Entities = await import('./js/entities.js');
+        const Hack = await import('./js/hack.js');
+        const { simulationsSchritt } = await import('./js/loop.js');
+        Hack.entferneHacks(state);
+        arrays.hackProjektilArray.forEach(h => h.el.remove());
+        arrays.hackProjektilArray.length = 0;
+        state.godMode = true;
+        state.x = 185;
+        state.y = 450;
+        Entities.erzeugeHackProjektil(194, 250, 200, 465);
+        // Spaet ausweichen, wenn der Orb ca. 80 px entfernt ist
+        let n = 0;
+        while (arrays.hackProjektilArray[0] && arrays.hackProjektilArray[0].y <= 370 && n < 300) {
+          simulationsSchritt();
+          n++;
+        }
+        const orbVorAusweichen = !!arrays.hackProjektilArray[0];
+        if (ausweichen) state.tastenGedrueckt.d = true;
+        for (let i = 0; i < 120; i++) simulationsSchritt();
+        state.tastenGedrueckt.d = false;
+        return { orbVorAusweichen, hacks: state.hacks.length };
+      }, ausweichen);
     const mit = await lauf(true);
     expect(mit).toEqual({ orbVorAusweichen: true, hacks: 0 });
     const ohne = await lauf(false);
     expect(ohne).toEqual({ orbVorAusweichen: true, hacks: 1 });
   });
-
 
   test('Hack-Projektil kehrt nach dem Vorbeiflug nicht um', async ({ page }) => {
     await starteSpiel(page);
@@ -517,7 +544,8 @@ test.describe('Hacker-Gegner', () => {
       const { state } = await import('./js/state.js');
       const Entities = await import('./js/entities.js');
       state.godMode = true;
-      state.x = 185; state.y = 200;
+      state.x = 185;
+      state.y = 200;
       // Orb ist bereits unter dem Spieler und fliegt nach unten
       Entities.erzeugeHackProjektil(194, 300, 194, 600);
     });
@@ -538,19 +566,25 @@ test.describe('Hacker-Gegner', () => {
 
   async function bossKampf(page, level, enrage) {
     await starteSpiel(page);
-    await page.evaluate(async ({ level, enrage }) => {
-      const { state, arrays } = await import('./js/state.js');
-      const Entities = await import('./js/entities.js');
-      state.godMode = true;
-      state.level = level;
-      state.x = 185; state.y = 500;
-      Entities.erzeugeBoss();
-      const b = arrays.bosses[arrays.bosses.length - 1];
-      b.phase = 'kampf'; b.y = 20;
-      b.schussTimer = 999999; b.baseSchussRate = 999999;
-      b.enragePhaseAktiv = enrage;
-      b.hackTimer = 2;
-    }, { level, enrage });
+    await page.evaluate(
+      async ({ level, enrage }) => {
+        const { state, arrays } = await import('./js/state.js');
+        const Entities = await import('./js/entities.js');
+        state.godMode = true;
+        state.level = level;
+        state.x = 185;
+        state.y = 500;
+        Entities.erzeugeBoss();
+        const b = arrays.bosses[arrays.bosses.length - 1];
+        b.phase = 'kampf';
+        b.y = 20;
+        b.schussTimer = 999999;
+        b.baseSchussRate = 999999;
+        b.enragePhaseAktiv = enrage;
+        b.hackTimer = 2;
+      },
+      { level, enrage },
+    );
   }
 
   test('Boss feuert ab Level 5 Hack-Projektile, Reset auf 300 Frames', async ({ page }) => {
@@ -586,7 +620,8 @@ test.describe('Hacker-Gegner', () => {
       const { state } = await import('./js/state.js');
       const Entities = await import('./js/entities.js');
       state.godMode = true;
-      state.x = 185; state.y = 400;
+      state.x = 185;
+      state.y = 400;
       Entities.erzeugeHackProjektil(194, 395, 194, 415, null);
     });
     await page.waitForFunction(() => window.__game.arrays.hackProjektilArray.length === 0);
@@ -598,5 +633,4 @@ test.describe('Hacker-Gegner', () => {
     const n = await page.evaluate(() => window.__game.state.hacks.length);
     expect(n).toBe(2);
   });
-
 });

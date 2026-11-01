@@ -3,7 +3,16 @@
 // Deckkraft und Zustandsanzeigen (Schild, Risse, Betaeubung, Schlepp-Strahl ...) der Weltobjekte ins DOM.
 import { arrays, dom, state, shipColors } from './state.js';
 import { MINE_GROESSE, istSniper, trefferRadius, radiusFaktor, istVoll, ladeAnteil, LADEN_AB } from './sniper.js';
-import { WELLE_TEMPO, WELLE_SCHRITTE, SWEEP_PARADE_FARBE, istGleve, istDashAktiv, istSweepAktiv, sweepUrsprung, sweepLaenge } from './gleve.js';
+import {
+  WELLE_TEMPO,
+  WELLE_SCHRITTE,
+  SWEEP_PARADE_FARBE,
+  istGleve,
+  istDashAktiv,
+  istSweepAktiv,
+  sweepUrsprung,
+  sweepLaenge,
+} from './gleve.js';
 import { istViper, istRolleAktiv, istOverdrive } from './viper.js';
 import { HACK_NAMEN, HACK_DAUER } from './hack.js';
 import { werferBelegung } from './utils.js';
@@ -38,7 +47,9 @@ function zeichneFeind(f) {
     const flammen = f.phase === 'attached' ? 'none' : 'block';
     if (f.el.dataset.flammen !== flammen) {
       f.el.dataset.flammen = flammen;
-      f.el.querySelectorAll('.feind-flame').forEach(fl => { fl.style.display = flammen; });
+      f.el.querySelectorAll('.feind-flame').forEach(fl => {
+        fl.style.display = flammen;
+      });
     }
   }
 }
@@ -85,7 +96,15 @@ function zeichneStrahl(p) {
     const svg = document.createElementNS(ns, 'svg');
     svg.setAttribute('class', 'tractor-beam-svg');
     svg.dataset.von = p.towedBy;
-    Object.assign(svg.style, { position: 'absolute', top: '0', left: '0', width: '100%', height: '100%', pointerEvents: 'none', zIndex: '6' });
+    Object.assign(svg.style, {
+      position: 'absolute',
+      top: '0',
+      left: '0',
+      width: '100%',
+      height: '100%',
+      pointerEvents: 'none',
+      zIndex: '6',
+    });
     const glow = document.createElementNS(ns, 'line');
     glow.setAttribute('class', 'tractor-beam-glow');
     glow.setAttribute('stroke', p.towedBy === 'p1' ? '#3498db' : '#2ecc71');
@@ -151,7 +170,9 @@ function zeichneBombe(b) {
   if (b.fortschritt === undefined) return;
   const blink = Math.max(0.08, b.fortschritt) + 's';
   const aura = Math.max(0.06, b.fortschritt * 0.8) + 's';
-  b.el.querySelectorAll('.bombe-licht').forEach(l => { l.style.animationDuration = blink; });
+  b.el.querySelectorAll('.bombe-licht').forEach(l => {
+    l.style.animationDuration = blink;
+  });
   const auraEl = b.el.querySelector('.bombe-aura');
   if (auraEl) auraEl.style.animationDuration = aura;
 }
@@ -166,7 +187,7 @@ function zeichnePartikel(p) {
 function zeichneWelle(w) {
   setzePosition(w);
   const strecke = Math.max(0, (w.startY === undefined ? w.y : w.startY) - w.y);
-  w.el.style.opacity = String(Math.max(0.2, 1 - 0.8 * strecke / (WELLE_TEMPO * WELLE_SCHRITTE)));
+  w.el.style.opacity = String(Math.max(0.2, 1 - (0.8 * strecke) / (WELLE_TEMPO * WELLE_SCHRITTE)));
 }
 
 // Sniper-Effekte, je Art eigene Rechnung aus t = 1 - rest / dauer. Ringe wachsen aus der Mitte (x/y) auf den Durchmesser d,
@@ -174,17 +195,28 @@ function zeichneWelle(w) {
 function zeichneSniperRing(e, d, deckkraft) {
   e.el.style.width = d + 'px';
   e.el.style.height = d + 'px';
-  e.el.style.left = (e.x - d / 2) + 'px';
-  e.el.style.top = (e.y - d / 2) + 'px';
+  e.el.style.left = e.x - d / 2 + 'px';
+  e.el.style.top = e.y - d / 2 + 'px';
   e.el.style.opacity = deckkraft;
 }
 
 const SNIPER_EFFEKT_ZEICHNER = {
-  sniperStrahl: e => { e.el.style.opacity = e.rest / e.dauer; },
+  sniperStrahl: e => {
+    e.el.style.opacity = e.rest / e.dauer;
+  },
   // schnell am Anfang, gegen Ende auslaufend
-  sniperDruckwelle: e => { const t = 1 - e.rest / e.dauer; zeichneSniperRing(e, e.radius * 2 * Math.sqrt(t), 1 - t * 0.85); },
-  sniperMinenExplosion: e => { const t = 1 - e.rest / e.dauer; zeichneSniperRing(e, e.radius * 2 * Math.sqrt(t), 1 - t * 0.85); },
-  sniperEmp: e => { const t = 1 - e.rest / e.dauer; zeichneSniperRing(e, e.radius * 2 * t, 1 - t * 0.8); }
+  sniperDruckwelle: e => {
+    const t = 1 - e.rest / e.dauer;
+    zeichneSniperRing(e, e.radius * 2 * Math.sqrt(t), 1 - t * 0.85);
+  },
+  sniperMinenExplosion: e => {
+    const t = 1 - e.rest / e.dauer;
+    zeichneSniperRing(e, e.radius * 2 * Math.sqrt(t), 1 - t * 0.85);
+  },
+  sniperEmp: e => {
+    const t = 1 - e.rest / e.dauer;
+    zeichneSniperRing(e, e.radius * 2 * t, 1 - t * 0.8);
+  },
 };
 
 // Effekt mit Lebensdauer: Fortschritt t aus rest/dauer (nach einer Verzoegerung unsichtbar), Mitte x/y,
@@ -200,23 +232,23 @@ function zeichneEffekt(e) {
   const vergangen = e.dauer - e.rest;
   const sichtbar = vergangen >= verz;
   const t = sichtbar ? (vergangen - verz) / (e.dauer - verz) : 0;
-  e.el.style.left = (e.x - e.radius) + 'px';
-  e.el.style.top = (e.y - e.radius) + 'px';
+  e.el.style.left = e.x - e.radius + 'px';
+  e.el.style.top = e.y - e.radius + 'px';
   e.el.style.opacity = sichtbar ? String(1 - t) : '0';
   e.el.style.transform = `scale(${1 + (stil.skala - 1) * t})`;
 }
 
 // Sniper-Granate im Flug: x/y = Mitte, 14 px gross, Drehung aus rot
 function zeichneSniperGranate(g) {
-  g.el.style.left = (g.x - 7) + 'px';
-  g.el.style.top = (g.y - 7) + 'px';
+  g.el.style.left = g.x - 7 + 'px';
+  g.el.style.top = g.y - 7 + 'px';
   g.el.style.transform = `rotate(${g.rot}deg)`;
 }
 
 // Haftmine: x/y = Mitte, 12 px gross (MINE_GROESSE), Klassen haftet/blinkt aus dem Modell
 function zeichneSniperMine(m) {
-  m.el.style.left = (m.x - MINE_GROESSE / 2) + 'px';
-  m.el.style.top = (m.y - MINE_GROESSE / 2) + 'px';
+  m.el.style.left = m.x - MINE_GROESSE / 2 + 'px';
+  m.el.style.top = m.y - MINE_GROESSE / 2 + 'px';
   m.el.classList.toggle('haftet', !!m.haftet);
   m.el.classList.toggle('blinkt', !!m.blinkt);
 }
@@ -240,7 +272,7 @@ const ZEICHNER_JE_ART = {
   partikel: zeichnePartikel,
   effekt: zeichneEffekt,
   sniperGranate: zeichneSniperGranate,
-  sniperMine: zeichneSniperMine
+  sniperMine: zeichneSniperMine,
 };
 
 const ZEICHNER = {
@@ -261,7 +293,7 @@ const ZEICHNER = {
   gleveWellen: zeichneWelle,
   effekte: zeichneEffekt,
   sniperGranaten: zeichneSniperGranate,
-  sniperMinen: zeichneSniperMine
+  sniperMinen: zeichneSniperMine,
 };
 
 export function erzeuge(obj, art) {
@@ -275,7 +307,7 @@ export function erzeuge(obj, art) {
 // Spielerschiffe: feste Elemente #spieler / #spieler-2 mit Triebwerksflammen
 const SCHIFFE = [
   { pKey: 'p1', el: () => dom.spieler, zustand: () => state, flammen: ['flame-left', 'flame-right'] },
-  { pKey: 'p2', el: () => dom.spieler2, zustand: () => state.p2, flammen: ['flame-left-p2', 'flame-right-p2'] }
+  { pKey: 'p2', el: () => dom.spieler2, zustand: () => state.p2, flammen: ['flame-left-p2', 'flame-right-p2'] },
 ];
 
 // SVG nach Modell und Farbe; Gleve hat nur ein Mittel-Triebwerk (Flammen per Klasse zentriert)
@@ -297,7 +329,11 @@ function zeichneWerfer(s, el) {
   const schluessel = [belegung.links, belegung.rechts, belegung.mitte, stufe].join('|');
   if (el.dataset.werfer === schluessel) return;
   el.dataset.werfer = schluessel;
-  const pods = [['.werfer-links', belegung.links], ['.werfer-rechts', belegung.rechts], ['.werfer-center', belegung.mitte]];
+  const pods = [
+    ['.werfer-links', belegung.links],
+    ['.werfer-rechts', belegung.rechts],
+    ['.werfer-center', belegung.mitte],
+  ];
   for (const [selektor, sichtbar] of pods) {
     const pod = el.querySelector(selektor);
     if (!pod) continue;
@@ -318,17 +354,18 @@ function zeichneHackLabel(s, pKey, aktiv) {
     label = document.createElement('div');
     label.id = 'hack-label-' + pKey;
     label.classList.add('hack-label');
-    label.innerHTML = '<div class="hack-text"></div><div class="hack-restzeit-rahmen"><div class="hack-restzeit"></div></div>';
+    label.innerHTML =
+      '<div class="hack-text"></div><div class="hack-restzeit-rahmen"><div class="hack-restzeit"></div></div>';
     dom.spielfeld.appendChild(label);
   }
   const text = s.hacks.map(h => HACK_NAMEN[h.typ]).join(' + ');
   const textEl = label.querySelector('.hack-text');
   if (textEl.textContent !== text) textEl.textContent = text;
   const restMax = Math.max(...s.hacks.map(h => h.timer));
-  /** @type {HTMLElement} */ (label.querySelector('.hack-restzeit')).style.width = (restMax / HACK_DAUER * 100) + '%';
+  /** @type {HTMLElement} */ (label.querySelector('.hack-restzeit')).style.width = (restMax / HACK_DAUER) * 100 + '%';
   label.style.display = 'block';
-  label.style.left = (s.x + 15) + 'px';
-  label.style.top = (s.y - 22) + 'px';
+  label.style.left = s.x + 15 + 'px';
+  label.style.top = s.y - 22 + 'px';
 }
 
 // Sniper-Fadenkreuz (Kreis mit vier Strichen) samt Ladering aus sniperZielX/Y, Laser-Stufe, sniperLadung und sniperGehalten.
@@ -356,10 +393,10 @@ function zeichneFadenkreuz(s, pKey) {
   const c = shipColors[s.selectedShipColor];
   const farbe = c ? c.prim : '#ffffff';
   zeichneLadering(el, s);
-  el.style.width = (r * 2) + 'px';
-  el.style.height = (r * 2) + 'px';
-  el.style.left = (s.sniperZielX - r) + 'px';
-  el.style.top = (s.sniperZielY - r) + 'px';
+  el.style.width = r * 2 + 'px';
+  el.style.height = r * 2 + 'px';
+  el.style.left = s.sniperZielX - r + 'px';
+  el.style.top = s.sniperZielY - r + 'px';
   el.style.color = farbe;
   el.style.borderColor = farbe;
   el.style.boxShadow = `0 0 6px ${farbe}, inset 0 0 4px ${farbe}`;
@@ -383,7 +420,7 @@ function zeichneLadering(el, s) {
   ring.style.width = d + 'px';
   ring.style.height = d + 'px';
   ring.style.opacity = 0.45 + 0.55 * anteil;
-  ring.style.borderWidth = (1.5 + 2.5 * anteil) + 'px';
+  ring.style.borderWidth = 1.5 + 2.5 * anteil + 'px';
 }
 
 // Gleve-Sweep-Klinge aus gleveSweepTimer, -Winkel und -Richtung; sichtbar nur fuer lebende Gleve mit laufendem Sweep.
@@ -406,8 +443,8 @@ function zeichneKlinge(s, pKey) {
   const c = shipColors[s.selectedShipColor];
   const farbe = c ? c.prim : '#ffffff';
   el.style.height = laenge + 'px';
-  el.style.left = (o.x - 2) + 'px';
-  el.style.top = (o.y - laenge) + 'px';
+  el.style.left = o.x - 2 + 'px';
+  el.style.top = o.y - laenge + 'px';
   el.style.boxShadow = `0 0 4px #ffffff, 0 0 8px ${farbe}, 0 0 14px ${farbe}`;
   el.style.borderColor = farbe;
   // Leicht gebogen: Neigung gegen die Laufrichtung
@@ -458,8 +495,8 @@ function zeichneStrahlen() {
     dom.autolaserEl.style.display = auto ? 'block' : 'none';
     if (auto) {
       dom.autolaserEl.style.height = auto.laenge + 'px';
-      dom.autolaserEl.style.top = (auto.y - auto.laenge) + 'px';
-      dom.autolaserEl.style.left = (auto.x - 2) + 'px';
+      dom.autolaserEl.style.top = auto.y - auto.laenge + 'px';
+      dom.autolaserEl.style.left = auto.x - 2 + 'px';
       dom.autolaserEl.style.transform = `rotate(${auto.winkel}deg)`;
     }
   }
@@ -469,8 +506,8 @@ function zeichneStrahlen() {
     hitscanEl.style.display = hitscan ? 'block' : 'none';
     if (hitscan) {
       hitscanEl.style.height = hitscan.laenge + 'px';
-      hitscanEl.style.top = (hitscan.y - hitscan.laenge) + 'px';
-      hitscanEl.style.left = (hitscan.x - 3) + 'px';
+      hitscanEl.style.top = hitscan.y - hitscan.laenge + 'px';
+      hitscanEl.style.left = hitscan.x - 3 + 'px';
     }
   }
 }
@@ -495,7 +532,9 @@ export function blitze(obj, staerke) {
   const el = obj.el;
   if (!el) return;
   el.style.filter = `brightness(${staerke})`;
-  setTimeout(() => { el.style.filter = ''; }, 50);
+  setTimeout(() => {
+    el.style.filter = '';
+  }, 50);
 }
 
 // Bildschirm-Blitz: Spielfeldhintergrund kurz faerben, nach ms zurueck zur Grundfarbe. Jeder Blitz setzt seinen
@@ -504,5 +543,7 @@ export function blitzeSpielfeld(farbe, ms) {
   const el = dom.spielfeld || document.getElementById('spielfeld');
   if (!el) return;
   el.style.backgroundColor = farbe;
-  setTimeout(() => { el.style.backgroundColor = '#0b1319'; }, ms);
+  setTimeout(() => {
+    el.style.backgroundColor = '#0b1319';
+  }, ms);
 }

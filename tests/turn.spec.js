@@ -4,7 +4,7 @@ const { setzeSpielstand } = require('./helfer');
 const TRYSTERO_URL = 'https://cdn.jsdelivr.net/npm/@trystero-p2p/torrent/+esm';
 const ICE_SERVERS = [
   { urls: ['stun:stun.cloudflare.com:3478'] },
-  { urls: ['turn:turn.cloudflare.com:3478?transport=udp'], username: 'u', credential: 'c' }
+  { urls: ['turn:turn.cloudflare.com:3478?transport=udp'], username: 'u', credential: 'c' },
 ];
 
 // Kleines Fake-Modul statt echtem Trystero: merkt sich die Konfiguration von joinRoom
@@ -20,31 +20,37 @@ export function joinRoom(config, id) {
 }`;
 
 function turnAntwort(status, body) {
-  return route => route.fulfill({
-    status,
-    contentType: 'application/json',
-    headers: { 'access-control-allow-origin': '*' },
-    body: typeof body === 'string' ? body : JSON.stringify(body)
-  });
+  return route =>
+    route.fulfill({
+      status,
+      contentType: 'application/json',
+      headers: { 'access-control-allow-origin': '*' },
+      body: typeof body === 'string' ? body : JSON.stringify(body),
+    });
 }
 
 test.beforeEach(async ({ page }) => {
-  await page.route('**/api/highscores*', route => route.fulfill({
-    status: 200, contentType: 'application/json',
-    body: JSON.stringify({ success: true, mode: 'single', highscores: [] })
-  }));
-  await page.route(TRYSTERO_URL, route => route.fulfill({
-    status: 200,
-    contentType: 'application/javascript',
-    headers: { 'access-control-allow-origin': '*' },
-    body: FAKE_TRYSTERO
-  }));
+  await page.route('**/api/highscores*', route =>
+    route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({ success: true, mode: 'single', highscores: [] }),
+    }),
+  );
+  await page.route(TRYSTERO_URL, route =>
+    route.fulfill({
+      status: 200,
+      contentType: 'application/javascript',
+      headers: { 'access-control-allow-origin': '*' },
+      body: FAKE_TRYSTERO,
+    }),
+  );
   await setzeSpielstand(page);
   await page.goto('/');
 });
 
 function holeConfig(page, timeoutMs) {
-  return page.evaluate(async (ms) => {
+  return page.evaluate(async ms => {
     const Network = await import('./js/network.js');
     return Network.holeTurnConfig(ms);
   }, timeoutMs);
@@ -80,7 +86,9 @@ test('holeTurnConfig liefert null bei leerer iceServers-Liste', async ({ page })
 });
 
 test('holeTurnConfig liefert null nach Timeout', async ({ page }) => {
-  await page.route('**/api/turn*', () => { /* antwortet nie */ });
+  await page.route('**/api/turn*', () => {
+    /* antwortet nie */
+  });
   const r = await page.evaluate(async () => {
     const Network = await import('./js/network.js');
     const start = performance.now();

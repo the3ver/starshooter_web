@@ -6,23 +6,23 @@ export const changelogData = {
     intro: 'Hey, es ist jetzt Version 1.15.5 rausgekommen, folgendes wurde aktualisiert:',
     highlights: [
       '🛠️ Umbau für eine neue Grafik-Engine abgeschlossen: Explosionen, Druckwellen, Granaten, Minen, Fadenkreuz, Gleve-Klinge und Bildschirm-Blitze laufen jetzt über eine zentrale Anzeige',
-      '💥 Druckwellen und Explosionsringe halten in der Pause jetzt an, statt weiterzulaufen'
-    ]
+      '💥 Druckwellen und Explosionsringe halten in der Pause jetzt an, statt weiterzulaufen',
+    ],
   },
   '1.15.4': {
     version: '1.15.4',
     intro: 'Hey, es ist jetzt Version 1.15.4 rausgekommen, folgendes wurde aktualisiert:',
     highlights: [
-      '🛠️ Weiterer Umbau unter der Haube für eine neue Grafik-Engine: Schiffsmodelle, Raketenwerfer, Dash, Rolle, Hack-Anzeige sowie Auto- und Hitscan-Laser werden jetzt zentral gezeichnet'
-    ]
+      '🛠️ Weiterer Umbau unter der Haube für eine neue Grafik-Engine: Schiffsmodelle, Raketenwerfer, Dash, Rolle, Hack-Anzeige sowie Auto- und Hitscan-Laser werden jetzt zentral gezeichnet',
+    ],
   },
   '1.15.3': {
     version: '1.15.3',
     intro: 'Hey, es ist jetzt Version 1.15.3 rausgekommen, folgendes wurde aktualisiert:',
     highlights: [
       '🐛 Online-Modus: Das Schiff des ersten Spielers neigt sich jetzt auch beim zweiten Spieler in die Flugrichtung',
-      '🛠️ Weiterer Umbau unter der Haube für eine neue Grafik-Engine: Die Spielerschiffe werden jetzt an einer zentralen Stelle gezeichnet'
-    ]
+      '🛠️ Weiterer Umbau unter der Haube für eine neue Grafik-Engine: Die Spielerschiffe werden jetzt an einer zentralen Stelle gezeichnet',
+    ],
   },
   '1.15.2': {
     version: '1.15.2',
@@ -31,15 +31,15 @@ export const changelogData = {
       '🐛 Online-Modus: Der zweite Spieler sieht jetzt den richtigen Boss. Bisher erschien bei ihm immer das Aussehen des ersten Bosses',
       '🐛 Online-Modus: Bricht das Schild eines Gegners, verschwindet es jetzt auch beim zweiten Spieler',
       '🛠️ Weiterer Umbau unter der Haube für eine neue Grafik-Engine: Gegner, Geschosse und Effekte entstehen jetzt an einer zentralen Stelle',
-      '🔄 Für den Online-Modus brauchen beide Spieler Version 1.15.2, sonst bitte die Seite neu laden (Strg+F5)'
-    ]
+      '🔄 Für den Online-Modus brauchen beide Spieler Version 1.15.2, sonst bitte die Seite neu laden (Strg+F5)',
+    ],
   },
   '1.15.1': {
     version: '1.15.1',
     intro: 'Hey, es ist jetzt Version 1.15.1 rausgekommen, folgendes wurde aktualisiert:',
     highlights: [
-      '🛠️ Umbau unter der Haube: Spiellogik und Grafik sind jetzt getrennt. Das bereitet eine neue Grafik-Engine vor, am Spielgefühl ändert sich nichts'
-    ]
+      '🛠️ Umbau unter der Haube: Spiellogik und Grafik sind jetzt getrennt. Das bereitet eine neue Grafik-Engine vor, am Spielgefühl ändert sich nichts',
+    ],
   },
   '1.15.0': {
     version: '1.15.0',
@@ -47,15 +47,15 @@ export const changelogData = {
     highlights: [
       '💣 Die Spectre-SR hat jetzt Granaten-Ladungen: Von Anfang an kannst du zweimal hintereinander werfen, ab Raketen-Stufe 4 dreimal. Leere Ladungen füllen sich nacheinander wieder auf, die Punkte neben dem GRANATE-Balken zeigen den Stand',
       '🎈 Haftminen bleiben nicht mehr liegen, sondern driften langsam nach oben den Gegnern entgegen',
-      '🔄 Für den Online-Modus brauchen beide Spieler Version 1.15.0, sonst bitte die Seite neu laden (Strg+F5)'
-    ]
+      '🔄 Für den Online-Modus brauchen beide Spieler Version 1.15.0, sonst bitte die Seite neu laden (Strg+F5)',
+    ],
   },
   '1.14.1': {
     version: '1.14.1',
     intro: 'Hey, es ist jetzt Version 1.14.1 rausgekommen, folgendes wurde aktualisiert:',
     highlights: [
-      '💥 Die Haftminen der Spectre-SR zerstören jetzt auch Boss-Raketen und Boss-Bomben: Fliegt eine hinein, geht die Mine sofort hoch und räumt alles in der Nähe weg'
-    ]
+      '💥 Die Haftminen der Spectre-SR zerstören jetzt auch Boss-Raketen und Boss-Bomben: Fliegt eine hinein, geht die Mine sofort hoch und räumt alles in der Nähe weg',
+    ],
   },
   '1.14.0': {
     version: '1.14.0',
@@ -63,8 +63,8 @@ export const changelogData = {
     highlights: [
       '⚡ Spectre-SR: Jede Granate löst jetzt zusätzlich einen EMP-Ring um dein Schiff aus. Er zerstört feindliche Geschosse – auch die zielsuchenden Boss-Raketen – und betäubt Gegner in der Nähe kurz',
       '💥 Granaten-Taste gedrückt halten legt eine Spur aus Haftminen. Berührt ein Gegner eine Mine, klebt sie an ihm und explodiert kurz darauf',
-      '🔄 Für den Online-Modus brauchen beide Spieler Version 1.14.0, sonst bitte die Seite neu laden (Strg+F5)'
-    ]
+      '🔄 Für den Online-Modus brauchen beide Spieler Version 1.14.0, sonst bitte die Seite neu laden (Strg+F5)',
+    ],
   },
   '1.13.0': {
     version: '1.13.0',
@@ -73,8 +73,8 @@ export const changelogData = {
       '🎯 Neues Schiff im Hangar: die SPECTRE-SR! Ein Fadenkreuz vor dem Schiff zeigt, wo der Schuss einschlägt, getroffen wird genau dort. Mit Laser-Upgrades wird der Zielbereich größer, ab Stufe 4 zielt das Fadenkreuz automatisch',
       '⚡ Laser-Taste gedrückt halten lädt den Schuss auf, bis zum vierfachen Schaden. Voll geladen durchschlägt er sogar Schilde. Auf dem Handy gibt es dafür den L-Knopf',
       '💣 Statt Raketen wirft die Spectre Granaten ins Fadenkreuz: Die Druckwelle stößt Gegner weg und legt sie kurz lahm',
-      '🔄 Für den Online-Modus brauchen beide Spieler Version 1.13.0, sonst bitte die Seite neu laden (Strg+F5)'
-    ]
+      '🔄 Für den Online-Modus brauchen beide Spieler Version 1.13.0, sonst bitte die Seite neu laden (Strg+F5)',
+    ],
   },
   '1.12.0': {
     version: '1.12.0',
@@ -83,8 +83,8 @@ export const changelogData = {
       '🌀 Die Viper-X kann ausweichen: Doppeltipp links oder rechts (auf dem Handy seitlich wischen) und sie rollt blitzschnell zur Seite, kurz unverwundbar',
       '⚡ Knapp vorbei ist auch getroffen: Jedes Geschoss, das haarscharf an der Viper vorbeifliegt, lädt den Overdrive. Ist er voll, feuert sie 5 Sekunden doppelt so schnell und durchschlagend',
       '🔥 Kill-Kombo statt Upgrade-Verlust: Schnelle Abschüsse hintereinander bringen bis zu dreifache Punkte und mehr Feuerkraft. Ein Treffer kostet nur die Kombo, keine Waffen-Upgrades mehr',
-      '🔄 Für den Online-Modus brauchen beide Spieler Version 1.12.0, sonst bitte die Seite neu laden (Strg+F5)'
-    ]
+      '🔄 Für den Online-Modus brauchen beide Spieler Version 1.12.0, sonst bitte die Seite neu laden (Strg+F5)',
+    ],
   },
   '1.11.1': {
     version: '1.11.1',
@@ -92,8 +92,8 @@ export const changelogData = {
     highlights: [
       '🧭 Das Hauptmenü ist aufgeräumt: Beim Wechsel zwischen Einzelspieler, Co-op und Online springt nichts mehr, alles bleibt an seinem Platz',
       '🎮 Die Steuerung steht jetzt hinter dem Knopf „Steuerung“, im Menü bleibt nur eine Kurzzeile. Die Schiffs-Perks sind kleine Icons, antippen zeigt die Beschreibung',
-      '⏸️ Im Pausenmenü kommst du jetzt mit „Hauptmenü“ zurück ins Startmenü (nicht im Online-Modus)'
-    ]
+      '⏸️ Im Pausenmenü kommst du jetzt mit „Hauptmenü“ zurück ins Startmenü (nicht im Online-Modus)',
+    ],
   },
   '1.11.0': {
     version: '1.11.0',
@@ -103,8 +103,8 @@ export const changelogData = {
       '⚡ Feindschiffe, die du mit dem Sweep zerstörst, geben dir Energie zurück',
       '🗡️ Dash-Combo: Am Ende eines Dashs fegt die Gleve sofort mit einem Sweep nach',
       '🤖 Der Bot-Partner greift mit der Gleve jetzt auch Bosse richtig an',
-      '🔄 Für den Online-Modus brauchen beide Spieler Version 1.11.0, sonst bitte die Seite neu laden (Strg+F5)'
-    ]
+      '🔄 Für den Online-Modus brauchen beide Spieler Version 1.11.0, sonst bitte die Seite neu laden (Strg+F5)',
+    ],
   },
   '1.10.0': {
     version: '1.10.0',
@@ -113,8 +113,8 @@ export const changelogData = {
       '🗡️ Der Dash der Gleve-MR hat jetzt Ladungen: Von Anfang an kannst du zweimal hintereinander dashen, ab Raketen-Stufe 4 sogar dreimal. Leere Ladungen füllen sich nacheinander wieder auf',
       '🔗 Jeder Dash-Kill verkürzt die Ladezeit der nächsten Ladung',
       '🔵 Die Punkte neben dem DASH-Balken zeigen, wie viele Ladungen bereit sind, auf dem Handy steht die Zahl auf dem D-Knopf',
-      '🔄 Für den Online-Modus brauchen beide Spieler Version 1.10.0, sonst bitte die Seite neu laden (Strg+F5)'
-    ]
+      '🔄 Für den Online-Modus brauchen beide Spieler Version 1.10.0, sonst bitte die Seite neu laden (Strg+F5)',
+    ],
   },
   '1.9.0': {
     version: '1.9.0',
@@ -123,8 +123,8 @@ export const changelogData = {
       '🌀 Die Gleve-MR hat die Waffen getauscht: Der Laser-Sweep ist jetzt die Hauptwaffe auf der Laser-Taste. Gedrückt halten fegt die Klinge pendelnd hin und her, mit jedem Laser-Upgrade wird der Bogen breiter, länger und stärker',
       '🗡️ Der Dash liegt jetzt auf der Raketen-Taste (mobil auf dem D-Knopf) und kostet keine Energie mehr, sondern hat einen Cooldown. Jeder Dash-Kill verkürzt ihn, Raketen-Upgrades machen ihn weiter und schneller bereit',
       '🪨 Im Coop treffen abgeprallte Laser vom Magma nur noch den Schützen selbst, nicht mehr den Mitspieler',
-      '🔄 Für den Online-Modus brauchen beide Spieler Version 1.9.0, sonst bitte die Seite neu laden (Strg+F5)'
-    ]
+      '🔄 Für den Online-Modus brauchen beide Spieler Version 1.9.0, sonst bitte die Seite neu laden (Strg+F5)',
+    ],
   },
   '1.8.1': {
     version: '1.8.1',
@@ -132,8 +132,8 @@ export const changelogData = {
     highlights: [
       '🎯 Der Bot-Partner nimmt jetzt zuerst Gegnerschiffe ins Visier und verschwendet keine Schüsse mehr auf Magma-Asteroiden, die er gar nicht zerstören kann',
       '🛡️ Gegen den Jäger-Boss lässt sich der Bot nicht mehr an den Rand drängen, sondern weicht den Schüssen seitlich aus',
-      '🙌 Danke an Noah, der jetzt auch als Tester mit dabei ist'
-    ]
+      '🙌 Danke an Noah, der jetzt auch als Tester mit dabei ist',
+    ],
   },
   '1.8.0': {
     version: '1.8.0',
@@ -142,152 +142,152 @@ export const changelogData = {
       '🗡️ Neues Nahkampfschiff im Hangar: die Gleve-MR! Statt Laser hat sie einen Dash, bei dem sie kurz unverwundbar ist und kleine Gegner und Asteroiden einfach durchschneidet. Auf Stufe 5 knackt der Dash sogar Magma-Asteroiden',
       '🌀 Statt Raketen fegt die Gleve mit einem Laser-Sweep vor sich her und pariert dabei feindliche Schüsse, ab Stufe 3 wirft sie diese sogar zurück',
       '🤖 Die Gleve fliegt auch im Coop, mit dem Bot als Partner und online. Auf dem Handy gibt es für den Dash einen eigenen D-Knopf',
-      '🔄 Für den Online-Modus brauchen beide Spieler Version 1.8.0, sonst bitte die Seite neu laden (Strg+F5)'
-    ]
+      '🔄 Für den Online-Modus brauchen beide Spieler Version 1.8.0, sonst bitte die Seite neu laden (Strg+F5)',
+    ],
   },
   '1.7.1': {
     version: '1.7.1',
     intro: 'Hey, es ist jetzt Version 1.7.1 rausgekommen, folgendes wurde aktualisiert:',
     highlights: [
       '📶 Beim Online-Verbinden zeigt das Spiel jetzt Schritt für Schritt an, wie weit die Verbindung ist (1/5 bis 5/5), samt Wartezeit und Hinweisen, wenn es länger dauert',
-      '🛰️ Das Spiel zeigt außerdem an, ob eine TURN-Weiterleitung für schwierige Netzwerke verfügbar ist, und nennt bei Verbindungsabbrüchen den Schritt, an dem es gescheitert ist'
-    ]
+      '🛰️ Das Spiel zeigt außerdem an, ob eine TURN-Weiterleitung für schwierige Netzwerke verfügbar ist, und nennt bei Verbindungsabbrüchen den Schritt, an dem es gescheitert ist',
+    ],
   },
   '1.7.0': {
     version: '1.7.0',
     intro: 'Hey, es ist jetzt Version 1.7.0 rausgekommen, folgendes wurde aktualisiert:',
     highlights: [
       '📉 Der Online-Modus braucht deutlich weniger Datenvolumen: Der Host schickt nur noch, was sich seit dem letzten Update geändert hat, und der Mitspieler meldet seine Eingaben nur noch bei Änderungen',
-      '🔄 Alte und neue Spielversionen können nicht mehr zusammen online spielen. Bei unterschiedlichen Versionen erscheint ein Hinweis, dann bitte die Seite neu laden (Strg+F5)'
-    ]
+      '🔄 Alte und neue Spielversionen können nicht mehr zusammen online spielen. Bei unterschiedlichen Versionen erscheint ein Hinweis, dann bitte die Seite neu laden (Strg+F5)',
+    ],
   },
   '1.6.60': {
     version: '1.6.60',
     intro: 'Hey, es ist jetzt Version 1.6.60 rausgekommen, folgendes wurde aktualisiert:',
     highlights: [
       '⏸️ Im Online-Modus pausiert das Spiel jetzt für beide Spieler: Wer pausiert, sieht und zeigt den Countdown (max. 60 Sekunden) und kann die Pause allein beenden',
-      '✨ Das Schiff des Online-Mitspielers blinkt nach einem Treffer nicht mehr dauerhaft, sondern nur noch während der kurzen Unverwundbarkeit'
-    ]
+      '✨ Das Schiff des Online-Mitspielers blinkt nach einem Treffer nicht mehr dauerhaft, sondern nur noch während der kurzen Unverwundbarkeit',
+    ],
   },
   '1.6.59': {
     version: '1.6.59',
     intro: 'Hey, es ist jetzt Version 1.6.59 rausgekommen, folgendes wurde aktualisiert:',
     highlights: [
       '🛸 Online-Mitspieler sehen jetzt die Boss-Warnung, die richtigen Waffenstufen beider Spieler und den Traktorstrahl beim Abschleppen von Powerups',
-      '🌊 Beim Online-Mitspieler bewegen sich Gegner, Asteroiden, Schüsse und das Schiff des Hosts flüssig zwischen den Updates, ohne mehr Daten zu senden'
-    ]
+      '🌊 Beim Online-Mitspieler bewegen sich Gegner, Asteroiden, Schüsse und das Schiff des Hosts flüssig zwischen den Updates, ohne mehr Daten zu senden',
+    ],
   },
   '1.6.58': {
     version: '1.6.58',
     intro: 'Hey, es ist jetzt Version 1.6.58 rausgekommen, folgendes wurde aktualisiert:',
     highlights: [
       '🌐 Online-Multiplayer verbindet sich jetzt auch hinter strengen Firmen-, Mobilfunk- und Heimnetzen: Wenn keine direkte Verbindung klappt, läuft der Datenverkehr über einen Cloudflare-Relay-Server',
-      '🔒 Die Relay-Zugangsdaten holt das Spiel kurzlebig vom Server. Ist der Relay nicht erreichbar, verbindet sich das Spiel wie bisher direkt'
-    ]
+      '🔒 Die Relay-Zugangsdaten holt das Spiel kurzlebig vom Server. Ist der Relay nicht erreichbar, verbindet sich das Spiel wie bisher direkt',
+    ],
   },
   '1.6.57': {
     version: '1.6.57',
     intro: 'Hey, es ist jetzt Version 1.6.57 rausgekommen, folgendes wurde aktualisiert:',
     highlights: [
       '🛡️ Im Online-Modus übernimmt der Host die Position des Mitspielers nur noch, wenn sie gültig ist und im Spielfeld liegt',
-      '❤️ Die Herzen-Anzeige wird im Online-Modus nicht mehr bei jedem Update neu gebaut, und die Bestenliste zeigt Namen und Städte sicher als Text an'
-    ]
+      '❤️ Die Herzen-Anzeige wird im Online-Modus nicht mehr bei jedem Update neu gebaut, und die Bestenliste zeigt Namen und Städte sicher als Text an',
+    ],
   },
   '1.6.56': {
     version: '1.6.56',
     intro: 'Hey, es ist jetzt Version 1.6.56 rausgekommen, folgendes wurde aktualisiert:',
     highlights: [
       '🌐 Online-Multiplayer läuft flüssiger: Gegner, Asteroiden, Bosse und Powerups behalten beim Client ihre Identität und werden nicht mehr bei jedem Update neu gezeichnet',
-      '🔫 Auch Laser, Raketen und Bomben werden beim Mitspieler jetzt wiederverwendet statt jedes Mal neu aufgebaut. Das spart Rechenarbeit im Browser'
-    ]
+      '🔫 Auch Laser, Raketen und Bomben werden beim Mitspieler jetzt wiederverwendet statt jedes Mal neu aufgebaut. Das spart Rechenarbeit im Browser',
+    ],
   },
   '1.6.55': {
     version: '1.6.55',
     intro: 'Hey, es ist jetzt Version 1.6.55 rausgekommen, folgendes wurde aktualisiert:',
     highlights: [
       '⏱️ Das Spieltempo ist jetzt auf 60-, 120- und 144-Hz-Monitoren gleich. Vorher lief das Spiel auf schnellen Monitoren bis zu 2,4-mal schneller',
-      '🚀 Auch der Einflug deines Schiffs nach der Intro-Szene läuft jetzt unabhängig von der Bildrate gleich schnell'
-    ]
+      '🚀 Auch der Einflug deines Schiffs nach der Intro-Szene läuft jetzt unabhängig von der Bildrate gleich schnell',
+    ],
   },
   '1.6.54': {
     version: '1.6.54',
     intro: 'Hey, es ist jetzt Version 1.6.54 rausgekommen, folgendes wurde hinzugefügt:',
     highlights: [
       '👾 Ab Level 5 feuern alle Bosse Hack-Projektile auf den nächsten Spieler: alle 5 s, im Enrage alle 3 s',
-      '🔓 Bosse können mehrfach hacken, die Effekte stapeln sich wie beim Hacker und Schilde helfen nicht'
-    ]
+      '🔓 Bosse können mehrfach hacken, die Effekte stapeln sich wie beim Hacker und Schilde helfen nicht',
+    ],
   },
   '1.6.53': {
     version: '1.6.53',
     intro: 'Hey, es ist jetzt Version 1.6.53 rausgekommen, folgendes wurde aktualisiert:',
     highlights: [
       '💥 Bugfix: Raketen-Explosionen erscheinen jetzt an der Einschlagstelle statt am linken Bildschirmrand',
-      '🎯 Hack-Projektile des Hackers verfolgen dich jetzt 1,5 s lang mit begrenzter Wendigkeit. Ein schneller Haken rettet dich'
-    ]
+      '🎯 Hack-Projektile des Hackers verfolgen dich jetzt 1,5 s lang mit begrenzter Wendigkeit. Ein schneller Haken rettet dich',
+    ],
   },
   '1.6.52': {
     version: '1.6.52',
     intro: 'Hey, es ist jetzt Version 1.6.52 rausgekommen, folgendes wurde hinzugefügt:',
     highlights: [
       '👾 Neuer Gegner HACKER (ab Level 2): feuert grüne Hack-Projektile, die Steuerung invertieren, Tasten vertauschen, Waffen abschalten oder das HUD stören (3 s, stapelbar, Schilde helfen nicht)',
-      '🏃 Nach einem erfolgreichen Hack flieht der Hacker. Wer ihn vorher abschießt, bekommt doppelte Punkte und 40 % Powerup-Chance'
-    ]
+      '🏃 Nach einem erfolgreichen Hack flieht der Hacker. Wer ihn vorher abschießt, bekommt doppelte Punkte und 40 % Powerup-Chance',
+    ],
   },
   '1.6.51': {
     version: '1.6.51',
     intro: 'Hey, es ist jetzt Version 1.6.51 rausgekommen, folgendes wurde aktualisiert:',
     highlights: [
       '📦 Toolchain-Update: Babel-Abhängigkeiten (@babel/core, @babel/generator, @babel/parser, @babel/traverse) auf v8.0.6 aktualisiert (#13)',
-      '🛡️ Optimierte Build- und Test-Stabilität für Entwicklungs- und Test-Pipelines'
-    ]
+      '🛡️ Optimierte Build- und Test-Stabilität für Entwicklungs- und Test-Pipelines',
+    ],
   },
   '1.6.50': {
     version: '1.6.50',
     intro: 'Hey, es ist jetzt Version 1.6.50 rausgekommen, folgendes wurde aktualisiert:',
     highlights: [
       '🛡️ Sicherheits-Patch: Schwachstelle in qs behoben und Abhängigkeiten auf sicheren Stand gebracht',
-      '📦 Toolchain & Test-Updates: Babel-Core/Parser/Generator/Traverse auf v8.0.5 und Playwright Test auf v1.63.0 aktualisiert'
-    ]
+      '📦 Toolchain & Test-Updates: Babel-Core/Parser/Generator/Traverse auf v8.0.5 und Playwright Test auf v1.63.0 aktualisiert',
+    ],
   },
   '1.6.49': {
     version: '1.6.49',
     intro: 'Hey, es ist jetzt Version 1.6.49 rausgekommen, folgendes wurde hinzugefügt:',
     highlights: [
       '🖼️ Visueller Eindruck in README.md: Actionreicher Gameplay-Screenshot direkt auf der GitHub-Startseite eingebunden',
-      '📸 Automatische Screenshot-Generierung: Playwright-Testsuite um automatisierten Screen-Capture-Workflow ergänzt'
-    ]
+      '📸 Automatische Screenshot-Generierung: Playwright-Testsuite um automatisierten Screen-Capture-Workflow ergänzt',
+    ],
   },
   '1.6.48': {
     version: '1.6.48',
     intro: 'Hey, es ist jetzt Version 1.6.48 rausgekommen, folgendes wurde verbessert:',
     highlights: [
       '🏆 Highscore-Screen Layout-Optimierung: Die Bestenliste ist nun in einen kompakten Scroll-Container mit dezenter Sci-Fi-Scrollbar eingebettet',
-      '📱 Responsives Game-Over: Alle UI-Elemente, Eingabefelder und Neustart-Buttons bleiben auch bei vielen Highscore-Einträgen auf allen Displaygrößen vollständig erreichbar'
-    ]
+      '📱 Responsives Game-Over: Alle UI-Elemente, Eingabefelder und Neustart-Buttons bleiben auch bei vielen Highscore-Einträgen auf allen Displaygrößen vollständig erreichbar',
+    ],
   },
   '1.6.47': {
     version: '1.6.47',
     intro: 'Hey, es ist jetzt Version 1.6.47 rausgekommen, folgendes wurde optimiert:',
     highlights: [
       '💎 Splitter-Drop Balancing: Im Solo-Modus droppen für das Phantom-NX keine Splitter mehr (weder von Feinden noch von Bossen)',
-      '🤝 Co-op Splitter-Zuweisung: Splitter droppen im 2-Spieler-Modus nur für Spieler, die eine Viper fliegen. Fliegen beide Phantom, droppen gar keine Splitter'
-    ]
+      '🤝 Co-op Splitter-Zuweisung: Splitter droppen im 2-Spieler-Modus nur für Spieler, die eine Viper fliegen. Fliegen beide Phantom, droppen gar keine Splitter',
+    ],
   },
   '1.6.46': {
     version: '1.6.46',
     intro: 'Hey, es ist jetzt Version 1.6.46 rausgekommen, folgendes wurde behoben:',
     highlights: [
       '🚀 Client-Schiffsauswahl im Online-Modus: Client-eigene Schiffs- und Farbauswahl (z. B. Viper-X) wird beim Spielstart zuverlässig beibehalten und fliegt mit voller Geschwindigkeit',
-      '⚡ Visuelle Synchronisation: Aktualisierung aller Spielerschiff-SVGs und Geschwindigkeitswerte vor und nach Cutszenen-Übergängen abgesichert'
-    ]
+      '⚡ Visuelle Synchronisation: Aktualisierung aller Spielerschiff-SVGs und Geschwindigkeitswerte vor und nach Cutszenen-Übergängen abgesichert',
+    ],
   },
   '1.6.45': {
     version: '1.6.45',
     intro: 'Hey, es ist jetzt Version 1.6.45 rausgekommen, folgendes wurde verbessert:',
     highlights: [
       '🤖 Lokaler Co-op mit Bot-Partner: Spieler 1 kann nun die komfortable Standard-Steuerung (WASD/Pfeile, L/B für Laser, K/V für Raketen, Leertaste/C für Bomben) nutzen',
-      '📋 Dynamische Steuerungsanzeige: Startscreen zeigt bei aktivem Bot-Partner sofort das angepasste Tastaturlayout an'
-    ]
+      '📋 Dynamische Steuerungsanzeige: Startscreen zeigt bei aktivem Bot-Partner sofort das angepasste Tastaturlayout an',
+    ],
   },
   '1.6.44': {
     version: '1.6.44',
@@ -297,8 +297,8 @@ export const changelogData = {
       '🎯 Laser-Zündenergie im Online-Modus: Mindestenergie für den Laser wird für Spieler 2 serverseitig sauber durchgesetzt',
       '🚀 Zuverlässige Schiffswahl-Übertragung: Der Host übernimmt die Schiffs- und Farbauswahl des Clients garantiert vor Spielbeginn',
       '🏆 Bestenlisten-Live-Refresh: Nach erfolgreichem Highscore-Submit aktualisiert der Client seine Bestenliste automatisch mit den neuen Platzierungen',
-      '🎮 Tastenbelegung im Online-Modus: Beide Spieler steuern einheitlich mit WASD, L (Laser), K (Rakete) und Leertaste (Bombe)'
-    ]
+      '🎮 Tastenbelegung im Online-Modus: Beide Spieler steuern einheitlich mit WASD, L (Laser), K (Rakete) und Leertaste (Bombe)',
+    ],
   },
   '1.6.43': {
     version: '1.6.43',
@@ -307,80 +307,80 @@ export const changelogData = {
       '🚀 Schiffswahl-Synchronisation im Online-Modus: Host und Client behalten exakt ihre im Hangar gewählten Schiffe (Viper-X / Phantom-NX)',
       '✨ Blinken bei Spielstart behoben: Der Unverwundbarkeits-Timer läuft auf dem Client-Rechner nun zuverlässig ab',
       '💥 Partikel-Animation auf Client: Explosionen und Treffer-Partikel animieren und verblassen flüssig ohne Einfrieren',
-      '🏆 Online-Bestenliste stabilisiert: Es wird exakt ein Eintrag vom Host mit den korrekten Schiffs-Zuordnungen übermittelt'
-    ]
+      '🏆 Online-Bestenliste stabilisiert: Es wird exakt ein Eintrag vom Host mit den korrekten Schiffs-Zuordnungen übermittelt',
+    ],
   },
   '1.6.42': {
     version: '1.6.42',
     intro: 'Hey, es ist jetzt Version 1.6.42 rausgekommen, folgendes ist neu:',
     highlights: [
-      '🌐 Globale Bestenliste: Weltweite Ranglisten für Solo, Bot Co-op und Online Co-op mit Edge-Geolokalisierung (Flagge & Stadt) und Cheat-Schutz'
-    ]
+      '🌐 Globale Bestenliste: Weltweite Ranglisten für Solo, Bot Co-op und Online Co-op mit Edge-Geolokalisierung (Flagge & Stadt) und Cheat-Schutz',
+    ],
   },
   '1.6.41': {
     version: '1.6.41',
     intro: 'Hey, es ist jetzt Version 1.6.41 rausgekommen, folgendes wurde behoben:',
     highlights: [
-      '🔄 Rematch & Neustart im Online-Coop: Nach einem verlorenen Spiel und Klick auf "Neustart" bleibt die Peer-Verbindung aktiv. Der Host erhält einen "🚀 SPIEL STARTEN"-Button, um direkt die nächste Runde zu starten, sowie einen "RAUM VERLASSEN"-Button'
-    ]
+      '🔄 Rematch & Neustart im Online-Coop: Nach einem verlorenen Spiel und Klick auf "Neustart" bleibt die Peer-Verbindung aktiv. Der Host erhält einen "🚀 SPIEL STARTEN"-Button, um direkt die nächste Runde zu starten, sowie einen "RAUM VERLASSEN"-Button',
+    ],
   },
   '1.6.40': {
     version: '1.6.40',
     intro: 'Hey, es ist jetzt Version 1.6.40 rausgekommen, folgendes wurde behoben:',
     highlights: [
-      '💥 Bomben- & Explosions-Synchronisation im Online-Coop: Detonationen von Bomben, Raketen und besiegten Gegnern erzeugen nun auch auf dem Client-Rechner die volle visuelle Explosion und Schockwellen'
-    ]
+      '💥 Bomben- & Explosions-Synchronisation im Online-Coop: Detonationen von Bomben, Raketen und besiegten Gegnern erzeugen nun auch auf dem Client-Rechner die volle visuelle Explosion und Schockwellen',
+    ],
   },
   '1.6.39': {
     version: '1.6.39',
     intro: 'Hey, es ist jetzt Version 1.6.39 rausgekommen, folgendes wurde behoben:',
     highlights: [
-      '📱 Startscreen Touch-Interaktion abgesichert: Taps auf Startscreen-Elemente (Modi, Hangar, Einstellungen) starten nicht mehr das Spiel – Start erfolgt gezielt über den blinkenden Start-Button'
-    ]
+      '📱 Startscreen Touch-Interaktion abgesichert: Taps auf Startscreen-Elemente (Modi, Hangar, Einstellungen) starten nicht mehr das Spiel – Start erfolgt gezielt über den blinkenden Start-Button',
+    ],
   },
   '1.6.38': {
     version: '1.6.38',
     intro: 'Hey, es ist jetzt Version 1.6.38 rausgekommen, folgendes wurde behoben:',
     highlights: [
-      '📱 Touch-Steuerung im Menü gefixt: Beim Antippen von Modus-Buttons (Co-op / Online), Hangar-Schiffswahl oder Farb-Buttons auf Tablets und Smartphones startet das Spiel nicht mehr versehentlich'
-    ]
+      '📱 Touch-Steuerung im Menü gefixt: Beim Antippen von Modus-Buttons (Co-op / Online), Hangar-Schiffswahl oder Farb-Buttons auf Tablets und Smartphones startet das Spiel nicht mehr versehentlich',
+    ],
   },
   '1.6.37': {
     version: '1.6.37',
     intro: 'Hey, es ist jetzt Version 1.6.37 rausgekommen, folgendes wurde behoben:',
     highlights: [
-      '🎨 Online-Lobby Layout optimiert: Das Raumcode-Eingabefeld wurde kompakt auf 5 Zeichen angepasst und der Beitreten-Button schließt sauber bündig ohne Überstand ab'
-    ]
+      '🎨 Online-Lobby Layout optimiert: Das Raumcode-Eingabefeld wurde kompakt auf 5 Zeichen angepasst und der Beitreten-Button schließt sauber bündig ohne Überstand ab',
+    ],
   },
   '1.6.36': {
     version: '1.6.36',
     intro: 'Hey, es ist jetzt Version 1.6.36 rausgekommen, folgendes wurde behoben:',
     highlights: [
-      '🛡️ Cheatcodes im Online-Coop deaktiviert: Cheatcodes wie idkfa oder idgod sind im Online-Multiplayer-Modus für fairen Wettkampf komplett deaktiviert'
-    ]
+      '🛡️ Cheatcodes im Online-Coop deaktiviert: Cheatcodes wie idkfa oder idgod sind im Online-Multiplayer-Modus für fairen Wettkampf komplett deaktiviert',
+    ],
   },
   '1.6.35': {
     version: '1.6.35',
     intro: 'Hey, es ist jetzt Version 1.6.35 rausgekommen, folgendes wurde behoben:',
     highlights: [
-      '🏆 Gemeinsame Online-Highscores: Nach einem Remote-Coop geben beide Spieler ihr Kürzel ein – sobald beide bestätigt haben, wird das Team (z. B. AAA+BBB) automatisch in die Coop-Bestenliste auf beiden Rechnern eingetragen'
-    ]
+      '🏆 Gemeinsame Online-Highscores: Nach einem Remote-Coop geben beide Spieler ihr Kürzel ein – sobald beide bestätigt haben, wird das Team (z. B. AAA+BBB) automatisch in die Coop-Bestenliste auf beiden Rechnern eingetragen',
+    ],
   },
   '1.6.34': {
     version: '1.6.34',
     intro: 'Hey, es ist jetzt Version 1.6.34 rausgekommen, folgendes wurde behoben:',
     highlights: [
       '⚡ Zielgerichteter Schadens-Flash im Online-Modus: Der rote Treffer-Flash (und blaue Schild-Flash) wird jetzt nur noch auf dem Bildschirm des Spielers angezeigt, der tatsächlich getroffen wurde',
-      '🎬 Synchrones Überspringen der Cutszene: Wenn einer der beiden Spieler im Online-Raum ESC oder Überspringen drückt, wird die Intro-Cutszene für beide Spieler nahtlos beendet und das Spiel startet synchron'
-    ]
+      '🎬 Synchrones Überspringen der Cutszene: Wenn einer der beiden Spieler im Online-Raum ESC oder Überspringen drückt, wird die Intro-Cutszene für beide Spieler nahtlos beendet und das Spiel startet synchron',
+    ],
   },
   '1.6.33': {
     version: '1.6.33',
     intro: 'Hey, es ist jetzt Version 1.6.33 rausgekommen, folgendes wurde behoben:',
     highlights: [
       '🎮 Einheitliche Solo-Steuerung im Online-Modus: Jeder Spieler (Host & Client) nutzt an seinem eigenen PC die vertraute Solo-Steuerung (WASD/Pfeile, L/B für Laser, K/V für Raketen, Leertaste/C für Bomben)',
-      '🌐 Getrennte Tastatur-Zuweisung: Die geteilte Tastaturbelegung (Ä/Ö) bleibt exklusiv für den lokalen Couch-Koop erhalten'
-    ]
+      '🌐 Getrennte Tastatur-Zuweisung: Die geteilte Tastaturbelegung (Ä/Ö) bleibt exklusiv für den lokalen Couch-Koop erhalten',
+    ],
   },
   '1.6.32': {
     version: '1.6.32',
@@ -388,53 +388,53 @@ export const changelogData = {
     highlights: [
       '🔥 Boss-Projektile synchronisiert: Boss-Laser, zielsuchende Boss-Raketen und pulsierende Boss-Bomben werden nun vollständig und in Echtzeit auf dem Client gerendert',
       '💎 Powerup-Optik & Owner-Tags: Powerups von Spieler 1 & 2 besitzen auf allen Clients die volle Farbbrillanz, Glow-Effekte und Fraktions-Badges',
-      '🌋 Magma-Asteroiden Synchronisation: Zerstörbare und unzerstörbare Magma-Asteroiden werden mit ihren exakten Texturen, Rissen und Schutzklassen auf Clients übertragen'
-    ]
+      '🌋 Magma-Asteroiden Synchronisation: Zerstörbare und unzerstörbare Magma-Asteroiden werden mit ihren exakten Texturen, Rissen und Schutzklassen auf Clients übertragen',
+    ],
   },
   '1.6.31': {
     version: '1.6.31',
     intro: 'Hey, es ist jetzt Version 1.6.31 rausgekommen, folgendes wurde behoben:',
     highlights: [
       '🚀 Vollständiges Online-Visual-Sync: Asteroiden (mit Polygon-Clips), Gegner (mit Schiff-SVGs), Bosse, Laserstrahlen und Projektile werden nun vollständig und in Echtzeit auf allen Clients gerendert',
-      '🎮 Lokale Client-Prädiktion: Spieler 2 steuert sein Schiff auf dem Client sofort latenzfrei via Tastatur oder Joystick'
-    ]
+      '🎮 Lokale Client-Prädiktion: Spieler 2 steuert sein Schiff auf dem Client sofort latenzfrei via Tastatur oder Joystick',
+    ],
   },
   '1.6.30': {
     version: '1.6.30',
     intro: 'Hey, es ist jetzt Version 1.6.30 rausgekommen, folgendes wurde behoben:',
     highlights: [
-      '🛠️ Trystero API-Kompatibilität: Action- und Event-Handling für moderne und abwärtskompatible WebRTC-Objektstrukturen optimiert'
-    ]
+      '🛠️ Trystero API-Kompatibilität: Action- und Event-Handling für moderne und abwärtskompatible WebRTC-Objektstrukturen optimiert',
+    ],
   },
   '1.6.29': {
     version: '1.6.29',
     intro: 'Hey, es ist jetzt Version 1.6.29 rausgekommen, folgendes wurde behoben:',
     highlights: [
-      '🔌 Modernes WebRTC CDN: Trystero-Import auf das moderne @trystero-p2p/torrent & nostr Scope aktualisiert, um CDN-Deprecation-Warnungen zu beheben'
-    ]
+      '🔌 Modernes WebRTC CDN: Trystero-Import auf das moderne @trystero-p2p/torrent & nostr Scope aktualisiert, um CDN-Deprecation-Warnungen zu beheben',
+    ],
   },
   '1.6.28': {
     version: '1.6.28',
     intro: 'Hey, es ist jetzt Version 1.6.28 rausgekommen, folgendes wurde hinzugefügt:',
     highlights: [
       '🌐 Serverless Online-Multiplayer: Spiele remote zu zweit per WebRTC (P2P) — erstelle einfach einen Raumcode oder trete einem bestehenden Raum bei!',
-      '📡 Echtes P2P-Netcode: Direkte Browser-zu-Browser Kommunikation mit minimaler Latenz und stabiler Synchronisation von Gegnern, Bossen und Drops'
-    ]
+      '📡 Echtes P2P-Netcode: Direkte Browser-zu-Browser Kommunikation mit minimaler Latenz und stabiler Synchronisation von Gegnern, Bossen und Drops',
+    ],
   },
   '1.6.27': {
     version: '1.6.27',
     intro: 'Hey, es ist jetzt Version 1.6.27 rausgekommen, folgendes wurde verbessert:',
     highlights: [
       '🎯 Menschlichere Bot-Taktik: Der Bot hält nun diszipliniert die Grundlinie im unteren Viertel des Spielfelds und beschießt Feinde sowie Bosse gezielt und sicher aus der Distanz',
-      '🚀 Weitreichendes Raketenfeuer: Der Bot zündet zielsuchende Raketen auf Bosse und Feinde auch über größere Entfernungen'
-    ]
+      '🚀 Weitreichendes Raketenfeuer: Der Bot zündet zielsuchende Raketen auf Bosse und Feinde auch über größere Entfernungen',
+    ],
   },
   '1.6.26': {
     version: '1.6.26',
     intro: 'Hey, es ist jetzt Version 1.6.26 rausgekommen, folgendes wurde behoben:',
     highlights: [
-      '🕹️ Fix für Spieler 1 Steuerung: Nach einem Game Over im 2-Spieler Modus lässt sich Spieler 1 nach dem Neustart nun wieder wie gewohnt mit voller Kontrolle steuern'
-    ]
+      '🕹️ Fix für Spieler 1 Steuerung: Nach einem Game Over im 2-Spieler Modus lässt sich Spieler 1 nach dem Neustart nun wieder wie gewohnt mit voller Kontrolle steuern',
+    ],
   },
   '1.6.25': {
     version: '1.6.25',
@@ -442,8 +442,8 @@ export const changelogData = {
     highlights: [
       '🤖 KI Bot-Partner im 2-Spieler Co-op: Spieler 2 kann nun komplett vom Computer gesteuert werden — inklusive eigenständigem Ausweichen, Powerup-Sammeln und Angreifen!',
       '⚙️ 3 Bot-Schwierigkeitsgrade: Wähle im Hangar zwischen EASY, NORMAL und HARD für feinjustierte Reaktionszeiten und Zielpräzision',
-      '💥 Taktischer Waffen-Einsatz: Der Bot feuert Laser und Raketen zielsicher ab und zündet Bomben bei großen Feindansammlungen'
-    ]
+      '💥 Taktischer Waffen-Einsatz: Der Bot feuert Laser und Raketen zielsicher ab und zündet Bomben bei großen Feindansammlungen',
+    ],
   },
   '1.6.24': {
     version: '1.6.24',
@@ -451,8 +451,8 @@ export const changelogData = {
     highlights: [
       '🚀 Raketen-Balancing im 2-Spieler Co-op: Höhere Maximalgeschwindigkeit (15 statt 13), stärkere Beschleunigung und präziseres Homing auf dem breiterem 600px-Spielfeld',
       '🎯 Größerer Homing-Suchbereich im Co-op: Zielsuchende Raketen erfassen Feinde mit einem 200px-Radius (statt 140px im Solo-Modus)',
-      '↩️ Stärkere Lenkrate im Co-op: Raketen kurven flotter und treffen Ziele auch am weit entfernten Rand des Spielfelds'
-    ]
+      '↩️ Stärkere Lenkrate im Co-op: Raketen kurven flotter und treffen Ziele auch am weit entfernten Rand des Spielfelds',
+    ],
   },
   '1.6.23': {
     version: '1.6.23',
@@ -460,8 +460,8 @@ export const changelogData = {
     highlights: [
       '💎 Kristalline Splitter-Optik: Splitter erscheinen nun als spitze, leuchtend pulsierende Dreieckskristalle ohne Buchstaben',
       '🎯 Garantierte Droprate: Exakt jeder 10. vom Viper zerstörte Feind hinterlässt einen garantierten Splitter-Drop (Rot oder Weiß)',
-      '✨ Wunderschöne Glüh- und Schwebereffekte im Weltraum'
-    ]
+      '✨ Wunderschöne Glüh- und Schwebereffekte im Weltraum',
+    ],
   },
   '1.6.22': {
     version: '1.6.22',
@@ -469,8 +469,8 @@ export const changelogData = {
     highlights: [
       '👑 Garantierte Boss-Splitter: Jeder besiegte Boss droppt nun garantiert 3 zusätzliche Kristall-Splitter (Rot oder Weiß)',
       '💎 Schnellerer Viper-Aufbau: Durch die Boss-Splitter erhalten Viper-Piloten deutlich zügiger Extra-Leben und Super-Waffen',
-      '✨ Feingeschliffene Drop-Verteilung im Solo- und 2-Spieler-Modus'
-    ]
+      '✨ Feingeschliffene Drop-Verteilung im Solo- und 2-Spieler-Modus',
+    ],
   },
   '1.6.21': {
     version: '1.6.21',
@@ -479,8 +479,8 @@ export const changelogData = {
       '💎 Viper Kristall-Splitter Drop-System: 10% Chance bei jedem Feind-Abschuss durch den Viper auf einen Splitter-Drop (Solo & 2-Spieler Co-op)',
       '❤️ Roter Splitter (♦): 10 gesammelte rote Splitter gewähren dem Viper ein zusätzliches Leben',
       '⭐ Weißer Splitter (✦): 10 gesammelte weiße Splitter lösen ein mächtiges Super-Waffen-Upgrade aus',
-      '📊 Neues Splitter-HUD: Dedizierte Zähler-Anzeige für Viper-Piloten im Cockpit'
-    ]
+      '📊 Neues Splitter-HUD: Dedizierte Zähler-Anzeige für Viper-Piloten im Cockpit',
+    ],
   },
   '1.6.20': {
     version: '1.6.20',
@@ -488,8 +488,8 @@ export const changelogData = {
     highlights: [
       '🚀 Authentische Raketen-Flugdynamik: Wiederherstellung der 3-Phasen-Flugphysik mit charakteristischem Anlaufnehmen in Phase 2',
       '🎯 Präzise Zielsuch-Vektorlenkung: Zielsucher-Raketen drehen ihre Flugbahn exakt auf Feinde ein und treffen Ziele zuverlässig',
-      '💥 Proximity-Zünder: Ausgewogener Zündradius für verlässliche Trefferwirkung'
-    ]
+      '💥 Proximity-Zünder: Ausgewogener Zündradius für verlässliche Trefferwirkung',
+    ],
   },
   '1.6.19': {
     version: '1.6.19',
@@ -497,8 +497,8 @@ export const changelogData = {
     highlights: [
       '🔗 Traktorstrahl Powerup-Kopplung: Spieler können bis zu 3 Powerups für ihren Partner im Schlepptau mitziehen',
       '⚖️ Dynamischer Gewichts-Debuff: Für jedes gezogene Powerup sinkt das Schiffstempo um 10%',
-      '🤝 Partner-Übergabe: Gezogene Powerups werden sofort aktiviert, sobald der Partner sie berührt'
-    ]
+      '🤝 Partner-Übergabe: Gezogene Powerups werden sofort aktiviert, sobald der Partner sie berührt',
+    ],
   },
   '1.6.18': {
     version: '1.6.18',
@@ -506,16 +506,16 @@ export const changelogData = {
     highlights: [
       '🚀 Raketenwerfer Spieler 2: Korrekte Pod-Anzeige auf dem Schiff passend zum Modell (Viper links, Phantom rechts) und Level',
       '🎯 Boss-Raketen Ausrichtung: Raketen fliegen nun vorwärts mit der Spitze in Flugrichtung auf die Spieler zu',
-      '✨ Optimierte Raketendynamik: Ausgewogene Fluggeschwindigkeit und präzises Homing-Tracking im Solo- und 2-Spieler-Modus'
-    ]
+      '✨ Optimierte Raketendynamik: Ausgewogene Fluggeschwindigkeit und präzises Homing-Tracking im Solo- und 2-Spieler-Modus',
+    ],
   },
   '1.6.17': {
     version: '1.6.17',
     intro: 'Hey, es ist jetzt Version 1.6.17 rausgekommen, folgendes wurde geändert oder ist neu:',
     highlights: [
       '🎬 Co-op Story Cutszene: Beide Spielerschiffe fliegen im 2-Spieler-Modus gemeinsam im Raumschiff-Konvoi',
-      '🛡️ Gemeinsames Überleben: Beide Spieler überstehen den Überraschungsangriff und steigen parallel im Lichtstrahl auf'
-    ]
+      '🛡️ Gemeinsames Überleben: Beide Spieler überstehen den Überraschungsangriff und steigen parallel im Lichtstrahl auf',
+    ],
   },
   '1.6.16': {
     version: '1.6.16',
@@ -523,8 +523,8 @@ export const changelogData = {
     highlights: [
       '🏆 Getrennte Bestenliste: Separate Highscore-Ranglisten für Solo- und 2-Spieler-Modus (Co-op)',
       '👥 Team-Highscores: Speicherung und Anzeige von Team-Namen und den Schiffstypen beider Co-op-Piloten',
-      '📑 Interaktive Highscore-Tabs: Bequemes Umschalten zwischen Solo- und Co-op-Bestenliste auf dem Game-Over-Screen'
-    ]
+      '📑 Interaktive Highscore-Tabs: Bequemes Umschalten zwischen Solo- und Co-op-Bestenliste auf dem Game-Over-Screen',
+    ],
   },
   '1.6.15': {
     version: '1.6.15',
@@ -532,8 +532,8 @@ export const changelogData = {
     highlights: [
       '🎯 Spieler 2 Tastenbelegung entkoppelt: Taste L feuert nur die Bombe und nicht mehr zusätzlich den Laser',
       '📊 Optimiertes Co-op HUD: Punkte- und Levelanzeige sind im 2-Spieler-Modus zentriert und überdecken nicht mehr das P2-HUD',
-      '💎 Intelligentes Loot-System: Wenn ein Spieler zerstört ist, spawnen Powerup-Drops ausschließlich für den überlebenden Spieler'
-    ]
+      '💎 Intelligentes Loot-System: Wenn ein Spieler zerstört ist, spawnen Powerup-Drops ausschließlich für den überlebenden Spieler',
+    ],
   },
   '1.6.14': {
     version: '1.6.14',
@@ -541,8 +541,8 @@ export const changelogData = {
     highlights: [
       '⚡ Spieler 2 Energiebalken: Sichtbarkeit und Design des P2-Energiebalkens im HUD korrigiert',
       '🛡️ Spieler 2 Schild-Aura: Schild-Effekt wird nun auch auf Spieler 2 bei aktiver Schildstufe visuell angezeigt',
-      '🎯 Boss-Zielerfassung im Co-op: Boss Typ 2 (Jäger) wechselt nach dem Ableben von Spieler 1 dynamisch auf Spieler 2'
-    ]
+      '🎯 Boss-Zielerfassung im Co-op: Boss Typ 2 (Jäger) wechselt nach dem Ableben von Spieler 1 dynamisch auf Spieler 2',
+    ],
   },
   '1.6.13': {
     version: '1.6.13',
@@ -550,8 +550,8 @@ export const changelogData = {
     highlights: [
       '🚀 2-Spieler-Modus (PC Co-op): Spiele gemeinsam mit einem Freund an einer Tastatur (P1: WASD + B/V/C, P2: Pfeiltasten + Ä/Ö/L)',
       '🌌 Erweitertes Spielfeld & Balancing: 600px breites Kampfareal mit angepassten Feind- und Boss-Werten',
-      '💎 Dedicated Loot & Revive-System: Getrennte Powerups für P1 & P2 und Wiederbelebung gefallener Teammitglieder bei Boss-Sieg oder Herz-Powerups'
-    ]
+      '💎 Dedicated Loot & Revive-System: Getrennte Powerups für P1 & P2 und Wiederbelebung gefallener Teammitglieder bei Boss-Sieg oder Herz-Powerups',
+    ],
   },
   '1.6.12': {
     version: '1.6.12',
@@ -559,8 +559,8 @@ export const changelogData = {
     highlights: [
       '🧹 Saubere Rundenübergänge: Boss-Raketen, Boss-Bomben und alle Projektile werden beim Neustart restlos bereinigt',
       '🛸 Fehlerfreie Cutszenen nach Neustart: Keine Artefakte aus vorherigen Runden mehr im Spielfeld',
-      '🛡️ Optimierte Entitäten-Verwaltung beim Neustart & Game Over'
-    ]
+      '🛡️ Optimierte Entitäten-Verwaltung beim Neustart & Game Over',
+    ],
   },
   '1.6.11': {
     version: '1.6.11',
@@ -568,8 +568,8 @@ export const changelogData = {
     highlights: [
       '💥 Spektakuläre Schiffsexplosionen: Konvoi-Schiffe detonieren mit Feuerbällen, Schockwellen & Trümmerteilen',
       '🛸 Sauberes Hangar-UI: Keine störenden Raketenwerfer-Geister mehr im Bildschirmzentrum',
-      '🔥 Mehrstufige Zerstörung: Große Schiffe erleiden Sekundärexplosionen und brechen in Trümmer'
-    ]
+      '🔥 Mehrstufige Zerstörung: Große Schiffe erleiden Sekundärexplosionen und brechen in Trümmer',
+    ],
   },
   '1.6.10': {
     version: '1.6.10',
@@ -577,8 +577,8 @@ export const changelogData = {
     highlights: [
       '🎥 Kameraverfolgung im Konvoi: Der Raumschiff-Konvoi fliegt ins Zentrum und wird von der Kamera begleitet',
       '💥 Sichtbare Zerstörung im Bild: Der feindliche Hinterhalt und alle Schiffsexplosionen finden direkt im Sichtfeld statt',
-      '🛸 Saubere Hangar- & Cutszenen-Darstellung: Spielerschiff wird erst beim Spielstart aktiv eingeblendet'
-    ]
+      '🛸 Saubere Hangar- & Cutszenen-Darstellung: Spielerschiff wird erst beim Spielstart aktiv eingeblendet',
+    ],
   },
   '1.6.9': {
     version: '1.6.9',
@@ -586,8 +586,8 @@ export const changelogData = {
     highlights: [
       '🎬 Story Intro-Cutszene: Epische DOM-Cutszene nach dem Hangar mit Schiffskonvoi, Alien-Funkspruch & Überraschungsangriff',
       '⚡ Nahtloser Übergang: Mysteriöser Lichtstrahl und automatischer Einflug ins Spielfeld',
-      '⏩ Schnelles Überspringen: Cutszene jederzeit per ESC-Taste oder Touch-Button abbrechbar'
-    ]
+      '⏩ Schnelles Überspringen: Cutszene jederzeit per ESC-Taste oder Touch-Button abbrechbar',
+    ],
   },
   '1.6.8': {
     version: '1.6.8',
@@ -595,8 +595,8 @@ export const changelogData = {
     highlights: [
       '💥 Zischender Raketen-Knall: Neue wuchtige Detonations-SFX mit Rausch-Zischen für Spieler- und Boss-Raketen',
       '⏱️ Beschleunigendes Bomben-Piepsen: Fliegende Bomben (Spieler & Boss) geben ein dynamisch schneller werdendes Warn-Piepsen bis zur Detonation ab',
-      '🚀 Boss-Raketen Fluggeräusch: Seitliche Boss-Raketen erzeugen während des Flugs ein bedrohliches Triebwerks-Fauchen'
-    ]
+      '🚀 Boss-Raketen Fluggeräusch: Seitliche Boss-Raketen erzeugen während des Flugs ein bedrohliches Triebwerks-Fauchen',
+    ],
   },
   '1.6.7': {
     version: '1.6.7',
@@ -604,32 +604,32 @@ export const changelogData = {
     highlights: [
       '⚡ Zero-Latency Audio-Engine: Vorab generierte Noise-Buffer und optimierte AudioContext-Latenz für lag-freies Feedback in Chrome und Firefox',
       '🎆 Silvester-Raketen-Zischen: Neuer authentischer Zisch- und Pfeif-Synthesizer mit Resonanzfilter für das Abfeuern von Raketen',
-      '👾 Boss- & Gegner-Vertonung: Eigene Soundeffekte für feindliche Laser, Boss-Laser, Boss-Plasma-Bomben und zielsuchende Boss-Raketen'
-    ]
+      '👾 Boss- & Gegner-Vertonung: Eigene Soundeffekte für feindliche Laser, Boss-Laser, Boss-Plasma-Bomben und zielsuchende Boss-Raketen',
+    ],
   },
   '1.6.6': {
     version: '1.6.6',
     intro: 'Hey, es ist jetzt Version 1.6.6 rausgekommen, folgendes wurde geändert oder ist neu:',
     highlights: [
       '🔊 Synthetische Retro-Sounds (Web Audio API): Dynamische Audio-Effekte für Laser, Autolaser, Raketen, Bomben, Explosionen, Powerups und Boss-Warnungen ohne externe Ladezeiten',
-      '🔇 Sound-Mute Steuerung: Schnelles Stummschalten per Tastenkürzel M oder Button in der Benutzeroberfläche (mit Speicher-Persistenz)'
-    ]
+      '🔇 Sound-Mute Steuerung: Schnelles Stummschalten per Tastenkürzel M oder Button in der Benutzeroberfläche (mit Speicher-Persistenz)',
+    ],
   },
   '1.6.5': {
     version: '1.6.5',
     intro: 'Hey, es ist jetzt Version 1.6.5 rausgekommen, folgendes wurde geändert oder ist neu:',
     highlights: [
       '⏱️ Kürzere Unverwundbarkeit: Die i-Frames nach einem Treffer wurden halbiert (von 1.5s auf 0.75s) für ein knackigeres Gameplay-Gefühl',
-      '⚡ Höhere Herausforderung bei feindlichen Salven'
-    ]
+      '⚡ Höhere Herausforderung bei feindlichen Salven',
+    ],
   },
   '1.6.4': {
     version: '1.6.4',
     intro: 'Hey, es ist jetzt Version 1.6.4 rausgekommen, folgendes wurde geändert oder ist neu:',
     highlights: [
       '🏆 Schiffstyp in Highscores: Hinter jedem Highscore-Eintrag wird nun mit stilvollem Badge angezeigt, mit welchem Schiff (Viper-X oder Phantom-NX) der Rekord erzielt wurde',
-      '📊 Detaillierte Rekord-Übersicht in der Bestenliste'
-    ]
+      '📊 Detaillierte Rekord-Übersicht in der Bestenliste',
+    ],
   },
   '1.6.3': {
     version: '1.6.3',
@@ -637,8 +637,8 @@ export const changelogData = {
     highlights: [
       '🚀 Seitliche Boss-Raketen: Bosse feuern zielsuchende Raketen seitlich ab, um dem Frontal-Sperrfeuer auszuweichen',
       '🎯 Zerstörbare Bedrohung: Schieße die langsamen Raketen mit dem Laser ab, bevor sie dich treffen',
-      '💥 Taktischer Bonus: +100 Punkte für jede im Flug zerstörte Boss-Rakete'
-    ]
+      '💥 Taktischer Bonus: +100 Punkte für jede im Flug zerstörte Boss-Rakete',
+    ],
   },
   '1.6.2': {
     version: '1.6.2',
@@ -646,8 +646,8 @@ export const changelogData = {
     highlights: [
       '🚀 Seitliche Boss-Raketen: Bosse feuern zielsuchende Raketen seitlich ab, um dem Frontal-Sperrfeuer auszuweichen',
       '🎯 Zerstörbare Bedrohung: Schieße die langsamen Raketen mit dem Laser ab, bevor sie dich treffen',
-      '💥 Taktischer Bonus: +100 Punkte für jede im Flug zerstörte Boss-Rakete'
-    ]
+      '💥 Taktischer Bonus: +100 Punkte für jede im Flug zerstörte Boss-Rakete',
+    ],
   },
   '1.6.1': {
     version: '1.6.1',
@@ -655,8 +655,8 @@ export const changelogData = {
     highlights: [
       '🔥 Feind-Schussrate & 2er-Salven: Gegner schießen mit steigendem Level schneller und feuern ab Level 3 gefährliche 2er-Salven (Burst)',
       '🛡️ Schild-Gegner (Level 3+): Einige Gegner besitzen jetzt einen pulsierenden Energieschild, der erst zerschossen werden muss',
-      '💣 Boss-Bombe: Bosse werfen schwere Plasma-Bomben ab – schieße sie ab, bevor ihre rote Schockwelle detoniert!'
-    ]
+      '💣 Boss-Bombe: Bosse werfen schwere Plasma-Bomben ab – schieße sie ab, bevor ihre rote Schockwelle detoniert!',
+    ],
   },
   '1.6.0': {
     version: '1.6.0',
@@ -664,16 +664,16 @@ export const changelogData = {
     highlights: [
       '🚀 Sichtbare Raketenwerfer am Schiff: Dynamische Werfer-Pods mit animierter Plasma-Energiekopplung',
       '🎯 Geradeaus-Abschuss: Raketen starten jetzt direkt und präzise geradeaus aus den Rohren (Viper links, Phantom rechts)',
-      '💥 Level-Skalierung & Pod-Abwurf: Zusätzliche Werfer auf Lvl 3-5 und spektakuläre Wegschleuder-Animation bei Upgrade-Verlust'
-    ]
+      '💥 Level-Skalierung & Pod-Abwurf: Zusätzliche Werfer auf Lvl 3-5 und spektakuläre Wegschleuder-Animation bei Upgrade-Verlust',
+    ],
   },
   '1.5.6': {
     version: '1.5.6',
     intro: 'Hey, es ist jetzt Version 1.5.6 rausgekommen, folgendes wurde geändert oder ist neu:',
     highlights: [
       '⚡ Viper-X Kill-Energie: Zerstörte feindliche Schiffe stellen der Viper sofort +5 Laser-Energie wieder her',
-      '🏷️ Hangar-Perks aktualisiert: Neuer Perk "+5 ENERGIE BEI KILL" für Viper-X sichtbar'
-    ]
+      '🏷️ Hangar-Perks aktualisiert: Neuer Perk "+5 ENERGIE BEI KILL" für Viper-X sichtbar',
+    ],
   },
   '1.5.5': {
     version: '1.5.5',
@@ -681,24 +681,24 @@ export const changelogData = {
     highlights: [
       '🛡️ Phantom-NX Schild-Regeneration: Schild Stufe 1 lädt sich nach Treffern automatisch wieder auf',
       '⏱️ Radialer Uhr-Ladebalken: Das O1-Icon zeigt den Ladefortschritt als kreisförmige Uhr-Animation an',
-      '🛸 Feinere Schiffs-Balance: Phantom-NX Geschwindigkeit auf 3.8 angepasst für spürbare Panzer-Trägheit'
-    ]
+      '🛸 Feinere Schiffs-Balance: Phantom-NX Geschwindigkeit auf 3.8 angepasst für spürbare Panzer-Trägheit',
+    ],
   },
   '1.5.4': {
     version: '1.5.4',
     intro: 'Hey, es ist jetzt Version 1.5.4 rausgekommen, folgendes wurde geändert oder ist neu:',
     highlights: [
       '🎯 Smarte Autolaser-Zielerfassung: Ignoriert unzerstörbare Magma-Asteroiden und visiert nur zerstörbare Feinde & Asteroiden an',
-      '⚡ Optimierte Zielpriorisierung für das "A"-Powerup'
-    ]
+      '⚡ Optimierte Zielpriorisierung für das "A"-Powerup',
+    ],
   },
   '1.5.3': {
     version: '1.5.3',
     intro: 'Hey, es ist jetzt Version 1.5.3 rausgekommen, folgendes wurde geändert oder ist neu:',
     highlights: [
       '🏷️ Klarere Hangar-Perks: Deutlicher Hinweis "TREFFER: -1 UPGRADE" bei der Viper-X',
-      '🛸 Bessere Transparenz: Alle Vor- und Nachteile beider Schiffe auf einen Blick'
-    ]
+      '🛸 Bessere Transparenz: Alle Vor- und Nachteile beider Schiffe auf einen Blick',
+    ],
   },
   '1.5.2': {
     version: '1.5.2',
@@ -706,8 +706,8 @@ export const changelogData = {
     highlights: [
       '⚡ Gebündeltes Laser-Feuer (Stufe 4): Quad-Core-Formation feuert 4 Laser parallel nach vorne',
       '🎯 Mehr Präzision: Keine ungenaue diagonale Streuung mehr bei den lila Lasern',
-      '💥 Konzentrierter Einzelschaden: Maximale Feuerkraft auf engstem Raum gegen Bosse & Asteroiden'
-    ]
+      '💥 Konzentrierter Einzelschaden: Maximale Feuerkraft auf engstem Raum gegen Bosse & Asteroiden',
+    ],
   },
   '1.5.1': {
     version: '1.5.1',
@@ -716,8 +716,8 @@ export const changelogData = {
       '⚡ Viper-X Interceptor: +20% Tempo & +25% schnellere Laser-Regeneration',
       '🛡️ Phantom-NX Striker: Schwere Panzerung (kein Upgrade-Verlust) & Start-Schild Lvl 1',
       '🏷️ Hangar-Perks: Anzeige aller Vor- und Nachteile direkt im Hangar',
-      '🛸 Ausbalanciertes Schiffsgefühl: Asymmetrische Eigenschaften für beide Modelle'
-    ]
+      '🛸 Ausbalanciertes Schiffsgefühl: Asymmetrische Eigenschaften für beide Modelle',
+    ],
   },
   '1.5.0': {
     version: '1.5.0',
@@ -727,9 +727,9 @@ export const changelogData = {
       '🎨 5 Schiffs-Farben: Crimson, Cobalt, Emerald, Cyber Gold & Void Violet',
       '🚀 Dual-Homing auf Stufe 5: 2 von 3 Raketen visieren Ziele an',
       '🚀 Dynamische Raketen-Kinematik mit 3 Flugphasen',
-      '💣 Bomben-Evolution: 5 Stufen mit Auren, EMP & Jericho-Cluster'
-    ]
-  }
+      '💣 Bomben-Evolution: 5 Stufen mit Auren, EMP & Jericho-Cluster',
+    ],
+  },
 };
 
 export function checkAndShowWhatsNew(currentVersion = GAME_VERSION) {
@@ -748,7 +748,7 @@ export function showWhatsNewModal(version = GAME_VERSION) {
   const data = changelogData[version] || {
     version: version,
     intro: `Hey, es ist jetzt Version ${version} rausgekommen, folgendes wurde geändert oder ist neu:`,
-    highlights: ['🛠️ Einige Bugfixes und Verbesserungen']
+    highlights: ['🛠️ Einige Bugfixes und Verbesserungen'],
   };
 
   const titleEl = document.getElementById('whats-new-title');

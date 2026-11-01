@@ -77,13 +77,25 @@ export function istSniper(pState) {
   return !!pState && pState.selectedShipModel === 'sniper';
 }
 
-export function trefferRadius(pState) { return RADIUS[stufenIndex(pState)]; }
-export function schussSchaden(pState) { return SCHADEN[stufenIndex(pState)]; }
-export function schussAbstand(pState) { return SCHUSS_ABSTAND[stufenIndex(pState)]; }
-export function autoZielTempo(pState) { return AUTOZIEL_TEMPO[stufenIndex(pState)]; }
-export function granatenCooldown(pState) { return GRANATE_COOLDOWN[raketenIndex(pState)]; }
+export function trefferRadius(pState) {
+  return RADIUS[stufenIndex(pState)];
+}
+export function schussSchaden(pState) {
+  return SCHADEN[stufenIndex(pState)];
+}
+export function schussAbstand(pState) {
+  return SCHUSS_ABSTAND[stufenIndex(pState)];
+}
+export function autoZielTempo(pState) {
+  return AUTOZIEL_TEMPO[stufenIndex(pState)];
+}
+export function granatenCooldown(pState) {
+  return GRANATE_COOLDOWN[raketenIndex(pState)];
+}
 // Granaten-Ladungen: Raketen-Stufe 1-3 -> 2, 4-5 -> 3. raketenCooldown ist die Ladezeit der naechsten Ladung.
-export function granatenMax(pState) { return (pState.raketenStufe || 1) >= 4 ? 3 : 2; }
+export function granatenMax(pState) {
+  return (pState.raketenStufe || 1) >= 4 ? 3 : 2;
+}
 
 // Ladungen voll, kein laufendes Nachladen (Spielstart, Neustart, Schiffswechsel)
 export function setzeGranatenLadungenVoll(pState) {
@@ -124,22 +136,42 @@ export function zeigeGranatenHud(pKey, pState) {
   if (!pState || !istSniper(pState)) return;
   zeigeLadungenHud(pKey, pState, granatenLadungen(pState), granatenMax(pState), granatenCooldown(pState));
 }
-export function granatenRadius(pState) { return GRANATE_RADIUS[raketenIndex(pState)]; }
-export function granatenStoss(pState) { return GRANATE_STOSS[raketenIndex(pState)]; }
-export function granatenBetaeubung(pState) { return GRANATE_BETAEUBUNG[raketenIndex(pState)]; }
-export function granatenSchaden(pState) { return GRANATE_SCHADEN[raketenIndex(pState)]; }
-export function empRadius(pState) { return EMP_RADIUS[raketenIndex(pState)]; }
-export function minenSchaden(pState) { return MINE_SCHADEN[raketenIndex(pState)]; }
+export function granatenRadius(pState) {
+  return GRANATE_RADIUS[raketenIndex(pState)];
+}
+export function granatenStoss(pState) {
+  return GRANATE_STOSS[raketenIndex(pState)];
+}
+export function granatenBetaeubung(pState) {
+  return GRANATE_BETAEUBUNG[raketenIndex(pState)];
+}
+export function granatenSchaden(pState) {
+  return GRANATE_SCHADEN[raketenIndex(pState)];
+}
+export function empRadius(pState) {
+  return EMP_RADIUS[raketenIndex(pState)];
+}
+export function minenSchaden(pState) {
+  return MINE_SCHADEN[raketenIndex(pState)];
+}
 
 // Ladeanteil 0-1 (unter 10 Schritten Haltedauer = Normalschuss, also 0)
 export function ladeAnteil(ladung) {
   return ladung < LADEN_AB ? 0 : Math.min(1, ladung / LADUNG_VOLL);
 }
-export function schadensFaktor(ladung) { return 1 + (MAX_SCHADENSFAKTOR - 1) * ladeAnteil(ladung); }
-export function radiusFaktor(ladung) { return 1 + (MAX_RADIUSFAKTOR - 1) * ladeAnteil(ladung); }
-export function istVoll(ladung) { return ladung >= LADUNG_VOLL; }
+export function schadensFaktor(ladung) {
+  return 1 + (MAX_SCHADENSFAKTOR - 1) * ladeAnteil(ladung);
+}
+export function radiusFaktor(ladung) {
+  return 1 + (MAX_RADIUSFAKTOR - 1) * ladeAnteil(ladung);
+}
+export function istVoll(ladung) {
+  return ladung >= LADUNG_VOLL;
+}
 // Laedt der Spieler gerade (Taste gehalten)? Dann gibt es keine Energie-Regeneration.
-export function laedt(pState) { return !!pState && istSniper(pState) && !!pState.sniperGehalten; }
+export function laedt(pState) {
+  return !!pState && istSniper(pState) && !!pState.sniperGehalten;
+}
 
 function schiffFarbe(pState) {
   const c = shipColors[pState.selectedShipColor];
@@ -180,13 +212,24 @@ function boxSchneidetKreis(b, cx, cy, r) {
 }
 
 function alleZiele() {
-  return [...arrays.feinde, ...arrays.asteroiden, ...arrays.bosses, ...arrays.bossRaketenArray, ...arrays.bossBombenArray];
+  return [
+    ...arrays.feinde,
+    ...arrays.asteroiden,
+    ...arrays.bosses,
+    ...arrays.bossRaketenArray,
+    ...arrays.bossBombenArray,
+  ];
 }
 
 // Ziele im Trefferkreis (Magma bleibt unversehrt und zaehlt nicht mit)
 export function zieleImKreis(cx, cy, r) {
-  return alleZiele().filter(z => !z.istUnzerstoerbar && (z.hp === undefined || z.hp > 0) && (z.immune || 0) <= 0
-    && boxSchneidetKreis(zielBox(z), cx, cy, r));
+  return alleZiele().filter(
+    z =>
+      !z.istUnzerstoerbar &&
+      (z.hp === undefined || z.hp > 0) &&
+      (z.immune || 0) <= 0 &&
+      boxSchneidetKreis(zielBox(z), cx, cy, r),
+  );
 }
 
 // --- AUTO-ZIELEN ---
@@ -217,8 +260,8 @@ function gleiteZu(pState, zx, zy, tempo) {
     pState.sniperZielX = zx;
     pState.sniperZielY = zy;
   } else {
-    pState.sniperZielX += dx / dist * tempo;
-    pState.sniperZielY += dy / dist * tempo;
+    pState.sniperZielX += (dx / dist) * tempo;
+    pState.sniperZielY += (dy / dist) * tempo;
   }
 }
 
@@ -247,8 +290,16 @@ function erzeugeStrahl(pState, anteil = 0) {
   const dx = pState.sniperZielX - n.x;
   const dy = pState.sniperZielY - n.y;
   erzeugeEffekt({
-    art: 'sniperStrahl', x: n.x, y: n.y, laenge: Math.hypot(dx, dy), winkel: Math.atan2(dx, -dy) * 180 / Math.PI,
-    breite: 3 + 9 * anteil, glow: anteil, farbe: schiffFarbe(pState), pKey: pState === state ? 'p1' : 'p2', rest: STRAHL_SCHRITTE
+    art: 'sniperStrahl',
+    x: n.x,
+    y: n.y,
+    laenge: Math.hypot(dx, dy),
+    winkel: (Math.atan2(dx, -dy) * 180) / Math.PI,
+    breite: 3 + 9 * anteil,
+    glow: anteil,
+    farbe: schiffFarbe(pState),
+    pKey: pState === state ? 'p1' : 'p2',
+    rest: STRAHL_SCHRITTE,
   });
 }
 
@@ -340,13 +391,30 @@ export function werfeGranate(pState, pKey) {
   const grund = grundPosition(pState);
   const zx = pState.sniperZielX != null ? pState.sniperZielX : grund.x;
   const zy = pState.sniperZielY != null ? pState.sniperZielY : grund.y;
-  arrays.sniperGranaten.push(Anzeige.erzeuge({
-    id: 'sg_' + (++granatenId), pKey, x: n.x, y: n.y, startX: n.x, startY: n.y, zielX: zx, zielY: zy, rest: GRANATE_FLUG, rot: 0,
-    werte: {
-      radius: granatenRadius(pState), stoss: granatenStoss(pState), betaeubung: granatenBetaeubung(pState),
-      schaden: granatenSchaden(pState), loescht: (pState.raketenStufe || 1) >= 5
-    }
-  }, 'sniperGranate'));
+  arrays.sniperGranaten.push(
+    Anzeige.erzeuge(
+      {
+        id: 'sg_' + ++granatenId,
+        pKey,
+        x: n.x,
+        y: n.y,
+        startX: n.x,
+        startY: n.y,
+        zielX: zx,
+        zielY: zy,
+        rest: GRANATE_FLUG,
+        rot: 0,
+        werte: {
+          radius: granatenRadius(pState),
+          stoss: granatenStoss(pState),
+          betaeubung: granatenBetaeubung(pState),
+          schaden: granatenSchaden(pState),
+          loescht: (pState.raketenStufe || 1) >= 5,
+        },
+      },
+      'sniperGranate',
+    ),
+  );
 }
 
 function aktualisiereGranaten(pKey) {
@@ -399,20 +467,38 @@ function explodiereGranate(g) {
   erzeugeDruckwelle(cx, cy, w.radius, g.pKey);
   // Online-Host: der Client zeigt die Druckwelle ueber ein Ereignis (Granate verschwindet im Snapshot)
   if (state.gameMode === 'online' && state.network && state.network.isHost) {
-    Network.sendNetworkEvent({ type: 'granate_detonated', x: Math.round(cx * 10) / 10, y: Math.round(cy * 10) / 10, radius: w.radius, owner: g.pKey });
+    Network.sendNetworkEvent({
+      type: 'granate_detonated',
+      x: Math.round(cx * 10) / 10,
+      y: Math.round(cy * 10) / 10,
+      radius: w.radius,
+      owner: g.pKey,
+    });
   }
 
-  for (const z of wegstossZiele().filter(t => (t.hp === undefined || t.hp > 0) && boxSchneidetKreis(zielBox(t), cx, cy, w.radius))) {
+  for (const z of wegstossZiele().filter(
+    t => (t.hp === undefined || t.hp > 0) && boxSchneidetKreis(zielBox(t), cx, cy, w.radius),
+  )) {
     const m = zielMitte(z);
     let dx = m.x - cx;
     let dy = m.y - cy;
     let dist = Math.hypot(dx, dy);
-    if (dist < 0.001) { dx = 0; dy = -1; dist = 1; }
+    if (dist < 0.001) {
+      dx = 0;
+      dy = -1;
+      dist = 1;
+    }
     if (w.schaden > 0 && !z.istUnzerstoerbar) schadeZiel(z, w.schaden, g.pKey);
     // Vom Schaden zerstoert: nichts mehr zu tun
     if (!wegstossZiele().includes(z)) continue;
     if (!z.istBoss) {
-      stoesse.push({ z, vx: dx / dist * w.stoss / STOSS_SCHRITTE, vy: dy / dist * w.stoss / STOSS_SCHRITTE, rest: STOSS_SCHRITTE, pKey: g.pKey });
+      stoesse.push({
+        z,
+        vx: ((dx / dist) * w.stoss) / STOSS_SCHRITTE,
+        vy: ((dy / dist) * w.stoss) / STOSS_SCHRITTE,
+        rest: STOSS_SCHRITTE,
+        pKey: g.pKey,
+      });
     }
     if (z.istFeind || z.istBoss) {
       const dauer = z.istBoss ? Math.round(w.betaeubung / 2) : w.betaeubung;
@@ -457,7 +543,13 @@ export function loeseEmpAus(pState, pKey) {
   const r = empRadius(pState);
   Audio.playEmp();
   erzeugeEmpRing(m.x, m.y, r, pKey);
-  for (const liste of [arrays.feindLaserArray, arrays.bossLaserArray, arrays.hackProjektilArray, arrays.bossRaketenArray, arrays.bossBombenArray]) {
+  for (const liste of [
+    arrays.feindLaserArray,
+    arrays.bossLaserArray,
+    arrays.hackProjektilArray,
+    arrays.bossRaketenArray,
+    arrays.bossBombenArray,
+  ]) {
     zerstoereGeschosse(liste, m.x, m.y, r);
   }
   for (const f of arrays.feinde) {
@@ -466,7 +558,13 @@ export function loeseEmpAus(pState, pKey) {
     f.betaeubt = Math.max(f.betaeubt || 0, EMP_BETAEUBUNG);
   }
   if (state.gameMode === 'online' && state.network && state.network.isHost) {
-    Network.sendNetworkEvent({ type: 'emp_ausgeloest', x: Math.round(m.x * 10) / 10, y: Math.round(m.y * 10) / 10, radius: r, owner: pKey });
+    Network.sendNetworkEvent({
+      type: 'emp_ausgeloest',
+      x: Math.round(m.x * 10) / 10,
+      y: Math.round(m.y * 10) / 10,
+      radius: r,
+      owner: pKey,
+    });
   }
 }
 
@@ -483,7 +581,9 @@ function mineBox(m) {
 
 // Ziele fuer Kontakt und Explosion: Feinde, Asteroiden (ausser Magma) und Bosse
 function minenZiele() {
-  return [...arrays.feinde, ...arrays.asteroiden, ...arrays.bosses].filter(z => !z.istUnzerstoerbar && (z.hp === undefined || z.hp > 0));
+  return [...arrays.feinde, ...arrays.asteroiden, ...arrays.bosses].filter(
+    z => !z.istUnzerstoerbar && (z.hp === undefined || z.hp > 0),
+  );
 }
 
 let minenId = 0;
@@ -505,8 +605,18 @@ function legeMine(pState, pKey) {
   const eigene = arrays.sniperMinen.filter(m => m.pKey === pKey);
   while (eigene.length >= MINE_MAX_AKTIV) entferneMine(eigene.shift());
   const m = {
-    id: 'sm_' + (++minenId), pKey, x: pState.x + config.spielerGroesse / 2, y: pState.y + config.spielerGroesse,
-    rest: MINE_LEBEN, ziel: null, offX: 0, offY: 0, zuender: -1, schaden: minenSchaden(pState), haftet: false, blinkt: false
+    id: 'sm_' + ++minenId,
+    pKey,
+    x: pState.x + config.spielerGroesse / 2,
+    y: pState.y + config.spielerGroesse,
+    rest: MINE_LEBEN,
+    ziel: null,
+    offX: 0,
+    offY: 0,
+    zuender: -1,
+    schaden: minenSchaden(pState),
+    haftet: false,
+    blinkt: false,
   };
   arrays.sniperMinen.push(Anzeige.erzeuge(m, 'sniperMine'));
   Audio.playMineLegen();
@@ -524,7 +634,13 @@ function explodiereMine(m) {
   entferneMine(m);
   erzeugeMinenExplosion(m.x, m.y, m.pKey);
   if (state.gameMode === 'online' && state.network && state.network.isHost) {
-    Network.sendNetworkEvent({ type: 'mine_explodiert', x: Math.round(m.x * 10) / 10, y: Math.round(m.y * 10) / 10, radius: MINE_RADIUS, owner: m.pKey });
+    Network.sendNetworkEvent({
+      type: 'mine_explodiert',
+      x: Math.round(m.x * 10) / 10,
+      y: Math.round(m.y * 10) / 10,
+      radius: MINE_RADIUS,
+      owner: m.pKey,
+    });
   }
   for (const z of minenZiele().filter(t => boxSchneidetKreis(zielBox(t), m.x, m.y, MINE_RADIUS))) {
     schadeZiel(z, m.schaden, m.pKey);
@@ -541,7 +657,10 @@ function bossGeschossAnMine(m) {
 }
 
 function zielLebt(z) {
-  return (arrays.feinde.includes(z) || arrays.asteroiden.includes(z) || arrays.bosses.includes(z)) && (z.hp === undefined || z.hp > 0);
+  return (
+    (arrays.feinde.includes(z) || arrays.asteroiden.includes(z) || arrays.bosses.includes(z)) &&
+    (z.hp === undefined || z.hp > 0)
+  );
 }
 
 function aktualisiereMinen(pKey) {
@@ -549,19 +668,31 @@ function aktualisiereMinen(pKey) {
     const m = arrays.sniperMinen[i];
     if (!m || m.pKey !== pKey) continue;
     if (m.ziel) {
-      if (!zielLebt(m.ziel)) { explodiereMine(m); continue; } // Ziel vorher gestorben: Explosion an der letzten Position
+      if (!zielLebt(m.ziel)) {
+        explodiereMine(m);
+        continue;
+      } // Ziel vorher gestorben: Explosion an der letzten Position
       const c = zielMitte(m.ziel);
       m.x = c.x + m.offX;
       m.y = c.y + m.offY;
       m.zuender--;
-      if (m.zuender <= 0) { explodiereMine(m); continue; }
+      if (m.zuender <= 0) {
+        explodiereMine(m);
+        continue;
+      }
       if (m.zuender % 10 === 0) Audio.playMinePiep();
     } else {
       m.rest--;
       m.y -= MINE_DRIFT;
-      if (m.rest <= 0 || m.y < -MINE_GROESSE) { entferneMine(m); continue; }
+      if (m.rest <= 0 || m.y < -MINE_GROESSE) {
+        entferneMine(m);
+        continue;
+      }
       // Boss-Raketen und -Bomben loesen die Mine sofort aus (kein Haften an Geschossen)
-      if (bossGeschossAnMine(m)) { explodiereMine(m); continue; }
+      if (bossGeschossAnMine(m)) {
+        explodiereMine(m);
+        continue;
+      }
       const box = mineBox(m);
       const z = minenZiele().find(t => ueberlappen(box, zielBox(t)));
       if (z) {
@@ -605,7 +736,10 @@ export function aktualisiereGranatenTaste(pState, pKey, gehalten) {
   if (!istSniper(pState)) return;
   const sperre = Hack.hatHack(pState, 'waffenOffline') || pState.isDead || !state.spielLaeuft;
   if (gehalten && !sperre) {
-    if (!pState.granateGehalten) { pState.granateSchritte = 0; pState.granateMinen = 0; }
+    if (!pState.granateGehalten) {
+      pState.granateSchritte = 0;
+      pState.granateMinen = 0;
+    }
     pState.granateGehalten = true;
     pState.granateSchritte = (pState.granateSchritte || 0) + 1;
     if (pState.granateSchritte >= HALTEN_AB) haltenSchritt(pState, pKey, pState.granateSchritte);
@@ -721,7 +855,7 @@ export function netzZustand(pState) {
     sniperLadung: pState.sniperLadung || 0,
     sniperVoll: istVoll(pState.sniperLadung || 0),
     sniperCooldown: pState.sniperCooldown || 0,
-    sniperGranatenLadungen: granatenLadungen(pState)
+    sniperGranatenLadungen: granatenLadungen(pState),
   };
 }
 
@@ -733,8 +867,14 @@ export function netzGranatenListe() {
 // Host: aktive Minen fuer den Snapshot (id, Position, Besitzer, haftet, Restzuendzeit, Restlebensdauer, blinkt)
 export function netzMinenListe() {
   return arrays.sniperMinen.map(m => ({
-    id: m.id, x: m.x, y: m.y, owner: m.pKey, haftet: !!m.ziel, zuender: m.ziel ? m.zuender : 0, rest: m.rest,
-    blinkt: !m.ziel && m.rest <= MINE_BLINK
+    id: m.id,
+    x: m.x,
+    y: m.y,
+    owner: m.pKey,
+    haftet: !!m.ziel,
+    zuender: m.ziel ? m.zuender : 0,
+    rest: m.rest,
+    blinkt: !m.ziel && m.rest <= MINE_BLINK,
   }));
 }
 
@@ -789,7 +929,10 @@ export function synchronisiereGranaten(liste) {
   for (const d of daten) {
     let g = gran.find(n => n.id === d.id);
     if (!g) {
-      g = Anzeige.erzeuge({ id: d.id, pKey: d.owner, x: d.x, y: d.y, rest: d.rest || 0, rot: (GRANATE_FLUG - (d.rest || 0)) * 24 }, 'sniperGranate');
+      g = Anzeige.erzeuge(
+        { id: d.id, pKey: d.owner, x: d.x, y: d.y, rest: d.rest || 0, rot: (GRANATE_FLUG - (d.rest || 0)) * 24 },
+        'sniperGranate',
+      );
       gran.push(g);
     }
     g.x = d.x;
@@ -814,7 +957,18 @@ export function synchronisiereMinen(liste) {
   for (const d of daten) {
     let m = minen.find(n => n.id === d.id);
     if (!m) {
-      m = Anzeige.erzeuge({ id: d.id, pKey: d.owner === 'p2' ? 'p2' : 'p1', x: d.x, y: d.y, rest: d.rest || 0, haftet: !!d.haftet, blinkt: !d.haftet && !!d.blinkt }, 'sniperMine');
+      m = Anzeige.erzeuge(
+        {
+          id: d.id,
+          pKey: d.owner === 'p2' ? 'p2' : 'p1',
+          x: d.x,
+          y: d.y,
+          rest: d.rest || 0,
+          haftet: !!d.haftet,
+          blinkt: !d.haftet && !!d.blinkt,
+        },
+        'sniperMine',
+      );
       minen.push(m);
       Audio.playMineLegen();
     }

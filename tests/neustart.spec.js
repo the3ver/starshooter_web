@@ -6,22 +6,32 @@ const { setzeSpielstand } = require('./helfer');
 const BLEIBEN = ['sterne'];
 
 test.beforeEach(async ({ page }) => {
-  await page.route('**/api/highscores*', route => route.fulfill({
-    status: 200, contentType: 'application/json',
-    body: JSON.stringify({ success: true, mode: 'single', highscores: [] })
-  }));
+  await page.route('**/api/highscores*', route =>
+    route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({ success: true, mode: 'single', highscores: [] }),
+    }),
+  );
   await setzeSpielstand(page);
   await page.goto('/');
 });
 
 test('restartGame leert jede Liste in arrays (neue Liste ohne Aufraeumen = rot)', async ({ page }) => {
-  const r = await page.evaluate(async (bleiben) => {
+  const r = await page.evaluate(async bleiben => {
     const Anzeige = await import('./js/anzeige.js');
     const { arrays, state } = await import('./js/state.js');
     const Utils = await import('./js/utils.js');
     const domBackend = Anzeige.holeBackend();
     // Null-Backend: die Platzhalter haben keine Darstellung
-    Anzeige.setzeBackend({ erzeuge() {}, zeichneWelt() {}, zeichneSpieler() {}, entferne() {}, blitze() {}, blitzeSpielfeld() {} });
+    Anzeige.setzeBackend({
+      erzeuge() {},
+      zeichneWelt() {},
+      zeichneSpieler() {},
+      entferne() {},
+      blitze() {},
+      blitzeSpielfeld() {},
+    });
     try {
       state.gameMode = 'coop';
       const listen = Object.keys(arrays).filter(k => !bleiben.includes(k));

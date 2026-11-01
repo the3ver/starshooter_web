@@ -1,4 +1,3 @@
-
 import { state, dom, config, arrays, shipModels, isCoopMode } from './state.js';
 import * as Utils from './utils.js';
 import * as Audio from './audio.js';
@@ -12,13 +11,13 @@ import { erzeugePartikel } from './partikel.js';
 // Laser-Taste von P1 (bei der Gleve: Sweep)
 function laserTasteP1() {
   const isDualHumanCoop = state.gameMode === 'coop' && !state.p2IsBot;
-  return isDualHumanCoop ? state.tastenGedrueckt.b : (state.tastenGedrueckt.l || state.tastenGedrueckt.b);
+  return isDualHumanCoop ? state.tastenGedrueckt.b : state.tastenGedrueckt.l || state.tastenGedrueckt.b;
 }
 
 // Raketen-Taste von P1 (bei der Gleve: Dash)
 function raketenTasteP1() {
   const isDualHumanCoop = state.gameMode === 'coop' && !state.p2IsBot;
-  return isDualHumanCoop ? state.tastenGedrueckt.v : (state.tastenGedrueckt.k || state.tastenGedrueckt.v);
+  return isDualHumanCoop ? state.tastenGedrueckt.v : state.tastenGedrueckt.k || state.tastenGedrueckt.v;
 }
 
 function istOnlineHost() {
@@ -105,7 +104,11 @@ function steuerRichtungP1() {
 function steuerRichtungP2() {
   if (state.gameMode === 'coop' && !state.p2IsBot) {
     const t = state.tastenGedrueckt;
-    return Hack.hackeBewegung(state.p2, (t.arrowright ? 1 : 0) - (t.arrowleft ? 1 : 0), (t.arrowdown ? 1 : 0) - (t.arrowup ? 1 : 0));
+    return Hack.hackeBewegung(
+      state.p2,
+      (t.arrowright ? 1 : 0) - (t.arrowleft ? 1 : 0),
+      (t.arrowdown ? 1 : 0) - (t.arrowup ? 1 : 0),
+    );
   }
   if (istOnlineHost() && state.p2.netzRichtung) return state.p2.netzRichtung;
   if (state.p2IsBot && state.p2.botDashRichtung) {
@@ -113,7 +116,6 @@ function steuerRichtungP2() {
   }
   return { dx: state.p2.spielerVx || 0, dy: -(state.p2.spielerVy || 0) };
 }
-
 
 export function aktualisiereUnverwundbarkeit() {
   if (state.invulnerableTimer > 0) {
@@ -176,7 +178,7 @@ function erzeugeAbgas(s, flammenScale, farbe1, farbe2) {
       vx: (Math.random() - 0.5) * 0.5,
       vy: 1 + Math.random() * flammenScale,
       leben: 1.0,
-      zerfall: 0.05
+      zerfall: 0.05,
     });
   }
 }
@@ -185,14 +187,18 @@ export function bewegeSpieler() {
   let baseFlameScale = 1.0;
   let targetRotate = 0;
   const towedCountP1 = isCoopMode() ? arrays.powerups.filter(p => p.towedBy === 'p1').length : 0;
-  const speedMultP1 = Math.max(0.1, 1.0 - 0.10 * towedCountP1);
-  const currentSpeed = ((shipModels && shipModels[state.selectedShipModel]?.speed) || config.geschwindigkeit) * speedMultP1;
+  const speedMultP1 = Math.max(0.1, 1.0 - 0.1 * towedCountP1);
+  const currentSpeed =
+    ((shipModels && shipModels[state.selectedShipModel]?.speed) || config.geschwindigkeit) * speedMultP1;
 
   // Gleve: Dash/Abprall ersetzt in diesem Schritt die normale Steuerung
-  const gleveDashP1 = Gleve.istGleve(state) && Gleve.aktualisiereGleve(state, 'p1', raketenTasteP1(), steuerRichtungP1());
+  const gleveDashP1 =
+    Gleve.istGleve(state) && Gleve.aktualisiereGleve(state, 'p1', raketenTasteP1(), steuerRichtungP1());
 
   // Viper: Ausweichrolle (Doppeltipp links/rechts oder Wisch) ersetzt die Steuerung
-  const viperRolleP1 = Viper.istViper(state) && Viper.aktualisiereViper(state, 'p1', Viper.eingabeVonTasten(linksP1(), rechtsP1(), state.joystick));
+  const viperRolleP1 =
+    Viper.istViper(state) &&
+    Viper.aktualisiereViper(state, 'p1', Viper.eingabeVonTasten(linksP1(), rechtsP1(), state.joystick));
 
   if (gleveDashP1) {
     baseFlameScale = 2.2;
@@ -205,10 +211,10 @@ export function bewegeSpieler() {
       state.x += b.dx * currentSpeed;
       state.y += b.dy * currentSpeed;
     }
-    
+
     if (state.joystick.y < -0.2) baseFlameScale = 1.8;
     else if (state.joystick.y > 0.2) baseFlameScale = 0.4;
-    
+
     if (state.joystick.x < -0.2) targetRotate = -15;
     else if (state.joystick.x > 0.2) targetRotate = 15;
   } else if (!state.isDead) {
@@ -236,12 +242,15 @@ export function bewegeSpieler() {
       let baseFlameScaleP2 = 1.0;
       let targetRotateP2 = 0;
       const towedCountP2 = arrays.powerups.filter(p => p.towedBy === 'p2').length;
-      const speedMultP2 = Math.max(0.1, 1.0 - 0.10 * towedCountP2);
-      const p2Speed = ((shipModels && shipModels[state.p2.selectedShipModel]?.speed) || config.geschwindigkeit) * speedMultP2;
+      const speedMultP2 = Math.max(0.1, 1.0 - 0.1 * towedCountP2);
+      const p2Speed =
+        ((shipModels && shipModels[state.p2.selectedShipModel]?.speed) || config.geschwindigkeit) * speedMultP2;
 
-      const gleveDashP2 = Gleve.istGleve(state.p2) && Gleve.aktualisiereGleve(state.p2, 'p2', dashTasteP2(), steuerRichtungP2());
+      const gleveDashP2 =
+        Gleve.istGleve(state.p2) && Gleve.aktualisiereGleve(state.p2, 'p2', dashTasteP2(), steuerRichtungP2());
 
-      const viperRolleP2 = Viper.istViper(state.p2) && Viper.aktualisiereViper(state.p2, 'p2', viperEingabeP2(), viperAnfrageP2());
+      const viperRolleP2 =
+        Viper.istViper(state.p2) && Viper.aktualisiereViper(state.p2, 'p2', viperEingabeP2(), viperAnfrageP2());
 
       if (gleveDashP2) {
         // Gleve-Dash/Abprall uebernimmt die Bewegung
@@ -268,7 +277,11 @@ export function bewegeSpieler() {
       } else if (state.gameMode === 'coop') {
         // Menschliche Steuerung via Arrow-Keys im lokalen Coop
         const t = state.tastenGedrueckt;
-        const b2 = Hack.hackeBewegung(state.p2, (t.arrowright ? 1 : 0) - (t.arrowleft ? 1 : 0), (t.arrowdown ? 1 : 0) - (t.arrowup ? 1 : 0));
+        const b2 = Hack.hackeBewegung(
+          state.p2,
+          (t.arrowright ? 1 : 0) - (t.arrowleft ? 1 : 0),
+          (t.arrowdown ? 1 : 0) - (t.arrowup ? 1 : 0),
+        );
         ({ flamme: baseFlameScaleP2, rotation: targetRotateP2 } = bewegeInRichtung(state.p2, b2, p2Speed));
       }
 
@@ -346,17 +359,19 @@ export function aktualisiereEnergie() {
   }
   begrenzeEnergie(state);
   if (dom.energieBalken) {
-    dom.energieBalken.style.width = state.energie / state.absMaxEnergie * 100 + '%';
+    dom.energieBalken.style.width = (state.energie / state.absMaxEnergie) * 100 + '%';
     if (state.unbegrenzteEnergie) {
       dom.energieBalken.style.backgroundColor = '#f1c40f';
     } else {
-      dom.energieBalken.style.backgroundColor = state.energie < zuendSchwelle(state) && !state.laserSchiesst ? '#e67e22' : '#1abc9c';
+      dom.energieBalken.style.backgroundColor =
+        state.energie < zuendSchwelle(state) && !state.laserSchiesst ? '#e67e22' : '#1abc9c';
     }
   }
 
   // --- 9.4 ENERGIE SPIELER 2 (Co-op) ---
   let laserAktivP2 = false;
-  if (Sniper.istSniper(state.p2) && (!isCoopMode() || state.p2.isDead)) Sniper.aktualisiereSniper(state.p2, 'p2', false); // Fadenkreuz entfernen
+  if (Sniper.istSniper(state.p2) && (!isCoopMode() || state.p2.isDead))
+    Sniper.aktualisiereSniper(state.p2, 'p2', false); // Fadenkreuz entfernen
   if (isCoopMode() && state.p2 && !state.p2.isDead) {
     if (Sniper.istSniper(state.p2)) {
       // Online-Client mit Joystick-Autofeuer (Handy): Normalschuesse ohne Laden
@@ -374,8 +389,9 @@ export function aktualisiereEnergie() {
     }
     begrenzeEnergie(state.p2);
     if (dom.energieBalkenP2) {
-      dom.energieBalkenP2.style.width = state.p2.energie / state.p2.absMaxEnergie * 100 + '%';
-      dom.energieBalkenP2.style.backgroundColor = state.p2.energie < zuendSchwelle(state.p2) && !state.p2.laserSchiesst ? '#e67e22' : '#3498db';
+      dom.energieBalkenP2.style.width = (state.p2.energie / state.p2.absMaxEnergie) * 100 + '%';
+      dom.energieBalkenP2.style.backgroundColor =
+        state.p2.energie < zuendSchwelle(state.p2) && !state.p2.laserSchiesst ? '#e67e22' : '#3498db';
     }
 
     // P2 Schild Regen (Phantom-NX)
