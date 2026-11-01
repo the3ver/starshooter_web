@@ -1,8 +1,6 @@
 
-import { state, dom, config, arrays } from './state.js';
+import { state, dom, arrays } from './state.js';
 import * as Utils from './utils.js';
-import * as Entities from './entities.js';
-import * as Loop from './loop.js';
 import * as Audio from './audio.js';
 import * as Cutscene from './cutscene.js';
 import * as Network from './network.js';
@@ -35,7 +33,7 @@ export function setupInput() {
     }
 
     const k = e.key ? e.key.toLowerCase() : '';
-    if (state.tastenGedrueckt.hasOwnProperty(k)) {
+    if (Object.hasOwn(state.tastenGedrueckt, k)) {
       state.tastenGedrueckt[k] = true;
       if (e.key === ' ') e.preventDefault();
     }
@@ -156,7 +154,7 @@ export function setupInput() {
   window.addEventListener('keyup', e => {
     if (e.target instanceof HTMLInputElement) return;
     const k = e.key ? e.key.toLowerCase() : '';
-    if (state.tastenGedrueckt.hasOwnProperty(k)) state.tastenGedrueckt[k] = false;
+    if (Object.hasOwn(state.tastenGedrueckt, k)) state.tastenGedrueckt[k] = false;
     if (e.code === 'Quote') state.tastenGedrueckt['ä'] = false;
     if (e.code === 'Semicolon') state.tastenGedrueckt['ö'] = false;
   });

@@ -1,5 +1,5 @@
 
-import { state, dom, config, arrays, shipModels } from './state.js';
+import { state, config, arrays, shipModels } from './state.js';
 import * as Network from './network.js';
 import * as Hack from './hack.js';
 import { animierenPartikel } from './partikel.js';

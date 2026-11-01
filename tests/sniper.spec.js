@@ -310,7 +310,6 @@ test.describe('Spectre-SR Schuss', () => {
   test('trifft den Feind im Kreis, NICHT den zwischen Schiff und Fadenkreuz, NICHT einen knapp ausserhalb des Radius', async ({ page }) => {
     await starteSniper(page);
     const r = await page.evaluate(() => {
-      const { state } = window.__game;
       const T = window.__sn;
       T.leeren();
       // Jeder Fall einzeln (Stufe 1 trifft sonst nur das naechste Ziel und verdeckt die anderen)
@@ -334,7 +333,6 @@ test.describe('Spectre-SR Schuss', () => {
   test('Schuss erzeugt einen Strahl zum Fadenkreuz, der in wenigen Schritten verblasst', async ({ page }) => {
     await starteSniper(page);
     const r = await page.evaluate(() => {
-      const { state } = window.__game;
       const T = window.__sn;
       T.leeren();
       T.tippe();
@@ -487,7 +485,6 @@ test.describe('Spectre-SR Schuss', () => {
   test('Asteroiden im Kreis werden getroffen', async ({ page }) => {
     await starteSniper(page);
     const hp = await page.evaluate(() => {
-      const { state } = window.__game;
       const T = window.__sn;
       T.leeren();
       const a = T.asteroid(200, 180);
@@ -717,7 +714,6 @@ test.describe('Spectre-SR Aufladen', () => {
   test('Halten 90 Schritte: Faktor 4, Radius 1,5x, Schild wird ignoriert, alle Ziele im Kreis auch auf Stufe 1', async ({ page }) => {
     await starteSniper(page);
     const r = await page.evaluate(() => {
-      const { state } = window.__game;
       const T = window.__sn;
       const out = {};
       T.leeren();
@@ -1143,7 +1139,7 @@ test.describe('Spectre-SR Aufladen mobil', () => {
 async function bereiteGranate(page, optionen = {}) {
   await starteSniper(page, optionen);
   await page.evaluate(() => {
-    const { state, arrays, Loop } = window.__game;
+    const { state, Loop } = window.__game;
     const T = window.__sn;
     window.__gr = {
       frei(n) { for (let i = 0; i < n; i++) Loop.simulationsSchritt(); },
@@ -1234,7 +1230,7 @@ test.describe('Spectre-SR Granate', () => {
   test('Stufe 1: kein Schaden, Wegstossen um ca. 60 px (gleitend), Betaeubung 60 Schritte (steht still, schiesst nicht), danach wieder aktiv; ausserhalb unberuehrt', async ({ page }) => {
     await bereiteGranate(page);
     const r = await page.evaluate(() => {
-      const { state, arrays } = window.__game;
+      const { arrays } = window.__game;
       const G = window.__gr;
       const f = G.feind(240, 180); // 40 px rechts vom Einschlag (200|180)
       const aussen = G.feind(200 + 70 + 15 + 10, 180); // Box beginnt 80 px neben dem Zentrum (Radius 70)
@@ -2171,7 +2167,7 @@ test.describe('Spectre-SR Bot: EMP', () => {
 async function bereiteMinen(page, optionen = {}) {
   await bereiteGranate(page, optionen);
   await page.evaluate(() => {
-    const { state, arrays, Entities } = window.__game;
+    const { state, arrays } = window.__game;
     const G = window.__gr;
     window.__mi = {
       minen: () => arrays.sniperMinen,

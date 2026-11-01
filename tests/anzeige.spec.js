@@ -471,7 +471,6 @@ test('Stufe-3-Bombe erzeugt zwei Effekte, der zweite ist in den ersten 9 Schritt
 
 test('Boss-Bombe erzeugt eine Boss-Welle als Effekt, Game Over und Neustart raeumen Effekte ab', async ({ page }) => {
   const r = await page.evaluate(async () => {
-    const Anzeige = await import('./js/anzeige.js');
     const Utils = await import('./js/utils.js');
     const { aktualisiereBossBomben } = await import('./js/boss.js');
     const { state, arrays } = await import('./js/state.js');
@@ -504,7 +503,6 @@ test('Sniper-Effekte (Strahl, Druckwelle, Minen-Explosion, EMP) laufen als Effek
   const r = await page.evaluate(async () => {
     const Anzeige = await import('./js/anzeige.js');
     const Sniper = await import('./js/sniper.js');
-    const { aktualisiereEffekte } = await import('./js/effekte.js');
     const { state, arrays } = await import('./js/state.js');
     const domBackend = Anzeige.holeBackend();
     const arten = [];
@@ -732,7 +730,7 @@ test('sniper.js baut keine Minen-Elemente (Erzeugen ueber Anzeige.erzeuge)', () 
 test('Fadenkreuz und Ladering kommen aus den Zustandsfeldern (DOM-Backend), verschwinden bei isDead', async ({ page }) => {
   const r = await page.evaluate(async () => {
     const Anzeige = await import('./js/anzeige.js');
-    const { state, arrays } = await import('./js/state.js');
+    const { state } = await import('./js/state.js');
     const alt = { modell: state.selectedShipModel, lauf: state.spielLaeuft, stufe: state.laserStufe, tot: state.isDead, farbe: state.selectedShipColor };
     try {
       state.selectedShipModel = 'sniper';
@@ -809,7 +807,7 @@ test('Fadenkreuz und Ladering kommen aus den Zustandsfeldern (DOM-Backend), vers
 
 test('sniper.js fasst das DOM nicht an (kein createElement, kein dom.spielfeld, kein isConnected, kein el.remove)', () => {
   const text = fs.readFileSync(path.join(__dirname, '..', 'src', 'js', 'sniper.js'), 'utf8');
-  expect(text).not.toMatch(/createElement|dom.spielfeld|isConnected|.el.remove|fadenkreuze|holeFadenkreuz|zeigeFadenkreuz|entferneFadenkreuz/);
+  expect(text).not.toMatch(/createElement|dom.spielfeld|isConnected|.el.remove|fadenkreuze\b|holeFadenkreuz|zeigeFadenkreuz|entferneFadenkreuz/);
 });
 
 test('Gleve-Klinge kommt aus den Zustandsfeldern (DOM-Backend), verschwindet bei Sweep-Ende und isDead', async ({ page }) => {

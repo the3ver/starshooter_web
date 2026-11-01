@@ -1,5 +1,5 @@
 
-import { state, dom, config, arrays, isCoopMode } from './state.js';
+import { state, config, arrays, isCoopMode } from './state.js';
 import * as Utils from './utils.js';
 import * as Entities from './entities.js';
 import * as Audio from './audio.js';

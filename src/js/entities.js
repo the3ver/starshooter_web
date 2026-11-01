@@ -1,8 +1,5 @@
 
 import { state, dom, config, arrays, isCoopMode } from './state.js';
-import * as Utils from './utils.js';
-import * as Input from './input.js';
-import * as Loop from './loop.js';
 import * as Audio from './audio.js';
 import * as Anzeige from './anzeige.js';
 

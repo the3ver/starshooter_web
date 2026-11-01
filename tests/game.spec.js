@@ -1986,7 +1986,7 @@ test.describe('Story Intro-Cutszene', () => {
 
     // Abschluss der Cutszene und Übergang ins Spiel (~14,4 s, spätestens 17,5 s)
     const cutsceneContainer = page.locator('#cutscene-container');
-    zeit += await spuleBis(page, () => cutsceneContainer.isHidden(), 17500 - zeit);
+    await spuleBis(page, () => cutsceneContainer.isHidden(), 17500 - zeit);
     await expect(cutsceneContainer).toBeHidden();
 
     // Spiel ist nun aktiv (spielLaeuft = true, cutsceneAktiv = false)
@@ -2100,7 +2100,6 @@ test.describe('2-Spieler-Modus (Co-op)', () => {
   test('Modus-Auswahl auf Startscreen schaltet zwischen 1-Spieler (400px) und 2-Spieler Co-op (600px) um', async ({ page }) => {
     const btnSingle = page.locator('#gamemode-btn-single');
     const btnCoop = page.locator('#gamemode-btn-coop');
-    const spielfeld = page.locator('#spielfeld');
 
     // Beide Buttons sichtbar auf dem Startscreen
     await expect(btnSingle).toBeVisible();
@@ -3104,7 +3103,7 @@ test.describe('2-Spieler-Modus (Co-op)', () => {
     await starteSpiel(page);
 
     const testResult = await page.evaluate(async () => {
-      const { arrays, state, config } = await import('./js/state.js');
+      const { arrays } = await import('./js/state.js');
       const { erzeugeFeind } = await import('./js/entities.js');
       const { simulationsSchritt } = await import('./js/loop.js');
 
@@ -3310,7 +3309,7 @@ test.describe('2-Spieler-Modus (Co-op)', () => {
     await starteSpiel(page);
 
     const testSpeeds = await page.evaluate(async () => {
-      const { arrays, state, config } = await import('./js/state.js');
+      const { arrays, state } = await import('./js/state.js');
       const { erzeugePowerup } = await import('./js/entities.js');
       const { simulationsSchritt } = await import('./js/loop.js');
 
@@ -3764,7 +3763,7 @@ test.describe('2-Spieler-Modus (Co-op)', () => {
     await starteSpiel(page);
 
     const result = await page.evaluate(async () => {
-      const { arrays, state } = await import('./js/state.js');
+      const { arrays } = await import('./js/state.js');
       const { erzeugeBoss } = await import('./js/entities.js');
       const { zerstoereZiel } = await import('./js/utils.js');
 
@@ -4467,7 +4466,6 @@ test.describe('Bot-Partner', () => {
     const asteroidCheck = await page.evaluate(() => {
       const all = Array.from(document.querySelectorAll('.asteroid'));
       const solidMagma = all.find(a => a.classList.contains('unzerstoerbar'));
-      const destructibleMagma = all.find(a => !a.classList.contains('unzerstoerbar') && a.style.background.includes('rgb'));
       return {
         total: all.length,
         hasSolidMagma: !!solidMagma,

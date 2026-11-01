@@ -1134,7 +1134,6 @@ test.describe('Viper-X Kill-Kombo', () => {
   test('Treffer setzt die Kombo auf 0 (auch ein vom Schild abgefangener), Waffenstufen bleiben unveraendert', async ({ page }) => {
     await bereit(page);
     const r = await page.evaluate(() => {
-      const T = window.__viperTest;
       const { state, Utils } = window.__game;
       const dummy = { istFeind: false, el: { dataset: {} }, x: 0, y: 0 };
       const out = {};

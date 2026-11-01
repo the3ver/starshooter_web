@@ -264,12 +264,10 @@ export function startCutscene(callback) {
 
     // Animation Loop: Camera tracks convoy while stars stream rapidly by
     let lastTime = performance.now();
-    let cutsceneStartTime = performance.now();
     function animateConvoy(time) {
         if (!cutsceneActive) return;
         const dt = Math.min(32, time - lastTime);
         lastTime = time;
-        const elapsed = time - cutsceneStartTime;
 
         ships.forEach((ship, idx) => {
             if (!ship.destroyed) {

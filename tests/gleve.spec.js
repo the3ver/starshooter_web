@@ -523,7 +523,6 @@ test.describe('Gleve-MR Dash-Ladungen', () => {
 
     // Voll geladen: alle Punkte gefuellt
     await page.evaluate(() => {
-      const { state } = window.__game;
       window.__gleveTest.leeren();
       window.__gleveTest.schritte(1);
     });

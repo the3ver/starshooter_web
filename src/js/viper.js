@@ -7,7 +7,7 @@
 // viperRolleCooldown, Erkennung: viperLinksGehalten/viperRechtsGehalten (Tasten-Flanken), viperTapRichtung/
 // viperTapAlter (letzter Tipp und Schritte seitdem), viperJoyRuhe/viperJoyVorher (Wischen).
 
-import { state, dom, config, arrays, shipColors, isCoopMode } from './state.js';
+import { state, config, arrays, shipColors, isCoopMode } from './state.js';
 import * as Audio from './audio.js';
 import * as Hack from './hack.js';
 import { erzeugePartikel } from './partikel.js';
