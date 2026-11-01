@@ -523,48 +523,26 @@ test.describe('Space Shooter', () => {
   });
 
   test('Schiff-Eigenschaften: Viper-X bewegt sich spürbar schneller als Phantom-NX', async ({ page }) => {
-    // 1. Test mit Viper-X (Standard)
-    const viperBtn = page.locator('.hangar-model-btn[data-model="viper"]');
-    await viperBtn.click();
-
-    // Start-Position prüfen
-    await page.evaluate(async () => {
-      const stateMod = await import('./js/state.js');
-      stateMod.state.x = 100;
-      stateMod.state.y = 100;
-    });
-
-    // W-Taste drücken, um Spiel zu starten und für 100ms nach oben/rechts zu fliegen
-    await page.keyboard.down('KeyD');
-    await page.waitForTimeout(100);
-    await page.keyboard.up('KeyD');
-
-    const viperEndX = await page.evaluate(async () => {
-      const stateMod = await import('./js/state.js');
-      return stateMod.state.x;
-    });
-    const viperDelta = viperEndX - 100;
-
-    // Spiel neustarten und Phantom-NX wählen
-    await page.goto('/');
-    const phantomBtn = page.locator('.hangar-model-btn[data-model="phantom"]');
-    await phantomBtn.click();
-
-    await page.evaluate(async () => {
-      const stateMod = await import('./js/state.js');
-      stateMod.state.x = 100;
-      stateMod.state.y = 100;
-    });
-
-    await page.keyboard.down('KeyD');
-    await page.waitForTimeout(100);
-    await page.keyboard.up('KeyD');
-
-    const phantomEndX = await page.evaluate(async () => {
-      const stateMod = await import('./js/state.js');
-      return stateMod.state.x;
-    });
-    const phantomDelta = phantomEndX - 100;
+    // Feste Anzahl Simulationsschritte in einem synchronen Block statt Echtzeit-Wartezeit,
+    // damit beide Schiffe gleich viele Schritte fliegen
+    async function strecke(modell) {
+      await page.goto('/');
+      await page.locator(`.hangar-model-btn[data-model="${modell}"]`).click();
+      await starteSpiel(page, 'KeyW');
+      await page.keyboard.down('KeyD');
+      const delta = await page.evaluate(async () => {
+        const stateMod = await import('./js/state.js');
+        const { simulationsSchritt } = await import('./js/loop.js');
+        stateMod.state.x = 100;
+        stateMod.state.y = 100;
+        for (let i = 0; i < 10; i++) simulationsSchritt();
+        return stateMod.state.x - 100;
+      });
+      await page.keyboard.up('KeyD');
+      return delta;
+    }
+    const viperDelta = await strecke('viper');
+    const phantomDelta = await strecke('phantom');
 
     // Verhalten statt Konstanten: Viper legt in derselben Zeit eine groessere Strecke zurueck
     expect(viperDelta).toBeGreaterThan(0);
