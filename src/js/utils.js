@@ -447,6 +447,16 @@ export function istDashUnverwundbar(pState) {
   return !!pState && ((pState.gleveUnverwundbar || 0) > 0 || (pState.viperRolleTimer || 0) > 0);
 }
 
+// Koerperkollision Spieler gegen Asteroid/Feind (Bounding-Box)
+export function koerperTrifftSpieler(pState, obj) {
+  return (
+    pState.x < obj.x + obj.groesse &&
+    pState.x + config.spielerGroesse > obj.x &&
+    pState.y < obj.y + obj.groesse &&
+    pState.y + config.spielerGroesse > obj.y
+  );
+}
+
 // Treffer am Spieler; das Schiff (Blinken, Schild, Sichtbarkeit) wird sofort neu gezeichnet
 export function spielerGetroffen(kollisionsObjekt, explodiert = true, targetPlayer = 'p1') {
   trefferAmSpieler(kollisionsObjekt, explodiert, targetPlayer);

@@ -115,14 +115,7 @@ export function aktualisiereAsteroiden() {
       arrays.asteroiden.splice(i, 1);
       continue;
     }
-    if (
-      !state.isDead &&
-      !Utils.istDashUnverwundbar(state) &&
-      state.x < ast.x + ast.groesse &&
-      state.x + config.spielerGroesse > ast.x &&
-      state.y < ast.y + ast.groesse &&
-      state.y + config.spielerGroesse > ast.y
-    ) {
+    if (!state.isDead && !Utils.istDashUnverwundbar(state) && Utils.koerperTrifftSpieler(state, ast)) {
       Utils.spielerGetroffen(ast, true, 'p1');
       Anzeige.entferne(ast);
       arrays.asteroiden.splice(i, 1);
@@ -133,10 +126,7 @@ export function aktualisiereAsteroiden() {
       state.p2 &&
       !state.p2.isDead &&
       !Utils.istDashUnverwundbar(state.p2) &&
-      state.p2.x < ast.x + ast.groesse &&
-      state.p2.x + config.spielerGroesse > ast.x &&
-      state.p2.y < ast.y + ast.groesse &&
-      state.p2.y + config.spielerGroesse > ast.y
+      Utils.koerperTrifftSpieler(state.p2, ast)
     ) {
       Utils.spielerGetroffen(ast, true, 'p2');
       Anzeige.entferne(ast);
@@ -256,14 +246,7 @@ export function aktualisiereFeinde() {
         }
       }
     }
-    if (
-      !state.isDead &&
-      !Utils.istDashUnverwundbar(state) &&
-      state.x < f.x + f.groesse &&
-      state.x + config.spielerGroesse > f.x &&
-      state.y < f.y + f.groesse &&
-      state.y + config.spielerGroesse > f.y
-    ) {
+    if (!state.isDead && !Utils.istDashUnverwundbar(state) && Utils.koerperTrifftSpieler(state, f)) {
       Utils.spielerGetroffen(f, true, 'p1');
       Anzeige.entferne(f);
       arrays.feinde.splice(i, 1);
@@ -274,10 +257,7 @@ export function aktualisiereFeinde() {
       state.p2 &&
       !state.p2.isDead &&
       !Utils.istDashUnverwundbar(state.p2) &&
-      state.p2.x < f.x + f.groesse &&
-      state.p2.x + config.spielerGroesse > f.x &&
-      state.p2.y < f.y + f.groesse &&
-      state.p2.y + config.spielerGroesse > f.y
+      Utils.koerperTrifftSpieler(state.p2, f)
     ) {
       Utils.spielerGetroffen(f, true, 'p2');
       Anzeige.entferne(f);
