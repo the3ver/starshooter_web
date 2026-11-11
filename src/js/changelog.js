@@ -1,6 +1,13 @@
-export const GAME_VERSION = '1.15.5';
+export const GAME_VERSION = '1.15.6';
 
 export const changelogData = {
+  '1.15.6': {
+    version: '1.15.6',
+    intro: 'Hey, es ist jetzt Version 1.15.6 rausgekommen, folgendes wurde aktualisiert:',
+    highlights: [
+      '🎯 Fairere Treffer: Asteroiden und Gegner treffen dein Schiff nur noch, wenn sie es wirklich berühren, nicht mehr schon mit sichtbarem Abstand',
+    ],
+  },
   '1.15.5': {
     version: '1.15.5',
     intro: 'Hey, es ist jetzt Version 1.15.5 rausgekommen, folgendes wurde aktualisiert:',
