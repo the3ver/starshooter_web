@@ -115,7 +115,11 @@ export function aktualisiereAsteroiden() {
       arrays.asteroiden.splice(i, 1);
       continue;
     }
-    if (!state.isDead && !Utils.istDashUnverwundbar(state) && Utils.koerperTrifftSpieler(state, ast)) {
+    if (
+      !state.isDead &&
+      !Utils.istDashUnverwundbar(state) &&
+      Utils.koerperTrifftSpieler(state, ast, Utils.ASTEROID_TREFFER_RADIUS)
+    ) {
       Utils.spielerGetroffen(ast, true, 'p1');
       Anzeige.entferne(ast);
       arrays.asteroiden.splice(i, 1);
@@ -126,7 +130,7 @@ export function aktualisiereAsteroiden() {
       state.p2 &&
       !state.p2.isDead &&
       !Utils.istDashUnverwundbar(state.p2) &&
-      Utils.koerperTrifftSpieler(state.p2, ast)
+      Utils.koerperTrifftSpieler(state.p2, ast, Utils.ASTEROID_TREFFER_RADIUS)
     ) {
       Utils.spielerGetroffen(ast, true, 'p2');
       Anzeige.entferne(ast);
@@ -246,7 +250,11 @@ export function aktualisiereFeinde() {
         }
       }
     }
-    if (!state.isDead && !Utils.istDashUnverwundbar(state) && Utils.koerperTrifftSpieler(state, f)) {
+    if (
+      !state.isDead &&
+      !Utils.istDashUnverwundbar(state) &&
+      Utils.koerperTrifftSpieler(state, f, Utils.FEIND_TREFFER_RADIUS)
+    ) {
       Utils.spielerGetroffen(f, true, 'p1');
       Anzeige.entferne(f);
       arrays.feinde.splice(i, 1);
@@ -257,7 +265,7 @@ export function aktualisiereFeinde() {
       state.p2 &&
       !state.p2.isDead &&
       !Utils.istDashUnverwundbar(state.p2) &&
-      Utils.koerperTrifftSpieler(state.p2, f)
+      Utils.koerperTrifftSpieler(state.p2, f, Utils.FEIND_TREFFER_RADIUS)
     ) {
       Utils.spielerGetroffen(f, true, 'p2');
       Anzeige.entferne(f);

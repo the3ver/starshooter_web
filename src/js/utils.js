@@ -447,14 +447,17 @@ export function istDashUnverwundbar(pState) {
   return !!pState && ((pState.gleveUnverwundbar || 0) > 0 || (pState.viperRolleTimer || 0) > 0);
 }
 
-// Koerperkollision Spieler gegen Asteroid/Feind (Bounding-Box)
-export function koerperTrifftSpieler(pState, obj) {
-  return (
-    pState.x < obj.x + obj.groesse &&
-    pState.x + config.spielerGroesse > obj.x &&
-    pState.y < obj.y + obj.groesse &&
-    pState.y + config.spielerGroesse > obj.y
-  );
+// Koerperkollision Spieler gegen Asteroid/Feind: Kreis gegen Kreis statt Bounding-Box. Die Box zaehlte leere Ecken
+// (spitze Schiffsnase, runde Asteroiden mit 70-100 % Radius) mit, das Schiff wurde mit sichtbarem Abstand getroffen.
+export const SPIELER_TREFFER_RADIUS = 0.36; // Anteil an spielerGroesse (30 px -> 10,8 px)
+export const ASTEROID_TREFFER_RADIUS = 0.42; // Anteil an groesse (Umriss 35-50 %, Mittel ~42 %)
+export const FEIND_TREFFER_RADIUS = 0.4;
+export function koerperTrifftSpieler(pState, obj, radiusAnteil) {
+  const s = config.spielerGroesse;
+  const dx = pState.x + s / 2 - (obj.x + obj.groesse / 2);
+  const dy = pState.y + s / 2 - (obj.y + obj.groesse / 2);
+  const r = s * SPIELER_TREFFER_RADIUS + obj.groesse * radiusAnteil;
+  return dx * dx + dy * dy < r * r;
 }
 
 // Treffer am Spieler; das Schiff (Blinken, Schild, Sichtbarkeit) wird sofort neu gezeichnet
