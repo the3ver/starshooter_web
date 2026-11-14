@@ -38,7 +38,7 @@ Das Projekt ist in modular gegliederte ES-Module strukturiert:
 ## Game-Loop, Kollisionen & Spielmodi
 - **Game-Loop:** `gameLoop(zeitstempel)` läuft per `requestAnimationFrame` und führt über einen Zeit-Akkumulator (`berechneSchritte`) feste 60-Hz-Simulationsschritte (`simulationsSchritt()`) aus, maximal 5 pro Frame (Rückstand nach Tab-Wechsel wird verworfen). Das Spieltempo ist dadurch unabhängig von der Monitor-Bildrate. `simulationsSchritt()` plant selbst keinen Frame ein; Tests rufen ihn direkt auf.
 - **Entitäten-Arrays:** Verwaltet im `arrays`-Objekt in `state.js` (`asteroiden`, `feinde`, `bosses`, `powerups`, `laserArray`, `raketenArray`, `bombenArray`, `partikel`, `sterne`).
-- **Kollisionserkennung:** Bounding-Box Checks (`x < targetX + width ...`) im `gameLoop`.
+- **Kollisionserkennung:** Bounding-Box Checks (`x < targetX + width ...`) im `gameLoop`. Ausnahme: Koerperkollision Spieler gegen Asteroid/Feind ist Kreis gegen Kreis (`Utils.koerperTrifftSpieler`, Radien `SPIELER_TREFFER_RADIUS`, `ASTEROID_TREFFER_RADIUS`, `FEIND_TREFFER_RADIUS` in `utils.js`), weil die Box leere Ecken mitzaehlte.
 - **Spielmodi:**
   - `single`: 400px Spielfeldbreite, 1 Spielerschiff.
   - `coop` (Lokal / Bot): 600px Spielfeldbreite, 2 Spielerschiffe, geteilte Tastatur oder KI-Bot-Partner (`state.p2IsBot`).
