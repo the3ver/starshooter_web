@@ -1,6 +1,15 @@
-export const GAME_VERSION = '1.15.17';
+export const GAME_VERSION = '1.15.18';
 
 export const changelogData = {
+  '1.15.18': {
+    version: '1.15.18',
+    intro: 'Hey, es ist jetzt Version 1.15.18 rausgekommen, folgendes wurde aktualisiert:',
+    highlights: [
+      'Felsen wie aus dem Bilderbuch: wulstige, gestapelte Steinplatten, Kanten aus vorstehenden Plattenenden, dazu Wurmloecher und eingewachsene Kugeln.',
+      'Der Skelett-Boss ist jetzt spiegelsymmetrisch: Armpaare mit Augen an beiden Spitzen. Im Coop hat er fuenf Augen.',
+      'Asteroiden sehen abwechslungsreicher aus: unregelmaessigere Umrisse, verschiedene Gesteinsfarben, Krater und gluehende Adern bei Magma.',
+    ],
+  },
   '1.15.17': {
     version: '1.15.17',
     intro: 'Hey, es ist jetzt Version 1.15.17 rausgekommen, folgendes wurde aktualisiert:',
