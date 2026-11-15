@@ -158,6 +158,7 @@ const POWERUP_SYMBOL = {
   bombe: 'B',
   autolaser: 'A',
   superWaffe: 'S',
+  schockwelle: 'Z',
 };
 
 function setupPowerupVisuals(el, type, owner, farbe) {
@@ -167,6 +168,7 @@ function setupPowerupVisuals(el, type, owner, farbe) {
   }
   const istSplitter = type === 'splitterRot' || type === 'splitterWeiss';
   if (type === 'superWaffe') el.style.animation = 'superWaffePulse 0.3s infinite alternate';
+  if (type === 'schockwelle') el.classList.add('powerup-schockwelle');
   if (istSplitter) el.classList.add('powerup-splitter', type === 'splitterRot' ? 'splitter-rot' : 'splitter-weiss');
 
   if (!istSplitter) {
@@ -424,6 +426,7 @@ const SNIPER_EFFEKT_KLASSE = {
   sniperDruckwelle: 'sniper-druckwelle',
   sniperMinenExplosion: 'sniper-mine-explosion',
   sniperEmp: 'sniper-emp',
+  schockwelle: 'schockwelle-ring',
 };
 
 // Strahl: Hoehe = Laenge, Spitze an der Schiffsnase (x/y), Drehung um den Startpunkt, dreifacher Schein aus glow (0..1)

@@ -936,6 +936,40 @@ export function playMineExplosion() {
 }
 
 // Sniper-EMP: elektrisches Knistern (Saegezahn faellt ab, Sinus steigt)
+// Schockwelle: tiefer Wumms mit abfallendem Rauschen-Sweep
+export function playSchockwelle() {
+  recordSound('schockwelle');
+  if (isMuted) return;
+  const ctx = getAudioContext();
+  if (!ctx) return;
+  if (ctx.state === 'suspended') ctx.resume().catch(() => {});
+
+  const now = ctx.currentTime;
+  const osc = ctx.createOscillator();
+  const gain = ctx.createGain();
+  osc.type = 'sine';
+  osc.frequency.setValueAtTime(180, now);
+  osc.frequency.exponentialRampToValueAtTime(35, now + 0.6);
+  gain.gain.setValueAtTime(0.35, now);
+  gain.gain.exponentialRampToValueAtTime(0.001, now + 0.7);
+  osc.connect(gain);
+  gain.connect(masterGain);
+  osc.start(now);
+  osc.stop(now + 0.75);
+
+  const osc2 = ctx.createOscillator();
+  const gain2 = ctx.createGain();
+  osc2.type = 'sawtooth';
+  osc2.frequency.setValueAtTime(2200, now);
+  osc2.frequency.exponentialRampToValueAtTime(200, now + 0.5);
+  gain2.gain.setValueAtTime(0.08, now);
+  gain2.gain.exponentialRampToValueAtTime(0.001, now + 0.5);
+  osc2.connect(gain2);
+  gain2.connect(masterGain);
+  osc2.start(now);
+  osc2.stop(now + 0.55);
+}
+
 export function playEmp() {
   recordSound('emp');
   if (isMuted) return;

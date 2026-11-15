@@ -3,6 +3,7 @@ import * as Utils from './utils.js';
 import * as Audio from './audio.js';
 import * as Network from './network.js';
 import * as Anzeige from './anzeige.js';
+import * as Schockwelle from './schockwelle.js';
 
 function wendePowerupAn(p, targetKey = 'p1') {
   const isP1 = targetKey === 'p1';
@@ -80,6 +81,8 @@ function wendePowerupAn(p, targetKey = 'p1') {
     pState.autolaserTimer = 600;
     if (isP1) Utils.updateAktivePowerupsUI();
     else Utils.updateAktivePowerupsP2UI();
+  } else if (p.type === 'schockwelle') {
+    Schockwelle.loeseAus(p.x + (p.groesse || 24) / 2, p.y + (p.groesse || 24) / 2, targetKey);
   } else if (p.type === 'splitterRot') {
     pState.splitterRot = (pState.splitterRot || 0) + 1;
     if (pState.splitterRot >= 10) {

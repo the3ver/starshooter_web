@@ -194,6 +194,7 @@ export const state = {
   bombenStufe: 1,
   bombenCooldown: 0,
   frameZaehler: 0,
+  schockwelleLevel: 0, // Level, in dem zuletzt eine Schockwelle fiel (hoechstens eine pro Level)
   spielLaeuft: false,
   cutsceneAktiv: false,
   feindSpawnZeit: 1200,

@@ -22,6 +22,7 @@ import {
 import * as Gleve from './gleve.js';
 import * as Viper from './viper.js';
 import * as Sniper from './sniper.js';
+import * as Schockwelle from './schockwelle.js';
 import * as Anzeige from './anzeige.js';
 
 let room = null;
@@ -689,6 +690,9 @@ export function handleNetworkEvent(data, peerId = null) {
     }
     if (data.type === 'mine_explodiert') {
       Sniper.zeigeMinenExplosion(data);
+    }
+    if (data.type === 'schockwelle') {
+      Schockwelle.zeigeSchockwelle(data);
     }
     if (data.type === 'target_destroyed') {
       Utils.erzeugeExplosion(data.x, data.y, data.farbe, data.anzahl);

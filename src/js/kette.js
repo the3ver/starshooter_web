@@ -122,8 +122,18 @@ export function gliedAbgeschossen(f) {
   if (!f.kette) return false;
   f.kette.abgeschossen++;
   if (f.kette.abgeschossen < f.kette.gesamt) return false;
-  Entities.erzeugePowerup(f.x + f.groesse / 2 - 12, f.y + f.groesse / 2 - 12);
+  Entities.erzeugePowerup(f.x + f.groesse / 2 - 12, f.y + f.groesse / 2 - 12, bonusTyp());
   return true;
+}
+
+// Kettenbonus: mit SCHOCKWELLE_CHANCE eine Schockwelle, hoechstens eine pro Level und nie im Bosskampf;
+// sonst ein zufaelliges Powerup (null)
+export const SCHOCKWELLE_CHANCE = 0.35;
+function bonusTyp() {
+  if (state.bossAktiv || state.schockwelleLevel === state.level) return null;
+  if (Math.random() >= SCHOCKWELLE_CHANCE) return null;
+  state.schockwelleLevel = state.level;
+  return 'schockwelle';
 }
 
 // Zufaellige Kette fuer verwalteFeindSpawns: Bahn, Laenge (6-10) und Seite aus Math.random

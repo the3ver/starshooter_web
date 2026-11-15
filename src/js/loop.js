@@ -22,6 +22,7 @@ import { aktualisiereWaffen } from './waffen.js';
 import { clientSchritt } from './client.js';
 import { pruefePause } from './pause.js';
 import { levelSchritt } from './level.js';
+import { aktualisiereSchockwellen } from './schockwelle.js';
 
 // Bestehende Exporte bleiben ueber loop.js erreichbar
 export { verwalteFeindSpawns, animierenPartikel };
@@ -199,6 +200,7 @@ function simuliere() {
 
   // --- 9.11 PARTIKEL ANIMIEREN ---
   animierenPartikel();
+  aktualisiereSchockwellen();
   aktualisiereEffekte();
 
   // Network Syncing in Online Mode (der Client sendet seine Eingaben in clientSchritt)

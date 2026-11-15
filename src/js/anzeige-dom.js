@@ -201,6 +201,11 @@ function zeichneSniperRing(e, d, deckkraft) {
 }
 
 const SNIPER_EFFEKT_ZEICHNER = {
+  // Powerup-Schockwelle: waechst linear bis radius (fernste Feldecke), verblasst nur teilweise
+  schockwelle: e => {
+    const t = 1 - e.rest / e.dauer;
+    zeichneSniperRing(e, e.radius * 2 * t, 1 - t * 0.6);
+  },
   sniperStrahl: e => {
     e.el.style.opacity = e.rest / e.dauer;
   },

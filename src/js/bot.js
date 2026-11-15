@@ -98,6 +98,15 @@ function findNearestDanger(p2, diff) {
   return dangers[0];
 }
 
+// Schockwelle erst einsammeln, wenn genug im Bild ist (Feinde und Geschosse), oder bevor sie unten verschwindet
+export const SCHOCKWELLE_MIN_ZIELE = 4;
+export function schockwelleLohnt(p) {
+  if (p.y > config.spielfeldHoehe - 150) return true;
+  const imBild = o => o.y > 0 && o.y < config.spielfeldHoehe;
+  const ziele = arrays.feinde.filter(imBild).length + arrays.feindLaserArray.filter(imBild).length;
+  return ziele >= SCHOCKWELLE_MIN_ZIELE;
+}
+
 function findNearestPowerup(p2, diff) {
   const halfSize = config.spielerGroesse / 2;
   const cx = p2.x + halfSize;
@@ -108,6 +117,7 @@ function findNearestPowerup(p2, diff) {
 
   for (const p of arrays.powerups) {
     if (p.towedBy) continue; // Schon gezogen
+    if (p.type === 'schockwelle' && !schockwelleLohnt(p)) continue;
     const px = p.x + (p.groesse || 16) / 2;
     const py = p.y + (p.groesse || 16) / 2;
     const dSq = distanceSq(cx, cy, px, py);

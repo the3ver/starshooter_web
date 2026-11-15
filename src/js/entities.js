@@ -46,6 +46,7 @@ const POWERUP_FARBEN = {
   superWaffe: '#ffffff',
   splitterRot: '#e74c3c',
   splitterWeiss: '#ffffff',
+  schockwelle: '#7fffd4',
 };
 export function powerupFarbe(type) {
   return POWERUP_FARBEN[type] || '#f1c40f';

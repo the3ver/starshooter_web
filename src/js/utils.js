@@ -669,6 +669,7 @@ export function restartGame() {
   state.score = 0;
   addScore(0);
   state.level = 1;
+  state.schockwelleLevel = 0;
   state.splitterRot = 0;
   state.splitterWeiss = 0;
   state.viperKillCount = 0;

@@ -1,6 +1,15 @@
-export const GAME_VERSION = '1.15.6';
+export const GAME_VERSION = '1.15.7';
 
 export const changelogData = {
+  '1.15.7': {
+    version: '1.15.7',
+    intro: 'Hey, es ist jetzt Version 1.15.7 rausgekommen, folgendes wurde aktualisiert:',
+    highlights: [
+      'Neues Powerup Schockwelle (Z): Ein Ring laeuft vom Schiff ueber das ganze Feld und zerstoert jeden Gegner und jedes Feindgeschoss, das er erreicht. Bosse verlieren 15 % ihrer Lebenspunkte, Asteroiden bleiben liegen.',
+      'Die Schockwelle faellt manchmal als Kettenbonus, hoechstens einmal pro Level und nie im Bosskampf.',
+      'Der Bot hebt sich die Schockwelle auf, bis mindestens vier Gegner oder Geschosse im Bild sind.',
+    ],
+  },
   '1.15.6': {
     version: '1.15.6',
     intro: 'Hey, es ist jetzt Version 1.15.6 rausgekommen, folgendes wurde aktualisiert:',
