@@ -159,6 +159,17 @@ export function freierBereich(y, x) {
   return { links, rechts };
 }
 
+// Schwebendes Objekt (Powerup, x/y = linke obere Ecke, Kantenlaenge g) gleitet mit hoechstens tempo px je Schritt
+// in den freien Bereich auf Hoehe seiner Mitte, damit es erreichbar bleibt
+export const SCHWEBE_RAND = 6;
+export function schwebeInGang(obj, g, tempo = 3) {
+  const mitteY = obj.y + g / 2;
+  if (!profilBei(mitteY)) return;
+  const { links, rechts } = freierBereich(mitteY, obj.x + g / 2);
+  const ziel = Math.max(links + SCHWEBE_RAND, Math.min(rechts - g - SCHWEBE_RAND, obj.x));
+  obj.x += Math.max(-tempo, Math.min(tempo, ziel - obj.x));
+}
+
 // Schiebt ein Schiff (x/y = linke obere Ecke) aus dem Fels; liefert true bei Beruehrung
 export function schiebeHeraus(schiff) {
   const g = config.spielerGroesse;

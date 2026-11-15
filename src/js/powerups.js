@@ -4,6 +4,7 @@ import * as Audio from './audio.js';
 import * as Network from './network.js';
 import * as Anzeige from './anzeige.js';
 import * as Schockwelle from './schockwelle.js';
+import * as Fels from './fels.js';
 
 function wendePowerupAn(p, targetKey = 'p1') {
   const isP1 = targetKey === 'p1';
@@ -222,8 +223,9 @@ export function aktualisierePowerups() {
       continue;
     }
 
-    // --- CASE C: Freies Powerup ---
+    // --- CASE C: Freies Powerup (im Fels-Level gleitet es in den freien Gang) ---
     p.y += p.vy;
+    if (arrays.fels.length) Fels.schwebeInGang(p, p.groesse || 24);
     if (p.y > config.spielfeldHoehe) {
       Anzeige.entferne(p);
       arrays.powerups.splice(i, 1);

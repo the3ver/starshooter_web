@@ -1,6 +1,13 @@
-export const GAME_VERSION = '1.15.13';
+export const GAME_VERSION = '1.15.14';
 
 export const changelogData = {
+  '1.15.14': {
+    version: '1.15.14',
+    intro: 'Hey, es ist jetzt Version 1.15.14 rausgekommen, folgendes wurde aktualisiert:',
+    highlights: [
+      'Powerups, die ueber Fels oder einer Saeule auftauchen, gleiten jetzt in den freien Gang und bleiben erreichbar.',
+    ],
+  },
   '1.15.13': {
     version: '1.15.13',
     intro: 'Hey, es ist jetzt Version 1.15.13 rausgekommen, folgendes wurde aktualisiert:',

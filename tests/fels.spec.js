@@ -260,3 +260,28 @@ test('Neustart leert den Fels und setzt das Profil zurueck', async ({ page }) =>
   });
   expect(r).toEqual({ nachNeustart: 0, auslauf: 0 });
 });
+
+test('Powerups im Fels schweben in den freien Gang (Wand und Insel)', async ({ page }) => {
+  const r = await page.evaluate(async () => {
+    const { arrays, segment, config, state, Loop } = window.__fe;
+    const Entities = await import('./js/entities.js');
+    const b = config.spielfeldBreite;
+    state.godMode = true;
+    state.x = b / 2 - 15;
+    state.y = 580;
+    for (let y = -40; y <= 600; y += 40) segment(y, { l: 100, r: 30, im: b / 2 + 20, ib: 80 });
+    Entities.erzeugePowerup(20, 100, 'energie'); // in der linken Wand
+    Entities.erzeugePowerup(b / 2 + 10, 300, 'energie'); // in der Insel, rechts der Mitte
+    const [inWand, inInsel] = arrays.powerups;
+    for (let i = 0; i < 60; i++) {
+      for (const s of arrays.fels) s.y -= 1.5; // Fels festhalten
+      Loop.simulationsSchritt();
+    }
+    const g = inWand.groesse;
+    return {
+      wand: inWand.x >= 100 && inWand.x + g <= b / 2 + 20 - 40,
+      insel: inInsel.x >= b / 2 + 20 + 40 && inInsel.x + g <= b - 30,
+    };
+  });
+  expect(r).toEqual({ wand: true, insel: true });
+});
