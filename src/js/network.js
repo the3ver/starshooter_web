@@ -900,6 +900,7 @@ export function serializeGameState() {
       muster: f.muster || 'normal',
       hatSchild: (f.schildHp || 0) > 0,
       schildHp: f.schildHp || 0,
+      ...(typeof f.rot === 'number' ? { rot: f.rot } : {}),
       ...(f.betaeubt > 0 ? { betaeubt: f.betaeubt } : {}),
     })),
     asteroiden: arrays.asteroiden.map(a => ({
@@ -1312,6 +1313,7 @@ export function applyGameStateSnapshot(snapshot) {
             hatSchild: fData.hatSchild || false,
             schildHp: fData.schildHp || 0,
             farbe: Entities.getFeindColor(muster),
+            ...(typeof fData.rot === 'number' ? { rot: fData.rot } : {}),
           },
           'feind',
         );
@@ -1322,6 +1324,7 @@ export function applyGameStateSnapshot(snapshot) {
         existing.y = fData.y;
         existing.hp = fData.hp;
         existing.schildHp = fData.schildHp || 0;
+        if (typeof fData.rot === 'number') existing.rot = fData.rot;
         setzeInterpolationsZiel(existing, fData.x, fData.y);
       }
       zeigeBetaeubung(existing, fData);

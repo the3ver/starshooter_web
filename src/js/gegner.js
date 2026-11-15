@@ -3,6 +3,7 @@ import * as Utils from './utils.js';
 import * as Entities from './entities.js';
 import * as Hack from './hack.js';
 import * as Anzeige from './anzeige.js';
+import * as Kette from './kette.js';
 
 export function verwalteFeindSpawns() {
   // Hacker: Spezialeinheit ab Level 2, höchstens einer gleichzeitig
@@ -16,6 +17,7 @@ export function verwalteFeindSpawns() {
   let pCross = state.level >= 1 ? Math.min(0.2, 0.05 + (state.level - 1) * 0.05) : 0;
   let pSwoop = state.level >= 1 ? Math.min(0.2, 0.05 + (state.level - 1) * 0.05) : 0;
   let pClingOn = state.level >= 1 ? Math.min(0.2, 0.05 + (state.level - 1) * 0.05) : 0;
+  let pKette = state.level >= 3 ? Math.min(0.1, 0.05 + (state.level - 3) * 0.05) : 0; // klein: hohe Level behalten Einzeljaeger
 
   let r = Math.random();
 
@@ -50,6 +52,9 @@ export function verwalteFeindSpawns() {
   } else if (r < pV + pCross + pSwoop + pClingOn) {
     // Cling-on Feind an neuem Asteroid
     Entities.erzeugeClingOnFeind();
+  } else if (r < pV + pCross + pSwoop + pClingOn + pKette) {
+    // Organische Kette (6-10 Glieder auf gemeinsamer Bahn)
+    Kette.erzeugeZufallsKette();
   } else {
     // Einzelner Jäger (Normal oder Stop&Go)
     Entities.erzeugeFeind();
@@ -216,6 +221,8 @@ export function aktualisiereFeinde() {
         f.y += f.vy;
         f.rot = (Math.atan2(f.vy, f.vx) * 180) / Math.PI - 90;
       }
+    } else if (f.muster === 'kette') {
+      Kette.bewegeGlied(f);
     } else if (f.muster === 'hacker') {
       aktualisiereHacker(f);
     } else {
@@ -224,10 +231,11 @@ export function aktualisiereFeinde() {
       f.x = f.basisX + Math.sin(f.zeit) * 30;
     }
     if (
-      f.y > config.spielfeldHoehe ||
-      f.x < -f.groesse - 50 ||
-      f.x > config.spielfeldBreite + 50 ||
-      (f.phase === 'flucht' && f.y < -f.groesse - 10)
+      !Kette.wartetAufStart(f) &&
+      (f.y > config.spielfeldHoehe ||
+        f.x < -f.groesse - 50 ||
+        f.x > config.spielfeldBreite + 50 ||
+        (f.phase === 'flucht' && f.y < -f.groesse - 10))
     ) {
       Anzeige.entferne(f);
       arrays.feinde.splice(i, 1);

@@ -170,6 +170,7 @@ export function getFeindColor(muster = 'normal') {
   if (muster === 'crossfire') return '#1abc9c';
   if (muster === 'swoop') return '#2ecc71';
   if (muster === 'hacker') return '#39ff14';
+  if (muster === 'kette') return '#d9822b';
   return '#9b59b6';
 }
 

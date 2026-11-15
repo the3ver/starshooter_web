@@ -2517,10 +2517,10 @@ test.describe('Spectre-SR EMP online', () => {
     expect(r.ton).toBe(1);
   });
 
-  test('Protokollversion ist 14', async ({ page }) => {
+  test('Protokollversion enthaelt das EMP-Ereignis (ab 11)', async ({ page }) => {
     await bereiteGranate(page);
     const v = await page.evaluate(async () => (await import('./js/netzkodierung.js')).PROTOKOLL_VERSION);
-    expect(v).toBe(14);
+    expect(v).toBeGreaterThanOrEqual(11);
   });
 });
 

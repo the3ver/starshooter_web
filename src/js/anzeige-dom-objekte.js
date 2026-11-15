@@ -2,8 +2,37 @@
 // Jeder Erzeuger liefert das Element; anzeige-dom.js haengt es ins Spielfeld und zeichnet es.
 import { config, shipColors } from './state.js';
 
-function getFeindSVGHtml(muster = 'normal', hatSchild = false) {
+// Kettenglied (Vorwaerts = unten, wie bei den Jaegern): Panzerring mit Auge und seitlichen Stacheln;
+// der Kopf (groesser) laeuft vorne spitz zu
+function getKettenSVGHtml(istKopf) {
+  const stacheln = `<path d="M1 15 L-3 13 L1 11 Z M29 15 L33 13 L29 11 Z M2 21 L-2 21 L3 18 Z M28 21 L32 21 L27 18 Z" fill="#c9ced6"/>`;
+  if (istKopf) {
+    return `
+      <svg class="ketten-koerper" viewBox="0 0 30 30" style="position: absolute; width: 100%; height: 100%; overflow: visible;">
+          ${stacheln}
+          <path d="M3 8 Q15 0 27 8 L24 22 L15 31 L6 22 Z" fill="#8c4416"/>
+          <path d="M6 9 Q15 3 24 9 L21 20 L15 27 L9 20 Z" fill="#d9822b"/>
+          <path d="M11 20 L15 31 L19 20 Z" fill="#c9ced6"/>
+          <circle cx="15" cy="13" r="4.5" fill="#2b0f05"/>
+          <circle cx="16.3" cy="11.8" r="1.4" fill="#ffd27a"/>
+      </svg>
+    `;
+  }
+  return `
+    <svg class="ketten-koerper" viewBox="0 0 30 30" style="position: absolute; width: 100%; height: 100%; overflow: visible;">
+        ${stacheln}
+        <rect x="2" y="4" width="26" height="22" rx="9" fill="#7d8591"/>
+        <rect x="4" y="6" width="22" height="18" rx="8" fill="#d9822b"/>
+        <path d="M4 10 H26 M4 20 H26" stroke="#8c4416" stroke-width="2"/>
+        <circle cx="15" cy="15" r="4" fill="#2b0f05"/>
+        <circle cx="16.2" cy="14" r="1.2" fill="#ffd27a"/>
+    </svg>
+  `;
+}
+
+function getFeindSVGHtml(muster = 'normal', hatSchild = false, groesse = 30) {
   let schildHtml = hatSchild ? '<div class="feind-schild"></div>' : '';
+  if (muster === 'kette') return getKettenSVGHtml(groesse >= 26);
 
   if (muster === 'normal' || muster === 'clingOn') {
     return `
@@ -175,7 +204,12 @@ function feindElement(f) {
   el.classList.add('feind-schiff');
   el.style.width = f.groesse + 'px';
   el.style.height = f.groesse + 'px';
-  el.innerHTML = getFeindSVGHtml(f.muster, f.hatSchild);
+  el.innerHTML = getFeindSVGHtml(f.muster, f.hatSchild, f.groesse);
+  if (f.muster === 'kette') {
+    // Puls-Phase aus der Id: aufeinanderfolgende Glieder pulsieren versetzt (Welle), Host und Client gleich
+    const nr = parseInt(String(f.id).replace(/\D/g, ''), 10) || 0;
+    el.style.setProperty('--puls-verzug', `${-(nr % 8) * 0.09}s`);
+  }
   el.dataset.baseColor = f.farbe;
   // Bis die Zustandsanzeige im Backend liegt, entfernt die Logik das Schild-Element ueber schildEl
   f.schildEl = f.hatSchild ? el.querySelector('.feind-schild') : null;

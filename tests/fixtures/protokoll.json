@@ -1,5 +1,5 @@
 {
-  "version": 14,
+  "version": 15,
   "felder": [
     ".asteroiden",
     ".asteroiden[].farbe",
@@ -70,6 +70,7 @@
     ".feinde[].id",
     ".feinde[].maxHp",
     ".feinde[].muster",
+    ".feinde[].rot",
     ".feinde[].schildHp",
     ".feinde[].typ",
     ".feinde[].x",

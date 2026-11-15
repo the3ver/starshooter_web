@@ -7,6 +7,7 @@ import * as Gleve from './gleve.js';
 import * as Sniper from './sniper.js';
 import * as Viper from './viper.js';
 import * as Anzeige from './anzeige.js';
+import * as Kette from './kette.js';
 import { getShipSVGContent } from './anzeige-dom-objekte.js';
 // Schiffs-SVG fuer Hangar und Cutszene (gleiche Vorlage wie im Spiel)
 export { getShipSVGContent };
@@ -301,6 +302,7 @@ export function zerstoereZiel(ziel, killer = 'p1') {
       komboFaktor,
     );
     if (ziel.istFeind) {
+      if (Kette.gliedAbgeschossen(ziel)) addScore(Kette.KETTEN_BONUS_PUNKTE, komboFaktor);
       const killerShipModel = killer === 'p2' ? state.p2 && state.p2.selectedShipModel : state.selectedShipModel;
       const currentShip = shipModels && shipModels[killerShipModel || 'viper'];
       const energyGain = (currentShip && currentShip.energyPerKill) || 0;
@@ -324,7 +326,7 @@ export function zerstoereZiel(ziel, killer = 'p1') {
         }
       }
     }
-    let farbe = ziel.istFeind ? '#9b59b6' : ziel.farbe || '#ffffff';
+    let farbe = ziel.istFeind ? (ziel.muster === 'kette' ? ziel.farbe : '#9b59b6') : ziel.farbe || '#ffffff';
     erzeugeExplosion(ziel.x + ziel.groesse / 2, ziel.y + ziel.groesse / 2, farbe, 25);
     if (state.gameMode === 'online') {
       Network.sendNetworkEvent({

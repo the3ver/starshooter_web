@@ -1,6 +1,16 @@
-export const GAME_VERSION = '1.15.5';
+export const GAME_VERSION = '1.15.6';
 
 export const changelogData = {
+  '1.15.6': {
+    version: '1.15.6',
+    intro: 'Hey, es ist jetzt Version 1.15.6 rausgekommen, folgendes wurde aktualisiert:',
+    highlights: [
+      'Neue Gegner ab Level 3: organische Ketten aus bis zu 10 Gliedern schlaengeln sich auf Schlangen-, Schleifen-, Spiral- und S-Bahnen durchs Bild. Nur der Kopf schiesst.',
+      'Kettenbonus: Wer jedes Glied einer Kette abschiesst, bekommt ein Powerup und 500 Extrapunkte.',
+      'Online-Spiel: Gegner im Sturzflug und Kettenglieder zeigen beim Mitspieler jetzt ihre Flugrichtung.',
+      'Der Bot zielt auf die Mitte kleinerer Gegner statt knapp daneben.',
+    ],
+  },
   '1.15.5': {
     version: '1.15.5',
     intro: 'Hey, es ist jetzt Version 1.15.5 rausgekommen, folgendes wurde aktualisiert:',

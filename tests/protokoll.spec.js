@@ -85,6 +85,7 @@ async function untersuche(page, p1, p2) {
             stufe: 1,
             type: 'energy',
             form: null,
+            rot: 0,
           });
       }
       const snapshot = Network.serializeGameState();

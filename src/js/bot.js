@@ -84,8 +84,9 @@ function findNearestDanger(p2, diff) {
 
   // Feinde direkt
   for (const feind of arrays.feinde) {
-    const fx = feind.x + 15;
-    const fy = feind.y + 15;
+    const halb = (feind.groesse || 30) / 2;
+    const fx = feind.x + halb;
+    const fy = feind.y + halb;
     const dSq = distanceSq(cx, cy, fx, fy);
     if (dSq < dodgeRadiusSq) {
       dangers.push({ x: fx, y: fy, dSq, vy: feind.geschwindigkeit || 2 });
@@ -156,8 +157,10 @@ export function findBestTarget(p2, diff) {
   }
 
   for (const feind of arrays.feinde) {
-    const fx = feind.x + 15;
-    const fy = feind.y + 15;
+    if (feind.kettenT < 0) continue; // Kettenglied wartet noch ausserhalb des Felds
+    const halb = (feind.groesse || 30) / 2;
+    const fx = feind.x + halb;
+    const fy = feind.y + halb;
     const dSq = distanceSq(cx, p2.y, fx, fy);
     if (fy < p2.y && dSq < bestDSq) {
       bestTarget = { x: fx, y: fy, dSq, isBoss: false };

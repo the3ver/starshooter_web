@@ -750,7 +750,7 @@ test('Online: Sniper-Felder gehen nur fuer Sniper in den Snapshot (Granatenliste
   expect(r.ohneSniper).toEqual([0, 0]);
   expect(r.granate).toEqual([{ id: 'string', owner: 'p1', rest: 30, hatPos: true }]);
   expect(r.dekodiert).toEqual([123.5, 99, 45, 18, 33, 1]);
-  expect(r.protokoll).toBe(14);
+  expect(r.protokoll).toBeGreaterThanOrEqual(14); // Sniper-Felder seit Protokoll 14
 });
 
 test('Online-Client: Fadenkreuz an der Host-Position, Ladering bei Ladung, Strahl beim Schuss, Sounds nur fuers eigene Schiff', async ({
