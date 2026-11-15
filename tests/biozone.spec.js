@@ -80,19 +80,23 @@ test('Online-Client uebernimmt das Thema aus dem Level im Snapshot', async ({ pa
   expect(r).toEqual({ sechs: true, sieben: false });
 });
 
-test('Felskante hat Saum und organische Knoten', async ({ page }) => {
+test('Fels zeigt Steinplatten (globales Muster) mit dunkler Kante, ohne Knoten', async ({ page }) => {
   const r = await page.evaluate(async () => {
     const { arrays } = await import('./js/state.js');
     const Anzeige = await import('./js/anzeige.js');
     const p = { l: 50, r: 50, im: 200, ib: 0 };
     const s = Anzeige.erzeuge({ id: 'fe_t', x: 0, y: 100, oben: p, unten: p }, 'fels');
     arrays.fels.push(s);
+    const wand = s.el.querySelector('polygon.fels-wand');
     return {
+      muster: !!document.querySelector('#fels-defs pattern#fels-steine'),
+      musterEinmal: document.querySelectorAll('#fels-defs').length,
+      fuellung: getComputedStyle(wand).fill.includes('fels-steine'),
       saum: s.el.querySelectorAll('polyline.fels-kante').length,
       knoten: s.el.querySelectorAll('polyline.fels-knoten').length,
     };
   });
-  expect(r).toEqual({ saum: 2, knoten: 2 });
+  expect(r).toEqual({ muster: true, musterEinmal: 1, fuellung: true, saum: 2, knoten: 0 });
 });
 
 test('Neustart entfernt das Biozonen-Thema (Cutszene und Level 1 ohne Geflecht)', async ({ page }) => {

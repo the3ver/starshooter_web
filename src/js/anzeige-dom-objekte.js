@@ -540,9 +540,32 @@ function effektElement(e) {
   return el;
 }
 
+// Steinmuster fuer Felswaende: versetzte, abgerundete Platten mit heller Oberkante, Schattenkante und dunklen
+// Fugen. Liegt einmal unsichtbar im Dokument (#fels-defs); die Polygone verweisen per fill: url(#fels-steine).
+// Musterhoehe 40 = SEGMENT_HOEHE, damit die Reihen ueber Segmentgrenzen fortlaufen.
+const FELS_STEIN = (x, y, w, h) => `
+  <rect x="${x}" y="${y}" width="${w}" height="${h}" rx="7" fill="#6c6a8e"/>
+  <rect x="${x + 3}" y="${y + 1.5}" width="${w - 8}" height="${h * 0.32}" rx="4" fill="#a3a1c6"/>
+  <rect x="${x + 2}" y="${y + h * 0.68}" width="${w - 4}" height="${h * 0.3}" rx="5" fill="#46446a"/>`;
+function sichereFelsDefs() {
+  if (document.getElementById('fels-defs')) return;
+  const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+  svg.id = 'fels-defs';
+  svg.setAttribute('width', '0');
+  svg.setAttribute('height', '0');
+  svg.style.position = 'absolute';
+  svg.innerHTML = `<defs><pattern id="fels-steine" width="48" height="40" patternUnits="userSpaceOnUse">
+    <rect width="48" height="40" fill="#25223a"/>
+    ${FELS_STEIN(1, 1, 28, 18)}${FELS_STEIN(31, 1, 16, 18)}
+    ${FELS_STEIN(-13, 21, 25, 18)}${FELS_STEIN(14, 21, 32, 18)}${FELS_STEIN(35, 21, 25, 18)}
+  </pattern></defs>`;
+  document.body.appendChild(svg);
+}
+
 // Felssegment: volle Feldbreite, Hoehe 41 px (1 px Ueberlappung gegen Naehte); Wand links/rechts und Insel
 // als Flaechen zwischen Profil oben (y = 0) und unten (y = 40), die helle Kante nur entlang der Felsgrenze
 function felsElement(s) {
+  sichereFelsDefs();
   const b = config.spielfeldBreite;
   const h = 41;
   const { oben: o, unten: u } = s;
@@ -550,9 +573,10 @@ function felsElement(s) {
   // Knochen (Insel-Boss): heller Knochen statt Fels, Wirbel als Querrippe, dunkler Mark-Strang
   const knochen = !!(o.knochen || u.knochen);
   const flaeche = punkte => `<polygon class="${knochen ? 'fels-knochen' : 'fels-wand'}" points="${pkt(punkte)}"/>`;
-  // Kante: heller Saum plus Reihe organischer Knoten
+  // Kante: dunkle Aussenlinie (Fels) bzw. Knochenrand, bei Knochen zusaetzlich organische Knoten
   const kante = punkte =>
-    `<polyline class="fels-kante" points="${pkt(punkte)}"/><polyline class="fels-knoten" points="${pkt(punkte)}"/>`;
+    `<polyline class="fels-kante" points="${pkt(punkte)}"/>` +
+    (knochen ? `<polyline class="fels-knoten" points="${pkt(punkte)}"/>` : '');
   let svg = '';
   if (o.l > 0 || u.l > 0) {
     svg +=

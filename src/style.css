@@ -2848,14 +2848,19 @@ body {
 }
 
 .fels-wand {
-  fill: #4b3f5e;
+  fill: url(#fels-steine);
 }
 
 .fels-kante {
   fill: none;
-  stroke: #8f7fa8;
-  stroke-width: 3;
+  stroke: #1d1a2e;
+  stroke-width: 4;
   stroke-linecap: round;
+}
+
+.fels-knochen + .fels-kante,
+.fels-knochen ~ .fels-kante {
+  stroke: #7d6c4a;
 }
 
 .fels-knoten {
