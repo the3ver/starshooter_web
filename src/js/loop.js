@@ -1,6 +1,5 @@
 import { state, dom, config, arrays } from './state.js';
 import * as Utils from './utils.js';
-import * as Entities from './entities.js';
 import * as Cutscene from './cutscene.js';
 import * as Network from './network.js';
 import * as Hack from './hack.js';
@@ -21,7 +20,7 @@ import { aktualisiereUnverwundbarkeit, bewegeSpieler, aktualisiereEnergie, regen
 import { aktualisiereWaffen } from './waffen.js';
 import { clientSchritt } from './client.js';
 import { pruefePause } from './pause.js';
-import { levelSchritt } from './level.js';
+import { levelSchritt, starteBoss } from './level.js';
 import { aktualisiereFels } from './fels.js';
 import { aktualisiereSchockwellen } from './schockwelle.js';
 
@@ -112,7 +111,7 @@ function simuliere() {
     if (state.bossWarningTimer <= 0) {
       state.bossWarningAktiv = false;
       dom.warningOverlay.style.display = 'none';
-      Entities.erzeugeBoss();
+      starteBoss();
     }
     bewegeSterne();
     // Auch waehrend der Warnung senden, damit der Client sie sicher sieht (und danach den Boss)

@@ -1289,10 +1289,13 @@ export function applyGameStateSnapshot(snapshot) {
   // 4. Boss HP
   if (snapshot.bosses && snapshot.bosses.length > 0) {
     state.bossAktiv = true;
+    // Summe ueber alle Bossteile (ein Boss: dessen HP)
     const b = snapshot.bosses[0];
+    const hp = snapshot.bosses.reduce((s, t) => s + t.hp, 0);
+    const maxHp = snapshot.bosses.reduce((s, t) => s + (t.maxHp || 400), 0);
     if (dom.bossHpContainer) dom.bossHpContainer.style.display = 'block';
     if (dom.bossHpBalken) {
-      const pct = Math.max(0, Math.min(100, (b.hp / (b.maxHp || 400)) * 100));
+      const pct = Math.max(0, Math.min(100, (hp / maxHp) * 100));
       dom.bossHpBalken.style.width = pct + '%';
       dom.bossHpBalken.style.backgroundColor = b.enrage ? '#e74c3c' : '#e67e22';
     }

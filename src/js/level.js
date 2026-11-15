@@ -32,7 +32,13 @@ export function levelPlan(level) {
     feindStart: Math.max(600, 1200 - stufe * 100),
     feindRate: Math.max(120, 300 - stufe * 30),
     bossFrame: LEVEL_DAUER,
+    boss: 'standard',
   };
+}
+
+// Boss des Levels erzeugen (nach der Boss-Warnung)
+export function starteBoss() {
+  Entities.erzeugeBoss();
 }
 
 function taktBei(phasen, frame) {

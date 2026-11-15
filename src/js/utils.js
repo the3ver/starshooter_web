@@ -209,6 +209,86 @@ export function updateP2UI() {
   updateAktivePowerupsP2UI();
   updateSplitterP2UI();
 }
+// Boss besiegt: Explosion, Punkte, Coop-Wiederbelebung, Drops (Viper-Splitter), naechstes Level
+function besiegeBoss(ziel, killer, komboFaktor) {
+  Audio.playExplosion('boss');
+  addScore(1000 * state.level, komboFaktor);
+  erzeugeExplosion(ziel.x + ziel.groesse / 2, ziel.y + ziel.groesse / 2, '#f1c40f', 50);
+  if (state.gameMode === 'online') {
+    Network.sendNetworkEvent({
+      type: 'target_destroyed',
+      x: ziel.x + ziel.groesse / 2,
+      y: ziel.y + ziel.groesse / 2,
+      farbe: '#f1c40f',
+      anzahl: 50,
+      soundType: 'boss',
+    });
+  }
+
+  // Co-op Revive bei Boss-Sieg
+  if (isCoopMode()) {
+    if (state.isDead) {
+      state.isDead = false;
+      state.leben = 1;
+      state.energie = state.maxEnergie / 2;
+      state.invulnerableTimer = 180;
+      state.schiffSichtbar = true;
+      Anzeige.zeichneSpieler();
+      updateLebenUI();
+    }
+    if (state.p2 && state.p2.isDead) {
+      state.p2.isDead = false;
+      state.p2.leben = 1;
+      state.p2.energie = state.p2.maxEnergie / 2;
+      state.p2.invulnerableTimer = 180;
+      state.p2.schiffSichtbar = true;
+      Anzeige.zeichneSpieler();
+      updateLebenP2UI();
+    }
+  }
+
+  // 3 Belohnungen fallen lassen (1 Waffe + 2 zufällige verschiedene)
+  const moeglicheDrops = ['leben', 'energie', 'durchschlag', 'schild'];
+  let drops = ['superWaffe']; // Super-Waffe ist immer garantiert beim Boss
+  let randomIndex = Math.floor(Math.random() * moeglicheDrops.length);
+  drops.push(moeglicheDrops.splice(randomIndex, 1)[0]); // Typ entfernen, damit er nicht doppelt kommt
+  randomIndex = Math.floor(Math.random() * moeglicheDrops.length);
+  drops.push(moeglicheDrops[randomIndex]);
+
+  drops.forEach((d, i) => {
+    Entities.erzeugePowerup(ziel.x + i * 25, ziel.y, d);
+  });
+
+  // 3 garantierte Splitter nur fallen lassen wenn ein Viper-Schiff beteiligt ist
+  const killerShipModel = killer === 'p2' ? state.p2 && state.p2.selectedShipModel : state.selectedShipModel;
+  const partnerShipModel = killer === 'p2' ? state.selectedShipModel : state.p2 && state.p2.selectedShipModel;
+  const shardTarget = isCoopMode()
+    ? killerShipModel === 'viper'
+      ? killer
+      : partnerShipModel === 'viper'
+        ? killer === 'p2'
+          ? 'p1'
+          : 'p2'
+        : null
+    : state.selectedShipModel === 'viper'
+      ? 'solo'
+      : null;
+
+  if (shardTarget) {
+    const shardOwner = shardTarget === 'solo' ? null : shardTarget;
+    for (let s = 0; s < 3; s++) {
+      const shardType = Math.random() < 0.5 ? 'splitterRot' : 'splitterWeiss';
+      Entities.erzeugePowerup(ziel.x + s * 25 + 12, ziel.y + 30, shardType, shardOwner);
+    }
+  }
+
+  state.bossAktiv = false;
+  state.level++;
+  updateLevelUI();
+  dom.bossHpContainer.style.display = 'none';
+  state.frameZaehler = 0; // Setzt Level-Timer zurück
+}
+
 export function zerstoereZiel(ziel, killer = 'p1') {
   let fIndex = arrays.feinde.indexOf(ziel);
   let aIndex = arrays.asteroiden.indexOf(ziel);
@@ -219,84 +299,9 @@ export function zerstoereZiel(ziel, killer = 'p1') {
   const komboZustand = killer === 'p2' && state.p2 ? state.p2 : state;
   const komboFaktor = Viper.komboFaktor(komboZustand);
 
-  // Boss Logik beim Zerstören
+  // Boss besiegt: Belohnungen und naechstes Level
   if (ziel.istBoss) {
-    Audio.playExplosion('boss');
-    addScore(1000 * state.level, komboFaktor);
-    erzeugeExplosion(ziel.x + ziel.groesse / 2, ziel.y + ziel.groesse / 2, '#f1c40f', 50);
-    if (state.gameMode === 'online') {
-      Network.sendNetworkEvent({
-        type: 'target_destroyed',
-        x: ziel.x + ziel.groesse / 2,
-        y: ziel.y + ziel.groesse / 2,
-        farbe: '#f1c40f',
-        anzahl: 50,
-        soundType: 'boss',
-      });
-    }
-
-    // Co-op Revive bei Boss-Sieg
-    if (isCoopMode()) {
-      if (state.isDead) {
-        state.isDead = false;
-        state.leben = 1;
-        state.energie = state.maxEnergie / 2;
-        state.invulnerableTimer = 180;
-        state.schiffSichtbar = true;
-        Anzeige.zeichneSpieler();
-        updateLebenUI();
-      }
-      if (state.p2 && state.p2.isDead) {
-        state.p2.isDead = false;
-        state.p2.leben = 1;
-        state.p2.energie = state.p2.maxEnergie / 2;
-        state.p2.invulnerableTimer = 180;
-        state.p2.schiffSichtbar = true;
-        Anzeige.zeichneSpieler();
-        updateLebenP2UI();
-      }
-    }
-
-    // 3 Belohnungen fallen lassen (1 Waffe + 2 zufällige verschiedene)
-    const moeglicheDrops = ['leben', 'energie', 'durchschlag', 'schild'];
-    let drops = ['superWaffe']; // Super-Waffe ist immer garantiert beim Boss
-    let randomIndex = Math.floor(Math.random() * moeglicheDrops.length);
-    drops.push(moeglicheDrops.splice(randomIndex, 1)[0]); // Typ entfernen, damit er nicht doppelt kommt
-    randomIndex = Math.floor(Math.random() * moeglicheDrops.length);
-    drops.push(moeglicheDrops[randomIndex]);
-
-    drops.forEach((d, i) => {
-      Entities.erzeugePowerup(ziel.x + i * 25, ziel.y, d);
-    });
-
-    // 3 garantierte Splitter nur fallen lassen wenn ein Viper-Schiff beteiligt ist
-    const killerShipModel = killer === 'p2' ? state.p2 && state.p2.selectedShipModel : state.selectedShipModel;
-    const partnerShipModel = killer === 'p2' ? state.selectedShipModel : state.p2 && state.p2.selectedShipModel;
-    const shardTarget = isCoopMode()
-      ? killerShipModel === 'viper'
-        ? killer
-        : partnerShipModel === 'viper'
-          ? killer === 'p2'
-            ? 'p1'
-            : 'p2'
-          : null
-      : state.selectedShipModel === 'viper'
-        ? 'solo'
-        : null;
-
-    if (shardTarget) {
-      const shardOwner = shardTarget === 'solo' ? null : shardTarget;
-      for (let s = 0; s < 3; s++) {
-        const shardType = Math.random() < 0.5 ? 'splitterRot' : 'splitterWeiss';
-        Entities.erzeugePowerup(ziel.x + s * 25 + 12, ziel.y + 30, shardType, shardOwner);
-      }
-    }
-
-    state.bossAktiv = false;
-    state.level++;
-    updateLevelUI();
-    dom.bossHpContainer.style.display = 'none';
-    state.frameZaehler = 0; // Setzt Level-Timer zurück
+    besiegeBoss(ziel, killer, komboFaktor);
   } else {
     Audio.playExplosion(ziel.groesse >= 35 ? 'medium' : 'small');
     addScore(
