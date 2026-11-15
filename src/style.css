@@ -1111,6 +1111,27 @@ body {
   }
 }
 
+.boss-schiff.boss-auge {
+  animation: none;
+}
+
+.fels-knochen {
+  fill: #d8ccaa;
+}
+
+.knochen-rippe {
+  fill: none;
+  stroke: #9c8a64;
+  stroke-width: 3;
+  stroke-linecap: round;
+}
+
+.knochen-mark {
+  stroke: #6e5c3c;
+  stroke-width: 4;
+  stroke-linecap: round;
+}
+
 .auge-lid {
   transform-origin: 18px 18px;
   transition: transform 0.2s ease-out;

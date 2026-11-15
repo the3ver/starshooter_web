@@ -212,15 +212,16 @@ function pruefeSpieler(pState, key) {
 }
 
 // Online: Segmente als Text "l r im ib,l r im ib" (oben, unten), ganzzahlig
+// Knochen-Segmente (Insel-Boss) tragen am oberen Punkt eine fuenfte Zahl 1
 export function profilAlsText(s) {
-  const t = p => [p.l, p.r, p.im, p.ib].map(v => Math.round(v)).join(' ');
+  const t = p => [p.l, p.r, p.im, p.ib].map(v => Math.round(v)).join(' ') + (p.knochen ? ' 1' : '');
   return `${t(s.oben)},${t(s.unten)}`;
 }
 
 export function profilAusText(text) {
   const [oben, unten] = text.split(',').map(teil => {
-    const [l, r, im, ib] = teil.split(' ').map(Number);
-    return { l, r, im, ib };
+    const [l, r, im, ib, knochen] = teil.split(' ').map(Number);
+    return knochen ? { l, r, im, ib, knochen: true } : { l, r, im, ib };
   });
   return { oben, unten };
 }

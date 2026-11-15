@@ -3,6 +3,7 @@ import * as Anzeige from './anzeige.js';
 import * as Fels from './fels.js';
 import * as Gewaechse from './gewaechse.js';
 import * as Utils from './utils.js';
+import * as Network from './network.js';
 import { neueId } from './entities.js';
 import { naechsterSpielerMitte } from './gegner.js';
 
@@ -20,17 +21,26 @@ export const AUGE_OFFEN = 110;
 export const AUGE_ZU = 70;
 export const AUGE_SCHUSS = 45;
 export const SPOREN_TEMPO = 3;
+export const KNOCHEN_FARBE = '#e8dcb8';
 
-// Inselbreite je Profilpunkt (von unten nach oben) als Anteil der Hoechstbreite
-const FORM = [0.2, 0.5, 0.75, 0.92, 1, 1, 1, 0.95, 0.8, 0.6, 0.4, 0.15];
-// Augen: [Profilpunkt, x-Versatz als Anteil der halben Inselbreite]; im Coop ein viertes
-const AUGEN = [
-  [2, -0.45],
-  [4, 0.45],
-  [6, 0],
+// Skelett von unten nach oben: Wirbelsaeule (Breite in Wirbelbreiten), Knochenarme zur Seite (arm: -1 links,
+// +1 rechts, Reichweite als Anteil der halben Hoechstbreite) und Augen an Armspitzen bzw. an der unteren Spitze.
+// Ein Arm ist ein Profilpunkt, an dem die Insel einseitig bis zur Armspitze reicht; die Nachbarpunkte sind
+// Wirbel, so entsteht ein spitzer Knochenfortsatz.
+// Alle Teile liegen in den unteren sieben Wirbeln: im Kampf steht der Koerper, darueber entstehen keine Segmente.
+const SKELETT = [
+  { wirbel: 0.6, auge: 'unten' },
+  { wirbel: 1.1, roehren: true },
+  { wirbel: 1, arm: 1, reichweite: 1, auge: 'spitze' },
+  { wirbel: 1, arm: 1, reichweite: 0.55 },
+  { wirbel: 1.25, roehren: true },
+  { wirbel: 1, arm: -1, reichweite: 1, auge: 'spitze' },
+  { wirbel: 1, arm: -1, reichweite: 0.55, coopArm: 1 },
+  { wirbel: 1.1 },
+  { wirbel: 1.2 },
+  { wirbel: 1.5 },
+  { wirbel: 0.8 },
 ];
-const AUGE_COOP = [3, 0.05];
-const ROEHREN = [3, 7]; // Profilpunkte mit Roehren an beiden Flanken
 
 let boss = null; // { phase: 'einzug' | 'kampf' | 'enrage' | 'abzug', augenGesamt }
 
@@ -51,19 +61,36 @@ function maxBreite() {
   return Math.min(b * 0.7, b - 2 * Fels.MIN_DURCHGANG);
 }
 
-// Profilpunkte des Koerpers mit Markierungen fuer Augen und Roehren
+function wirbelBreite() {
+  return Math.max(60, maxBreite() * 0.28);
+}
+
+// Profilpunkte des Koerpers mit Markierungen (knochen, bossIndex, auge, armSeite, roehren). Im Coop wird der
+// Wirbel mit coopArm zu einem vierten Arm mit Auge.
 export function koerperProfil() {
-  const b = config.spielfeldBreite;
-  const augen = isCoopMode() ? [...AUGEN, AUGE_COOP] : AUGEN;
-  return FORM.map((anteil, i) => ({
-    l: 0,
-    r: 0,
-    im: b / 2,
-    ib: maxBreite() * anteil,
-    bossIndex: i,
-    augen: augen.filter(([p]) => p === i).map(([, dx]) => dx),
-    roehren: ROEHREN.includes(i),
-  }));
+  const c = config.spielfeldBreite / 2;
+  const w = wirbelBreite();
+  return SKELETT.map((k, i) => {
+    const coop = isCoopMode() && k.coopArm;
+    const arm = coop ? k.coopArm : k.arm || 0;
+    const reichweite = coop ? 0.9 : k.reichweite || 0;
+    const auge = coop ? 'spitze' : k.auge;
+    let links = c - (w * k.wirbel) / 2;
+    let rechts = c + (w * k.wirbel) / 2;
+    if (arm > 0) rechts = c + (maxBreite() / 2) * reichweite;
+    if (arm < 0) links = c - (maxBreite() / 2) * reichweite;
+    return {
+      l: 0,
+      r: 0,
+      im: (links + rechts) / 2,
+      ib: rechts - links,
+      knochen: true,
+      bossIndex: i,
+      auge,
+      armSeite: arm,
+      roehren: !!k.roehren,
+    };
+  });
 }
 
 // Nach der Boss-Warnung (Level.starteBoss)
@@ -79,7 +106,7 @@ export function erzeuge() {
 
 function augenHp() {
   const mult = isCoopMode() ? 1.4 : 1.0;
-  const augen = isCoopMode() ? AUGEN.length + 1 : AUGEN.length;
+  const augen = isCoopMode() ? 4 : 3;
   return Math.round(((400 + (state.level - 1) * 350) * mult * 1.2) / augen);
 }
 
@@ -89,8 +116,10 @@ function besetzeSegmente() {
     const p = s.oben;
     if (p.bossIndex === undefined || s.bossBesetzt) continue;
     s.bossBesetzt = true;
-    p.augen.forEach((dx, k) => erzeugeAuge(s, dx, boss.augenGesamt + k));
-    boss.augenGesamt += p.augen.length;
+    if (p.auge) {
+      erzeugeAuge(s, boss.augenGesamt);
+      boss.augenGesamt++;
+    }
     if (p.roehren) {
       Gewaechse.erzeugeGewaechs('roehre', s, 'il');
       Gewaechse.erzeugeGewaechs('roehre', s, 'ir');
@@ -98,13 +127,24 @@ function besetzeSegmente() {
   }
 }
 
-function erzeugeAuge(segment, dx, nr) {
+// Augenmitte relativ zum Segment: an der Armspitze (Profilpunkt oben = Segmentoberkante) oder an der unteren
+// Spitze der Wirbelsaeule (Unterkante des untersten Segments). Fest am Skelett, keine eigene Bewegung.
+function augenLage(segment) {
+  const g = AUGE_GROESSE;
+  const p = segment.oben;
+  if (p.auge === 'unten') return { dx: p.im - g / 2, dy: Fels.SEGMENT_HOEHE - g * 0.55 };
+  const spitze = p.armSeite > 0 ? p.im + p.ib / 2 : p.im - p.ib / 2;
+  return { dx: spitze - g / 2 - p.armSeite * g * 0.15, dy: -g / 2 };
+}
+
+function erzeugeAuge(segment, nr) {
   const hp = augenHp();
   const g = AUGE_GROESSE;
+  const lage = augenLage(segment);
   const auge = {
     id: neueId('boss'),
-    x: segment.oben.im + (dx * segment.oben.ib) / 2 - g / 2,
-    y: segment.y + (Fels.SEGMENT_HOEHE - g) / 2,
+    x: lage.dx,
+    y: segment.y + lage.dy,
     groesse: g,
     hp,
     maxHp: hp,
@@ -119,7 +159,7 @@ function erzeugeAuge(segment, dx, nr) {
     phaseTimer: AUGE_ZU + nr * 35, // versetzt blinzeln
     schussTimer: AUGE_SCHUSS,
     segment,
-    versatzY: (Fels.SEGMENT_HOEHE - g) / 2,
+    versatzY: lage.dy,
     enragePhaseAktiv: false,
   };
   arrays.bosses.push(Anzeige.erzeuge(auge, 'boss'));
@@ -164,13 +204,30 @@ export function aktualisiere() {
   if (boss.phase !== 'einzug' && boss.augenGesamt > 0 && lebend.length === 0) beende();
 }
 
-// Letztes Auge gefallen (besiegeBoss lief schon): Roehren und Larven platzen, der Koerper scrollt hinaus
+// Letztes Auge gefallen (besiegeBoss lief schon): Roehren und Larven platzen, das Skelett zerfaellt in
+// Explosionen und gibt den Weg zu den Belohnungen frei
 function beende() {
   for (const f of arrays.feinde.slice()) {
     if (f.muster === 'roehre' || f.muster === 'larve') Utils.zerstoereZiel(f);
   }
-  Fels.setzeTempo(Fels.FELS_TEMPO);
+  for (let i = arrays.fels.length - 1; i >= 0; i--) {
+    const s = arrays.fels[i];
+    if (!s.oben.knochen) continue;
+    if (s.y + Fels.SEGMENT_HOEHE > 0 && s.y < config.spielfeldHoehe) {
+      zeigeExplosion(s.oben.im, s.y + Fels.SEGMENT_HOEHE / 2);
+    }
+    Anzeige.entferne(s);
+    arrays.fels.splice(i, 1);
+  }
+  Fels.setzeZurueck();
   boss = null;
+}
+
+function zeigeExplosion(x, y) {
+  Utils.erzeugeExplosion(x, y, KNOCHEN_FARBE, 18);
+  if (state.gameMode === 'online') {
+    Network.sendNetworkEvent({ type: 'target_destroyed', x, y, farbe: KNOCHEN_FARBE, anzahl: 18, soundType: 'small' });
+  }
 }
 
 // Auge je Schritt (aus aktualisiereBosse statt der Standard-Bossbewegung)

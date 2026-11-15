@@ -1,6 +1,14 @@
-export const GAME_VERSION = '1.15.14';
+export const GAME_VERSION = '1.15.15';
 
 export const changelogData = {
+  '1.15.15': {
+    version: '1.15.15',
+    intro: 'Hey, es ist jetzt Version 1.15.15 rausgekommen, folgendes wurde aktualisiert:',
+    highlights: [
+      'Der Insel-Boss ist jetzt ein Skelett: Wirbelsaeule mit Knochenarmen, die Augen sitzen fest an den Armspitzen und an der unteren Spitze.',
+      'Nach dem Sieg zerplatzt das Skelett, die Belohnungen liegen frei im Feld.',
+    ],
+  },
   '1.15.14': {
     version: '1.15.14',
     intro: 'Hey, es ist jetzt Version 1.15.14 rausgekommen, folgendes wurde aktualisiert:',

@@ -311,6 +311,8 @@ function asteroidElement(a) {
 function bossElement(b) {
   const el = document.createElement('div');
   el.classList.add('boss-schiff');
+  // Augen des Insel-Bosses sitzen fest am Skelett (keine Schwebe-Animation)
+  if (b.bossTyp === 'auge') el.classList.add('boss-auge');
   el.innerHTML = getBossSVGHtml(b.bossTyp, b.leuchtFarbe);
   el.style.filter = `drop-shadow(0 10px 20px rgba(0,0,0,0.9)) drop-shadow(0 0 15px ${b.leuchtFarbe})`;
   el.style.width = b.groesse + 'px';
@@ -545,7 +547,9 @@ function felsElement(s) {
   const h = 41;
   const { oben: o, unten: u } = s;
   const pkt = punkte => punkte.map(p => p.join(',')).join(' ');
-  const flaeche = punkte => `<polygon class="fels-wand" points="${pkt(punkte)}"/>`;
+  // Knochen (Insel-Boss): heller Knochen statt Fels, Wirbel als Querrippe, dunkler Mark-Strang
+  const knochen = !!(o.knochen || u.knochen);
+  const flaeche = punkte => `<polygon class="${knochen ? 'fels-knochen' : 'fels-wand'}" points="${pkt(punkte)}"/>`;
   // Kante: heller Saum plus Reihe organischer Knoten
   const kante = punkte =>
     `<polyline class="fels-kante" points="${pkt(punkte)}"/><polyline class="fels-knoten" points="${pkt(punkte)}"/>`;
@@ -582,6 +586,14 @@ function felsElement(s) {
     const ul = [u.im - u.ib / 2, h];
     const ur = [u.im + u.ib / 2, h];
     svg += flaeche([ol, or, ur, ul]) + kante([ol, ul]) + kante([or, ur]);
+    if (knochen) {
+      const m = h / 2;
+      const ml = (ol[0] + ul[0]) / 2;
+      const mr = (or[0] + ur[0]) / 2;
+      svg += `<path class="knochen-rippe" d="M${ml + 4} ${m} Q${(ml + mr) / 2} ${m + 7} ${mr - 4} ${m}"/>`;
+      // Markstrang in der Mitte der Wirbelsaeule (der Insel-Boss steht immer mittig), nicht in der Inselmitte
+      svg += `<line class="knochen-mark" x1="${b / 2}" y1="0" x2="${b / 2}" y2="${h}"/>`;
+    }
   }
   const el = document.createElement('div');
   el.className = 'fels-segment';

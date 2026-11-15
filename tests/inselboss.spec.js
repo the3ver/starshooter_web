@@ -181,13 +181,20 @@ test('Erst das letzte Auge besiegt den Boss; vorher Enrage mit Vorruecken, danac
       roehrenLarven: arrays.feinde.filter(f => f.muster === 'roehre' || f.muster === 'larve').length,
       punkte: state.score - score > 0,
     };
-    for (let i = 0; i < 1500; i++) Loop.simulationsSchritt();
-    return { nachEins, enrage, sieg, koerperDanach: arrays.fels.filter(s => s.oben.bossIndex !== undefined).length };
+    // Das Skelett zerplatzt sofort: kein Knochen-Segment mehr, Explosionspartikel im Feld
+    return {
+      nachEins,
+      enrage,
+      sieg,
+      koerperDanach: arrays.fels.filter(s => s.oben.knochen).length,
+      partikel: arrays.partikelArray.length > 0,
+    };
   });
   expect(r.nachEins).toEqual({ level: 4, bossAktiv: true, phase: 'kampf' });
   expect(r.enrage).toEqual({ phase: 'enrage', tempo: 0.12, auge: true });
   expect(r.sieg).toEqual({ level: 5, bossAktiv: false, aktiv: false, tempo: 1.5, roehrenLarven: 0, punkte: true });
   expect(r.koerperDanach).toBe(0);
+  expect(r.partikel).toBe(true);
 });
 
 test('Roehren werfen Larven aus (hoechstens MAX_LARVEN), Larven kriechen auf den Spieler zu', async ({ page }) => {
@@ -297,4 +304,90 @@ test('Neustart beendet den Insel-Boss und setzt das Felstempo zurueck', async ({
     };
   });
   expect(r).toEqual({ aktiv: false, tempo: 1.5, fels: 0, bosse: 0 });
+});
+
+test('Skelett: Augen sitzen an den Armspitzen und an der unteren Spitze und bewegen sich im Kampf nicht', async ({
+  page,
+}) => {
+  const r = await page.evaluate(() => {
+    const { Loop, Fels, arrays, config, bisKampf, augen } = window.__ib;
+    bisKampf();
+    const c = config.spielfeldBreite / 2;
+    const mitte = a => ({ x: a.x + a.groesse / 2, y: a.y + a.groesse / 2 });
+    const lagen = augen().map(a => {
+      const p = a.segment.oben;
+      const m = mitte(a);
+      if (p.auge === 'unten') return { art: 'unten', amRand: Math.abs(m.x - p.im) < 1 };
+      const spitze = p.armSeite > 0 ? p.im + p.ib / 2 : p.im - p.ib / 2;
+      return {
+        art: p.armSeite > 0 ? 'rechts' : 'links',
+        amRand: Math.abs(m.x - spitze) < 10 && Math.abs(m.x - c) > 60,
+      };
+    });
+    const vorher = augen().map(a => [a.x, a.y]);
+    for (let i = 0; i < 120; i++) Loop.simulationsSchritt();
+    const ruhig = augen().every((a, i) => a.x === vorher[i][0] && a.y === vorher[i][1]);
+    const el = augen()[0].el;
+    return {
+      lagen: lagen.map(l => l.art).sort(),
+      amRand: lagen.every(l => l.amRand),
+      ruhig,
+      tempo: Fels.holeTempo(),
+      klasse: el.classList.contains('boss-auge'),
+      animation: getComputedStyle(el).animationName,
+      knochen: arrays.fels.filter(s => s.oben.knochen).every(s => !!s.el.querySelector('polygon.fels-knochen')),
+    };
+  });
+  expect(r).toEqual({
+    lagen: ['links', 'rechts', 'unten'],
+    amRand: true,
+    ruhig: true,
+    tempo: 0,
+    klasse: true,
+    animation: 'none',
+    knochen: true,
+  });
+});
+
+test('Skelett laesst neben jedem Arm einen Durchgang von mindestens MIN_DURCHGANG frei', async ({ page }) => {
+  const r = await page.evaluate(() => {
+    const { Inselboss, Fels, config, Utils } = window.__ib;
+    const ergebnis = [];
+    for (const modus of ['single', 'coop']) {
+      Utils.setGameMode(modus);
+      const b = config.spielfeldBreite;
+      for (const p of Inselboss.koerperProfil()) {
+        ergebnis.push(Math.min(p.im - p.ib / 2, b - (p.im + p.ib / 2)) >= Fels.MIN_DURCHGANG);
+      }
+    }
+    Utils.setGameMode('single');
+    return ergebnis.every(Boolean);
+  });
+  expect(r).toBe(true);
+});
+
+test('Online: Knochen-Segmente tragen die Markierung im Profiltext, der Client zeichnet Knochen', async ({ page }) => {
+  const r = await page.evaluate(async () => {
+    const { arrays, state, bisKampf, Fels } = window.__ib;
+    const Network = await import('./js/network.js');
+    bisKampf();
+    const snap = JSON.parse(JSON.stringify(Network.serializeGameState()));
+    const knochenText = snap.fels.filter(f => f.p.split(',')[0].split(' ').length === 5).length;
+    arrays.fels.forEach(s => s.el.remove());
+    arrays.fels.length = 0;
+    const netz = state.network;
+    state.network = { isOnline: true, isHost: false, connected: true };
+    Network.applyGameStateSnapshot(snap);
+    state.network = netz;
+    const client = arrays.fels.filter(s => s.oben.knochen);
+    return {
+      knochenText,
+      client: client.length,
+      polygon: client.every(s => !!s.el.querySelector('polygon.fels-knochen')),
+      rundreise: Fels.profilAlsText(client[0]) === snap.fels.find(f => f.id === client[0].id).p,
+    };
+  });
+  expect(r.knochenText).toBeGreaterThan(0);
+  expect(r.client).toBe(r.knochenText);
+  expect(r).toMatchObject({ polygon: true, rundreise: true });
 });
