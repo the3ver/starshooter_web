@@ -9,14 +9,23 @@ export function neueId(praefix) {
 }
 
 // Zufaelliger Asteroiden-Umriss: Eckpunkte [x, y] in Prozent der Groesse (eine Nachkommastelle)
+// Umriss in Prozent der Kantenlaenge: 8-13 Ecken mit unregelmaessigem Radius, gelegentlich gestreckt
+// (Faktor 0,72-1 entlang einer zufaelligen Achse) und mit einer tiefen Einbuchtung (Abplatzung)
 export function generiereAsteroidForm() {
-  let punkte = [];
-  let anzahlEcken = Math.floor(Math.random() * 4) + 6;
+  const punkte = [];
+  const anzahlEcken = Math.floor(Math.random() * 6) + 8;
+  const streckung = Math.random() < 0.45 ? 0.72 + Math.random() * 0.28 : 1;
+  const achse = Math.random() * Math.PI;
+  const kerbe = Math.random() < 0.35 ? Math.floor(Math.random() * anzahlEcken) : -1;
+  const versatz = Math.random() * Math.PI * 2;
   for (let i = 0; i < anzahlEcken; i++) {
-    let winkel = (i / anzahlEcken) * Math.PI * 2;
-    let radius = 0.7 + Math.random() * 0.3;
-    let px = 50 + Math.cos(winkel) * 50 * radius;
-    let py = 50 + Math.sin(winkel) * 50 * radius;
+    const winkel = versatz + (i / anzahlEcken) * Math.PI * 2;
+    let radius = i === kerbe ? 0.5 + Math.random() * 0.12 : 0.74 + Math.random() * 0.26;
+    // Streckung: Anteil entlang der Achse bleibt, quer dazu schrumpft er
+    const quer = Math.sin(winkel - achse);
+    radius *= Math.sqrt(1 - (1 - streckung * streckung) * quer * quer);
+    const px = 50 + Math.cos(winkel) * 50 * radius;
+    const py = 50 + Math.sin(winkel) * 50 * radius;
     punkte.push([Math.round(px * 10) / 10, Math.round(py * 10) / 10]);
   }
   return punkte;
@@ -124,8 +133,9 @@ export function erzeugeAsteroid(
     farbe = c.a;
     farbe2 = c.b;
   } else {
-    farbe = config.asteroidenBasisFarben[Math.floor(Math.random() * config.asteroidenBasisFarben.length)];
-    farbe2 = '#2c3e50';
+    const palette = config.asteroidenPaletten[Math.floor(Math.random() * config.asteroidenPaletten.length)];
+    farbe = palette.a;
+    farbe2 = palette.b;
   }
   const form = generiereAsteroidForm();
   const finalX = startX !== undefined ? startX : Math.random() * (config.spielfeldBreite - groesse);

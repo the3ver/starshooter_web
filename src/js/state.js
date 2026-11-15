@@ -34,6 +34,16 @@ export const config = {
   geschwindigkeit: 5,
   bossFarben: ['#c0392b', '#8e44ad', '#2980b9', '#d35400', '#27ae60'],
   asteroidenBasisFarben: ['#7f8c8d', '#95a5a6', '#bdc3c7', '#34495e'],
+  // Gestein: Lichtseite a, Schattenseite b (Grau, Schiefer, Ocker, Rost, Sand, Basalt)
+  asteroidenPaletten: [
+    { a: '#9aa3a8', b: '#3a4248' },
+    { a: '#7f8c8d', b: '#2c3e50' },
+    { a: '#a08560', b: '#3e2e1c' },
+    { a: '#a3654a', b: '#3d1d12' },
+    { a: '#c2b28a', b: '#5a4a30' },
+    { a: '#5d6470', b: '#1c2028' },
+    { a: '#8a7f99', b: '#2e2838' },
+  ],
   magmaBasisFarben: [
     { a: '#e74c3c', b: '#c0392b' },
     { a: '#d35400', b: '#e67e22' },

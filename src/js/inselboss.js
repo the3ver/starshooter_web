@@ -23,19 +23,20 @@ export const AUGE_SCHUSS = 45;
 export const SPOREN_TEMPO = 3;
 export const KNOCHEN_FARBE = '#e8dcb8';
 
-// Skelett von unten nach oben: Wirbelsaeule (Breite in Wirbelbreiten), Knochenarme zur Seite (arm: -1 links,
-// +1 rechts, Reichweite als Anteil der halben Hoechstbreite) und Augen an Armspitzen bzw. an der unteren Spitze.
-// Ein Arm ist ein Profilpunkt, an dem die Insel einseitig bis zur Armspitze reicht; die Nachbarpunkte sind
-// Wirbel, so entsteht ein spitzer Knochenfortsatz.
+// Skelett von unten nach oben, spiegelsymmetrisch zur senkrechten Mittelachse: Wirbelsaeule (Breite in
+// Wirbelbreiten) und Armpaare (arme: Reichweite beider Arme als Anteil der Hoechstbreite). Ein Armpaar ist ein
+// Profilpunkt, an dem die Insel beidseitig bis zu den Armspitzen reicht; die Nachbarpunkte sind Wirbel, so
+// entstehen spitze Knochenfortsaetze. Augen sitzen an der unteren Spitze und an den Spitzen des ersten Armpaars,
+// im Coop zusaetzlich am zweiten Armpaar.
 // Alle Teile liegen in den unteren sieben Wirbeln: im Kampf steht der Koerper, darueber entstehen keine Segmente.
 const SKELETT = [
-  { wirbel: 0.6, auge: 'unten' },
+  { wirbel: 0.6, augen: ['unten'] },
   { wirbel: 1.1, roehren: true },
-  { wirbel: 1, arm: 1, reichweite: 1, auge: 'spitze' },
-  { wirbel: 1, arm: 1, reichweite: 0.55 },
+  { arme: 1, augen: ['links', 'rechts'] },
+  { arme: 0.55 },
   { wirbel: 1.25, roehren: true },
-  { wirbel: 1, arm: -1, reichweite: 1, auge: 'spitze' },
-  { wirbel: 1, arm: -1, reichweite: 0.55, coopArm: 1 },
+  { arme: 0.8, coopAugen: ['links', 'rechts'] },
+  { arme: 0.45 },
   { wirbel: 1.1 },
   { wirbel: 1.2 },
   { wirbel: 1.5 },
@@ -65,32 +66,23 @@ function wirbelBreite() {
   return Math.max(60, maxBreite() * 0.28);
 }
 
-// Profilpunkte des Koerpers mit Markierungen (knochen, bossIndex, auge, armSeite, roehren). Im Coop wird der
-// Wirbel mit coopArm zu einem vierten Arm mit Auge.
+// Profilpunkte des Koerpers mit Markierungen (knochen, bossIndex, augen, roehren); Insel immer mittig
 export function koerperProfil() {
   const c = config.spielfeldBreite / 2;
-  const w = wirbelBreite();
-  return SKELETT.map((k, i) => {
-    const coop = isCoopMode() && k.coopArm;
-    const arm = coop ? k.coopArm : k.arm || 0;
-    const reichweite = coop ? 0.9 : k.reichweite || 0;
-    const auge = coop ? 'spitze' : k.auge;
-    let links = c - (w * k.wirbel) / 2;
-    let rechts = c + (w * k.wirbel) / 2;
-    if (arm > 0) rechts = c + (maxBreite() / 2) * reichweite;
-    if (arm < 0) links = c - (maxBreite() / 2) * reichweite;
-    return {
-      l: 0,
-      r: 0,
-      im: (links + rechts) / 2,
-      ib: rechts - links,
-      knochen: true,
-      bossIndex: i,
-      auge,
-      armSeite: arm,
-      roehren: !!k.roehren,
-    };
-  });
+  return SKELETT.map((k, i) => ({
+    l: 0,
+    r: 0,
+    im: c,
+    ib: k.arme ? maxBreite() * k.arme : wirbelBreite() * k.wirbel,
+    knochen: true,
+    bossIndex: i,
+    augen: [...(k.augen || []), ...(isCoopMode() ? k.coopAugen || [] : [])],
+    roehren: !!k.roehren,
+  }));
+}
+
+export function augenAnzahl() {
+  return koerperProfil().reduce((n, p) => n + p.augen.length, 0);
 }
 
 // Nach der Boss-Warnung (Level.starteBoss)
@@ -106,8 +98,7 @@ export function erzeuge() {
 
 function augenHp() {
   const mult = isCoopMode() ? 1.4 : 1.0;
-  const augen = isCoopMode() ? 4 : 3;
-  return Math.round(((400 + (state.level - 1) * 350) * mult * 1.2) / augen);
+  return Math.round(((400 + (state.level - 1) * 350) * mult * 1.2) / augenAnzahl());
 }
 
 // Neue Koerpersegmente mit Augen und Roehren besetzen (jedes Segment einmal)
@@ -116,8 +107,8 @@ function besetzeSegmente() {
     const p = s.oben;
     if (p.bossIndex === undefined || s.bossBesetzt) continue;
     s.bossBesetzt = true;
-    if (p.auge) {
-      erzeugeAuge(s, boss.augenGesamt);
+    for (const seite of p.augen || []) {
+      erzeugeAuge(s, seite, boss.augenGesamt);
       boss.augenGesamt++;
     }
     if (p.roehren) {
@@ -127,20 +118,21 @@ function besetzeSegmente() {
   }
 }
 
-// Augenmitte relativ zum Segment: an der Armspitze (Profilpunkt oben = Segmentoberkante) oder an der unteren
+// Augenmitte relativ zum Segment: an einer Armspitze (Profilpunkt oben = Segmentoberkante) oder an der unteren
 // Spitze der Wirbelsaeule (Unterkante des untersten Segments). Fest am Skelett, keine eigene Bewegung.
-function augenLage(segment) {
+function augenLage(segment, seite) {
   const g = AUGE_GROESSE;
   const p = segment.oben;
-  if (p.auge === 'unten') return { dx: p.im - g / 2, dy: Fels.SEGMENT_HOEHE - g * 0.55 };
-  const spitze = p.armSeite > 0 ? p.im + p.ib / 2 : p.im - p.ib / 2;
-  return { dx: spitze - g / 2 - p.armSeite * g * 0.15, dy: -g / 2 };
+  if (seite === 'unten') return { dx: p.im - g / 2, dy: Fels.SEGMENT_HOEHE - g * 0.55 };
+  const richtung = seite === 'rechts' ? 1 : -1;
+  const spitze = p.im + (richtung * p.ib) / 2;
+  return { dx: spitze - g / 2 - richtung * g * 0.15, dy: -g / 2 };
 }
 
-function erzeugeAuge(segment, nr) {
+function erzeugeAuge(segment, seite, nr) {
   const hp = augenHp();
   const g = AUGE_GROESSE;
-  const lage = augenLage(segment);
+  const lage = augenLage(segment, seite);
   const auge = {
     id: neueId('boss'),
     x: lage.dx,
@@ -152,6 +144,7 @@ function erzeugeAuge(segment, nr) {
     istBoss: true,
     bossId: BOSS_ID,
     bossTyp: 'auge',
+    seite,
     leuchtFarbe: '#ffb347',
     istUnzerstoerbar: true,
     offen: false,

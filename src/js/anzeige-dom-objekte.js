@@ -287,15 +287,58 @@ function feindElement(f) {
 }
 
 // Asteroid: Verlauf aus farbe/farbe2, Umriss aus form (Punkte in Prozent), Risse ausser bei Magma-Brocken
+// Oberflaeche aus der Id (Host und Client gleich): Krater mit Lichtkante und Koernung, bei Magma gluehende Adern
+function asteroidTextur(a) {
+  const zufall = felsZufall(a.id);
+  let inhalt = '';
+  if (a.istUnzerstoerbar || a.istMagma) {
+    const adern = 2 + Math.floor(zufall() * 3);
+    for (let i = 0; i < adern; i++) {
+      let x = 25 + zufall() * 50;
+      let y = 25 + zufall() * 50;
+      let d = `M${x.toFixed(1)} ${y.toFixed(1)}`;
+      const winkel = zufall() * Math.PI * 2;
+      for (let k = 0; k < 4; k++) {
+        const w = winkel + (zufall() - 0.5) * 1.6;
+        x += Math.cos(w) * 9;
+        y += Math.sin(w) * 9;
+        d += ` L${x.toFixed(1)} ${y.toFixed(1)}`;
+      }
+      inhalt += `<path d="${d}" class="magma-ader"/>`;
+    }
+  } else {
+    const krater = 2 + Math.floor(zufall() * 4);
+    for (let i = 0; i < krater; i++) {
+      const r = 5 + zufall() * 11;
+      const cx = 22 + zufall() * 56;
+      const cy = 22 + zufall() * 56;
+      inhalt +=
+        `<ellipse cx="${cx.toFixed(1)}" cy="${cy.toFixed(1)}" rx="${r.toFixed(1)}" ry="${(r * 0.85).toFixed(1)}" fill="rgba(0,0,0,0.3)"/>` +
+        `<ellipse cx="${(cx + r * 0.18).toFixed(1)}" cy="${(cy + r * 0.2).toFixed(1)}" rx="${(r * 0.72).toFixed(1)}" ry="${(r * 0.6).toFixed(1)}" fill="rgba(0,0,0,0.25)"/>` +
+        `<path d="M${(cx + r * 0.75).toFixed(1)} ${(cy + r * 0.3).toFixed(1)} A${r.toFixed(1)} ${(r * 0.85).toFixed(1)} 0 0 1 ${(cx - r * 0.3).toFixed(1)} ${(cy + r * 0.8).toFixed(1)}" stroke="rgba(255,255,255,0.22)" stroke-width="1.6" fill="none"/>`;
+    }
+    const koerner = 6 + Math.floor(zufall() * 8);
+    for (let i = 0; i < koerner; i++) {
+      const hell = zufall() < 0.5;
+      inhalt += `<circle cx="${(10 + zufall() * 80).toFixed(1)}" cy="${(10 + zufall() * 80).toFixed(1)}" r="${(0.8 + zufall() * 1.4).toFixed(1)}" fill="${hell ? 'rgba(255,255,255,0.18)' : 'rgba(0,0,0,0.3)'}"/>`;
+    }
+  }
+  return `<svg class="asteroid-textur" viewBox="0 0 100 100" preserveAspectRatio="none">${inhalt}</svg>`;
+}
+
 function asteroidElement(a) {
   const el = document.createElement('div');
   el.classList.add('asteroid');
   if (a.istUnzerstoerbar) el.classList.add('unzerstoerbar');
   el.style.width = a.groesse + 'px';
   el.style.height = a.groesse + 'px';
-  el.style.background = `radial-gradient(circle at 30% 30%, ${a.farbe}, ${a.farbe2})`;
+  // Licht oben links, Schattenseite unten rechts ueber dem Grundverlauf
+  el.style.background =
+    `radial-gradient(circle at 72% 78%, rgba(0, 0, 0, 0.42), transparent 58%), ` +
+    `radial-gradient(circle at 30% 28%, ${a.farbe}, ${a.farbe2})`;
   el.dataset.baseColor = a.farbe;
   el.style.clipPath = `polygon(${a.form.map(([px, py]) => `${px.toFixed(1)}% ${py.toFixed(1)}%`).join(', ')})`;
+  el.insertAdjacentHTML('beforeend', asteroidTextur(a));
   a.rissEl = null;
   if (!a.istUnzerstoerbar) {
     const riss = document.createElement('div');

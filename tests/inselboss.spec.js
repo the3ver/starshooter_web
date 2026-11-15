@@ -222,14 +222,14 @@ test('Roehren werfen Larven aus (hoechstens MAX_LARVEN), Larven kriechen auf den
   expect(r).toEqual({ erste: true, naeher: true, hoechstens: true });
 });
 
-test('Im Coop hat der Insel-Boss vier Augen', async ({ page }) => {
+test('Im Coop hat der Insel-Boss fuenf Augen (zweites Armpaar)', async ({ page }) => {
   const r = await page.evaluate(() => {
     const { Utils, bisKampf, augen } = window.__ib;
     Utils.setGameMode('coop');
     bisKampf();
     return augen().length;
   });
-  expect(r).toBe(4);
+  expect(r).toBe(5);
 });
 
 test('Online: Augen mit offen im Snapshot, Client zeigt Lid und Klasse, HP-Balken summiert alle Augen', async ({
@@ -317,12 +317,9 @@ test('Skelett: Augen sitzen an den Armspitzen und an der unteren Spitze und bewe
     const lagen = augen().map(a => {
       const p = a.segment.oben;
       const m = mitte(a);
-      if (p.auge === 'unten') return { art: 'unten', amRand: Math.abs(m.x - p.im) < 1 };
-      const spitze = p.armSeite > 0 ? p.im + p.ib / 2 : p.im - p.ib / 2;
-      return {
-        art: p.armSeite > 0 ? 'rechts' : 'links',
-        amRand: Math.abs(m.x - spitze) < 10 && Math.abs(m.x - c) > 60,
-      };
+      if (a.seite === 'unten') return { art: 'unten', amRand: Math.abs(m.x - p.im) < 1 };
+      const spitze = a.seite === 'rechts' ? p.im + p.ib / 2 : p.im - p.ib / 2;
+      return { art: a.seite, amRand: Math.abs(m.x - spitze) < 10 && Math.abs(m.x - c) > 60 };
     });
     const vorher = augen().map(a => [a.x, a.y]);
     for (let i = 0; i < 120; i++) Loop.simulationsSchritt();
@@ -390,4 +387,32 @@ test('Online: Knochen-Segmente tragen die Markierung im Profiltext, der Client z
   expect(r.knochenText).toBeGreaterThan(0);
   expect(r.client).toBe(r.knochenText);
   expect(r).toMatchObject({ polygon: true, rundreise: true });
+});
+
+test('Skelett ist spiegelsymmetrisch zur senkrechten Mittelachse (Profil und Augen)', async ({ page }) => {
+  const r = await page.evaluate(() => {
+    const { Inselboss, Utils, config, bisKampf, augen } = window.__ib;
+    const c = config.spielfeldBreite / 2;
+    const ergebnis = {};
+    for (const modus of ['single', 'coop']) {
+      Utils.setGameMode(modus);
+      const profil = Inselboss.koerperProfil();
+      ergebnis[modus] = {
+        mittig: profil.every(p => p.im === config.spielfeldBreite / 2),
+        augenPaare: profil.every(
+          p => p.augen.filter(s => s === 'links').length === p.augen.filter(s => s === 'rechts').length,
+        ),
+      };
+    }
+    Utils.setGameMode('single');
+    bisKampf();
+    const mitten = augen().map(a => +(a.x + a.groesse / 2 - c).toFixed(3));
+    const gespiegelt = mitten.every(d => mitten.some(e => Math.abs(e + d) < 0.01));
+    return { ergebnis, gespiegelt, c };
+  });
+  expect(r.ergebnis).toEqual({
+    single: { mittig: true, augenPaare: true },
+    coop: { mittig: true, augenPaare: true },
+  });
+  expect(r.gespiegelt).toBe(true);
 });
