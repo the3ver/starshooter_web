@@ -53,7 +53,8 @@ test('Abschnitte halten Mindestgang und Inseldurchgang ein (Feldbreite 400 und 6
       for (const s of arrays.fels) {
         const p = s.oben;
         const gang = breite - p.l - p.r;
-        if (gang < Math.round(breite * 0.4) - 0.001) fehler.push(`${breite}: Gang ${gang}`);
+        if (gang < Fels.mindestGang(p) - 0.001) fehler.push(`${breite}: Gang ${gang} (eng: ${!!p.eng})`);
+        if (gang < Fels.ENG_GANG - 0.001) fehler.push(`${breite}: Gang unter ENG_GANG ${gang}`);
         if (p.ib <= 0 && p.im !== breite / 2) fehler.push(`${breite}: Inselmitte ohne Insel ${p.im}`);
         if (p.ib > 0) {
           const spaltL = p.im - p.ib / 2 - p.l;
@@ -284,4 +285,77 @@ test('Powerups im Fels schweben in den freien Gang (Wand und Insel)', async ({ p
     };
   });
   expect(r).toEqual({ wand: true, insel: true });
+});
+
+test('Engstelle: Waende kommen bis auf ENG_GANG zusammen, versetzt und nicht immer mittig', async ({ page }) => {
+  const r = await page.evaluate(() => {
+    const { Fels, config } = window.__fe;
+    const b = config.spielfeldBreite;
+    const ergebnis = [];
+    for (const zufall of [0.1, 0.5, 0.9]) {
+      const orig = Math.random;
+      Math.random = () => zufall;
+      Fels.setzeZurueck();
+      let punkte;
+      try {
+        punkte = Fels.ABSCHNITTE.engstelle();
+      } finally {
+        Math.random = orig;
+      }
+      const engste = Math.min(...punkte.map(p => b - p.l - p.r));
+      const mitteEng = punkte.filter(p => p.eng).map(p => p.l + (b - p.l - p.r) / 2);
+      const linksZuerst = punkte.findIndex(p => p.l > b * 0.25) < punkte.findIndex(p => p.r > b * 0.25);
+      ergebnis.push({ engste: Math.round(engste), mitte: Math.round(mitteEng[0]), linksZuerst });
+    }
+    return { ergebnis, eng: Fels.ENG_GANG, b, namen: Fels.ABSCHNITT_NAMEN };
+  });
+  for (const e of r.ergebnis) {
+    expect(e.engste).toBeGreaterThanOrEqual(r.eng - 6); // Rohpunkte mit Zittern, begrenze erzwingt ENG_GANG
+    expect(e.engste).toBeLessThan(r.eng + 20);
+    expect(e.linksZuerst).toBe(true);
+  }
+  expect(new Set(r.ergebnis.map(e => e.mitte)).size).toBe(3);
+  expect(r.namen).toContain('engstelle');
+});
+
+test('Bot findet durch eine Engstelle, ohne den Fels zu beruehren', async ({ page }) => {
+  const r = await page.evaluate(async () => {
+    const { Fels, Loop, arrays, state, config, Anzeige } = window.__fe;
+    const Bot = await import('./js/bot.js');
+    const Utils = await import('./js/utils.js');
+    Utils.setGameMode('coop');
+    for (const name of ['feinde', 'asteroiden', 'fels']) {
+      arrays[name].forEach(Anzeige.entferne);
+      arrays[name].length = 0;
+    }
+    Fels.setzeZurueck();
+    state.godMode = true;
+    state.x = 0;
+    state.y = 570;
+    state.p2IsBot = true;
+    state.p2.x = config.spielfeldBreite / 2 - 15;
+    state.p2.y = 500;
+    state.p2.leben = 3;
+    state.p2.schildStufe = 0;
+    state.p2.invulnerableTimer = 0;
+    Bot.resetBot();
+    const orig = Math.random;
+    Math.random = () => 0.85; // Durchlass deutlich rechts der Mitte
+    try {
+      Fels.reiheEin(Fels.ABSCHNITTE.engstelle());
+    } finally {
+      Math.random = orig;
+    }
+    let treffer = 0;
+    for (let i = 0; i < 900; i++) {
+      Fels.erzeugeNachschub(Fels.hatWarteschlange());
+      const leben = state.p2.leben;
+      Loop.simulationsSchritt();
+      state.frameZaehler = 1;
+      if (state.p2.leben < leben) treffer++;
+      state.p2.invulnerableTimer = 0;
+    }
+    return treffer;
+  });
+  expect(r).toBe(0);
 });

@@ -13,6 +13,7 @@ export const SEGMENT_HOEHE = 40;
 export const FELS_TEMPO = 1.5;
 export const RUECKSTOSS = 14;
 export const MIN_DURCHGANG = 75; // engster Spalt neben einer Insel (2,5 Schiffsbreiten)
+export const ENG_GANG = 100; // Durchlass einer Engstelle (gut 3 Schiffsbreiten)
 
 const LEER = { l: 0, r: 0, im: 0, ib: 0 };
 let letzter = null; // oberster erzeugter Profilpunkt
@@ -80,16 +81,54 @@ const ABSCHNITTE = {
       return { l: 18 + zitter(), r: 18 + zitter(), im: b / 2 + zitter(), ib: Math.max(0, maxInsel * s) };
     });
   },
+  // Engstelle: beide Waende schieben sich weit herein und lassen einen Durchlass von ENG_GANG; der Durchlass
+  // liegt zufaellig versetzt, die Felsnasen links und rechts sind um einen Punkt gegeneinander verschoben
+  engstelle(n = 10) {
+    const b = config.spielfeldBreite;
+    const mitte = b / 2 + (Math.random() - 0.5) * b * 0.3;
+    const engL = mitte - ENG_GANG / 2;
+    const engR = b - (mitte + ENG_GANG / 2);
+    // Anteil der vollen Einengung je Punkt, links einen Punkt frueher als rechts
+    const verlauf = [0.15, 0.45, 0.8, 1, 1, 1, 0.8, 0.45, 0.15, 0];
+    return Array.from({ length: n }, (_, i) => {
+      const sl = verlauf[i] ?? 0;
+      const sr = verlauf[i - 1] ?? 0;
+      return {
+        l: 25 + (engL - 25) * sl + zitter(),
+        r: 25 + (engR - 25) * sr + zitter(),
+        im: 0,
+        ib: 0,
+        eng: sl > 0.9 || sr > 0.9,
+      };
+    });
+  },
 };
 export const ABSCHNITT_NAMEN = Object.keys(ABSCHNITTE);
+export { ABSCHNITTE };
 
-// Wandbreiten auf den erlaubten Bereich begrenzen (nie negativ, Gang nie enger als minGang)
-// Ohne Insel liegt ihre Mitte in der Feldmitte, damit eine Insel zur Mitte hin aus- und einlaeuft
+// Wandbreiten auf den erlaubten Bereich begrenzen: nie negativ, Gang nie enger als minGang (in einer
+// Engstelle, Punkt mit eng, nie enger als ENG_GANG). Ohne Insel liegt ihre Mitte in der Feldmitte, damit eine
+// Insel zur Mitte hin aus- und einlaeuft
+export function mindestGang(p) {
+  return p.eng ? ENG_GANG : minGang();
+}
+
 function begrenze(p) {
-  const w = maxWand();
-  const l = Math.max(0, Math.min(w, p.l));
-  const r = Math.max(0, Math.min(w, p.r));
-  return { ...p, l, r, im: p.ib > 0 ? p.im : config.spielfeldBreite / 2, ib: p.ib };
+  const b = config.spielfeldBreite;
+  let l = Math.max(0, p.l);
+  let r = Math.max(0, p.r);
+  if (p.eng) {
+    const zuViel = ENG_GANG - (b - l - r);
+    if (zuViel > 0) {
+      l = Math.max(0, l - zuViel / 2);
+      r = Math.max(0, b - ENG_GANG - l);
+    }
+  } else {
+    const w = maxWand();
+    l = Math.min(w, l);
+    r = Math.min(w, r);
+  }
+  return { ...p, l, r, im: p.ib > 0 ? p.im : b / 2, ib: p.ib };
 }
 
 function naechsterPunkt(aktiv) {

@@ -1,6 +1,13 @@
-export const GAME_VERSION = '1.15.16';
+export const GAME_VERSION = '1.15.17';
 
 export const changelogData = {
+  '1.15.17': {
+    version: '1.15.17',
+    intro: 'Hey, es ist jetzt Version 1.15.17 rausgekommen, folgendes wurde aktualisiert:',
+    highlights: [
+      'Neue Engstellen in den Fels-Leveln: Die Waende schieben sich versetzt zusammen und lassen nur einen schmalen Durchlass, nicht immer in der Mitte.',
+    ],
+  },
   '1.15.16': {
     version: '1.15.16',
     intro: 'Hey, es ist jetzt Version 1.15.16 rausgekommen, folgendes wurde aktualisiert:',
