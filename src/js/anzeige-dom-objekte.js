@@ -540,90 +540,177 @@ function effektElement(e) {
   return el;
 }
 
-// Steinmuster fuer Felswaende: versetzte, abgerundete Platten mit heller Oberkante, Schattenkante und dunklen
-// Fugen. Liegt einmal unsichtbar im Dokument (#fels-defs); die Polygone verweisen per fill: url(#fels-steine).
-// Musterhoehe 40 = SEGMENT_HOEHE, damit die Reihen ueber Segmentgrenzen fortlaufen.
-const FELS_STEIN = (x, y, w, h) => `
-  <rect x="${x}" y="${y}" width="${w}" height="${h}" rx="7" fill="#6c6a8e"/>
-  <rect x="${x + 3}" y="${y + 1.5}" width="${w - 8}" height="${h * 0.32}" rx="4" fill="#a3a1c6"/>
-  <rect x="${x + 2}" y="${y + h * 0.68}" width="${w - 4}" height="${h * 0.3}" rx="5" fill="#46446a"/>`;
+// Felsoptik nach Xenon-Vorbild: flache, gestapelte Steinplatten in Lavendelgrau, Kanten aus vorstehenden
+// Plattenenden, dazu Wurmloecher (rund gerandete Roehrenoeffnungen) und eingewachsene Kugeln.
+// Das Plattenmuster liegt einmal unsichtbar im Dokument (#fels-defs, fill: url(#fels-steine)); Musterhoehe 40 =
+// SEGMENT_HOEHE, damit die Reihen ueber Segmentgrenzen fortlaufen. Alles Zufaellige (Kantenstufen, Loecher) kommt
+// aus der Segment-Id, damit Host und Online-Client dasselbe Bild zeichnen.
+const FELS_MUSTER_BREITE = 96;
+const FELS_REIHE = 20; // Plattenhoehe inklusive Fuge (zwei Reihen je Segment)
+// Platten je Reihe: [Start, Breite]; Reihen gegeneinander versetzt, Ueberlaeufe werden am Musterrand gespiegelt
+const FELS_REIHEN = [
+  [
+    [0, 41],
+    [42, 31],
+    [74, 22],
+  ],
+  [
+    [-14, 36],
+    [23, 45],
+    [69, 41],
+  ],
+];
+
+// Wulstige Platte: dunkler Sockel, Koerper, helle Oberseite mit Glanzstrich, Schatten an der Unterseite
+function felsPlatte(x, y, w) {
+  const h = FELS_REIHE - 1.5;
+  return (
+    `<rect x="${x}" y="${y + 1}" width="${w}" height="${h}" rx="8" fill="#45426a"/>` +
+    `<rect x="${x}" y="${y}" width="${w}" height="${h - 2}" rx="8" fill="#7b78a2"/>` +
+    `<rect x="${x + 3}" y="${y + 1.5}" width="${w - 6}" height="6" rx="3" fill="#a6a4ca"/>` +
+    `<rect x="${x + 7}" y="${y + 2.5}" width="${Math.max(4, w * 0.35)}" height="2" rx="1" fill="#d4d2ee"/>` +
+    `<rect x="${x + 3}" y="${y + h - 6.5}" width="${w - 6}" height="4" rx="2" fill="#5b5882"/>`
+  );
+}
+
 function sichereFelsDefs() {
   if (document.getElementById('fels-defs')) return;
+  let platten = '';
+  FELS_REIHEN.forEach((reihe, k) => {
+    for (const [x, w] of reihe) {
+      for (const verschub of [0, -FELS_MUSTER_BREITE, FELS_MUSTER_BREITE]) {
+        const xs = x + verschub;
+        if (xs + w > 0 && xs < FELS_MUSTER_BREITE) platten += felsPlatte(xs, k * FELS_REIHE, w);
+      }
+    }
+  });
   const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
   svg.id = 'fels-defs';
   svg.setAttribute('width', '0');
   svg.setAttribute('height', '0');
   svg.style.position = 'absolute';
-  svg.innerHTML = `<defs><pattern id="fels-steine" width="48" height="40" patternUnits="userSpaceOnUse">
-    <rect width="48" height="40" fill="#25223a"/>
-    ${FELS_STEIN(1, 1, 28, 18)}${FELS_STEIN(31, 1, 16, 18)}
-    ${FELS_STEIN(-13, 21, 25, 18)}${FELS_STEIN(14, 21, 32, 18)}${FELS_STEIN(35, 21, 25, 18)}
-  </pattern></defs>`;
+  svg.innerHTML = `<defs>
+    <pattern id="fels-steine" width="${FELS_MUSTER_BREITE}" height="40" patternUnits="userSpaceOnUse">
+      <rect width="${FELS_MUSTER_BREITE}" height="40" fill="#2a2740"/>${platten}
+    </pattern>
+    <radialGradient id="fels-ei" cx="35%" cy="30%" r="70%">
+      <stop offset="0%" stop-color="#f0a860"/><stop offset="55%" stop-color="#b8602a"/><stop offset="100%" stop-color="#5a2208"/>
+    </radialGradient>
+  </defs>`;
   document.body.appendChild(svg);
 }
 
+// Deterministische Zufallszahlen aus der Segment-Id (mulberry32 auf einem einfachen Text-Hash)
+function felsZufall(id) {
+  let a = 0;
+  for (const c of String(id)) a = (Math.imul(a, 31) + c.charCodeAt(0)) | 0;
+  return () => {
+    a = (a + 0x6d2b79f5) | 0;
+    let t = Math.imul(a ^ (a >>> 15), 1 | a);
+    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
+
+// Gestufte Kante: je Plattenreihe ein senkrechtes Stueck, um bis zu 6 px vor- oder zurueckversetzt (Plattenenden).
+// x0/x1 = Kante oben/unten, richtung = +1 wenn der Fels rechts der Kante liegt (Versatz zeigt dann nach links).
+function stufenKante(x0, x1, h, zufall, richtung) {
+  const punkte = [];
+  const reihen = 2;
+  for (let k = 0; k < reihen; k++) {
+    const yo = (k * h) / reihen;
+    const yu = ((k + 1) * h) / reihen;
+    const t = (k + 0.5) / reihen;
+    const x = x0 + (x1 - x0) * t - richtung * (zufall() - 0.5) * 12;
+    punkte.push([+x.toFixed(1), +yo.toFixed(1)], [+x.toFixed(1), +yu.toFixed(1)]);
+  }
+  return punkte;
+}
+
+// Wurmloecher und Kugeln in einer Felsflaeche: links/rechts begrenzen den Bereich (ohne Kantenzone)
+function wurmloecher(links, rechts, h, zufall) {
+  const breite = rechts - links;
+  if (breite < 30) return '';
+  let svg = '';
+  const anzahl = Math.floor(zufall() * (breite > 90 ? 3 : 2));
+  for (let i = 0; i < anzahl; i++) {
+    const r = 5 + zufall() * 3.5;
+    const cx = links + r + 2 + zufall() * (breite - 2 * r - 4);
+    const cy = 8 + zufall() * (h - 16);
+    if (zufall() < 0.65) {
+      // Roehrenoeffnung: dunkler Rand, oranger Wulst, schwarzes Loch mit Lichtkante
+      svg +=
+        `<circle cx="${cx.toFixed(1)}" cy="${cy.toFixed(1)}" r="${(r + 1.5).toFixed(1)}" fill="#3a1a08"/>` +
+        `<circle cx="${cx.toFixed(1)}" cy="${cy.toFixed(1)}" r="${r.toFixed(1)}" fill="#c0682a" class="wurmloch"/>` +
+        `<circle cx="${(cx + 0.6).toFixed(1)}" cy="${(cy + 0.8).toFixed(1)}" r="${(r * 0.55).toFixed(1)}" fill="#160602"/>` +
+        `<path d="M${(cx - r * 0.7).toFixed(1)} ${(cy - r * 0.35).toFixed(1)} A${r.toFixed(1)} ${r.toFixed(1)} 0 0 1 ${(cx + r * 0.4).toFixed(1)} ${(cy - r * 0.8).toFixed(1)}" stroke="#f0b070" stroke-width="1.4" fill="none"/>`;
+    } else {
+      // eingewachsene Kugel (Ei) mit Schattenrand
+      svg +=
+        `<circle cx="${(cx + 1).toFixed(1)}" cy="${(cy + 1.5).toFixed(1)}" r="${r.toFixed(1)}" fill="#1e1a30"/>` +
+        `<circle cx="${cx.toFixed(1)}" cy="${cy.toFixed(1)}" r="${r.toFixed(1)}" fill="url(#fels-ei)" class="fels-kugel"/>`;
+    }
+  }
+  return svg;
+}
+
 // Felssegment: volle Feldbreite, Hoehe 41 px (1 px Ueberlappung gegen Naehte); Wand links/rechts und Insel
-// als Flaechen zwischen Profil oben (y = 0) und unten (y = 40), die helle Kante nur entlang der Felsgrenze
+// als Flaechen zwischen Profil oben (y = 0) und unten (y = 40). Fels mit gestufter Kante und Wurmloechern,
+// Knochen (Insel-Boss) glatt mit Rippe, Markstrang und Knotenkante.
 function felsElement(s) {
   sichereFelsDefs();
   const b = config.spielfeldBreite;
   const h = 41;
   const { oben: o, unten: u } = s;
+  const zufall = felsZufall(s.id);
   const pkt = punkte => punkte.map(p => p.join(',')).join(' ');
-  // Knochen (Insel-Boss): heller Knochen statt Fels, Wirbel als Querrippe, dunkler Mark-Strang
   const knochen = !!(o.knochen || u.knochen);
   const flaeche = punkte => `<polygon class="${knochen ? 'fels-knochen' : 'fels-wand'}" points="${pkt(punkte)}"/>`;
-  // Kante: dunkle Aussenlinie (Fels) bzw. Knochenrand, bei Knochen zusaetzlich organische Knoten
   const kante = punkte =>
     `<polyline class="fels-kante" points="${pkt(punkte)}"/>` +
     (knochen ? `<polyline class="fels-knoten" points="${pkt(punkte)}"/>` : '');
+  // Kante von oben (x0) nach unten (x1): bei Fels gestuft, bei Knochen gerade
+  const kantenPunkte = (x0, x1, richtung) =>
+    knochen
+      ? [
+          [x0, 0],
+          [x1, h],
+        ]
+      : stufenKante(x0, x1, h, zufall, richtung);
   let svg = '';
+  let deko = '';
   if (o.l > 0 || u.l > 0) {
-    svg +=
-      flaeche([
-        [0, 0],
-        [o.l, 0],
-        [u.l, h],
-        [0, h],
-      ]) +
-      kante([
-        [o.l, 0],
-        [u.l, h],
-      ]);
+    const k = kantenPunkte(o.l, u.l, -1);
+    svg += flaeche([[0, 0], ...k, [0, h]]) + kante(k);
+    if (!knochen) deko += wurmloecher(4, Math.min(o.l, u.l) - 10, h, zufall);
   }
   if (o.r > 0 || u.r > 0) {
-    svg +=
-      flaeche([
-        [b, 0],
-        [b - o.r, 0],
-        [b - u.r, h],
-        [b, h],
-      ]) +
-      kante([
-        [b - o.r, 0],
-        [b - u.r, h],
-      ]);
+    const k = kantenPunkte(b - o.r, b - u.r, 1);
+    svg += flaeche([[b, 0], ...k, [b, h]]) + kante(k);
+    if (!knochen) deko += wurmloecher(b - Math.min(o.r, u.r) + 10, b - 4, h, zufall);
   }
   if (o.ib > 0 || u.ib > 0) {
-    const ol = [o.im - o.ib / 2, 0];
-    const or = [o.im + o.ib / 2, 0];
-    const ul = [u.im - u.ib / 2, h];
-    const ur = [u.im + u.ib / 2, h];
-    svg += flaeche([ol, or, ur, ul]) + kante([ol, ul]) + kante([or, ur]);
+    const links = kantenPunkte(o.im - o.ib / 2, u.im - u.ib / 2, 1);
+    const rechts = kantenPunkte(o.im + o.ib / 2, u.im + u.ib / 2, -1);
+    svg += flaeche([...links, ...rechts.slice().reverse()]) + kante(links) + kante(rechts);
     if (knochen) {
       const m = h / 2;
-      const ml = (ol[0] + ul[0]) / 2;
-      const mr = (or[0] + ur[0]) / 2;
+      const ml = (links[0][0] + links.at(-1)[0]) / 2;
+      const mr = (rechts[0][0] + rechts.at(-1)[0]) / 2;
       svg += `<path class="knochen-rippe" d="M${ml + 4} ${m} Q${(ml + mr) / 2} ${m + 7} ${mr - 4} ${m}"/>`;
       // Markstrang in der Mitte der Wirbelsaeule (der Insel-Boss steht immer mittig), nicht in der Inselmitte
       svg += `<line class="knochen-mark" x1="${b / 2}" y1="0" x2="${b / 2}" y2="${h}"/>`;
+    } else {
+      const innen = Math.max(o.im - o.ib / 2, u.im - u.ib / 2) + 10;
+      const aussen = Math.min(o.im + o.ib / 2, u.im + u.ib / 2) - 10;
+      deko += wurmloecher(innen, aussen, h, zufall);
     }
   }
   const el = document.createElement('div');
   el.className = 'fels-segment';
   el.style.width = b + 'px';
   el.style.height = h + 'px';
-  el.innerHTML = `<svg width="${b}" height="${h}" viewBox="0 0 ${b} ${h}">${svg}</svg>`;
+  el.innerHTML = `<svg width="${b}" height="${h}" viewBox="0 0 ${b} ${h}">${svg}${deko}</svg>`;
   return el;
 }
 

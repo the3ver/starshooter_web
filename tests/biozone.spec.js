@@ -118,3 +118,30 @@ test('Neustart entfernt das Biozonen-Thema (Cutszene und Level 1 ohne Geflecht)'
   });
   expect(r).toEqual({ vorher: true, nachNeustart: false, wieder: true });
 });
+
+test('Felsoptik: gleiche Segment-Id ergibt dieselbe Zeichnung, Wurmloecher nur auf breitem Fels, Kante gestuft', async ({
+  page,
+}) => {
+  const r = await page.evaluate(async () => {
+    const Anzeige = await import('./js/anzeige.js');
+    const bau = (id, p) => Anzeige.erzeuge({ id, x: 0, y: 0, oben: { ...p }, unten: { ...p } }, 'fels').el;
+    const breit = { l: 140, r: 140, im: 200, ib: 0 };
+    const schmal = { l: 20, r: 20, im: 200, ib: 0 };
+    const a = bau('fe_77', breit);
+    const b = bau('fe_77', breit);
+    let loecherBreit = 0;
+    let loecherSchmal = 0;
+    for (let i = 0; i < 40; i++) {
+      loecherBreit += bau('fe_b' + i, breit).querySelectorAll('.wurmloch, .fels-kugel').length;
+      loecherSchmal += bau('fe_s' + i, schmal).querySelectorAll('.wurmloch, .fels-kugel').length;
+    }
+    const kante = a.querySelector('polyline.fels-kante').getAttribute('points').split(' ').length;
+    [a, b].forEach(el => el.remove());
+    document.querySelectorAll('.fels-segment').forEach(el => el.remove());
+    return { gleich: a.innerHTML === b.innerHTML, loecherBreit, loecherSchmal, kante };
+  });
+  expect(r.gleich).toBe(true);
+  expect(r.loecherBreit).toBeGreaterThan(20);
+  expect(r.loecherSchmal).toBe(0);
+  expect(r.kante).toBe(4); // zwei Plattenreihen, je zwei Punkte
+});
