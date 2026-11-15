@@ -11,6 +11,7 @@ import * as Kette from './kette.js';
 import * as Fels from './fels.js';
 import * as Schockwelle from './schockwelle.js';
 import * as Inselboss from './inselboss.js';
+import * as Level from './level.js';
 import { getShipSVGContent } from './anzeige-dom-objekte.js';
 // Schiffs-SVG fuer Hangar und Cutszene (gleiche Vorlage wie im Spiel)
 export { getShipSVGContent };
@@ -798,6 +799,7 @@ export function restartGame() {
   clearArray(arrays.fels);
   Fels.setzeZurueck();
   Inselboss.setzeZurueck();
+  Level.setzeThemaZurueck();
   clearArray(arrays.sniperGranaten);
 
   // Verwaiste Spiel-Entitäten und Projektile aus dem DOM entfernen

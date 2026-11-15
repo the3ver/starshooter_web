@@ -1,6 +1,13 @@
-export const GAME_VERSION = '1.15.12';
+export const GAME_VERSION = '1.15.13';
 
 export const changelogData = {
+  '1.15.13': {
+    version: '1.15.13',
+    intro: 'Hey, es ist jetzt Version 1.15.13 rausgekommen, folgendes wurde aktualisiert:',
+    highlights: [
+      'Nach einem Neustart ist das Biozonen-Geflecht aus dem Hintergrund verschwunden, auch in der Cutszene.',
+    ],
+  },
   '1.15.12': {
     version: '1.15.12',
     intro: 'Hey, es ist jetzt Version 1.15.12 rausgekommen, folgendes wurde aktualisiert:',

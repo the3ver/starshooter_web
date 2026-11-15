@@ -94,3 +94,23 @@ test('Felskante hat Saum und organische Knoten', async ({ page }) => {
   });
   expect(r).toEqual({ saum: 2, knoten: 2 });
 });
+
+test('Neustart entfernt das Biozonen-Thema (Cutszene und Level 1 ohne Geflecht)', async ({ page }) => {
+  const r = await page.evaluate(async () => {
+    const { state } = await import('./js/state.js');
+    const { simulationsSchritt } = await import('./js/loop.js');
+    const Utils = await import('./js/utils.js');
+    const feld = document.getElementById('spielfeld');
+    state.godMode = true;
+    state.level = 4;
+    simulationsSchritt();
+    const vorher = feld.classList.contains('thema-biozone');
+    Utils.restartGame();
+    const nachNeustart = feld.classList.contains('thema-biozone');
+    // erneut ein Fels-Level: das Thema kommt wieder (nach dem Neustart laeuft erst die Cutszene)
+    state.level = 4;
+    (await import('./js/level.js')).pruefeThema();
+    return { vorher, nachNeustart, wieder: feld.classList.contains('thema-biozone') };
+  });
+  expect(r).toEqual({ vorher: true, nachNeustart: false, wieder: true });
+});

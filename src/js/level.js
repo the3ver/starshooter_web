@@ -51,6 +51,12 @@ function taktBei(phasen, frame) {
 
 // Thema des aktuellen Levels an die Anzeige geben, nur bei Wechsel (Host jeden Schritt, Online-Client in clientSchritt)
 let aktuellesThema = null;
+// Neustart: zurueck zum Standard-Look (Cutszene, Level 1), naechstes pruefeThema setzt neu
+export function setzeThemaZurueck() {
+  aktuellesThema = null;
+  Anzeige.setzeThema('standard');
+}
+
 export function pruefeThema() {
   const thema = levelPlan(state.level).thema;
   if (thema === aktuellesThema) return;
