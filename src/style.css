@@ -1053,6 +1053,43 @@ body {
   z-index: 8;
 }
 
+.spore {
+  position: absolute;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: radial-gradient(circle at 35% 35%, #fffbe6, #e8d8a0 55%, #a08a50);
+  box-shadow: 0 0 5px #fff3c0;
+  z-index: 8;
+  animation: sporenPuls 0.35s infinite alternate ease-in-out;
+}
+
+@keyframes sporenPuls {
+  0% {
+    box-shadow: 0 0 3px #fff3c0;
+  }
+  100% {
+    box-shadow: 0 0 10px #fff3c0;
+  }
+}
+
+.bluete-kappe {
+  transform-origin: 15px 16px;
+  transition: transform 0.25s ease-out;
+}
+
+.feind-schiff.offen .bluete-kappe {
+  transform: scale(0.15);
+}
+
+.bluete-mund {
+  transition: fill 0.25s;
+}
+
+.feind-schiff.offen .bluete-mund {
+  fill: #fff3b0;
+}
+
 .hack-projektil {
   position: absolute;
   width: 12px;

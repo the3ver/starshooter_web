@@ -906,6 +906,7 @@ export function serializeGameState() {
       hatSchild: (f.schildHp || 0) > 0,
       schildHp: f.schildHp || 0,
       ...(typeof f.rot === 'number' ? { rot: f.rot } : {}),
+      ...(f.offen !== undefined ? { offen: !!f.offen } : {}),
       ...(f.betaeubt > 0 ? { betaeubt: f.betaeubt } : {}),
     })),
     asteroiden: arrays.asteroiden.map(a => ({
@@ -989,6 +990,7 @@ export function serializeGameState() {
       y: fl.y,
       vx: fl.vx || 0,
       vy: fl.vy || 7,
+      ...(fl.spore ? { spore: true } : {}),
       ...harmlosFlag(fl),
     })),
     bossLaser: arrays.bossLaserArray.map(bl => ({
@@ -1321,6 +1323,7 @@ export function applyGameStateSnapshot(snapshot) {
             schildHp: fData.schildHp || 0,
             farbe: Entities.getFeindColor(muster),
             ...(typeof fData.rot === 'number' ? { rot: fData.rot } : {}),
+            ...(fData.offen !== undefined ? { offen: !!fData.offen } : {}),
           },
           'feind',
         );
@@ -1332,6 +1335,7 @@ export function applyGameStateSnapshot(snapshot) {
         existing.hp = fData.hp;
         existing.schildHp = fData.schildHp || 0;
         if (typeof fData.rot === 'number') existing.rot = fData.rot;
+        if (fData.offen !== undefined) existing.offen = !!fData.offen;
         setzeInterpolationsZiel(existing, fData.x, fData.y);
       }
       zeigeBetaeubung(existing, fData);
@@ -1563,6 +1567,7 @@ export function applyGameStateSnapshot(snapshot) {
           vx: flData.vx,
           vy: flData.vy,
           rot: flData.vx ? (Math.atan2(flData.vy || 7, flData.vx) * 180) / Math.PI - 90 : undefined,
+          ...(flData.spore ? { spore: true, width: 10, height: 10 } : {}),
         },
         'feindLaser',
       );

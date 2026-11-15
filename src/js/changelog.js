@@ -1,6 +1,15 @@
-export const GAME_VERSION = '1.15.8';
+export const GAME_VERSION = '1.15.9';
 
 export const changelogData = {
+  '1.15.9': {
+    version: '1.15.9',
+    intro: 'Hey, es ist jetzt Version 1.15.9 rausgekommen, folgendes wurde aktualisiert:',
+    highlights: [
+      'In den Fels-Leveln wachsen Gewaechse aus Waenden und Saeulen: Tentakelblueten, Hornroehren und Eierkapseln.',
+      'Blueten sind geschlossen gepanzert (Laser prallen ab, die Bombe knackt sie) und schiessen offen Sporen quer durch den Gang. Hornroehren feuern im Takt.',
+      'Eierkapseln enthalten ein Powerup, manchmal die Schockwelle.',
+    ],
+  },
   '1.15.8': {
     version: '1.15.8',
     intro: 'Hey, es ist jetzt Version 1.15.8 rausgekommen, folgendes wurde aktualisiert:',

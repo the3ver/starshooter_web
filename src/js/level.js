@@ -3,6 +3,7 @@ import * as Entities from './entities.js';
 import * as Audio from './audio.js';
 import { verwalteFeindSpawns } from './gegner.js';
 import * as Fels from './fels.js';
+import * as Gewaechse from './gewaechse.js';
 
 // Ablauf eines Levels: Asteroiden-Takt in drei Phasen, Feinde ab feindStart im Takt feindRate,
 // Boss-Warnung bei bossFrame. levelPlan(level) liefert die Werte; neue Levelarten bekommen hier ihren Plan.
@@ -48,7 +49,11 @@ export function levelSchritt() {
 
   if (frame % taktBei(plan.asteroidenTakt, frame) === 0) Entities.erzeugeAsteroid();
   if (frame > plan.feindStart && frame % plan.feindRate === 0) verwalteFeindSpawns();
-  if (plan.fels) Fels.erzeugeNachschub(frame < plan.bossFrame - FELS_AUSLAUF);
+  if (plan.fels) {
+    const nachschub = frame < plan.bossFrame - FELS_AUSLAUF;
+    Fels.erzeugeNachschub(nachschub);
+    if (nachschub) Gewaechse.wachseNach(frame);
+  }
 
   if (frame === plan.bossFrame && !state.bossWarningAktiv) {
     state.bossWarningAktiv = true;

@@ -936,6 +936,28 @@ export function playMineExplosion() {
 }
 
 // Sniper-EMP: elektrisches Knistern (Saegezahn faellt ab, Sinus steigt)
+// Spore: weiches Ploppen
+export function playSpore() {
+  recordSound('spore');
+  if (isMuted) return;
+  const ctx = getAudioContext();
+  if (!ctx) return;
+  if (ctx.state === 'suspended') ctx.resume().catch(() => {});
+
+  const now = ctx.currentTime;
+  const osc = ctx.createOscillator();
+  const gain = ctx.createGain();
+  osc.type = 'sine';
+  osc.frequency.setValueAtTime(520, now);
+  osc.frequency.exponentialRampToValueAtTime(140, now + 0.12);
+  gain.gain.setValueAtTime(0.12, now);
+  gain.gain.exponentialRampToValueAtTime(0.001, now + 0.14);
+  osc.connect(gain);
+  gain.connect(masterGain);
+  osc.start(now);
+  osc.stop(now + 0.15);
+}
+
 // Schockwelle: tiefer Wumms mit abfallendem Rauschen-Sweep
 export function playSchockwelle() {
   recordSound('schockwelle');

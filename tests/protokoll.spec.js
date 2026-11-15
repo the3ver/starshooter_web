@@ -86,6 +86,8 @@ async function untersuche(page, p1, p2) {
             type: 'energy',
             form: null,
             rot: 0,
+            offen: true,
+            spore: true,
             oben: { l: 1, r: 1, im: 1, ib: 0 },
             unten: { l: 1, r: 1, im: 1, ib: 0 },
           });

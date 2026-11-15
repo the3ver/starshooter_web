@@ -169,6 +169,7 @@ export function findBestTarget(p2, diff) {
 
   for (const feind of arrays.feinde) {
     if (feind.kettenT < 0) continue; // Kettenglied wartet noch ausserhalb des Felds
+    if (feind.istUnzerstoerbar) continue; // geschlossene Bluete: Laser prallen ab
     const halb = (feind.groesse || 30) / 2;
     const fx = feind.x + halb;
     const fy = feind.y + halb;

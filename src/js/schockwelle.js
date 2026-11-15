@@ -83,7 +83,8 @@ export function aktualisiereSchockwellen() {
     };
 
     for (const f of arrays.feinde.slice()) {
-      if (welle.getroffen.has(f) || f.kettenT < 0 || !imRing(f)) continue;
+      // geschlossene Blueten (istUnzerstoerbar) ueberstehen die Welle
+      if (welle.getroffen.has(f) || f.kettenT < 0 || f.istUnzerstoerbar || !imRing(f)) continue;
       welle.getroffen.add(f);
       Utils.zerstoereZiel(f, welle.owner);
     }

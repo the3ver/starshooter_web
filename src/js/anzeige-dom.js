@@ -39,6 +39,7 @@ function zeigeBetaeubung(o) {
 function zeichneFeind(f) {
   zeichneObjekt(f);
   zeigeBetaeubung(f);
+  if (f.offen !== undefined) f.el.classList.toggle('offen', !!f.offen);
   if (f.schildEl && !(f.schildHp > 0)) {
     f.schildEl.remove();
     f.schildEl = null;

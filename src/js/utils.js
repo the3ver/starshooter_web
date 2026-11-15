@@ -9,6 +9,7 @@ import * as Viper from './viper.js';
 import * as Anzeige from './anzeige.js';
 import * as Kette from './kette.js';
 import * as Fels from './fels.js';
+import * as Schockwelle from './schockwelle.js';
 import { getShipSVGContent } from './anzeige-dom-objekte.js';
 // Schiffs-SVG fuer Hangar und Cutszene (gleiche Vorlage wie im Spiel)
 export { getShipSVGContent };
@@ -340,7 +341,9 @@ export function zerstoereZiel(ziel, killer = 'p1') {
       });
     }
     if (ziel.traegtPowerup) {
-      Entities.erzeugePowerup(ziel.x + ziel.groesse / 2 - 12, ziel.y + ziel.groesse / 2 - 12);
+      // Eierkapsel: Bonus (Schockwelle oder Zufall), sonst Zufall
+      const typ = ziel.powerupTyp === 'bonus' ? Schockwelle.bonusTyp() : null;
+      Entities.erzeugePowerup(ziel.x + ziel.groesse / 2 - 12, ziel.y + ziel.groesse / 2 - 12, typ);
     } else if (!ziel.istFeind && ziel.groesse >= 35) {
       let neueGroesse = ziel.groesse * 0.6;
       Entities.erzeugeAsteroid(ziel.x, ziel.y, neueGroesse, -3, ziel.vy, 15, true);
