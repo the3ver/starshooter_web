@@ -1,5 +1,5 @@
 {
-  "version": 15,
+  "version": 16,
   "felder": [
     ".asteroiden",
     ".asteroiden[].farbe",
@@ -75,6 +75,10 @@
     ".feinde[].typ",
     ".feinde[].x",
     ".feinde[].y",
+    ".fels",
+    ".fels[].id",
+    ".fels[].p",
+    ".fels[].y",
     ".gleveWellen",
     ".gleveWellen[].breite",
     ".gleveWellen[].id",

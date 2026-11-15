@@ -8,6 +8,7 @@ import * as Sniper from './sniper.js';
 import * as Viper from './viper.js';
 import * as Anzeige from './anzeige.js';
 import * as Kette from './kette.js';
+import * as Fels from './fels.js';
 import { getShipSVGContent } from './anzeige-dom-objekte.js';
 // Schiffs-SVG fuer Hangar und Cutszene (gleiche Vorlage wie im Spiel)
 export { getShipSVGContent };
@@ -749,6 +750,8 @@ export function restartGame() {
   clearArray(arrays.bombenArray);
   clearArray(arrays.explosionenArray);
   clearArray(arrays.effekte);
+  clearArray(arrays.fels);
+  Fels.setzeZurueck();
   clearArray(arrays.sniperGranaten);
 
   // Verwaiste Spiel-Entitäten und Projektile aus dem DOM entfernen

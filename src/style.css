@@ -2731,6 +2731,28 @@ body {
   pointer-events: none;
 }
 /* Sniper-EMP: blauer Ring vom Schiff, waechst und verblasst */
+.fels-segment {
+  position: absolute;
+  z-index: 3;
+  pointer-events: none;
+}
+
+.fels-segment svg {
+  display: block;
+  overflow: visible;
+}
+
+.fels-wand {
+  fill: #4b3f5e;
+}
+
+.fels-kante {
+  fill: none;
+  stroke: #8f7fa8;
+  stroke-width: 3;
+  stroke-linecap: round;
+}
+
 .schockwelle-ring {
   position: absolute;
   box-sizing: border-box;

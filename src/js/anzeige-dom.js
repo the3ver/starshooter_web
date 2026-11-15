@@ -278,6 +278,7 @@ const ZEICHNER_JE_ART = {
   effekt: zeichneEffekt,
   sniperGranate: zeichneSniperGranate,
   sniperMine: zeichneSniperMine,
+  fels: setzePosition,
 };
 
 const ZEICHNER = {
@@ -299,6 +300,7 @@ const ZEICHNER = {
   effekte: zeichneEffekt,
   sniperGranaten: zeichneSniperGranate,
   sniperMinen: zeichneSniperMine,
+  fels: setzePosition,
 };
 
 export function erzeuge(obj, art) {

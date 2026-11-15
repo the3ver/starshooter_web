@@ -7,6 +7,7 @@ import { bewegeSterne } from './loop.js';
 import * as Gleve from './gleve.js';
 import * as Viper from './viper.js';
 import * as Sniper from './sniper.js';
+import * as Fels from './fels.js';
 
 // Steuerrichtung des Clients (Joystick normalisiert oder Tasten, Hacks angewendet)
 function steuerRichtung(keys) {
@@ -222,6 +223,8 @@ export function clientSchritt() {
       state.p2.x = config.spielfeldBreite - config.spielerGroesse;
     if (state.p2.y > config.spielfeldHoehe - config.spielerGroesse)
       state.p2.y = config.spielfeldHoehe - config.spielerGroesse;
+    // Vorhersage: aus dem Fels schieben wie der Host (Schaden meldet der Host)
+    Fels.schiebeHeraus(state.p2);
 
     state.p2.rotate = targetRotateP2;
     state.p2.drehung = targetRotateP2;

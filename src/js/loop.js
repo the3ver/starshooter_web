@@ -22,6 +22,7 @@ import { aktualisiereWaffen } from './waffen.js';
 import { clientSchritt } from './client.js';
 import { pruefePause } from './pause.js';
 import { levelSchritt } from './level.js';
+import { aktualisiereFels } from './fels.js';
 import { aktualisiereSchockwellen } from './schockwelle.js';
 
 // Bestehende Exporte bleiben ueber loop.js erreichbar
@@ -154,6 +155,7 @@ function simuliere() {
 
   // --- 9.3 SPAWNS & BOSS-WARNUNG nach Levelplan (level.js) ---
   levelSchritt();
+  aktualisiereFels();
 
   // --- 9.3 LEVEL TEXT TIMER & SCORE ---
   if (state.levelTextTimer > 0) {

@@ -406,6 +406,7 @@ export const arrays = {
   sniperMinen: [],
   sniperGranaten: [],
   effekte: [],
+  fels: [],
 };
 
 export function isCoopMode() {

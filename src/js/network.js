@@ -23,6 +23,7 @@ import * as Gleve from './gleve.js';
 import * as Viper from './viper.js';
 import * as Sniper from './sniper.js';
 import * as Schockwelle from './schockwelle.js';
+import * as Fels from './fels.js';
 import * as Anzeige from './anzeige.js';
 
 let room = null;
@@ -967,6 +968,8 @@ export function serializeGameState() {
     sniperGranaten: Sniper.netzGranatenListe(),
     // Sniper-Haftminen (ohne Sniper leer)
     sniperMinen: Sniper.netzMinenListe(),
+    // Felssegmente (Fels-Level): Hoehe und Profil als Text
+    fels: Fels.netzListe(),
     gleveWellen: arrays.gleveWellen.map(w => ({
       id: w.id,
       x: w.x,
@@ -1545,6 +1548,7 @@ export function applyGameStateSnapshot(snapshot) {
   // Granaten des Sniper-Hosts/-Clients im Flug
   Sniper.synchronisiereGranaten(snapshot.sniperGranaten);
   Sniper.synchronisiereMinen(snapshot.sniperMinen);
+  Fels.synchronisiere(snapshot.fels);
 
   // 11. Replicate Enemy Lasers
   synchronisiereListe(

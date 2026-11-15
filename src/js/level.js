@@ -2,17 +2,25 @@ import { state, dom } from './state.js';
 import * as Entities from './entities.js';
 import * as Audio from './audio.js';
 import { verwalteFeindSpawns } from './gegner.js';
+import * as Fels from './fels.js';
 
 // Ablauf eines Levels: Asteroiden-Takt in drei Phasen, Feinde ab feindStart im Takt feindRate,
 // Boss-Warnung bei bossFrame. levelPlan(level) liefert die Werte; neue Levelarten bekommen hier ihren Plan.
 export const LEVEL_DAUER = 3600; // 60 s bei 60 Hz
+export const FELS_AUSLAUF = 900; // so viele Schritte vor dem Boss laufen die Felswaende aus
+
+// Fels-Level: ab Level 4 jedes zweite Level
+export function istFelsLevel(level) {
+  return level >= 4 && level % 2 === 0;
+}
 
 export function levelPlan(level) {
   const stufe = level - 1;
   const asteroidenStart = Math.max(40, 120 - stufe * 10);
   const asteroidenMitte = Math.max(30, asteroidenStart - 20);
   return {
-    thema: 'standard',
+    thema: istFelsLevel(level) ? 'fels' : 'standard',
+    fels: istFelsLevel(level),
     // [abFrame, Takt]: der letzte Eintrag mit abFrame < frame gilt
     asteroidenTakt: [
       [0, asteroidenStart],
@@ -40,6 +48,7 @@ export function levelSchritt() {
 
   if (frame % taktBei(plan.asteroidenTakt, frame) === 0) Entities.erzeugeAsteroid();
   if (frame > plan.feindStart && frame % plan.feindRate === 0) verwalteFeindSpawns();
+  if (plan.fels) Fels.erzeugeNachschub(frame < plan.bossFrame - FELS_AUSLAUF);
 
   if (frame === plan.bossFrame && !state.bossWarningAktiv) {
     state.bossWarningAktiv = true;

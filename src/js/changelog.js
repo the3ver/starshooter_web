@@ -1,6 +1,15 @@
-export const GAME_VERSION = '1.15.7';
+export const GAME_VERSION = '1.15.8';
 
 export const changelogData = {
+  '1.15.8': {
+    version: '1.15.8',
+    intro: 'Hey, es ist jetzt Version 1.15.8 rausgekommen, folgendes wurde aktualisiert:',
+    highlights: [
+      'Fels-Level: Ab Level 4 ist jedes zweite Level eine Felsschlucht. Waende engen den Gang ein, schlaengeln sich im Zickzack, und mitten im Bild wachsen Felssaeulen.',
+      'Wer den Fels beruehrt, nimmt Schaden und wird in den Gang zurueckgestossen. Vor dem Boss laufen die Waende aus.',
+      'Der Bot haelt Abstand zu Waenden und Saeulen, online sieht der Mitspieler denselben Fels.',
+    ],
+  },
   '1.15.7': {
     version: '1.15.7',
     intro: 'Hey, es ist jetzt Version 1.15.7 rausgekommen, folgendes wurde aktualisiert:',

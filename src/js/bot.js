@@ -3,6 +3,7 @@ import * as Gleve from './gleve.js';
 import * as Viper from './viper.js';
 import * as Sniper from './sniper.js';
 import * as Hack from './hack.js';
+import * as Fels from './fels.js';
 
 // --- Bot-Schwierigkeitsstufen ---
 const BOT_DIFFICULTY = {
@@ -678,6 +679,26 @@ function pruefeViperRolle(p2, danger) {
   else p2.botRolleAnfrage = links > rechts ? -1 : 1;
 }
 
+// Fels: Abstand zu Waenden und Inseln halten. Geprueft wird auch etwas oberhalb des Schiffs, weil der Fels
+// nach unten scrollt. Liefert eine zusaetzliche Seitwaertsbewegung (-1..1) Richtung Mitte des freien Bereichs.
+export const FELS_ABSTAND = 25;
+export function felsAusweichen(p2) {
+  if (!arrays.fels.length) return 0;
+  const g = config.spielerGroesse;
+  const cx = p2.x + g / 2;
+  let links = 0;
+  let rechts = config.spielfeldBreite;
+  for (const y of [p2.y - 40, p2.y, p2.y + g]) {
+    const f = Fels.freierBereich(y, cx);
+    links = Math.max(links, f.links);
+    rechts = Math.min(rechts, f.rechts);
+  }
+  if (p2.x - links < FELS_ABSTAND && rechts - (p2.x + g) < FELS_ABSTAND) return 0;
+  if (p2.x - links < FELS_ABSTAND) return 1;
+  if (rechts - (p2.x + g) < FELS_ABSTAND) return -1;
+  return 0;
+}
+
 // --- Haupt-Update-Funktion (1x pro Frame) ---
 export function updateBot() {
   const p2 = state.p2;
@@ -708,7 +729,7 @@ export function updateBot() {
   const p2Ship = shipModels && shipModels[p2.selectedShipModel || 'phantom'];
   const speed = p2Ship?.speed || config.geschwindigkeit;
 
-  p2.x += lastDecision.moveX * speed;
+  p2.x += (lastDecision.moveX + felsAusweichen(p2)) * speed;
   p2.y += lastDecision.moveY * speed;
 
   // Bounds-Clamping

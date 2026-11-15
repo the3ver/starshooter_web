@@ -470,7 +470,59 @@ function effektElement(e) {
   return el;
 }
 
+// Felssegment: volle Feldbreite, Hoehe 41 px (1 px Ueberlappung gegen Naehte); Wand links/rechts und Insel
+// als Flaechen zwischen Profil oben (y = 0) und unten (y = 40), die helle Kante nur entlang der Felsgrenze
+function felsElement(s) {
+  const b = config.spielfeldBreite;
+  const h = 41;
+  const { oben: o, unten: u } = s;
+  const pkt = punkte => punkte.map(p => p.join(',')).join(' ');
+  const flaeche = punkte => `<polygon class="fels-wand" points="${pkt(punkte)}"/>`;
+  const kante = punkte => `<polyline class="fels-kante" points="${pkt(punkte)}"/>`;
+  let svg = '';
+  if (o.l > 0 || u.l > 0) {
+    svg +=
+      flaeche([
+        [0, 0],
+        [o.l, 0],
+        [u.l, h],
+        [0, h],
+      ]) +
+      kante([
+        [o.l, 0],
+        [u.l, h],
+      ]);
+  }
+  if (o.r > 0 || u.r > 0) {
+    svg +=
+      flaeche([
+        [b, 0],
+        [b - o.r, 0],
+        [b - u.r, h],
+        [b, h],
+      ]) +
+      kante([
+        [b - o.r, 0],
+        [b - u.r, h],
+      ]);
+  }
+  if (o.ib > 0 || u.ib > 0) {
+    const ol = [o.im - o.ib / 2, 0];
+    const or = [o.im + o.ib / 2, 0];
+    const ul = [u.im - u.ib / 2, h];
+    const ur = [u.im + u.ib / 2, h];
+    svg += flaeche([ol, or, ur, ul]) + kante([ol, ul]) + kante([or, ur]);
+  }
+  const el = document.createElement('div');
+  el.className = 'fels-segment';
+  el.style.width = b + 'px';
+  el.style.height = h + 'px';
+  el.innerHTML = `<svg width="${b}" height="${h}" viewBox="0 0 ${b} ${h}">${svg}</svg>`;
+  return el;
+}
+
 export const ERZEUGER = {
+  fels: felsElement,
   partikel: partikelElement,
   stern: s => {
     const el = document.createElement('div');
