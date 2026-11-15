@@ -23,6 +23,7 @@ async function schrittBei(page, level, frame, bossAktiv = false) {
       const { state, arrays } = await import('./js/state.js');
       const { simulationsSchritt } = await import('./js/loop.js');
       const Anzeige = await import('./js/anzeige.js');
+      const Gewaechse = await import('./js/gewaechse.js');
       ['feinde', 'asteroiden', 'feindLaserArray', 'powerups'].forEach(name => {
         arrays[name].forEach(Anzeige.entferne);
         arrays[name].length = 0;
@@ -40,7 +41,8 @@ async function schrittBei(page, level, frame, bossAktiv = false) {
       }
       const r = {
         asteroiden: arrays.asteroiden.length,
-        feinde: arrays.feinde.length,
+        // nur Feinde aus dem Feind-Takt; Gewaechse (Fels-Level) wachsen nach eigenem Takt
+        feinde: arrays.feinde.filter(f => !Gewaechse.istGewaechs(f)).length,
         bossWarnung: state.bossWarningAktiv,
       };
       state.bossWarningAktiv = false;
