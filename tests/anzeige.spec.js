@@ -560,6 +560,7 @@ test('Spielerschiffe: Logik schreibt nicht in #spieler / #spieler-2', () => {
 test('Spiellogik fasst die Elemente der Weltobjekte nicht an (Position, Zustand, Entfernen)', () => {
   const module = [
     'loop.js',
+    'level.js',
     'client.js',
     'gegner.js',
     'boss.js',
@@ -1296,6 +1297,7 @@ test('Spiellogik-Module enthalten kein document.createElement, kein dom.spielfel
     'spieler',
     'client',
     'loop',
+    'level',
     'effekte',
   ];
   for (const datei of module) {

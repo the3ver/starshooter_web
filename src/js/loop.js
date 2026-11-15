@@ -1,7 +1,6 @@
 import { state, dom, config, arrays } from './state.js';
 import * as Utils from './utils.js';
 import * as Entities from './entities.js';
-import * as Audio from './audio.js';
 import * as Cutscene from './cutscene.js';
 import * as Network from './network.js';
 import * as Hack from './hack.js';
@@ -22,6 +21,7 @@ import { aktualisiereUnverwundbarkeit, bewegeSpieler, aktualisiereEnergie, regen
 import { aktualisiereWaffen } from './waffen.js';
 import { clientSchritt } from './client.js';
 import { pruefePause } from './pause.js';
+import { levelSchritt } from './level.js';
 
 // Bestehende Exporte bleiben ueber loop.js erreichbar
 export { verwalteFeindSpawns, animierenPartikel };
@@ -151,31 +151,8 @@ function simuliere() {
   // --- 9.2 STERNE BEWEGUNG & SPARTIKEL ---
   bewegeSterne();
 
-  // --- 9.3 SPAWNS & DIFFICULTY CURVE (Skaliert mit Level!) ---
-  state.frameZaehler++;
-  if (!state.bossAktiv) {
-    // LANGSAMERE SKALIERUNG: Asteroiden-Raten sinken nicht mehr so extrem schnell
-    let startRate = Math.max(40, 120 - (state.level - 1) * 10);
-    let midRate = Math.max(30, startRate - 20);
-    let endRate = Math.max(20, midRate - 20);
-    let astRate = startRate;
-    // Das Level dauert nun 60 Sekunden (3600 Frames)
-    if (state.frameZaehler > 1200) astRate = midRate; // Nach 20 Sek
-    if (state.frameZaehler > 2400) astRate = endRate; // Nach 40 Sek
-
-    if (state.frameZaehler % astRate === 0) Entities.erzeugeAsteroid();
-    let feindSpawnZeit = Math.max(600, 1200 - (state.level - 1) * 100);
-    let feindRate = Math.max(120, 300 - (state.level - 1) * 30);
-    if (state.frameZaehler > feindSpawnZeit && state.frameZaehler % feindRate === 0) verwalteFeindSpawns();
-
-    // Boss erscheint am Ende des Levels (nach 60 Sekunden / 3600 Frames)
-    if (state.frameZaehler === 3600 && !state.bossAktiv && !state.bossWarningAktiv) {
-      state.bossWarningAktiv = true;
-      state.bossWarningTimer = 120; // 2 Sekunden Pause bei 60 FPS
-      Audio.playBossAlert();
-      dom.warningOverlay.style.display = 'flex';
-    }
-  }
+  // --- 9.3 SPAWNS & BOSS-WARNUNG nach Levelplan (level.js) ---
+  levelSchritt();
 
   // --- 9.3 LEVEL TEXT TIMER & SCORE ---
   if (state.levelTextTimer > 0) {
