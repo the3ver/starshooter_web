@@ -17,10 +17,29 @@ export const MIN_DURCHGANG = 75; // engster Spalt neben einer Insel (2,5 Schiffs
 const LEER = { l: 0, r: 0, im: 0, ib: 0 };
 let letzter = null; // oberster erzeugter Profilpunkt
 let warteschlange = []; // naechste Profilpunkte (ein Abschnitt)
+let tempo = FELS_TEMPO; // Scrolltempo (Insel-Boss haelt den Fels an)
 
 export function setzeZurueck() {
   letzter = null;
   warteschlange = [];
+  tempo = FELS_TEMPO;
+}
+
+export function setzeTempo(t) {
+  tempo = t;
+}
+
+export function holeTempo() {
+  return tempo;
+}
+
+// Feste Profilpunkte als naechste einreihen (Insel-Boss); Markierungen der Punkte bleiben am Segment
+export function reiheEin(punkte) {
+  warteschlange = punkte.slice();
+}
+
+export function hatWarteschlange() {
+  return warteschlange.length > 0;
 }
 
 function minGang() {
@@ -70,7 +89,7 @@ function begrenze(p) {
   const w = maxWand();
   const l = Math.max(0, Math.min(w, p.l));
   const r = Math.max(0, Math.min(w, p.r));
-  return { l, r, im: p.ib > 0 ? p.im : config.spielfeldBreite / 2, ib: p.ib };
+  return { ...p, l, r, im: p.ib > 0 ? p.im : config.spielfeldBreite / 2, ib: p.ib };
 }
 
 function naechsterPunkt(aktiv) {
@@ -165,7 +184,7 @@ export function schiebeHeraus(schiff) {
 export function aktualisiereFels() {
   for (let i = arrays.fels.length - 1; i >= 0; i--) {
     const s = arrays.fels[i];
-    s.y += FELS_TEMPO;
+    s.y += tempo;
     if (s.y > config.spielfeldHoehe) {
       Anzeige.entferne(s);
       arrays.fels.splice(i, 1);

@@ -183,6 +183,7 @@ function begrenzeAufSpielfeld(pState) {
 
 // Schaden wie bei den anderen Waffen: Schild zuerst, dann HP. Liefert true, wenn das Ziel zerstoert wurde.
 export function schadeZiel(z, schaden, pKey) {
+  if (z.istBoss && z.istUnzerstoerbar) return false; // geschlossenes Auge (Insel-Boss)
   if ((z.schildHp || 0) > 0) {
     z.schildHp -= schaden;
     if (z.schildHp <= 0) {

@@ -3,6 +3,7 @@ import * as Audio from './audio.js';
 import * as Anzeige from './anzeige.js';
 import * as Fels from './fels.js';
 import { neueId } from './entities.js';
+import { naechsterSpielerMitte } from './gegner.js';
 
 // Gewaechse an Felswaenden und Inseln (Fels-Level). Sie sind Feinde (arrays.feinde), damit alle Waffen, die
 // Schockwelle, Punkte und der Bot sie wie Gegner behandeln, und haengen an einem Felssegment:
@@ -12,9 +13,15 @@ import { neueId } from './entities.js';
 // - kapsel: Eierkapsel, schiesst nicht, laesst beim Abschuss einen Bonus fallen (Schockwelle oder Zufall)
 // Sporen sind Feindgeschosse (arrays.feindLaserArray) mit spore = true: langsam, rund, quer zum Gang.
 
-export const ARTEN = ['bluete', 'trichter', 'kapsel'];
-export const GROESSE = { bluete: 34, trichter: 30, kapsel: 24 };
-export const FARBE = { bluete: '#e0703a', trichter: '#d9822b', kapsel: '#b5a36a' };
+// roehre: Larvenroehre am Insel-Boss (wirft alle takt Schritte eine Larve aus, hoechstens MAX_LARVEN)
+// larve: kleiner Verfolger aus der Roehre (kein Gewaechs, haengt an keinem Segment)
+export const ARTEN = ['bluete', 'trichter', 'kapsel', 'roehre'];
+export const GROESSE = { bluete: 34, trichter: 30, kapsel: 24, roehre: 34, larve: 18 };
+export const FARBE = { bluete: '#e0703a', trichter: '#d9822b', kapsel: '#b5a36a', roehre: '#c0602a', larve: '#e8b04a' };
+export const ROEHRE_TAKT = 150;
+export const ROEHRE_TAKT_ENRAGE = 90;
+export const MAX_LARVEN = 8;
+export const LARVEN_TEMPO = 1.4;
 export const ZU_DAUER = 100;
 export const OFFEN_DAUER = 80;
 export const SPOREN_JE_OEFFNUNG = 3;
@@ -60,7 +67,7 @@ export function erzeugeGewaechs(art, segment, seite = null) {
   if (!moeglich.length) return null;
   const platz = seite && moeglich.includes(seite) ? seite : moeglich[Math.floor(Math.random() * moeglich.length)];
   const hpMult = isCoopMode() ? 1.25 : 1.0;
-  const hp = Math.round({ bluete: 40, trichter: 30, kapsel: 20 }[art] * hpMult);
+  const hp = Math.round({ bluete: 40, trichter: 30, kapsel: 20, roehre: 60 }[art] * hpMult);
   const f = {
     id: neueId('f'),
     x: 0,
@@ -87,6 +94,7 @@ export function erzeugeGewaechs(art, segment, seite = null) {
     phase: art === 'bluete' ? 'zu' : 'offen',
     offen: art !== 'bluete',
     phaseTimer: art === 'bluete' ? ZU_DAUER : Math.floor(Math.random() * TRICHTER_TAKT),
+    takt: art === 'roehre' ? ROEHRE_TAKT : TRICHTER_TAKT,
     segment,
     seite: platz,
     richtung: richtung(platz),
@@ -97,19 +105,17 @@ export function erzeugeGewaechs(art, segment, seite = null) {
   return f;
 }
 
-export function erzeugeSpore(f) {
-  const g = f.groesse;
-  const x = f.x + g / 2 + f.richtung * (g / 2) - SPORE_GROESSE / 2;
-  const y = f.y + g / 2 - SPORE_GROESSE / 2;
+// Spore mit Mittelpunkt (mx, my) und Geschwindigkeit (vx, vy)
+export function erzeugeSporeZu(mx, my, vx, vy) {
   Audio.playSpore();
   arrays.feindLaserArray.push(
     Anzeige.erzeuge(
       {
         id: neueId('fl'),
-        x,
-        y,
-        vx: f.richtung * SPOREN_TEMPO,
-        vy: Fels.FELS_TEMPO * 0.5,
+        x: mx - SPORE_GROESSE / 2,
+        y: my - SPORE_GROESSE / 2,
+        vx,
+        vy,
         width: SPORE_GROESSE,
         height: SPORE_GROESSE,
         spore: true,
@@ -117,6 +123,59 @@ export function erzeugeSpore(f) {
       'feindLaser',
     ),
   );
+}
+
+// Spore quer aus dem Schlund eines Gewaechses in den Gang
+export function erzeugeSpore(f) {
+  const g = f.groesse;
+  erzeugeSporeZu(f.x + g / 2 + f.richtung * (g / 2), f.y + g / 2, f.richtung * SPOREN_TEMPO, Fels.holeTempo() * 0.5);
+}
+
+function erzeugeLarve(f) {
+  const g = GROESSE.larve;
+  const hp = Math.round(10 * (isCoopMode() ? 1.25 : 1));
+  arrays.feinde.push(
+    Anzeige.erzeuge(
+      {
+        id: neueId('f'),
+        x: f.x + f.groesse / 2 + f.richtung * f.groesse * 0.5 - g / 2,
+        y: f.y + f.groesse / 2 - g / 2,
+        groesse: g,
+        hp,
+        maxHp: hp,
+        schildHp: 0,
+        maxSchildHp: 0,
+        hatSchild: false,
+        farbe: FARBE.larve,
+        explosionsFarbe: FARBE.larve,
+        vx: 0,
+        vy: 0,
+        zeit: 0,
+        schussTimer: 9999,
+        burstCount: 0,
+        burstTimer: 0,
+        istFeind: true,
+        istUnzerstoerbar: false,
+        traegtPowerup: false,
+        muster: 'larve',
+        phase: 'flug',
+      },
+      'feind',
+    ),
+  );
+}
+
+// Larve: kriecht auf den naechsten Spieler zu und wackelt dabei
+export function bewegeLarve(f) {
+  f.schussTimer = 9999;
+  f.zeit += 0.15;
+  const ziel = naechsterSpielerMitte(f);
+  const dx = ziel.x - (f.x + f.groesse / 2);
+  const dy = ziel.y - (f.y + f.groesse / 2);
+  const d = Math.hypot(dx, dy) || 1;
+  f.x += (dx / d) * LARVEN_TEMPO + Math.sin(f.zeit) * 0.6;
+  f.y += (dy / d) * LARVEN_TEMPO;
+  f.rot = (Math.atan2(dy, dx) * 180) / Math.PI - 90;
 }
 
 // Jeder Schritt aus aktualisiereFeinde: an der Kante halten, Phasen und Sporen
@@ -129,7 +188,14 @@ export function aktualisiere(f) {
   if (f.muster === 'trichter') {
     if (f.phaseTimer <= 0) {
       erzeugeSpore(f);
-      f.phaseTimer = TRICHTER_TAKT;
+      f.phaseTimer = f.takt;
+    }
+    return;
+  }
+  if (f.muster === 'roehre') {
+    if (f.phaseTimer <= 0) {
+      if (arrays.feinde.filter(l => l.muster === 'larve').length < MAX_LARVEN) erzeugeLarve(f);
+      f.phaseTimer = f.takt;
     }
     return;
   }

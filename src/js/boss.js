@@ -6,16 +6,23 @@ import { naechsterSpielerMitte, tickBetaeubung } from './gegner.js';
 import * as Anzeige from './anzeige.js';
 import { erzeugePartikel } from './partikel.js';
 import { erzeugeEffekt } from './effekte.js';
+import * as Inselboss from './inselboss.js';
 
 const BOSS_HACK_AB_LEVEL = 5;
 const BOSS_HACK_INTERVALL = 300; // 5 s
 const BOSS_HACK_INTERVALL_ENRAGE = 180; // 3 s
 
 export function aktualisiereBosse() {
+  Inselboss.aktualisiere();
   for (let i = arrays.bosses.length - 1; i >= 0; i--) {
     let b = arrays.bosses[i];
     if (!b) break;
     const betaeubt = tickBetaeubung(b); // Sniper-Granate: keine Bewegung, keine Angriffe
+    if (b.bossTyp === 'auge') {
+      // Insel-Boss: Augen sitzen im Koerper (Fels), keine eigene Bewegung, kein Rammschaden
+      Inselboss.aktualisiereAuge(b, betaeubt);
+      continue;
+    }
     if (b.phase === 'einzug') {
       b.repulsorAktiv = true;
       b.y += b.vy;

@@ -1,6 +1,15 @@
-export const GAME_VERSION = '1.15.10';
+export const GAME_VERSION = '1.15.11';
 
 export const changelogData = {
+  '1.15.11': {
+    version: '1.15.11',
+    intro: 'Hey, es ist jetzt Version 1.15.11 rausgekommen, folgendes wurde aktualisiert:',
+    highlights: [
+      'Neuer Boss am Ende der Fels-Level: eine riesige Organmasse, die von oben hereinschiebt. Treffer zaehlen nur in ihren Augen, und die sind nur offen verwundbar.',
+      'Offene Augen schiessen gezielte Sporen, Roehren an den Flanken werfen Larven aus, die dem Schiff hinterherkriechen.',
+      'Faellt das vorletzte Auge, rueckt die Masse langsam vor. Erst das letzte Auge beendet den Kampf.',
+    ],
+  },
   '1.15.10': {
     version: '1.15.10',
     intro: 'Hey, es ist jetzt Version 1.15.10 rausgekommen, folgendes wurde aktualisiert:',

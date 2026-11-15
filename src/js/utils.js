@@ -10,6 +10,7 @@ import * as Anzeige from './anzeige.js';
 import * as Kette from './kette.js';
 import * as Fels from './fels.js';
 import * as Schockwelle from './schockwelle.js';
+import * as Inselboss from './inselboss.js';
 import { getShipSVGContent } from './anzeige-dom-objekte.js';
 // Schiffs-SVG fuer Hangar und Cutszene (gleiche Vorlage wie im Spiel)
 export { getShipSVGContent };
@@ -209,6 +210,28 @@ export function updateP2UI() {
   updateAktivePowerupsP2UI();
   updateSplitterP2UI();
 }
+// Mehrteilige Bosse (bossId, z. B. Augen des Insel-Bosses) sind erst mit dem letzten Teil besiegt
+function istLetzterBossTeil(ziel) {
+  return !ziel.bossId || !arrays.bosses.some(b => b !== ziel && b.bossId === ziel.bossId);
+}
+
+function bossTeilZerstoert(ziel, komboFaktor) {
+  Audio.playExplosion('medium');
+  addScore(300 * state.level, komboFaktor);
+  const farbe = ziel.leuchtFarbe || '#f1c40f';
+  erzeugeExplosion(ziel.x + ziel.groesse / 2, ziel.y + ziel.groesse / 2, farbe, 35);
+  if (state.gameMode === 'online') {
+    Network.sendNetworkEvent({
+      type: 'target_destroyed',
+      x: ziel.x + ziel.groesse / 2,
+      y: ziel.y + ziel.groesse / 2,
+      farbe,
+      anzahl: 35,
+      soundType: 'medium',
+    });
+  }
+}
+
 // Boss besiegt: Explosion, Punkte, Coop-Wiederbelebung, Drops (Viper-Splitter), naechstes Level
 function besiegeBoss(ziel, killer, komboFaktor) {
   Audio.playExplosion('boss');
@@ -301,7 +324,8 @@ export function zerstoereZiel(ziel, killer = 'p1') {
 
   // Boss besiegt: Belohnungen und naechstes Level
   if (ziel.istBoss) {
-    besiegeBoss(ziel, killer, komboFaktor);
+    if (istLetzterBossTeil(ziel)) besiegeBoss(ziel, killer, komboFaktor);
+    else bossTeilZerstoert(ziel, komboFaktor);
   } else {
     Audio.playExplosion(ziel.groesse >= 35 ? 'medium' : 'small');
     addScore(
@@ -760,6 +784,7 @@ export function restartGame() {
   clearArray(arrays.effekte);
   clearArray(arrays.fels);
   Fels.setzeZurueck();
+  Inselboss.setzeZurueck();
   clearArray(arrays.sniperGranaten);
 
   // Verwaiste Spiel-Entitäten und Projektile aus dem DOM entfernen

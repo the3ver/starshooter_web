@@ -1,5 +1,5 @@
 {
-  "version": 17,
+  "version": 18,
   "felder": [
     ".asteroiden",
     ".asteroiden[].farbe",
@@ -53,6 +53,7 @@
     ".bosses[].hp",
     ".bosses[].id",
     ".bosses[].maxHp",
+    ".bosses[].offen",
     ".bosses[].typ",
     ".bosses[].x",
     ".bosses[].y",

@@ -5,6 +5,7 @@ import { verwalteFeindSpawns } from './gegner.js';
 import * as Fels from './fels.js';
 import * as Gewaechse from './gewaechse.js';
 import * as Anzeige from './anzeige.js';
+import * as Inselboss from './inselboss.js';
 
 // Ablauf eines Levels: Asteroiden-Takt in drei Phasen, Feinde ab feindStart im Takt feindRate,
 // Boss-Warnung bei bossFrame. levelPlan(level) liefert die Werte; neue Levelarten bekommen hier ihren Plan.
@@ -32,13 +33,14 @@ export function levelPlan(level) {
     feindStart: Math.max(600, 1200 - stufe * 100),
     feindRate: Math.max(120, 300 - stufe * 30),
     bossFrame: LEVEL_DAUER,
-    boss: 'standard',
+    boss: istFelsLevel(level) ? 'insel' : 'standard',
   };
 }
 
 // Boss des Levels erzeugen (nach der Boss-Warnung)
 export function starteBoss() {
-  Entities.erzeugeBoss();
+  if (levelPlan(state.level).boss === 'insel') Inselboss.erzeuge();
+  else Entities.erzeugeBoss();
 }
 
 function taktBei(phasen, frame) {

@@ -76,6 +76,7 @@ function zeichneBoss(b) {
   setzePosition(b);
   zeigeBetaeubung(b);
   b.el.classList.toggle('repulsor-aktiv', !!b.repulsorAktiv);
+  if (b.offen !== undefined) b.el.classList.toggle('offen', !!b.offen);
 }
 
 function entferneStrahl(p) {

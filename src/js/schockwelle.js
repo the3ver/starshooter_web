@@ -90,7 +90,7 @@ export function aktualisiereSchockwellen() {
     }
 
     for (const b of arrays.bosses) {
-      if (welle.getroffen.has(b) || !imRing(b)) continue;
+      if (welle.getroffen.has(b) || b.istUnzerstoerbar || !imRing(b)) continue;
       welle.getroffen.add(b);
       b.hp = Math.max(1, b.hp - Math.ceil(b.maxHp * BOSS_SCHADEN_ANTEIL));
       Anzeige.blitze(b, 1);

@@ -1111,6 +1111,15 @@ body {
   }
 }
 
+.auge-lid {
+  transform-origin: 18px 18px;
+  transition: transform 0.2s ease-out;
+}
+
+.boss-schiff.offen .auge-lid {
+  transform: scaleY(0.08);
+}
+
 .bluete-kappe {
   transform-origin: 15px 16px;
   transition: transform 0.25s ease-out;

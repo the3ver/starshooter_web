@@ -226,6 +226,8 @@ export function aktualisiereFeinde() {
       Kette.bewegeGlied(f);
     } else if (Gewaechse.istGewaechs(f)) {
       Gewaechse.aktualisiere(f);
+    } else if (f.muster === 'larve') {
+      Gewaechse.bewegeLarve(f);
     } else if (f.muster === 'hacker') {
       aktualisiereHacker(f);
     } else {

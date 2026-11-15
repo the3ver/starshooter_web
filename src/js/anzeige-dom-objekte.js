@@ -60,6 +60,20 @@ const GEWAECHS_SVG = {
       <ellipse class="trichter-mund" cx="15" cy="23" rx="9" ry="4.5" fill="#3a1a08" stroke="#f0b36a" stroke-width="1"/>
     </svg>
   `,
+  roehre: () => `
+    <svg class="gewaechs" viewBox="0 0 30 30" style="position: absolute; width: 100%; height: 100%; overflow: visible;">
+      <path d="M9 0 L21 0 L26 20 Q15 31 4 20 Z" fill="#c0602a" stroke="#5a2410" stroke-width="1.2"/>
+      <path d="M7 7 H23 M6 12 H24 M5 17 H25" stroke="#5a2410" stroke-width="1.6"/>
+      <ellipse cx="15" cy="22" rx="10" ry="5" fill="#200a02" stroke="#f0b36a" stroke-width="1.2"/>
+    </svg>
+  `,
+  larve: () => `
+    <svg class="gewaechs" viewBox="0 0 30 30" style="position: absolute; width: 100%; height: 100%; overflow: visible;">
+      <ellipse cx="15" cy="15" rx="9" ry="13" fill="#e8b04a" stroke="#7a4a10" stroke-width="1.2"/>
+      <path d="M7 9 H23 M6 14 H24 M7 19 H23" stroke="#7a4a10" stroke-width="1.2"/>
+      <circle cx="12" cy="25" r="1.6" fill="#200a02"/><circle cx="18" cy="25" r="1.6" fill="#200a02"/>
+    </svg>
+  `,
   kapsel: () => `
     <svg class="gewaechs" viewBox="0 0 30 30" style="position: absolute; width: 100%; height: 100%; overflow: visible;">
       <ellipse cx="15" cy="16" rx="11" ry="13" fill="#b5a36a" stroke="#5e5230" stroke-width="1.4"/>
@@ -136,7 +150,20 @@ function getFeindSVGHtml(muster = 'normal', hatSchild = false, groesse = 30) {
   return '';
 }
 
+// Auge des Insel-Bosses: Lid (zu) ueber Iris und Pupille, Klasse offen zieht das Lid weg
+const AUGE_SVG = `
+  <svg viewBox="0 0 36 36" style="position: absolute; width: 100%; height: 100%; overflow: visible;">
+    <ellipse cx="18" cy="18" rx="17" ry="14" fill="#5a2a12" stroke="#2b0f05" stroke-width="1.5"/>
+    <ellipse cx="18" cy="18" rx="13" ry="10" fill="#f3e6c8"/>
+    <circle class="auge-iris" cx="18" cy="19" r="7" fill="#d9822b"/>
+    <circle cx="18" cy="19" r="3.5" fill="#1a0802"/>
+    <circle cx="20" cy="16.5" r="1.5" fill="#fff"/>
+    <path class="auge-lid" d="M1 18 Q18 0 35 18 Q18 34 1 18 Z" fill="#7a3b12" stroke="#2b0f05" stroke-width="1.2"/>
+  </svg>
+`;
+
 function getBossSVGHtml(bTyp, bossFarbe) {
+  if (bTyp === 'auge') return AUGE_SVG;
   let defs = `<defs>
     <radialGradient id='gMet' cx='50%' cy='30%' r='60%'><stop offset='0%' stop-color='#ffffff'/><stop offset='20%' stop-color='${bossFarbe}'/><stop offset='100%' stop-color='#222222'/></radialGradient>
     <radialGradient id='gSha' cx='50%' cy='20%' r='80%'><stop offset='0%' stop-color='${bossFarbe}'/><stop offset='70%' stop-color='#000000'/><stop offset='100%' stop-color='#000000'/></radialGradient>

@@ -934,6 +934,7 @@ export function serializeGameState() {
       groesse: b.groesse || 100,
       typ: b.bossTyp || b.typ || 1,
       enrage: b.enragePhaseAktiv || false,
+      ...(b.offen !== undefined ? { offen: !!b.offen } : {}),
       ...(b.betaeubt > 0 ? { betaeubt: b.betaeubt } : {}),
     })),
     laser: arrays.laserArray.map(l => ({
@@ -1420,6 +1421,7 @@ export function applyGameStateSnapshot(snapshot) {
             typ: bData.typ || 1,
             bossTyp: bData.typ || 1,
             leuchtFarbe: Entities.getBossColor(state.level),
+            ...(bData.offen !== undefined ? { offen: !!bData.offen } : {}),
           },
           'boss',
         );
@@ -1429,6 +1431,7 @@ export function applyGameStateSnapshot(snapshot) {
         existing.x = bData.x;
         existing.y = bData.y;
         existing.hp = bData.hp;
+        if (bData.offen !== undefined) existing.offen = !!bData.offen;
         setzeInterpolationsZiel(existing, bData.x, bData.y);
       }
       zeigeBetaeubung(existing, bData);

@@ -150,7 +150,7 @@ export function findBestTarget(p2, diff) {
 
   // Bosse und Feindschiffe: naechstes Ziel ueber dem Bot
   for (const boss of arrays.bosses) {
-    if (boss.hp <= 0) continue;
+    if (boss.hp <= 0 || boss.istUnzerstoerbar) continue; // geschlossenes Auge
     const m = bossMitte(boss);
     const dSq = distanceSq(cx, p2.y, m.x, m.y);
     if (m.y < p2.y && dSq < bestDSq) {
