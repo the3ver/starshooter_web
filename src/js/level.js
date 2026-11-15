@@ -4,6 +4,7 @@ import * as Audio from './audio.js';
 import { verwalteFeindSpawns } from './gegner.js';
 import * as Fels from './fels.js';
 import * as Gewaechse from './gewaechse.js';
+import * as Anzeige from './anzeige.js';
 
 // Ablauf eines Levels: Asteroiden-Takt in drei Phasen, Feinde ab feindStart im Takt feindRate,
 // Boss-Warnung bei bossFrame. levelPlan(level) liefert die Werte; neue Levelarten bekommen hier ihren Plan.
@@ -20,7 +21,7 @@ export function levelPlan(level) {
   const asteroidenStart = Math.max(40, 120 - stufe * 10);
   const asteroidenMitte = Math.max(30, asteroidenStart - 20);
   return {
-    thema: istFelsLevel(level) ? 'fels' : 'standard',
+    thema: istFelsLevel(level) ? 'biozone' : 'standard',
     fels: istFelsLevel(level),
     // [abFrame, Takt]: der letzte Eintrag mit abFrame < frame gilt
     asteroidenTakt: [
@@ -40,8 +41,18 @@ function taktBei(phasen, frame) {
   return takt;
 }
 
+// Thema des aktuellen Levels an die Anzeige geben, nur bei Wechsel (Host jeden Schritt, Online-Client in clientSchritt)
+let aktuellesThema = null;
+export function pruefeThema() {
+  const thema = levelPlan(state.level).thema;
+  if (thema === aktuellesThema) return;
+  aktuellesThema = thema;
+  Anzeige.setzeThema(thema);
+}
+
 // Ein Simulationsschritt des Level-Ablaufs: zaehlt den Level-Frame hoch und spawnt nach Plan.
 export function levelSchritt() {
+  pruefeThema();
   state.frameZaehler++;
   if (state.bossAktiv) return;
   const plan = levelPlan(state.level);

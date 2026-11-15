@@ -31,6 +31,11 @@ export function setzeBackend(neuesBackend) {
   backend = neuesBackend;
 }
 
+// Optisches Thema des Spielfelds (Hintergrund, Stimmung): 'standard' oder 'biozone'. Optional fuer Backends.
+export function setzeThema(name) {
+  if (typeof backend.setzeThema === 'function') backend.setzeThema(name);
+}
+
 export function holeBackend() {
   return backend;
 }

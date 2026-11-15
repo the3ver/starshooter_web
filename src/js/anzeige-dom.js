@@ -552,6 +552,15 @@ export function blitzeSpielfeld(farbe, ms) {
   if (!el) return;
   el.style.backgroundColor = farbe;
   setTimeout(() => {
-    el.style.backgroundColor = '#0b1319';
+    // zurueck zur Farbe aus dem Stylesheet (Thema-Klasse)
+    el.style.backgroundColor = '';
   }, ms);
+}
+
+// Thema als Klasse thema-<name> am Spielfeld; 'standard' = keine Klasse
+export function setzeThema(name) {
+  const el = dom.spielfeld || document.getElementById('spielfeld');
+  if (!el) return;
+  [...el.classList].filter(k => k.startsWith('thema-')).forEach(k => el.classList.remove(k));
+  if (name && name !== 'standard') el.classList.add('thema-' + name);
 }

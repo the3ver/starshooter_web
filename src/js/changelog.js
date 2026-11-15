@@ -1,6 +1,14 @@
-export const GAME_VERSION = '1.15.9';
+export const GAME_VERSION = '1.15.10';
 
 export const changelogData = {
+  '1.15.10': {
+    version: '1.15.10',
+    intro: 'Hey, es ist jetzt Version 1.15.10 rausgekommen, folgendes wurde aktualisiert:',
+    highlights: [
+      'Biozone: Die Fels-Level bekommen einen eigenen Look mit einem organischen Geflecht, das langsam durchs Bild treibt, und einem dunklen Rand.',
+      'Felskanten tragen jetzt eine Reihe organischer Knoten.',
+    ],
+  },
   '1.15.9': {
     version: '1.15.9',
     intro: 'Hey, es ist jetzt Version 1.15.9 rausgekommen, folgendes wurde aktualisiert:',

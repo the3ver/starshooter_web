@@ -39,6 +39,44 @@ body {
   transform-origin: top left;
 }
 
+/* Thema Biozone (Fels-Level): organisches Geflecht treibt langsam nach unten, dunkle Stimmung zum Rand */
+#spielfeld.thema-biozone {
+  background-color: #0d0906;
+}
+
+#spielfeld.thema-biozone::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: -200px;
+  width: 100%;
+  height: calc(100% + 200px);
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='200' height='200'%3E%3Cg fill='none' stroke='%237a5a2a' stroke-width='2'%3E%3Cpath d='M0 40 Q30 18 60 44 Q90 66 120 38 Q160 12 200 40'/%3E%3Cpath d='M0 128 Q36 104 70 130 Q104 152 140 118 Q170 96 200 128'/%3E%3Cpath d='M60 0 Q48 22 60 44 Q74 88 70 130 Q60 166 60 200'/%3E%3Cpath d='M140 0 Q128 20 120 38 Q138 80 140 118 Q150 160 140 200'/%3E%3Cpath d='M0 40 Q14 84 0 128 M200 40 Q186 84 200 128'/%3E%3C/g%3E%3Cg fill='%23a07a3a'%3E%3Ccircle cx='30' cy='80' r='5'/%3E%3Ccircle cx='38' cy='90' r='3'/%3E%3Ccircle cx='100' cy='92' r='6'/%3E%3Ccircle cx='170' cy='70' r='4'/%3E%3Ccircle cx='96' cy='170' r='5'/%3E%3Ccircle cx='106' cy='178' r='3'/%3E%3Ccircle cx='20' cy='170' r='3'/%3E%3Ccircle cx='176' cy='160' r='5'/%3E%3C/g%3E%3C/svg%3E");
+  background-size: 200px 200px;
+  opacity: 0.32;
+  z-index: 0;
+  pointer-events: none;
+  animation: biozoneDrift 6.6s linear infinite;
+}
+
+#spielfeld.thema-biozone::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(ellipse at center, transparent 55%, rgba(45, 22, 6, 0.55) 100%);
+  z-index: 0;
+  pointer-events: none;
+}
+
+@keyframes biozoneDrift {
+  0% {
+    transform: translateY(0);
+  }
+  100% {
+    transform: translateY(200px);
+  }
+}
+
 #spielfeld.mode-coop {
   width: 600px;
 }
@@ -2787,6 +2825,14 @@ body {
   fill: none;
   stroke: #8f7fa8;
   stroke-width: 3;
+  stroke-linecap: round;
+}
+
+.fels-knoten {
+  fill: none;
+  stroke: #a0764e;
+  stroke-width: 7;
+  stroke-dasharray: 0 11;
   stroke-linecap: round;
 }
 

@@ -8,6 +8,7 @@ import * as Gleve from './gleve.js';
 import * as Viper from './viper.js';
 import * as Sniper from './sniper.js';
 import * as Fels from './fels.js';
+import { pruefeThema } from './level.js';
 
 // Steuerrichtung des Clients (Joystick normalisiert oder Tasten, Hacks angewendet)
 function steuerRichtung(keys) {
@@ -153,6 +154,7 @@ export function clientSchritt() {
   }
 
   bewegeSterne();
+  pruefeThema();
 
   if (state.p2 && !state.p2.isDead) {
     let baseFlameScaleP2 = 1.0;

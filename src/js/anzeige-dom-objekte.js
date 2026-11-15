@@ -519,7 +519,9 @@ function felsElement(s) {
   const { oben: o, unten: u } = s;
   const pkt = punkte => punkte.map(p => p.join(',')).join(' ');
   const flaeche = punkte => `<polygon class="fels-wand" points="${pkt(punkte)}"/>`;
-  const kante = punkte => `<polyline class="fels-kante" points="${pkt(punkte)}"/>`;
+  // Kante: heller Saum plus Reihe organischer Knoten
+  const kante = punkte =>
+    `<polyline class="fels-kante" points="${pkt(punkte)}"/><polyline class="fels-knoten" points="${pkt(punkte)}"/>`;
   let svg = '';
   if (o.l > 0 || u.l > 0) {
     svg +=
