@@ -1,6 +1,7 @@
 import { state, config, arrays, isCoopMode } from './state.js';
 import * as Entities from './entities.js';
 import * as Anzeige from './anzeige.js';
+import * as Schockwelle from './schockwelle.js';
 
 // Kettengegner: Kopf und Glieder folgen derselben Bahn, Glied i mit i * gliedAbstand(...) Schritten Rueckstand.
 // Die Bahn ist eine reine Funktion der Zeit (bahnPunkt), die Glieder brauchen keinen Positionsspeicher.
@@ -83,6 +84,7 @@ export function erzeugeKette(bahn = 'schlange', anzahl = 8, seite = 1) {
       maxSchildHp: 0,
       hatSchild: false,
       farbe: Entities.getFeindColor('kette'),
+      explosionsFarbe: Entities.getFeindColor('kette'),
       vy: 0,
       vx: 0,
       zeit: 0,
@@ -122,18 +124,8 @@ export function gliedAbgeschossen(f) {
   if (!f.kette) return false;
   f.kette.abgeschossen++;
   if (f.kette.abgeschossen < f.kette.gesamt) return false;
-  Entities.erzeugePowerup(f.x + f.groesse / 2 - 12, f.y + f.groesse / 2 - 12, bonusTyp());
+  Entities.erzeugePowerup(f.x + f.groesse / 2 - 12, f.y + f.groesse / 2 - 12, Schockwelle.bonusTyp());
   return true;
-}
-
-// Kettenbonus: mit SCHOCKWELLE_CHANCE eine Schockwelle, hoechstens eine pro Level und nie im Bosskampf;
-// sonst ein zufaelliges Powerup (null)
-export const SCHOCKWELLE_CHANCE = 0.35;
-function bonusTyp() {
-  if (state.bossAktiv || state.schockwelleLevel === state.level) return null;
-  if (Math.random() >= SCHOCKWELLE_CHANCE) return null;
-  state.schockwelleLevel = state.level;
-  return 'schockwelle';
 }
 
 // Zufaellige Kette fuer verwalteFeindSpawns: Bahn, Laenge (6-10) und Seite aus Math.random

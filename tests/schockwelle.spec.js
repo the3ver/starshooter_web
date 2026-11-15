@@ -161,7 +161,7 @@ test('Kettenbonus: Schockwelle mit Zufall, hoechstens eine pro Level, nie im Bos
     state.schockwelleLevel = 0;
     const ergebnis = {
       imBoss: bonus(0.1, true),
-      ueberChance: bonus(K.SCHOCKWELLE_CHANCE + 0.01),
+      ueberChance: bonus(window.__sw.SW.SCHOCKWELLE_CHANCE + 0.01),
       ersteImLevel: bonus(0.1),
       zweiteImLevel: bonus(0.1),
     };

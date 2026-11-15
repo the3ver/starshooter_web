@@ -11,6 +11,17 @@ import { erzeugeEffekt } from './effekte.js';
 // Der Ring ist ein Effekt (arrays.effekte, Art schockwelle); getroffen merkt sich die erfassten Ziele.
 
 export const WELLEN_DAUER = 36;
+
+// Bonus-Drop (Kettenbonus, Eierkapsel): mit SCHOCKWELLE_CHANCE eine Schockwelle, hoechstens eine pro Level und
+// nie im Bosskampf; sonst null (zufaelliges Powerup)
+export const SCHOCKWELLE_CHANCE = 0.35;
+export function bonusTyp() {
+  if (state.bossAktiv || state.schockwelleLevel === state.level) return null;
+  if (Math.random() >= SCHOCKWELLE_CHANCE) return null;
+  state.schockwelleLevel = state.level;
+  return 'schockwelle';
+}
+
 export const BOSS_SCHADEN_ANTEIL = 0.15;
 
 const GESCHOSS_LISTEN = [

@@ -327,7 +327,7 @@ export function zerstoereZiel(ziel, killer = 'p1') {
         }
       }
     }
-    let farbe = ziel.istFeind ? (ziel.muster === 'kette' ? ziel.farbe : '#9b59b6') : ziel.farbe || '#ffffff';
+    let farbe = ziel.istFeind ? ziel.explosionsFarbe || '#9b59b6' : ziel.farbe || '#ffffff';
     erzeugeExplosion(ziel.x + ziel.groesse / 2, ziel.y + ziel.groesse / 2, farbe, 25);
     if (state.gameMode === 'online') {
       Network.sendNetworkEvent({
