@@ -1,58 +1,65 @@
-export const GAME_VERSION = '1.15.11';
+export const GAME_VERSION = '1.15.12';
 
 export const changelogData = {
-  '1.15.11': {
-    version: '1.15.11',
-    intro: 'Hey, es ist jetzt Version 1.15.11 rausgekommen, folgendes wurde aktualisiert:',
+  '1.15.12': {
+    version: '1.15.12',
+    intro: 'Hey, es ist jetzt Version 1.15.12 rausgekommen, folgendes wurde aktualisiert:',
     highlights: [
       'Neuer Boss am Ende der Fels-Level: eine riesige Organmasse, die von oben hereinschiebt. Treffer zaehlen nur in ihren Augen, und die sind nur offen verwundbar.',
       'Offene Augen schiessen gezielte Sporen, Roehren an den Flanken werfen Larven aus, die dem Schiff hinterherkriechen.',
       'Faellt das vorletzte Auge, rueckt die Masse langsam vor. Erst das letzte Auge beendet den Kampf.',
     ],
   },
-  '1.15.10': {
-    version: '1.15.10',
-    intro: 'Hey, es ist jetzt Version 1.15.10 rausgekommen, folgendes wurde aktualisiert:',
+  '1.15.11': {
+    version: '1.15.11',
+    intro: 'Hey, es ist jetzt Version 1.15.11 rausgekommen, folgendes wurde aktualisiert:',
     highlights: [
       'Biozone: Die Fels-Level bekommen einen eigenen Look mit einem organischen Geflecht, das langsam durchs Bild treibt, und einem dunklen Rand.',
       'Felskanten tragen jetzt eine Reihe organischer Knoten.',
     ],
   },
-  '1.15.9': {
-    version: '1.15.9',
-    intro: 'Hey, es ist jetzt Version 1.15.9 rausgekommen, folgendes wurde aktualisiert:',
+  '1.15.10': {
+    version: '1.15.10',
+    intro: 'Hey, es ist jetzt Version 1.15.10 rausgekommen, folgendes wurde aktualisiert:',
     highlights: [
       'In den Fels-Leveln wachsen Gewaechse aus Waenden und Saeulen: Tentakelblueten, Hornroehren und Eierkapseln.',
       'Blueten sind geschlossen gepanzert (Laser prallen ab, die Bombe knackt sie) und schiessen offen Sporen quer durch den Gang. Hornroehren feuern im Takt.',
       'Eierkapseln enthalten ein Powerup, manchmal die Schockwelle.',
     ],
   },
-  '1.15.8': {
-    version: '1.15.8',
-    intro: 'Hey, es ist jetzt Version 1.15.8 rausgekommen, folgendes wurde aktualisiert:',
+  '1.15.9': {
+    version: '1.15.9',
+    intro: 'Hey, es ist jetzt Version 1.15.9 rausgekommen, folgendes wurde aktualisiert:',
     highlights: [
       'Fels-Level: Ab Level 4 ist jedes zweite Level eine Felsschlucht. Waende engen den Gang ein, schlaengeln sich im Zickzack, und mitten im Bild wachsen Felssaeulen.',
       'Wer den Fels beruehrt, nimmt Schaden und wird in den Gang zurueckgestossen. Vor dem Boss laufen die Waende aus.',
       'Der Bot haelt Abstand zu Waenden und Saeulen, online sieht der Mitspieler denselben Fels.',
     ],
   },
-  '1.15.7': {
-    version: '1.15.7',
-    intro: 'Hey, es ist jetzt Version 1.15.7 rausgekommen, folgendes wurde aktualisiert:',
+  '1.15.8': {
+    version: '1.15.8',
+    intro: 'Hey, es ist jetzt Version 1.15.8 rausgekommen, folgendes wurde aktualisiert:',
     highlights: [
       'Neues Powerup Schockwelle (Z): Ein Ring laeuft vom Schiff ueber das ganze Feld und zerstoert jeden Gegner und jedes Feindgeschoss, das er erreicht. Bosse verlieren 15 % ihrer Lebenspunkte, Asteroiden bleiben liegen.',
       'Die Schockwelle faellt manchmal als Kettenbonus, hoechstens einmal pro Level und nie im Bosskampf.',
       'Der Bot hebt sich die Schockwelle auf, bis mindestens vier Gegner oder Geschosse im Bild sind.',
     ],
   },
-  '1.15.6': {
-    version: '1.15.6',
-    intro: 'Hey, es ist jetzt Version 1.15.6 rausgekommen, folgendes wurde aktualisiert:',
+  '1.15.7': {
+    version: '1.15.7',
+    intro: 'Hey, es ist jetzt Version 1.15.7 rausgekommen, folgendes wurde aktualisiert:',
     highlights: [
       'Neue Gegner ab Level 3: organische Ketten aus bis zu 10 Gliedern schlaengeln sich auf Schlangen-, Schleifen-, Spiral- und S-Bahnen durchs Bild. Nur der Kopf schiesst.',
       'Kettenbonus: Wer jedes Glied einer Kette abschiesst, bekommt ein Powerup und 500 Extrapunkte.',
       'Online-Spiel: Gegner im Sturzflug und Kettenglieder zeigen beim Mitspieler jetzt ihre Flugrichtung.',
       'Der Bot zielt auf die Mitte kleinerer Gegner statt knapp daneben.',
+    ],
+  },
+  '1.15.6': {
+    version: '1.15.6',
+    intro: 'Hey, es ist jetzt Version 1.15.6 rausgekommen, folgendes wurde aktualisiert:',
+    highlights: [
+      '🎯 Fairere Treffer: Asteroiden und Gegner treffen dein Schiff nur noch, wenn sie es wirklich berühren, nicht mehr schon mit sichtbarem Abstand',
     ],
   },
   '1.15.5': {
