@@ -17,6 +17,9 @@ export function istFelsLevel(level) {
   return level >= 4 && level % 2 === 0;
 }
 
+// Gegner-Spawner je Levelart (Plan-Feld spawner)
+const SPAWNER = { standard: verwalteFeindSpawns };
+
 export function levelPlan(level) {
   const stufe = level - 1;
   const asteroidenStart = Math.max(40, 120 - stufe * 10);
@@ -34,6 +37,7 @@ export function levelPlan(level) {
     feindRate: Math.max(120, 300 - stufe * 30),
     bossFrame: LEVEL_DAUER,
     boss: istFelsLevel(level) ? 'insel' : 'standard',
+    spawner: 'standard',
   };
 }
 
@@ -73,7 +77,7 @@ export function levelSchritt() {
   const frame = state.frameZaehler;
 
   if (frame % taktBei(plan.asteroidenTakt, frame) === 0) Entities.erzeugeAsteroid();
-  if (frame > plan.feindStart && frame % plan.feindRate === 0) verwalteFeindSpawns();
+  if (frame > plan.feindStart && frame % plan.feindRate === 0) SPAWNER[plan.spawner]();
   if (plan.fels) {
     const nachschub = frame < plan.bossFrame - FELS_AUSLAUF;
     Fels.erzeugeNachschub(nachschub);

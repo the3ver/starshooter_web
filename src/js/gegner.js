@@ -216,7 +216,7 @@ export function aktualisiereFeinde() {
         f.y += f.vy;
         f.rot = (Math.atan2(f.vy, f.vx) * 180) / Math.PI - 90;
       }
-    } else if (f.muster === 'kette') {
+    } else if (Kette.istKettenglied(f)) {
       Kette.bewegeGlied(f);
     } else if (Gewaechse.istGewaechs(f)) {
       Gewaechse.aktualisiere(f);

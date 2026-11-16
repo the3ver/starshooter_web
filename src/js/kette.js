@@ -63,8 +63,15 @@ function setzeAufBahn(f) {
   f.rot = (Math.atan2(p.y - vor.y, p.x - vor.x) * 180) / Math.PI - 90;
 }
 
+// Muster, die als Kettenglieder auf einer gemeinsamen Bahn laufen
+export const KETTEN_MUSTER = ['kette'];
+
+export function istKettenglied(f) {
+  return KETTEN_MUSTER.includes(f.muster);
+}
+
 // Erzeugt eine Kette mit anzahl Gliedern (Index 0 = Kopf). Nur der Kopf schiesst.
-export function erzeugeKette(bahn = 'schlange', anzahl = 8, seite = 1) {
+export function erzeugeKette(bahn = 'schlange', anzahl = 8, seite = 1, muster = 'kette') {
   const kette = { gesamt: anzahl, abgeschossen: 0 };
   const hpMult = isCoopMode() ? 1.25 : 1.0;
   const schussBasis = Math.max(25, 60 - (state.level - 1) * 8);
@@ -83,8 +90,8 @@ export function erzeugeKette(bahn = 'schlange', anzahl = 8, seite = 1) {
       schildHp: 0,
       maxSchildHp: 0,
       hatSchild: false,
-      farbe: Entities.getFeindColor('kette'),
-      explosionsFarbe: Entities.getFeindColor('kette'),
+      farbe: Entities.getFeindColor(muster),
+      explosionsFarbe: Entities.getFeindColor(muster),
       vy: 0,
       vx: 0,
       zeit: 0,
@@ -94,7 +101,7 @@ export function erzeugeKette(bahn = 'schlange', anzahl = 8, seite = 1) {
       istFeind: true,
       istUnzerstoerbar: false,
       traegtPowerup: false,
-      muster: 'kette',
+      muster,
       phase: 'flug',
       kette,
       kettenIndex: i,
@@ -115,7 +122,7 @@ export function bewegeGlied(f) {
 
 // Glieder, die noch auf ihren Start warten, liegen ausserhalb des Felds und bleiben erhalten.
 export function wartetAufStart(f) {
-  return f.muster === 'kette' && f.kettenT < 0;
+  return istKettenglied(f) && f.kettenT < 0;
 }
 
 // Aus zerstoereZiel: zaehlt Abschuesse; das letzte Glied einer vollstaendig abgeschossenen Kette
