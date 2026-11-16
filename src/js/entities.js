@@ -182,6 +182,10 @@ export function getFeindColor(muster = 'normal') {
   if (muster === 'swoop') return '#2ecc71';
   if (muster === 'hacker') return '#39ff14';
   if (muster === 'kette') return '#d9822b';
+  if (muster === 'stachelkette') return '#7d8f5a';
+  if (muster === 'kugelkette') return '#9b6ad0';
+  if (muster === 'krabbe') return '#d0532a';
+  if (muster === 'tentakler') return '#b06ad8';
   return '#9b59b6';
 }
 

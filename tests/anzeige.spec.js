@@ -566,6 +566,7 @@ test('Spiellogik fasst die Elemente der Weltobjekte nicht an (Position, Zustand,
     'fels.js',
     'gewaechse.js',
     'inselboss.js',
+    'biowesen.js',
     'client.js',
     'gegner.js',
     'boss.js',
@@ -1308,6 +1309,7 @@ test('Spiellogik-Module enthalten kein document.createElement, kein dom.spielfel
     'fels',
     'gewaechse',
     'inselboss',
+    'biowesen',
     'effekte',
   ];
   for (const datei of module) {

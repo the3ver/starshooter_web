@@ -1074,6 +1074,60 @@ body {
   animation: feindSchildPulse 1s infinite alternate ease-in-out;
 }
 
+.krabbe-beine {
+  animation: krabbeln 0.18s infinite alternate steps(2);
+}
+
+@keyframes krabbeln {
+  0% {
+    transform: translateY(-1px);
+  }
+  100% {
+    transform: translateY(1.5px);
+  }
+}
+
+.tentakel {
+  transform-origin: 15px 14px;
+  animation: tentakelWehen 0.9s infinite alternate ease-in-out;
+}
+
+@keyframes tentakelWehen {
+  0% {
+    transform: skewX(-12deg);
+  }
+  100% {
+    transform: skewX(12deg);
+  }
+}
+
+.schirm {
+  transform-origin: 15px 15px;
+  animation: schirmPuls 0.9s infinite alternate ease-in-out;
+}
+
+@keyframes schirmPuls {
+  0% {
+    transform: scale(1, 1);
+  }
+  100% {
+    transform: scale(1.08, 0.9);
+  }
+}
+
+.kugel-blase {
+  animation: blasenGlut 0.6s infinite alternate ease-in-out;
+}
+
+@keyframes blasenGlut {
+  0% {
+    fill: #e2b8f8;
+  }
+  100% {
+    fill: #fff4ff;
+  }
+}
+
 .ketten-koerper {
   animation: kettenPuls 0.72s infinite alternate ease-in-out;
   animation-delay: var(--puls-verzug, 0s);

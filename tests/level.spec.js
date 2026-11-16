@@ -66,8 +66,10 @@ const faelle = [
   [1, 2480, 1, 0], // Endtakt 80
   [5, 900, 0, 1], // Asteroiden 80/60/40, Feinde ab 800 alle 180
   [5, 960, 1, 0],
-  [12, 600, 1, 0], // Untergrenzen 40/30/20, Feinde ab 600 alle 120
-  [12, 720, 1, 1],
+  [11, 600, 1, 0], // Untergrenzen 40/30/20, Feinde ab 600 alle 120 (Level 11: kein Fels-Level)
+  [11, 720, 1, 1],
+  [12, 600, 0, 1], // Fels-Level: Asteroiden halb so oft (80), Bio-Feinde ab 300 alle 120
+  [12, 640, 1, 0],
 ];
 
 for (const [level, frame, asteroiden, feinde] of faelle) {

@@ -6,6 +6,7 @@ import * as Fels from './fels.js';
 import * as Gewaechse from './gewaechse.js';
 import * as Anzeige from './anzeige.js';
 import * as Inselboss from './inselboss.js';
+import { verwalteBioSpawns } from './biowesen.js';
 
 // Ablauf eines Levels: Asteroiden-Takt in drei Phasen, Feinde ab feindStart im Takt feindRate,
 // Boss-Warnung bei bossFrame. levelPlan(level) liefert die Werte; neue Levelarten bekommen hier ihren Plan.
@@ -18,10 +19,15 @@ export function istFelsLevel(level) {
 }
 
 // Gegner-Spawner je Levelart (Plan-Feld spawner)
-const SPAWNER = { standard: verwalteFeindSpawns };
+const SPAWNER = { standard: verwalteFeindSpawns, bio: verwalteBioSpawns };
+
+// Fels-Level (Biozone): eigener Gegnermix aus Ketten und Wesen, frueher Start, Asteroiden halb so oft
+export const BIO_FEIND_START = 300;
 
 export function levelPlan(level) {
   const stufe = level - 1;
+  const bio = istFelsLevel(level);
+  const faktor = bio ? 2 : 1;
   const asteroidenStart = Math.max(40, 120 - stufe * 10);
   const asteroidenMitte = Math.max(30, asteroidenStart - 20);
   return {
@@ -29,15 +35,15 @@ export function levelPlan(level) {
     fels: istFelsLevel(level),
     // [abFrame, Takt]: der letzte Eintrag mit abFrame < frame gilt
     asteroidenTakt: [
-      [0, asteroidenStart],
-      [1200, asteroidenMitte],
-      [2400, Math.max(20, asteroidenMitte - 20)],
+      [0, asteroidenStart * faktor],
+      [1200, asteroidenMitte * faktor],
+      [2400, Math.max(20, asteroidenMitte - 20) * faktor],
     ],
-    feindStart: Math.max(600, 1200 - stufe * 100),
+    feindStart: bio ? BIO_FEIND_START : Math.max(600, 1200 - stufe * 100),
     feindRate: Math.max(120, 300 - stufe * 30),
     bossFrame: LEVEL_DAUER,
     boss: istFelsLevel(level) ? 'insel' : 'standard',
-    spawner: 'standard',
+    spawner: bio ? 'bio' : 'standard',
   };
 }
 

@@ -2,6 +2,8 @@ import { state, config, arrays, isCoopMode } from './state.js';
 import * as Entities from './entities.js';
 import * as Anzeige from './anzeige.js';
 import * as Schockwelle from './schockwelle.js';
+import * as Gewaechse from './gewaechse.js';
+import { naechsterSpielerMitte } from './gegner.js';
 
 // Kettengegner: Kopf und Glieder folgen derselben Bahn, Glied i mit i * gliedAbstand(...) Schritten Rueckstand.
 // Die Bahn ist eine reine Funktion der Zeit (bahnPunkt), die Glieder brauchen keinen Positionsspeicher.
@@ -64,7 +66,16 @@ function setzeAufBahn(f) {
 }
 
 // Muster, die als Kettenglieder auf einer gemeinsamen Bahn laufen
-export const KETTEN_MUSTER = ['kette'];
+// kette: Kopf schiesst; stachelkette: Hindernis (zaeh, langsam, schiesst nicht); kugelkette: jedes dritte
+// Glied traegt eine Blase (groesse POD_GROESSE) und schiesst gezielte Kugeln
+export const KETTEN_MUSTER = ['kette', 'stachelkette', 'kugelkette'];
+export const POD_GROESSE = 24;
+export const KUGEL_TAKT = 150;
+const KETTEN_ART = {
+  kette: { tempo: 1, kopfHp: 32, gliedHp: 16 },
+  stachelkette: { tempo: 0.7, kopfHp: 40, gliedHp: 30 },
+  kugelkette: { tempo: 0.9, kopfHp: 32, gliedHp: 16 },
+};
 
 export function istKettenglied(f) {
   return KETTEN_MUSTER.includes(f.muster);
@@ -76,10 +87,12 @@ export function erzeugeKette(bahn = 'schlange', anzahl = 8, seite = 1, muster = 
   const hpMult = isCoopMode() ? 1.25 : 1.0;
   const schussBasis = Math.max(25, 60 - (state.level - 1) * 8);
   const abstand = gliedAbstand(bahn, seite);
+  const art = KETTEN_ART[muster];
   for (let i = 0; i < anzahl; i++) {
     const kopf = i === 0;
-    const groesse = kopf ? KOPF_GROESSE : GLIED_GROESSE;
-    const hp = Math.round((kopf ? 32 : 16) * hpMult);
+    const pod = muster === 'kugelkette' && i % 3 === 2;
+    const groesse = kopf ? KOPF_GROESSE : pod ? POD_GROESSE : GLIED_GROESSE;
+    const hp = Math.round((kopf ? art.kopfHp : art.gliedHp) * hpMult);
     const f = {
       id: Entities.neueId('f'),
       x: 0,
@@ -95,7 +108,7 @@ export function erzeugeKette(bahn = 'schlange', anzahl = 8, seite = 1, muster = 
       vy: 0,
       vx: 0,
       zeit: 0,
-      schussTimer: kopf ? schussBasis * 2 : 9999,
+      schussTimer: kopf && muster === 'kette' ? schussBasis * 2 : 9999,
       burstCount: 0,
       burstTimer: 0,
       istFeind: true,
@@ -108,6 +121,8 @@ export function erzeugeKette(bahn = 'schlange', anzahl = 8, seite = 1, muster = 
       kettenBahn: bahn,
       kettenSeite: seite,
       kettenT: -i * abstand,
+      kettenTempo: art.tempo,
+      ...(pod ? { kugelTimer: 60 + i * 15 } : {}),
     };
     setzeAufBahn(f);
     arrays.feinde.push(Anzeige.erzeuge(f, 'feind'));
@@ -116,8 +131,17 @@ export function erzeugeKette(bahn = 'schlange', anzahl = 8, seite = 1, muster = 
 }
 
 export function bewegeGlied(f) {
-  f.kettenT++;
+  f.kettenT += f.kettenTempo ?? 1;
   setzeAufBahn(f);
+  if (f.kugelTimer === undefined || f.kettenT <= 0 || f.y < 0) return;
+  f.kugelTimer--;
+  if (f.kugelTimer > 0) return;
+  f.kugelTimer = KUGEL_TAKT;
+  const mx = f.x + f.groesse / 2;
+  const my = f.y + f.groesse / 2;
+  const ziel = naechsterSpielerMitte(f);
+  const w = Math.atan2(ziel.y - my, ziel.x - mx);
+  Gewaechse.erzeugeSporeZu(mx, my, Math.cos(w) * 2.4, Math.sin(w) * 2.4);
 }
 
 // Glieder, die noch auf ihren Start warten, liegen ausserhalb des Felds und bleiben erhalten.

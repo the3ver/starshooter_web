@@ -1,6 +1,15 @@
-export const GAME_VERSION = '1.15.18';
+export const GAME_VERSION = '1.15.19';
 
 export const changelogData = {
+  '1.15.19': {
+    version: '1.15.19',
+    intro: 'Hey, es ist jetzt Version 1.15.19 rausgekommen, folgendes wurde aktualisiert:',
+    highlights: [
+      'Die Fels-Level spielen sich jetzt ganz anders: statt Jaegerstaffeln kommen nur noch organische Gegner, Asteroiden seltener.',
+      'Neue Gegnerschlangen: die gepanzerte Stachelkette als Hindernis und die Kugelkette, deren Blasenglieder Kugeln schiessen.',
+      'Neue Wesen: Krabben mit Stielaugen laufen an den Felswaenden entlang und springen dann in den Gang, Tentakler schweben pendelnd herab und stossen Kugelringe aus.',
+    ],
+  },
   '1.15.18': {
     version: '1.15.18',
     intro: 'Hey, es ist jetzt Version 1.15.18 rausgekommen, folgendes wurde aktualisiert:',

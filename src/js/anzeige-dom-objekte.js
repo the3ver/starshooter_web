@@ -84,9 +84,60 @@ const GEWAECHS_SVG = {
   `,
 };
 
+// Organische Gegner (Vorwaerts = unten): Stachelkette (gepanzert, Stacheln), Kugelkette (Blasenglieder, Glieder
+// mit Leuchtblase), Krabbe (Panzer, Scheren, Stielaugen, krabbelnde Beine), Tentakler (Schirm, wehende Tentakel)
+const STACHELN = Array.from({ length: 8 }, (_, i) => {
+  const w = (i * Math.PI) / 4;
+  const p = (r, d) => `${(15 + Math.cos(w + d) * r).toFixed(1)},${(15 + Math.sin(w + d) * r).toFixed(1)}`;
+  return `<polygon points="${p(10, -0.28)} ${p(16.5, 0)} ${p(10, 0.28)}" fill="#c8cfa6" stroke="#3c4628" stroke-width="0.8"/>`;
+}).join('');
+const BIO_SVG = {
+  stachelkette: istKopf => `
+    <svg class="ketten-koerper" viewBox="0 0 30 30" style="position: absolute; width: 100%; height: 100%; overflow: visible;">
+      ${STACHELN}
+      <circle cx="15" cy="15" r="11" fill="#55633c" stroke="#2b3420" stroke-width="1.5"/>
+      <path d="M6 12 Q15 7 24 12 M6 18 Q15 13 24 18" stroke="#8a9a64" stroke-width="2" fill="none"/>
+      ${istKopf ? '<path d="M9 22 L12 29 L14 22 Z M21 22 L18 29 L16 22 Z" fill="#e8e2c0"/><circle cx="11" cy="17" r="2.2" fill="#ffcf3a"/><circle cx="19" cy="17" r="2.2" fill="#ffcf3a"/>' : ''}
+    </svg>`,
+  kugelkette: (istKopf, istPod) => `
+    <svg class="ketten-koerper" viewBox="0 0 30 30" style="position: absolute; width: 100%; height: 100%; overflow: visible;">
+      <ellipse cx="15" cy="15" rx="13" ry="12" fill="#5e3a86" stroke="#2a1640" stroke-width="1.5"/>
+      <ellipse cx="15" cy="13" rx="9" ry="6" fill="#8d62c0" opacity="0.8"/>
+      ${istPod ? '<circle class="kugel-blase" cx="15" cy="16" r="6.5" fill="#f4d8ff"/>' : ''}
+      ${istKopf ? '<path d="M8 22 Q15 32 22 22" fill="#2a1640"/><circle cx="10" cy="12" r="2.4" fill="#ffe680"/><circle cx="20" cy="12" r="2.4" fill="#ffe680"/>' : ''}
+    </svg>`,
+  krabbe: () => `
+    <svg viewBox="0 0 34 34" style="position: absolute; width: 100%; height: 100%; overflow: visible;">
+      <g class="krabbe-beine" stroke="#7a2a10" stroke-width="2.2" stroke-linecap="round" fill="none">
+        <path d="M8 12 L1 8 L-2 12 M7 17 L0 17 L-3 21 M8 22 L2 26 L0 31"/>
+        <path d="M26 12 L33 8 L36 12 M27 17 L34 17 L37 21 M26 22 L32 26 L34 31"/>
+      </g>
+      <path d="M9 24 Q4 31 8 34 Q11 30 13 28 M25 24 Q30 31 26 34 Q23 30 21 28" fill="#e0683a" stroke="#7a2a10" stroke-width="1.2"/>
+      <ellipse cx="17" cy="16" rx="11" ry="9" fill="#d0532a" stroke="#7a2a10" stroke-width="1.5"/>
+      <circle cx="13" cy="13" r="1.8" fill="#f0a070"/><circle cx="21" cy="14" r="1.4" fill="#f0a070"/><circle cx="17" cy="10" r="1.2" fill="#f0a070"/>
+      <path class="stielauge" d="M13 23 L11 29" stroke="#7a2a10" stroke-width="1.6"/>
+      <path class="stielauge" d="M21 23 L23 29" stroke="#7a2a10" stroke-width="1.6"/>
+      <circle cx="11" cy="30" r="2.6" fill="#fff6d8" stroke="#3a1206" stroke-width="0.8"/><circle cx="11" cy="30.6" r="1.2" fill="#1a0802"/>
+      <circle cx="23" cy="30" r="2.6" fill="#fff6d8" stroke="#3a1206" stroke-width="0.8"/><circle cx="23" cy="30.6" r="1.2" fill="#1a0802"/>
+    </svg>`,
+  tentakler: () => `
+    <svg viewBox="0 0 30 30" style="position: absolute; width: 100%; height: 100%; overflow: visible;">
+      <g class="tentakel" stroke="#c48ae0" stroke-width="2" stroke-linecap="round" fill="none" opacity="0.9">
+        <path d="M7 14 Q5 22 8 30 Q6 36 9 40"/><path d="M11 15 Q10 24 12 32"/><path d="M15 15 Q16 25 14 36"/>
+        <path d="M19 15 Q20 24 18 32"/><path d="M23 14 Q25 22 22 30 Q24 36 21 40"/>
+      </g>
+      <path class="schirm" d="M2 15 Q2 1 15 1 Q28 1 28 15 Q22 12 15 15 Q8 12 2 15 Z" fill="#9a4ec4" stroke="#4a1a66" stroke-width="1.2" opacity="0.92"/>
+      <path d="M7 7 Q15 2 23 7" stroke="#e4c4f4" stroke-width="1.6" fill="none"/>
+      <circle cx="11" cy="10" r="1.8" fill="#fff2a0"/><circle cx="19" cy="10" r="1.8" fill="#fff2a0"/>
+    </svg>`,
+};
+
 function getFeindSVGHtml(muster = 'normal', hatSchild = false, groesse = 30) {
   let schildHtml = hatSchild ? '<div class="feind-schild"></div>' : '';
   if (muster === 'kette') return getKettenSVGHtml(groesse >= 26);
+  if (muster === 'stachelkette') return BIO_SVG.stachelkette(groesse >= 26);
+  if (muster === 'kugelkette') return BIO_SVG.kugelkette(groesse >= 26, groesse === 24);
+  if (muster === 'krabbe' || muster === 'tentakler') return BIO_SVG[muster]();
   if (GEWAECHS_SVG[muster]) return GEWAECHS_SVG[muster]();
 
   if (muster === 'normal' || muster === 'clingOn') {
@@ -275,7 +326,7 @@ function feindElement(f) {
   el.style.width = f.groesse + 'px';
   el.style.height = f.groesse + 'px';
   el.innerHTML = getFeindSVGHtml(f.muster, f.hatSchild, f.groesse);
-  if (f.muster === 'kette') {
+  if (['kette', 'stachelkette', 'kugelkette'].includes(f.muster)) {
     // Puls-Phase aus der Id: aufeinanderfolgende Glieder pulsieren versetzt (Welle), Host und Client gleich
     const nr = parseInt(String(f.id).replace(/\D/g, ''), 10) || 0;
     el.style.setProperty('--puls-verzug', `${-(nr % 8) * 0.09}s`);

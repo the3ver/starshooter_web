@@ -5,6 +5,7 @@ import * as Hack from './hack.js';
 import * as Anzeige from './anzeige.js';
 import * as Kette from './kette.js';
 import * as Gewaechse from './gewaechse.js';
+import * as Biowesen from './biowesen.js';
 
 export function verwalteFeindSpawns() {
   // Hacker: Spezialeinheit ab Level 2, höchstens einer gleichzeitig
@@ -220,6 +221,8 @@ export function aktualisiereFeinde() {
       Kette.bewegeGlied(f);
     } else if (Gewaechse.istGewaechs(f)) {
       Gewaechse.aktualisiere(f);
+    } else if (Biowesen.istWesen(f)) {
+      Biowesen.aktualisiere(f);
     } else if (f.muster === 'larve') {
       Gewaechse.bewegeLarve(f);
     } else if (f.muster === 'hacker') {
