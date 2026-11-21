@@ -2894,6 +2894,23 @@ test.describe('2-Spieler-Modus (Co-op)', () => {
     expect(levelBox.x + levelBox.width).toBeLessThanOrEqual(uiP2Box.x + 5);
   });
 
+  test('Dedicated Loot im Co-op: leben beide, gehen Powerups abwechselnd an P1 und P2', async ({ page }) => {
+    await page.locator('#gamemode-btn-coop').click();
+    await starteSpiel(page);
+    const owners = await page.evaluate(async () => {
+      const { state, arrays } = await import('./js/state.js');
+      const Entities = await import('./js/entities.js');
+      state.isDead = false;
+      state.p2.isDead = false;
+      const vorher = arrays.powerups.length;
+      for (let i = 0; i < 4; i++) Entities.erzeugePowerup(200, 100, 'energie');
+      return arrays.powerups.slice(vorher).map(p => p.owner);
+    });
+    expect(owners).toHaveLength(4);
+    expect(['p1', 'p2']).toContain(owners[0]);
+    for (let i = 1; i < 4; i++) expect(owners[i], `Powerup ${i}`).not.toBe(owners[i - 1]);
+  });
+
   test('Dedicated Loot bei alleinigem Überleben: Wenn ein Spieler tot ist, spawnen nur Powerups für den lebenden Spieler', async ({
     page,
   }) => {
