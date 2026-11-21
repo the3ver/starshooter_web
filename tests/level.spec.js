@@ -1,5 +1,5 @@
 const { test, expect } = require('@playwright/test');
-const { setGameState, startGame } = require('./helfer');
+const { setGameState, startGame } = require('./helpers');
 
 test.beforeEach(async ({ page }) => {
   await page.route('**/api/highscores*', route =>
@@ -22,8 +22,8 @@ async function stepAt(page, level, frame, bossActive = false) {
     async ({ level, frame, bossActive }) => {
       const { state, arrays } = await import('./js/state.js');
       const { simulationStep } = await import('./js/loop.js');
-      const Display = await import('./js/anzeige.js');
-      const Growths = await import('./js/gewaechse.js');
+      const Display = await import('./js/display.js');
+      const Growths = await import('./js/growths.js');
       ['enemies', 'asteroids', 'enemyLaserArray', 'powerups'].forEach(name => {
         arrays[name].forEach(Display.remove);
         arrays[name].length = 0;

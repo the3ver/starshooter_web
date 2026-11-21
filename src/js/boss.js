@@ -2,11 +2,11 @@ import { state, dom, config, arrays, isCoopMode } from './state.js';
 import * as Utils from './utils.js';
 import * as Entities from './entities.js';
 import * as Audio from './audio.js';
-import { nextPlayerMiddle, tickStun } from './gegner.js';
-import * as Display from './anzeige.js';
-import { createParticles } from './partikel.js';
-import { createEffect } from './effekte.js';
-import * as IslandBoss from './inselboss.js';
+import { nextPlayerMiddle, tickStun } from './opponents.js';
+import * as Display from './display.js';
+import { createParticles } from './particles.js';
+import { createEffect } from './effects.js';
+import * as IslandBoss from './island-boss.js';
 
 const BOSS_HACK_FROM_LEVEL = 5;
 const BOSS_HACK_INTERVAL = 300; // 5 s

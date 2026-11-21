@@ -2,9 +2,9 @@ import { state, dom, config, arrays, isCoopMode } from './state.js';
 import * as Utils from './utils.js';
 import * as Audio from './audio.js';
 import * as Network from './network.js';
-import * as Display from './anzeige.js';
-import * as Shockwave from './schockwelle.js';
-import * as Rock from './fels.js';
+import * as Display from './display.js';
+import * as Shockwave from './shockwave.js';
+import * as Rock from './rock.js';
 
 function applyPowerup(p, targetKey = 'p1') {
   const isP1 = targetKey === 'p1';

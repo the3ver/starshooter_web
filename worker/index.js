@@ -1,5 +1,5 @@
 // Starshooter Highscores Cloudflare Worker API
-import { cleanName } from './validierung.mjs';
+import { cleanName } from './validation.mjs';
 import { handleTurnRequest } from './turn.mjs';
 
 const SECRET_SALT = 'st4r-sh00t3r-s3cr3t-k3y-2026';
@@ -104,7 +104,7 @@ export default {
         }
 
         // 2. Name bereinigen & prüfen
-        // (inkl. Zeichen-Check und Profanity-Filter, siehe validierung.mjs)
+        // (inkl. Zeichen-Check und Profanity-Filter, siehe validation.mjs)
         const nameResult = cleanName(name);
         if (!nameResult.ok) {
           return jsonResponse({ success: false, error: nameResult.error }, 400);

@@ -6,13 +6,13 @@ import * as Audio from './audio.js';
 import { p1Display, setInterpolationTarget, deriveSpeed, snapshotReceived, applyP1Display } from './client.js';
 import { endPause, processPauseEvent } from './pause.js';
 import { GAME_VERSION } from './changelog.js';
-import { PROTOCOL_VERSION, KEYFRAME_INTERVAL, SnapshotEncoder, SnapshotDecoder, InputSender } from './netzkodierung.js';
+import { PROTOCOL_VERSION, KEYFRAME_INTERVAL, SnapshotEncoder, SnapshotDecoder, InputSender } from './net-encoding.js';
 import * as Gleve from './gleve.js';
 import * as Viper from './viper.js';
 import * as Sniper from './sniper.js';
-import * as Shockwave from './schockwelle.js';
-import * as Rock from './fels.js';
-import * as Display from './anzeige.js';
+import * as Shockwave from './shockwave.js';
+import * as Rock from './rock.js';
+import * as Display from './display.js';
 
 let room = null;
 let sendStateAction = null;
@@ -1784,7 +1784,7 @@ export function applyPlayerInput(input) {
   }
   state.p2.sniperAutoInput = Boolean(input.auto);
 
-  // Gehaltene Tasten gelten bis zum naechsten Paket (waffen.js feuert damit wie bei
+  // Gehaltene Tasten gelten bis zum naechsten Paket (weapons.js feuert damit wie bei
   // einem true in jedem Schritt); ein kurzer Druck bleibt wie bisher bis zum Schuss gemerkt
   if (input.missile !== undefined) {
     // Neuer Druck bleibt fuer den Gleve-Dash gemerkt, auch wenn das Loslassen im selben Host-Schritt ankommt

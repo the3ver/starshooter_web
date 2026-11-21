@@ -19,7 +19,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "node \"$CLAUDE_PROJECT_DIR/.claude/hooks/git-schutz.mjs\""
+            "command": "node \"$CLAUDE_PROJECT_DIR/.claude/hooks/git-guard.mjs\""
           },
           {
             "type": "command",
@@ -46,7 +46,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "node \"$CLAUDE_PROJECT_DIR/.claude/hooks/lint-datei.mjs\""
+            "command": "node \"$CLAUDE_PROJECT_DIR/.claude/hooks/lint-file.mjs\""
           }
         ]
       }

@@ -1,5 +1,5 @@
 const { test, expect } = require('@playwright/test');
-const { setGameState } = require('./helfer');
+const { setGameState } = require('./helpers');
 
 const TRYSTERO_URL = 'https://cdn.jsdelivr.net/npm/@trystero-p2p/torrent/+esm';
 const ICE_SERVERS = [

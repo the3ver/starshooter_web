@@ -4,7 +4,7 @@ const { pathToFileURL } = require('url');
 
 // Worker-Validierung ist ein ES-Modul (.mjs), die Spec ist CommonJS
 async function chargingValidation() {
-  return import(pathToFileURL(path.join(__dirname, '..', 'worker', 'validierung.mjs')).href);
+  return import(pathToFileURL(path.join(__dirname, '..', 'worker', 'validation.mjs')).href);
 }
 
 test('Profanity: nur der verbotene Teil wird ersetzt (BASS+ASS -> BASS+***)', async () => {

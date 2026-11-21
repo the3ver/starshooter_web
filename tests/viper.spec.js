@@ -1,5 +1,5 @@
 const { test, expect } = require('@playwright/test');
-const { setGameState } = require('./helfer');
+const { setGameState } = require('./helpers');
 
 // Viper-X Ausweichrolle: Doppeltipp links/rechts (mobil: Wisch auf dem Joystick) rollt 70 px in 12 Schritten,
 // unverwundbar, Cooldown 90 Schritte ab Rollenstart. Alles deterministisch ueber simulationsSchritt().
@@ -696,7 +696,7 @@ test.describe('Viper-X Ausweichrolle: Online', () => {
     const r = await page.evaluate(async () => {
       const g = window.__game;
       const { state } = g;
-      const NK = await import('./js/netzkodierung.js');
+      const NK = await import('./js/net-encoding.js');
       const out = {};
       state.viperRollTimer = 7;
       state.viperRollDirection = -1;
@@ -795,7 +795,7 @@ test.describe('Viper-X Ausweichrolle: Online', () => {
     const host = await page.evaluate(async p => {
       const g = window.__game;
       const { state, arrays, Entities } = g;
-      const NK = await import('./js/netzkodierung.js');
+      const NK = await import('./js/net-encoding.js');
       const out = {};
       state.p2.viperRollTimer = 0;
       state.p2.viperRollCooldown = 0;
@@ -1227,7 +1227,7 @@ test.describe('Viper-X Near-Miss und Overdrive: Online', () => {
     const r = await page.evaluate(async () => {
       const g = window.__game;
       const { state } = g;
-      const NK = await import('./js/netzkodierung.js');
+      const NK = await import('./js/net-encoding.js');
       const out = {};
       state.viperOverdriveStrip = 50;
       state.viperOverdriveTimer = 150.4;
@@ -1621,7 +1621,7 @@ test.describe('Viper-X Kill-Kombo', () => {
     const r = await page.evaluate(async () => {
       const g = window.__game;
       const { state } = g;
-      const NK = await import('./js/netzkodierung.js');
+      const NK = await import('./js/net-encoding.js');
       const out = {};
       state.viperCombo = 7;
       state.viperComboTimer = 80.4;

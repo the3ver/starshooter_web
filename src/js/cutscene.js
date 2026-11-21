@@ -2,7 +2,7 @@ import { state, dom, config, arrays, shipModels } from './state.js';
 import * as Utils from './utils.js';
 import * as Audio from './audio.js';
 import * as Network from './network.js';
-import * as Display from './anzeige.js';
+import * as Display from './display.js';
 
 let cutsceneContainer = null;
 let cutsceneAnimationId = null;

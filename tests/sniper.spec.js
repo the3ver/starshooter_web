@@ -1,5 +1,5 @@
 const { test, expect } = require('@playwright/test');
-const { setGameState } = require('./helfer');
+const { setGameState } = require('./helpers');
 
 // Spectre-SR (sniper): Grundlage (Auswahl, Anzeige, HUD) und Fadenkreuz-Schuss (S2).
 
@@ -2322,7 +2322,7 @@ test.describe('Spectre-SR Granaten-Taste und EMP', () => {
   }) => {
     await prepareEmp(page);
     const r = await page.evaluate(async () => {
-      const Display = await import('./js/anzeige.js');
+      const Display = await import('./js/display.js');
       const { state, arrays, Entities } = window.__game;
       const E = window.__emp;
       const T = window.__sn;
@@ -2499,8 +2499,8 @@ test.describe('Spectre-SR EMP online', () => {
     await prepareGrenade(page);
     const r = await page.evaluate(async () => {
       const Sn = await import('./js/sniper.js');
-      const { updateEffects } = await import('./js/effekte.js');
-      const Display = await import('./js/anzeige.js');
+      const { updateEffects } = await import('./js/effects.js');
+      const Display = await import('./js/display.js');
       const { Audio } = window.__game;
       Audio.clearAudioHistory();
       Sn.showEmp({ x: 300, y: 300, radius: 90, owner: 'p1' });
@@ -2531,7 +2531,7 @@ test.describe('Spectre-SR EMP online', () => {
 
   test('Protokollversion enthaelt das EMP-Ereignis (ab 11)', async ({ page }) => {
     await prepareGrenade(page);
-    const v = await page.evaluate(async () => (await import('./js/netzkodierung.js')).PROTOCOL_VERSION);
+    const v = await page.evaluate(async () => (await import('./js/net-encoding.js')).PROTOCOL_VERSION);
     expect(v).toBeGreaterThanOrEqual(11);
   });
 });
@@ -3130,7 +3130,7 @@ test.describe('Spectre-SR Haftminen online (Host)', () => {
       const { state, Network, arrays } = window.__game;
       const G = window.__gr;
       const E = window.__input;
-      const NK = await import('./js/netzkodierung.js');
+      const NK = await import('./js/net-encoding.js');
       E({ missile: true });
       G.free(25);
       E({ missile: false });
@@ -3372,7 +3372,7 @@ test.describe('Spectre-SR Granaten-Ladungen', () => {
     await prepareOnlineHost(page);
     const r = await page.evaluate(async () => {
       const { state, Network } = window.__game;
-      const NK = await import('./js/netzkodierung.js');
+      const NK = await import('./js/net-encoding.js');
       state.p2.sniperGrenadeCharges = 1;
       const full = Network.serializeGameState();
       const out = { p2: full.p2.sniperGrenadeCharges, p1: full.p1.sniperGrenadeCharges };

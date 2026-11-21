@@ -1,13 +1,13 @@
 import { state, config, arrays, shipModels } from './state.js';
 import * as Network from './network.js';
 import * as Hack from './hack.js';
-import { animateParticles } from './partikel.js';
-import { updateEffects } from './effekte.js';
+import { animateParticles } from './particles.js';
+import { updateEffects } from './effects.js';
 import { moveStars } from './loop.js';
 import * as Gleve from './gleve.js';
 import * as Viper from './viper.js';
 import * as Sniper from './sniper.js';
-import * as Rock from './fels.js';
+import * as Rock from './rock.js';
 import { checkTheme } from './level.js';
 
 // Steuerrichtung des Clients (Joystick normalisiert oder Tasten, Hacks angewendet)

@@ -1,5 +1,5 @@
 const { test, expect } = require('@playwright/test');
-const { setGameState } = require('./helfer');
+const { setGameState } = require('./helpers');
 
 // Online-Client (Spieler 2): Snapshot-Anwendung und clientSchritt in einer Seite simulieren
 
@@ -275,7 +275,7 @@ test('Online: Gleve-Zustand und harmlos-Flag gehen in den Snapshot, Client zeigt
   const r = await page.evaluate(async () => {
     const g = window.__game;
     const { state, arrays, dom } = g;
-    const NK = await import('./js/netzkodierung.js');
+    const NK = await import('./js/net-encoding.js');
     const { simulationStep } = await import('./js/loop.js');
     const out = {};
 
@@ -398,7 +398,7 @@ test('Online: Klingenwellen gehen in den Snapshot, Client zeigt .gleve-welle und
   const r = await page.evaluate(async () => {
     const g = window.__game;
     const { arrays } = g;
-    const NK = await import('./js/netzkodierung.js');
+    const NK = await import('./js/net-encoding.js');
     const out = {};
     arrays.gleveWaves.push({
       id: 'gw_1',
@@ -448,7 +448,7 @@ test('Online: Dash-Ladungen gehen in den Snapshot (nur Gleve), Client zeigt Punk
   const r = await page.evaluate(async () => {
     const g = window.__game;
     const { state } = g;
-    const NK = await import('./js/netzkodierung.js');
+    const NK = await import('./js/net-encoding.js');
     const Gleve = await import('./js/gleve.js');
     const { simulationStep } = await import('./js/loop.js');
     const out = {};
@@ -693,7 +693,7 @@ test('Online: Sniper-Felder gehen nur fuer Sniper in den Snapshot (Granatenliste
   const r = await page.evaluate(async () => {
     const g = window.__game;
     const { state, arrays } = g;
-    const NK = await import('./js/netzkodierung.js');
+    const NK = await import('./js/net-encoding.js');
     const Sniper = await import('./js/sniper.js');
     const out = {};
     state.selectedShipModel = 'sniper';
@@ -963,7 +963,7 @@ test('Online-Client: Eingabe-Paket traegt Lade-Knopf als Laser, Joystick-Autofeu
   const r = await page.evaluate(async () => {
     const g = window.__game;
     const { state } = g;
-    const NK = await import('./js/netzkodierung.js');
+    const NK = await import('./js/net-encoding.js');
     const keys = state.keysPressed;
     Object.keys(keys).forEach(k => {
       keys[k] = false;

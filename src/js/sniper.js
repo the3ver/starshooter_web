@@ -12,8 +12,8 @@ import * as Audio from './audio.js';
 import * as Hack from './hack.js';
 import * as Network from './network.js';
 import { damageTarget, showChargeHud } from './gleve.js';
-import * as Display from './anzeige.js';
-import { createEffect, removeEffects as removeAllEffects } from './effekte.js';
+import * as Display from './display.js';
+import { createEffect, removeEffects as removeAllEffects } from './effects.js';
 
 export const CROSSHAIR_DISTANCE = 220; // px ueber der Schiffsoberkante
 export const SHOT_ENERGY = 6;
@@ -114,7 +114,7 @@ function consumeGrenade(pState) {
   if ((pState.missileCooldown || 0) <= 0) pState.missileCooldown = grenadeCooldown(pState);
 }
 
-// Pro Schritt (waffen.js): Nachladen nacheinander (laeuft auf 0 -> +1 Ladung, ggf. weiter laden) und HUD
+// Pro Schritt (weapons.js): Nachladen nacheinander (laeuft auf 0 -> +1 Ladung, ggf. weiter laden) und HUD
 export function updateGrenadeCharges(pKey, pState) {
   const max = grenadeMax(pState);
   if (pState.sniperGrenadeCharges === undefined) pState.sniperGrenadeCharges = max;
@@ -283,7 +283,7 @@ function updateCrosshair(pState) {
 }
 
 // --- DARSTELLUNG ---
-// Das Fadenkreuz samt Ladering zeichnet das Anzeige-Backend aus dem Spielerzustand (zeichneFadenkreuz in anzeige-dom.js).
+// Das Fadenkreuz samt Ladering zeichnet das Anzeige-Backend aus dem Spielerzustand (zeichneFadenkreuz in display-dom.js).
 
 function createBeam(pState, share = 0) {
   const n = shipNose(pState);
@@ -730,7 +730,7 @@ function tapGrenade(pState, pKey) {
   triggerEmp(pState, pKey);
 }
 
-// Pro Schritt aus waffen.js (statt der Raketen): `gehalten` ist die Raketen-Taste. Druck startet die Zaehlung, Loslassen
+// Pro Schritt aus weapons.js (statt der Raketen): `gehalten` ist die Raketen-Taste. Druck startet die Zaehlung, Loslassen
 // entscheidet: unter HALTEN_AB Schritten (und freiem Cooldown) = Tippen; nach dem Halten startet der Cooldown, wenn Minen lagen.
 export function updateGrenadeKey(pState, pKey, held) {
   if (!isSniper(pState)) return;
@@ -794,7 +794,7 @@ function removeGrenadeEffects(pKey) {
   }
 }
 
-// Pro Schritt aus spieler.js (Energie-Phase, nach der Bewegung): Fadenkreuz pflegen und Schuss ausloesen.
+// Pro Schritt aus player.js (Energie-Phase, nach der Bewegung): Fadenkreuz pflegen und Schuss ausloesen.
 // `gehalten` ist die Laser-Taste (Bot/Online liefern sie ebenfalls). Auswahl des Modells:
 // - normal: Druck startet das Laden, Loslassen feuert (Haltedauer unter 10 Schritten = Normalschuss, sonst Ladeschuss).
 //   Wird in der Schussabstand-Sperre losgelassen, faellt der Schuss (samt Ladung) automatisch, sobald die Sperre abläuft.

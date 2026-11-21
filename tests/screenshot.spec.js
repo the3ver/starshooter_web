@@ -1,6 +1,6 @@
 const { test } = require('@playwright/test');
 const path = require('path');
-const { setGameState } = require('./helfer');
+const { setGameState } = require('./helpers');
 
 test('Generiere Gameplay-Screenshot fuer README.md', async ({ page }) => {
   await setGameState(page);

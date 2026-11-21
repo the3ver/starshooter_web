@@ -1,5 +1,5 @@
 const { test, expect } = require('@playwright/test');
-const { setGameState, startGame, installClock, pauseClock, advanceClock, windUntil } = require('./helfer');
+const { setGameState, startGame, installClock, pauseClock, advanceClock, windUntil } = require('./helpers');
 
 test.beforeEach(async ({ page }) => {
   // Standardmäßig API-Requests mocken, damit Tests die Live-DB nicht verändern
@@ -3302,7 +3302,7 @@ test.describe('2-Spieler-Modus (Co-op)', () => {
   test('Raketen Balancing Co-op: Raketen haben im Co-op höhere Maxgeschwindigkeit, größeren Homing-Suchbereich und stärkere Lenkrate als im Solo-Modus', async ({
     page,
   }) => {
-    // Echtes Spielverhalten (waffen.js, Raketen-Phase 3) wird per simulationsSchritt() ausgefuehrt,
+    // Echtes Spielverhalten (weapons.js, Raketen-Phase 3) wird per simulationsSchritt() ausgefuehrt,
     // einmal im Co-op- und einmal im Solo-Modus mit identischen Startbedingungen.
     await page.locator('#gamemode-btn-coop').click();
     await startGame(page);

@@ -5,7 +5,7 @@ import * as Cutscene from './cutscene.js';
 import * as Network from './network.js';
 import * as Sniper from './sniper.js';
 import { togglePause, handleEscape, initPauseMenu } from './pause.js';
-import * as Display from './anzeige.js';
+import * as Display from './display.js';
 
 export function setupInput() {
   initPauseMenu();

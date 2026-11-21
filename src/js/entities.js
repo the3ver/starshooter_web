@@ -1,6 +1,6 @@
 import { state, dom, config, arrays, isCoopMode } from './state.js';
 import * as Audio from './audio.js';
-import * as Display from './anzeige.js';
+import * as Display from './display.js';
 
 // Stabile Objekt-IDs, damit der Online-Client DOM-Elemente zwischen Snapshots wiederverwenden kann
 let idCounter = 0;

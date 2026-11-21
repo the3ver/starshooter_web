@@ -1,12 +1,12 @@
 import { state, dom } from './state.js';
 import * as Entities from './entities.js';
 import * as Audio from './audio.js';
-import { manageEnemySpawns } from './gegner.js';
-import * as Rock from './fels.js';
-import * as Growths from './gewaechse.js';
-import * as Display from './anzeige.js';
-import * as IslandBoss from './inselboss.js';
-import { manageBioSpawns } from './biowesen.js';
+import { manageEnemySpawns } from './opponents.js';
+import * as Rock from './rock.js';
+import * as Growths from './growths.js';
+import * as Display from './display.js';
+import * as IslandBoss from './island-boss.js';
+import { manageBioSpawns } from './bio-creatures.js';
 
 // Ablauf eines Levels: Asteroiden-Takt in drei Phasen, Feinde ab feindStart im Takt feindRate,
 // Boss-Warnung bei bossFrame. levelPlan(level) liefert die Werte; neue Levelarten bekommen hier ihren Plan.

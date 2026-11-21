@@ -9,7 +9,7 @@ import * as Network from './network.js';
 import * as Cutscene from './cutscene.js';
 import * as Gleve from './gleve.js';
 import * as Sniper from './sniper.js';
-import * as Display from './anzeige.js';
+import * as Display from './display.js';
 
 export { state, dom, config, arrays, shipModels, Utils, Entities, Audio, Network, Cutscene };
 

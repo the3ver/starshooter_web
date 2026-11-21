@@ -6,17 +6,17 @@ import * as Network from './network.js';
 import * as Gleve from './gleve.js';
 import * as Sniper from './sniper.js';
 import * as Viper from './viper.js';
-import * as Display from './anzeige.js';
-import * as Chain from './kette.js';
-import * as Rock from './fels.js';
-import * as Shockwave from './schockwelle.js';
-import * as IslandBoss from './inselboss.js';
+import * as Display from './display.js';
+import * as Chain from './chain.js';
+import * as Rock from './rock.js';
+import * as Shockwave from './shockwave.js';
+import * as IslandBoss from './island-boss.js';
 import * as Level from './level.js';
-import { getShipSvgContent } from './anzeige-dom-objekte.js';
+import { getShipSvgContent } from './display-dom-objects.js';
 // Schiffs-SVG fuer Hangar und Cutszene (gleiche Vorlage wie im Spiel)
 export { getShipSvgContent };
-import { createParticles } from './partikel.js';
-import { createEffect, removeEffects } from './effekte.js';
+import { createParticles } from './particles.js';
+import { createEffect, removeEffects } from './effects.js';
 
 // faktor: Punkte-Multiplikator (Viper-Kombo), Ergebnis gerundet
 export function addScore(points, factor = 1) {

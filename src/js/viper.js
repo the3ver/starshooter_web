@@ -10,7 +10,7 @@
 import { state, config, arrays, shipColors, isCoopMode } from './state.js';
 import * as Audio from './audio.js';
 import * as Hack from './hack.js';
-import { createParticles } from './partikel.js';
+import { createParticles } from './particles.js';
 
 export const ROLL_FRAMES = 12;
 export const ROLL_DISTANCE = 70;
@@ -227,7 +227,7 @@ function tallyNearMiss(p) {
 }
 
 // Einmal pro Simulationsschritt (loop.js, nach allen Geschoss-Bewegungen und Treffern); nur Host bzw. Solo.
-// Zentral statt in gegner.js/boss.js: eine Stelle fuer alle vier Listen, Treffer haben das Geschoss schon entfernt.
+// Zentral statt in opponents.js/boss.js: eine Stelle fuer alle vier Listen, Treffer haben das Geschoss schon entfernt.
 export function checkNearMiss() {
   const listen = [arrays.enemyLaserArray, arrays.bossLaserArray, arrays.hackProjectileArray, arrays.bossMissileArray];
   if (isViper(state) && !state.isDead) nearMissFor(state, 'nearMissP1', listen);

@@ -1,5 +1,5 @@
 const { test, expect } = require('@playwright/test');
-const { setGameState, startGame } = require('./helfer');
+const { setGameState, startGame } = require('./helpers');
 
 test.beforeEach(async ({ page }) => {
   await page.route('**/api/highscores*', route =>
@@ -53,7 +53,7 @@ test('Bildschirm-Blitz kehrt zur Themenfarbe zurueck statt zur festen Standardfa
   await page.evaluate(async () => {
     const { state } = await import('./js/state.js');
     const { simulationStep } = await import('./js/loop.js');
-    const Display = await import('./js/anzeige.js');
+    const Display = await import('./js/display.js');
     document.getElementById('spielfeld').style.transition = 'none';
     state.godMode = true;
     state.level = 4;
@@ -83,7 +83,7 @@ test('Online-Client uebernimmt das Thema aus dem Level im Snapshot', async ({ pa
 test('Fels zeigt Steinplatten (globales Muster) mit dunkler Kante, ohne Knoten', async ({ page }) => {
   const r = await page.evaluate(async () => {
     const { arrays } = await import('./js/state.js');
-    const Display = await import('./js/anzeige.js');
+    const Display = await import('./js/display.js');
     const p = { l: 50, r: 50, inner: 200, ib: 0 };
     const s = Display.create({ id: 'fe_t', x: 0, y: 100, top: p, bottom: p }, 'rock');
     arrays.rock.push(s);
@@ -123,7 +123,7 @@ test('Felsoptik: gleiche Segment-Id ergibt dieselbe Zeichnung, Wurmloecher nur a
   page,
 }) => {
   const r = await page.evaluate(async () => {
-    const Display = await import('./js/anzeige.js');
+    const Display = await import('./js/display.js');
     const build = (id, p) => Display.create({ id, x: 0, y: 0, top: { ...p }, bottom: { ...p } }, 'rock').el;
     const wide = { l: 140, r: 140, inner: 200, ib: 0 };
     const narrow = { l: 20, r: 20, inner: 200, ib: 0 };

@@ -11,8 +11,8 @@ import * as Utils from './utils.js';
 import * as Audio from './audio.js';
 import * as Hack from './hack.js';
 import * as Entities from './entities.js';
-import * as Display from './anzeige.js';
-import { createParticles } from './partikel.js';
+import * as Display from './display.js';
+import { createParticles } from './particles.js';
 
 export const DASH_FRAMES = 8;
 export const DASH_TRAIL_FRAMES = 10; // Unverwundbar nach dem Dash
@@ -56,7 +56,7 @@ function finishReload(pState) {
   pState.missileCooldown = pState.gleveDashCharges < max ? dashCooldown(pState) : 0;
 }
 
-// Pro Schritt (waffen.js): Nachladen der Dash-Ladungen
+// Pro Schritt (weapons.js): Nachladen der Dash-Ladungen
 export function updateDashCharges(pState) {
   const max = dashMaxCharges(pState);
   if (pState.gleveDashCharges === undefined) pState.gleveDashCharges = max;
@@ -611,7 +611,7 @@ export function startSweep(pState, pKey) {
   return true;
 }
 
-// Pro Simulationsschritt aus spieler.js (Energie-Phase): Takt herunterzaehlen und, solange die Laser-Taste
+// Pro Simulationsschritt aus player.js (Energie-Phase): Takt herunterzaehlen und, solange die Laser-Taste
 // gehalten wird, im Takt pendelnde Sweeps starten (Kosten beim Start, Superwaffe kostenlos).
 // Liefert true, wenn in diesem Schritt ein Sweep gestartet wurde.
 export function controlSweep(pState, pKey, held) {
@@ -678,7 +678,7 @@ function sweepParry(pState, pKey, o, angleA, angleB, length) {
   }
 }
 
-// Seitlich weg von der Schiffsmitte, harmlos (gegner.js / boss.js pruefen `harmlos`), verlaesst das Feld
+// Seitlich weg von der Schiffsmitte, harmlos (opponents.js / boss.js pruefen `harmlos`), verlaesst das Feld
 function flingAway(p, o) {
   const b = targetBox(p);
   let side = Math.sign((b.x1 + b.x2) / 2 - o.x);
@@ -722,7 +722,7 @@ function throwBack(p, pKey) {
   );
 }
 
-// Pro Simulationsschritt fuer eine Gleve aufrufen (aus waffen.js; gestartet wird in steuereSweep)
+// Pro Simulationsschritt fuer eine Gleve aufrufen (aus weapons.js; gestartet wird in steuereSweep)
 export function updateSweep(pState, pKey) {
   if (pState.isDead) {
     if (isSweepActive(pState)) endSweep(pState, pKey);
@@ -787,7 +787,7 @@ export function waveColor(pKey) {
   return shipColor(pKey === 'p2' ? state.p2 : state);
 }
 
-// Pro Simulationsschritt (Host/lokal, aus waffen.js): Wellen bewegen, Ziele einmal treffen, am Ende entfernen.
+// Pro Simulationsschritt (Host/lokal, aus weapons.js): Wellen bewegen, Ziele einmal treffen, am Ende entfernen.
 export function updateWaves() {
   for (let i = arrays.gleveWaves.length - 1; i >= 0; i--) {
     const w = arrays.gleveWaves[i];

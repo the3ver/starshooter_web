@@ -1,5 +1,5 @@
 const { test, expect } = require('@playwright/test');
-const { setGameState, startGame } = require('./helfer');
+const { setGameState, startGame } = require('./helpers');
 
 test.beforeEach(async ({ page }) => {
   await page.route('**/api/highscores*', route =>

@@ -3,7 +3,7 @@ import * as Gleve from './gleve.js';
 import * as Viper from './viper.js';
 import * as Sniper from './sniper.js';
 import * as Hack from './hack.js';
-import * as Rock from './fels.js';
+import * as Rock from './rock.js';
 
 // --- Bot-Schwierigkeitsstufen ---
 const BOT_DIFFICULTY = {

@@ -4,25 +4,25 @@ import * as Cutscene from './cutscene.js';
 import * as Network from './network.js';
 import * as Hack from './hack.js';
 import * as Viper from './viper.js';
-import * as Display from './anzeige.js';
-import { animateParticles } from './partikel.js';
-import { updateEffects } from './effekte.js';
+import * as Display from './display.js';
+import { animateParticles } from './particles.js';
+import { updateEffects } from './effects.js';
 import {
   manageEnemySpawns,
   updateAsteroids,
   updateEnemies,
   updateEnemyLaser,
   updateHackProjectiles,
-} from './gegner.js';
+} from './opponents.js';
 import { updateBosses, updateBossBombs, updateBossMissiles } from './boss.js';
 import { updatePowerups } from './powerups.js';
-import { updateInvulnerability, movePlayer, updateEnergy, regenerateShield } from './spieler.js';
-import { updateWeapons } from './waffen.js';
+import { updateInvulnerability, movePlayer, updateEnergy, regenerateShield } from './player.js';
+import { updateWeapons } from './weapons.js';
 import { clientStep } from './client.js';
 import { checkPause } from './pause.js';
 import { levelStep, startBoss } from './level.js';
-import { updateRock } from './fels.js';
-import { updateShockwaves } from './schockwelle.js';
+import { updateRock } from './rock.js';
+import { updateShockwaves } from './shockwave.js';
 
 // Bestehende Exporte bleiben ueber loop.js erreichbar
 export { manageEnemySpawns, animateParticles };
@@ -48,7 +48,7 @@ export function moveStars() {
   });
 }
 
-// Ein fester Schritt: erst die Simulation, dann die Anzeige der Welt (anzeige.js)
+// Ein fester Schritt: erst die Simulation, dann die Anzeige der Welt (display.js)
 export function simulationStep() {
   simulate();
   Display.drawWorld();
