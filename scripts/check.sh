@@ -1,19 +1,20 @@
 #!/usr/bin/env bash
 # Leiser Gesamtcheck fuer Agenten, Stop-Hook und CI: Prettier, ESLint, Typen (tsc --checkJs), dann alle Tests.
 # Gruen = eine Zeile. Rot = nur die Fehler (Testname + Fehlerblock), Abbruch beim ersten Fehler.
+# Prettier und ESLint mit Cache in node_modules/.cache (ungeaenderte Dateien ~1 s statt ~13 s).
 # Retries kommen aus playwright.config.js (lokal 0, CI 2).
 cd "$(dirname "$0")/.." || exit 1
 start=$(date +%s)
 log=$(mktemp)
 trap 'rm -f "$log"' EXIT
 
-if ! npx prettier --check --log-level warn . > "$log" 2>&1; then
+if ! npx prettier --check --log-level warn --cache --cache-strategy content --cache-location node_modules/.cache/prettier/.cache . > "$log" 2>&1; then
   echo "CHECK ROT: prettier (npm run fmt formatiert)"
   cat "$log"
   exit 1
 fi
 
-if ! npx eslint . > "$log" 2>&1; then
+if ! npx eslint --cache --cache-location node_modules/.cache/eslint/ . > "$log" 2>&1; then
   echo "CHECK ROT: eslint"
   cat "$log"
   exit 1
