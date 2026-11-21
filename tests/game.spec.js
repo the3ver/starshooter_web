@@ -1817,39 +1817,38 @@ test.describe('Late-Game Difficulty & Gegner-Mechaniken', () => {
   test('Sound-Trigger: Raketen-Detonation löst playMissileExplosion aus', async ({ page }) => {
     await starteSpiel(page, 'KeyW');
 
-    // 1. Spieler-Rakete spawnen und Ziel in Zündnähe platzieren
-    await page.evaluate(async () => {
+    // Alles in einem synchronen Block nach den Imports: die echte Spielschleife laeuft nicht dazwischen
+    const history = await page.evaluate(async () => {
       const audioMod = await import('./js/audio.js');
       const stateMod = await import('./js/state.js');
+      const entitiesMod = await import('./js/entities.js');
+      const { simulationsSchritt } = await import('./js/loop.js');
       audioMod.clearAudioHistory();
       stateMod.state.spielLaeuft = true;
+      // Schiff aus dem Weg: sonst rammt es je nach Startzeitpunkt den Feind, bevor die Rakete zuendet
+      stateMod.state.x = 0;
+      stateMod.state.y = stateMod.config.spielfeldHoehe - 60;
 
       const rEl = document.createElement('div');
       rEl.classList.add('rakete');
       document.getElementById('spielfeld').appendChild(rEl);
 
-      // Rakete spawnen
+      // Rakete fliegt nach oben (r.y -= r.vy) auf den Feind direkt darueber zu
       stateMod.arrays.raketenArray.push({
         el: rEl,
         x: 200,
         y: 200,
         vx: 0,
-        vy: -8,
+        vy: 8,
         stufe: 1,
         radius: 60,
         schaden: 50,
         isHoming: false,
       });
+      entitiesMod.erzeugeFeind(200, 180, 'normal', 0, false);
 
-      // Feind in Zündnähe
-      const entitiesMod = await import('./js/entities.js');
-      entitiesMod.erzeugeFeind(200, 180);
-    });
-
-    await page.waitForTimeout(100);
-
-    let history = await page.evaluate(async () => {
-      const audioMod = await import('./js/audio.js');
+      // Feste Simulationsschritte statt Echtzeit-Wartezeit
+      for (let i = 0; i < 6; i++) simulationsSchritt();
       return audioMod.audioHistory;
     });
     const missileExpEvents = history.filter(h => h.name === 'missileExplosion');

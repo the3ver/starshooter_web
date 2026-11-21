@@ -10,7 +10,7 @@ const zaehle = (text, muster) => (text.match(muster) || []).length;
 // Stattdessen simulationsSchritt() in einem evaluate oder die Fake-Uhr aus helfer.js nutzen.
 // Bestand je Datei; er darf nur sinken. Nach dem Abbau den Wert hier senken.
 const ECHTZEIT_BESTAND = {
-  'game.spec.js': 47,
+  'game.spec.js': 46,
   'gleve.spec.js': 1,
   'hacker.spec.js': 9,
   'menue.spec.js': 1,
