@@ -1,6 +1,11 @@
-export const GAME_VERSION = '1.15.19';
+export const GAME_VERSION = '1.15.20';
 
 export const changelogData = {
+  '1.15.20': {
+    version: '1.15.20',
+    intro: 'Hey, es ist jetzt Version 1.15.20 rausgekommen, folgendes wurde aktualisiert:',
+    highlights: ['Das Hauptmenue springt beim Wechsel in den Online-Modus nicht mehr um ein paar Pixel nach oben.'],
+  },
   '1.15.19': {
     version: '1.15.19',
     intro: 'Hey, es ist jetzt Version 1.15.19 rausgekommen, folgendes wurde aktualisiert:',

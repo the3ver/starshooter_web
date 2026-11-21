@@ -3457,6 +3457,8 @@ body {
 #start-screen #start-text {
   margin: 6px 0 0 0;
   padding: 6px 12px;
+  /* feste Zeilenhoehe: der laengere Online-Text (start-text-lang, 12px) aendert sonst die Menuehoehe */
+  line-height: 17px;
   white-space: nowrap;
   display: block;
   box-sizing: border-box;

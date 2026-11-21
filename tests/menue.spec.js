@@ -34,8 +34,16 @@ async function oeffneMenue(page, viewport) {
 
 // Messwerte des Menues im aktuellen Modus (Rects im Seitenkoordinatensystem)
 async function miss(page) {
-  // Breiten-Transition des Spielfelds (0,25 s) abwarten
-  await page.waitForFunction(() => document.getElementById('spielfeld').getAnimations().length === 0);
+  // Endliche Transitions abwarten: Spielfeldbreite (0,25 s) und Menue-Inhalt (z. B. Schriftgroesse des Start-Texts);
+  // Endlos-Animationen (Blinken) zaehlen nicht. Ohne das misst der Test je nach Rechnerlast mitten in der Transition.
+  await page.waitForFunction(() =>
+    ['spielfeld', 'start-screen'].every(id =>
+      document
+        .getElementById(id)
+        .getAnimations({ subtree: true })
+        .every(a => a.effect.getComputedTiming().iterations === Infinity),
+    ),
+  );
   return page.evaluate(() => {
     const r = sel => {
       const b = document.querySelector(sel).getBoundingClientRect();
