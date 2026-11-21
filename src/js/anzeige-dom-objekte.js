@@ -299,7 +299,7 @@ function setupPowerupVisuals(el, type, owner, farbe) {
     el.style.boxShadow = 'none';
   }
 
-  let innerHtml = '';
+  let innerHtml;
   if (istSplitter) {
     const isRot = type === 'splitterRot';
     const fillFarbe = isRot ? '#ff4757' : '#ffffff';

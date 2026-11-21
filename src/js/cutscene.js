@@ -180,7 +180,7 @@ export function startCutscene(callback) {
     el.style.left = `${startX}px`;
     el.style.top = `${baseY}px`;
 
-    let flameHtml = '';
+    let flameHtml;
     if (type === 'freighter') {
       flameHtml = `
               <div class="ship-flame" style="position:absolute; left:-8px; top:8px; transform:rotate(-90deg);"></div>
@@ -401,7 +401,7 @@ export function startCutscene(callback) {
   attackStrikes.forEach(strike => {
     const timeout = setTimeout(() => {
       if (!cutsceneActive) return;
-      let targetShip = null;
+      let targetShip;
       if (strike.type === 'escort') {
         const escorts = ships.filter(s => s.type === 'escort' && !s.destroyed);
         targetShip = escorts[0];
