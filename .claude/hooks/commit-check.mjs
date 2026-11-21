@@ -1,7 +1,7 @@
-// PreToolUse-Hook (Bash, PowerShell): git commit nur bei gruenem npm run check.
-// Der Stop-Hook kommt erst am Turn-Ende; ein Commit mitten im Turn lief sonst ungeprueft
-// (f1ed7fa wurde rot committet). Gleicher Fingerabdruck wie der Stop-Hook: nach gruenem Commit kostet
-// der Stop-Hook nichts, unveraenderter gruener Stand kostet hier 0,2 s.
+// PreToolUse hook (Bash, PowerShell): git commit only with a green npm run check.
+// The stop hook only runs at the end of the turn; a commit in the middle of the turn went unchecked
+// (f1ed7fa was committed red). Same fingerprint as the stop hook: after a green commit the stop hook
+// costs nothing, an unchanged green state costs 0.2 s here.
 import { checkStand } from './check-state.mjs';
 
 let input = '';
@@ -15,11 +15,11 @@ process.stdin.on('end', () => {
   } catch {
     process.exit(0);
   }
-  // git [-C pfad] commit am Anfang eines Teilbefehls (nicht in Commit-Texten)
+  // git [-C path] commit at the start of a sub-command (not inside commit messages)
   if (!/(^|[\n;&|(]\s*)git\s+(-C\s+\S+\s+)?commit\b/.test(command)) process.exit(0);
   const { green, output } = checkStand();
   if (green) process.exit(0);
   console.error(output);
-  console.error('BLOCKIERT: git commit erst, wenn npm run check gruen ist. Fehler beheben, dann erneut committen.');
+  console.error('BLOCKED: git commit only once npm run check is green. Fix the errors, then commit again.');
   process.exit(2);
 });

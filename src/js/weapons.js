@@ -10,21 +10,21 @@ import * as Sniper from './sniper.js';
 import * as Display from './display.js';
 import { createParticles } from './particles.js';
 
-// --- 9.10 MANUELLE LASER (Projektile) ---
+// --- 9.10 MANUAL LASERS (projectiles) ---
 function fireLaserForPlayer(pKey, pState, isFiring) {
   if (!pState || pState.isDead) return;
   if (pState.playerShotCooldown > 0) pState.playerShotCooldown--;
   if (isFiring && pState.playerShotCooldown <= 0) {
-    pState.playerShotCooldown = Viper.shotCooldown(pState); // Schussrate (Viper: Overdrive doppelt, Kombo schneller)
+    pState.playerShotCooldown = Viper.shotCooldown(pState); // Fire rate (Viper: overdrive doubles, combo faster)
     Audio.playLaser(pState.laserTier);
 
-    // Schaden pro Projektil (skaliert umgekehrt zur Projektilanzahl, damit Gesamt-DPS kontrolliert wächst)
-    let reasonDamage = 16; // 1 Projektil = 160 DPS (Stufe 1)
+    // Damage per projectile (scales inversely with the projectile count so total DPS grows in a controlled way)
+    let reasonDamage = 16; // 1 projectile = 160 DPS (tier 1)
     if (pState.laserTier === 2)
-      reasonDamage = 10; // 2 Projektile = 200 DPS
+      reasonDamage = 10; // 2 projectiles = 200 DPS
     else if (pState.laserTier === 3)
-      reasonDamage = 12; // 2 Projektile = 240 DPS
-    else if (pState.laserTier >= 4) reasonDamage = 8; // 4 Projektile = 320 DPS
+      reasonDamage = 12; // 2 projectiles = 240 DPS
+    else if (pState.laserTier >= 4) reasonDamage = 8; // 4 projectiles = 320 DPS
 
     let beamsDef = [];
     const primaryColor = pKey === 'p2' ? '#3498db' : '#00ffff';
@@ -82,7 +82,7 @@ function fireLaserForPlayer(pKey, pState, isFiring) {
         Display.create(
           {
             id: Entities.newId('l'),
-            // Seitlich fliegende Laser leicht gedreht
+            // Lasers flying sideways slightly rotated
             rot: st.vx !== 0 ? (Math.atan2(-15, st.vx) * 180) / Math.PI + 90 : undefined,
             color: st.color,
             x: pState.x + st.offsetX,
@@ -102,8 +102,8 @@ function fireLaserForPlayer(pKey, pState, isFiring) {
   }
 }
 
-// --- 9.13 RAKETEN ---
-// Gleve: gleicher Cooldown-Zaehler und HUD-Balken, aber fuer den Dash (ausgeloest in player.js / gleve.js)
+// --- 9.13 MISSILES ---
+// Gleve: same cooldown counter and HUD bar, but for the dash (triggered in player.js / gleve.js)
 function fireMissileForPlayer(pKey, pState) {
   if (!pState || pState.isDead) return;
   const isGleve = Gleve.isGleve(pState);
@@ -145,13 +145,13 @@ function fireMissileForPlayer(pKey, pState) {
   }
 
   if (isGleve) {
-    // Keine Raketen; ein gemerkter Online-Feuerbefehl darf nicht liegen bleiben
+    // No missiles; a remembered online fire command must not be left lying around
     if (pKey === 'p2' && state.p2) state.p2.networkFireMissile = false;
     return;
   }
 
   const isDualHumanCoop = state.gameMode === 'coop' && !state.p2IsBot;
-  // Online-Host: gehaltene Raketentaste des Clients wirkt wie ein true in jedem Schritt
+  // Online host: the client's held missile key acts like a true in every step
   if (
     pKey === 'p2' &&
     state.p2 &&
@@ -162,7 +162,7 @@ function fireMissileForPlayer(pKey, pState) {
   ) {
     state.p2.networkFireMissile = true;
   }
-  // Sniper: Tippen = Granate + EMP, Halten = Minen (Haken); der Online-Host merkt sich einen Druck, auch wenn das Loslassen im selben Schritt ankommt
+  // Sniper: tap = grenade + EMP, hold = mines (hook); the online host remembers a press even if the release arrives in the same step
   if (Sniper.isSniper(pState)) {
     let held;
     if (pKey === 'p1') {
@@ -191,7 +191,7 @@ function fireMissileForPlayer(pKey, pState) {
           ? state.p2.botFireMissile || false
           : state.keysPressed.ö || state.keysPressed.numpad2 || state.keysPressed[','];
 
-  if (isTriggered && pState.missileCooldown <= 0 && !Hack.hasHack(pState, 'weaponOffline')) {
+  if (isTriggered && pState.missileCooldown <= 0 && !Hack.hasHack(pState, 'weaponsOffline')) {
     if (pKey === 'p2' && state.p2) state.p2.networkFireMissile = false;
     pState.missileCooldown = maxMissileCd;
     Audio.playMissile();
@@ -278,7 +278,7 @@ function fireMissileForPlayer(pKey, pState) {
   }
 }
 
-// --- 9.14 BOMBEN ---
+// --- 9.14 BOMBS ---
 function throwBombForPlayer(pKey, pState) {
   if (!pState || pState.isDead) return;
   if (pState.bombCooldown > 0) pState.bombCooldown--;
@@ -308,7 +308,7 @@ function throwBombForPlayer(pKey, pState) {
   }
 
   const isDualHumanCoop = state.gameMode === 'coop' && !state.p2IsBot;
-  // Online-Host: gehaltene Bombentaste des Clients wirkt wie ein true in jedem Schritt
+  // Online host: the client's held bomb key acts like a true in every step
   if (
     pKey === 'p2' &&
     state.p2 &&
@@ -330,7 +330,7 @@ function throwBombForPlayer(pKey, pState) {
           ? state.p2.botFireBomb || false
           : state.keysPressed.l || state.keysPressed.enter || state.keysPressed.numpad3 || state.keysPressed.numpad0;
 
-  if (isTriggered && pState.bombCooldown <= 0 && !Hack.hasHack(pState, 'weaponOffline')) {
+  if (isTriggered && pState.bombCooldown <= 0 && !Hack.hasHack(pState, 'weaponsOffline')) {
     if (pKey === 'p2' && state.p2) state.p2.networkFireBomb = false;
     pState.bombCooldown = maxBombCd;
     Audio.playBomb();
@@ -365,10 +365,10 @@ function throwBombForPlayer(pKey, pState) {
 }
 
 export function updateWeapons(laserActive, laserActiveP2) {
-  // Gleve hat statt Laser den Sweep (gleve.js): weder Projektil- noch Hitscan-Laser
+  // Instead of a laser the Gleve has the sweep (gleve.js): neither projectile nor hitscan laser
   if (state.selectedShipModel === 'gleve') laserActive = false;
   if (state.p2 && state.p2.selectedShipModel === 'gleve') laserActiveP2 = false;
-  // Sniper hat statt Laser den Fadenkreuz-Schuss (sniper.js, aufgerufen aus player.js)
+  // Instead of a laser the Sniper has the crosshair shot (sniper.js, called from player.js)
   if (state.selectedShipModel === 'sniper') laserActive = false;
   if (state.p2 && state.p2.selectedShipModel === 'sniper') laserActiveP2 = false;
   const allTargets = [
@@ -387,7 +387,7 @@ export function updateWeapons(laserActive, laserActiveP2) {
       Utils.updateActivePowerupsUi();
     }
   }
-  if (state.autolaserActive && !Hack.hasHack(state, 'weaponOffline')) {
+  if (state.autolaserActive && !Hack.hasHack(state, 'weaponsOffline')) {
     let target = null;
     let minDist = Infinity;
     let sx = state.x + 15;
@@ -441,7 +441,7 @@ export function updateWeapons(laserActive, laserActiveP2) {
     let closestDist = Infinity;
     let sx = state.x + 15;
     let sy = state.y;
-    // Finde tiefstes Ziel direkt über dem Spieler
+    // Find the lowest target directly above the player
     for (let i = 0; i < allTargets.length; i++) {
       let z = allTargets[i];
       if (z.y + z.size < sy && z.x < sx + 10 && z.x + z.size > sx - 10) {
@@ -467,13 +467,13 @@ export function updateWeapons(laserActive, laserActiveP2) {
         }
       }
     } else {
-      state.hitscanBeam = { x: sx, y: sy, length: sy }; // Bis ganz nach oben
+      state.hitscanBeam = { x: sx, y: sy, length: sy }; // All the way to the top
     }
   } else {
     state.hitscanBeam = null;
   }
 
-  // --- 9.10 MANUELLE LASER (Projektile) ---
+  // --- 9.10 MANUAL LASERS (projectiles) ---
   fireLaserForPlayer('p1', state, laserActive);
   if (isCoopMode() && state.p2) {
     fireLaserForPlayer('p2', state.p2, laserActiveP2);
@@ -495,7 +495,7 @@ export function updateWeapons(laserActive, laserActiveP2) {
     let hitTarget = null;
     for (let j = 0; j < allTargets.length; j++) {
       let z = allTargets[j];
-      if (z === l.ignoreTarget) continue; // Ignoriere Ziel nach Abpraller
+      if (z === l.ignoreTarget) continue; // Ignore the target after a bounce
       if ((z.immune || 0) <= 0) {
         let padding = z.isBoss ? z.size * 0.15 : 0;
         if (
@@ -505,7 +505,7 @@ export function updateWeapons(laserActive, laserActiveP2) {
           l.y + l.height > z.y + padding
         ) {
           hitTarget = z;
-          break; // Erstes Ziel treffen
+          break; // Hit the first target
         }
       }
     }
@@ -525,26 +525,26 @@ export function updateWeapons(laserActive, laserActiveP2) {
           Display.flash(hitTarget, 2.5);
           if (hitTarget.hp <= 0) Utils.destroyTarget(hitTarget, l.owner || 'p1');
         }
-        // Durchschlag: Flag des Projektils (Powerup oder Viper-Overdrive), sonst wie bisher das globale Powerup (z. B. Gleve-Rueckwurf)
+        // Pierce: flag of the projectile (powerup or Viper overdrive), otherwise the global powerup as before (e.g. Gleve throwback)
         if (!l.pierce && !state.laserPierce) {
           Display.remove(l);
           arrays.laserArray.splice(i, 1);
         }
       } else {
-        // Abpraller-Logik (Magma-Asteroiden etc.)
+        // Bounce logic (magma asteroids etc.)
         Audio.playHit('magma');
-        // Querschläger fliegen nun vorwiegend weiter nach oben,
-        // mit einer leichten bis mittleren Ablenkung nach links oder rechts.
-        l.vy = 8 + Math.random() * 7; // vy zwischen 8 und 15 (aufwärts)
-        l.vx = (Math.random() < 0.5 ? -1 : 1) * (2 + Math.random() * 6); // vx leicht zur Seite (2 bis 8)
+        // Ricochets now mostly keep flying upwards,
+        // with a slight to medium deflection to the left or right.
+        l.vy = 8 + Math.random() * 7; // vy between 8 and 15 (upwards)
+        l.vx = (Math.random() < 0.5 ? -1 : 1) * (2 + Math.random() * 6); // vx slightly to the side (2 to 8)
 
         l.isDeflected = true;
         l.ignoreTarget = hitTarget; // Verhindert endloses Kollidieren im selben Frame
-        l.damage = Math.max(1, l.damage / 2); // Schaden wird halbiert
-        l.color = '#e67e22'; // Orange/Rötlich einfärben
+        l.damage = Math.max(1, l.damage / 2); // Damage is halved
+        l.color = '#e67e22'; // Tint orange/reddish
       }
     } else if (l.isDeflected) {
-      // Kollision mit Spieler, falls abgelenkt: nur der Schuetze selbst, kein Friendly Fire im Coop
+      // Collision with a player if deflected: only the shooter itself, no friendly fire in co-op
       const shooter = l.owner === 'p2' ? state.p2 : state;
       const hitsShooters = (l.owner !== 'p2' || isCoopMode()) && shooter && !shooter.isDead;
       if (
@@ -562,24 +562,24 @@ export function updateWeapons(laserActive, laserActiveP2) {
     }
   }
 
-  // Gleve: laufende Sweeps (Treffer, Parade; gestartet in player.js)
+  // Gleve: running sweeps (hits, parry; started in player.js)
   if (Gleve.isGleve(state)) Gleve.updateSweep(state, 'p1');
   if (isCoopMode() && state.p2 && Gleve.isGleve(state.p2)) Gleve.updateSweep(state.p2, 'p2');
   Gleve.updateWaves();
 
-  // --- 9.13 RAKETEN ---
+  // --- 9.13 MISSILES ---
   fireMissileForPlayer('p1', state);
   if (isCoopMode() && state.p2) {
     fireMissileForPlayer('p2', state.p2);
   }
 
-  // Raketen Update & Kollision (3-Phasen-Flugdynamik, Näherungszünder & Zielsuche)
+  // Missile update & collision (3-phase flight dynamics, proximity fuse & homing)
   for (let i = arrays.missileArray.length - 1; i >= 0; i--) {
     let r = arrays.missileArray[i];
     r.age = (r.age || 0) + 1;
 
-    // 3-Phasen-Flugdynamik:
-    // Phase 1 (Frames 1-10): Seitliches Lösen / Ausklinken, erbt Schiffsgeschwindigkeit
+    // 3-phase flight dynamics:
+    // Phase 1 (frames 1-10): lateral release / detach, inherits the ship velocity
     if (r.age <= 10) {
       r.x += r.vx;
       r.y -= r.vy;
@@ -594,13 +594,13 @@ export function updateWeapons(laserActive, laserActiveP2) {
     }
     // Phase 3 (Frames 19+): Starke, lineare Beschleunigung (Triebwerks-Vollschub)
     else {
-      // Im Co-op (600px Feld) beschleunigen Raketen stärker, um das breitere Feld zu kompensieren
+      // In co-op (600px field) missiles accelerate harder to make up for the wider field
       const rMaxVy = isCoopMode() ? 15 : 13;
       const rAccel = isCoopMode() ? 0.5 : 0.45;
       r.vy = Math.min(rMaxVy, r.vy + rAccel);
       r.vx *= 0.92;
 
-      // Zielsuchende Lenkung (nur gegen Feinde und Bosse) ab Phase 3 aktiv
+      // Homing steering (only against enemies and bosses) active from phase 3 on
       if (r.homing) {
         let bestDist = Infinity;
         let target = null;
@@ -610,8 +610,8 @@ export function updateWeapons(laserActive, laserActiveP2) {
             let zcx = f.x + (f.size || 20) / 2;
             let zcy = f.y + (f.size || 20) / 2;
             let d = Math.hypot(zcx - (r.x + 3), zcy - (r.y + 8));
-            // Feinde vor oder auf Höhe der Rakete erfassen
-            // Im Co-op (600px) größeren Suchbereich nutzen, damit Feinde am breiten Rand gefunden werden
+            // Capture enemies ahead of or level with the missile
+            // In co-op (600px) use a larger search range so enemies at the wide edge are found
             const homingYRange = isCoopMode() ? 200 : 140;
             if (d < bestDist && zcy < r.y + homingYRange) {
               bestDist = d;
@@ -629,7 +629,7 @@ export function updateWeapons(laserActive, laserActiveP2) {
           while (diff < -Math.PI) diff += Math.PI * 2;
           while (diff > Math.PI) diff -= Math.PI * 2;
 
-          // Im Co-op stärkere Lenkrate, damit Raketen den größeren horizontalen Abstand ausgleichen können
+          // In co-op a stronger steering rate so missiles can make up the larger horizontal distance
           let maxTurn = isCoopMode() ? 0.26 : 0.22;
           let newAngle = currentAngle + Math.sign(diff) * Math.min(Math.abs(diff), maxTurn);
           let currentSpeed = Math.hypot(r.vx, r.vy) || r.vy;
@@ -645,7 +645,7 @@ export function updateWeapons(laserActive, laserActiveP2) {
     // Raketenausrichtung (Flugrichtung)
     r.rot = (Math.atan2(-r.vy, r.vx || 0.0001) * 180) / Math.PI + 90;
 
-    // Partikelschweif (Rauch beim Ausklinken, Vollfeuer in Phase 3)
+    // Particle trail (smoke on release, full fire in phase 3)
     let flameProb = r.age > 18 ? 0.85 : r.age > 10 ? 0.45 : 0.2;
     if (Math.random() < flameProb) {
       let color;
@@ -654,7 +654,7 @@ export function updateWeapons(laserActive, laserActiveP2) {
       } else if (r.age > 18) {
         color = Math.random() < 0.6 ? '#f1c40f' : '#e74c3c';
       } else {
-        color = '#7f8c8d'; // Rauch beim Abwurf
+        color = '#7f8c8d'; // Smoke on drop
       }
       createParticles({
         color,
@@ -673,7 +673,7 @@ export function updateWeapons(laserActive, laserActiveP2) {
       continue;
     }
 
-    // Näherungszünder & Direkttreffer prüfen
+    // Check proximity fuse & direct hit
     let detonated = false;
     let rcx = r.x + 3;
     let rcy = r.y + 8;
@@ -684,7 +684,7 @@ export function updateWeapons(laserActive, laserActiveP2) {
         let zcx = z.x + (z.size || 20) / 2;
         let zcy = z.y + (z.size || 20) / 2;
         let dist = Math.hypot(zcx - rcx, zcy - rcy);
-        // Näherungszündung bei Annäherung
+        // Proximity ignition on approach
         if (dist < (z.size || 20) / 2 + 18) {
           detonated = true;
           break;
@@ -703,7 +703,7 @@ export function updateWeapons(laserActive, laserActiveP2) {
         });
       }
 
-      // Flächenschaden
+      // Area damage
       for (let j = 0; j < allTargets.length; j++) {
         let z = allTargets[j];
         if ((z.immune || 0) <= 0) {
@@ -732,7 +732,7 @@ export function updateWeapons(laserActive, laserActiveP2) {
     }
   }
 
-  // --- 9.14 BOMBEN ---
+  // --- 9.14 BOMBS ---
   throwBombForPlayer('p1', state);
   if (isCoopMode() && state.p2) {
     throwBombForPlayer('p2', state.p2);
@@ -740,12 +740,12 @@ export function updateWeapons(laserActive, laserActiveP2) {
   for (let i = arrays.bombArray.length - 1; i >= 0; i--) {
     let b = arrays.bombArray[i];
 
-    // Mini-Bomben können eine Verzögerung haben
+    // Mini bombs can have a delay
     if (b.delayFrames > 0) {
       b.delayFrames--;
     }
 
-    // EMP-Effekt für Level 4 und 5: Löscht gegnerische Laser sofort aus
+    // EMP effect for levels 4 and 5: wipes out enemy lasers immediately
     if (b.tier >= 4) {
       for (let l = arrays.enemyLaserArray.length - 1; l >= 0; l--) {
         let fl = arrays.enemyLaserArray[l];
@@ -766,7 +766,7 @@ export function updateWeapons(laserActive, laserActiveP2) {
     let dist = Math.hypot(dx, dy);
     if (b.startDist === 0) b.startDist = dist;
 
-    // Stufe 3: Vortex Gravitations-Sog vor der Explosion
+    // Tier 3: vortex gravity pull before the explosion
     if (b.tier === 3 && dist < 80) {
       let bcx = b.x + 7;
       let bcy = b.y + 15;
@@ -788,11 +788,11 @@ export function updateWeapons(laserActive, laserActiveP2) {
       b.y += (dy / dist) * b.speed;
       b.rot += b.isMini ? 5 : 2;
 
-      // Blink- & Aura-Puls-Geschwindigkeit erhöhen je näher am Ziel
-      // Fortschritt 1 -> 0 zum Ziel (Bombenpuls in der Anzeige, Beep-Takt)
+      // Increase blink & aura pulse speed the closer to the target
+      // Progress 1 -> 0 towards the target (bomb pulse in the display, beep cadence)
       const progress = (b.progress = dist / (b.startDist || 1));
 
-      // Beep-Takt beschleunigen je näher am Ziel
+      // Speed up the beep cadence the closer to the target
       let urgency = 1.0 - progress;
       b.beepTimer = (b.beepTimer || 0) + 1;
       let beepInterval = Math.max(3, Math.floor(progress * 22));
@@ -801,13 +801,13 @@ export function updateWeapons(laserActive, laserActiveP2) {
         Audio.playBombBeep(urgency, false);
       }
     } else {
-      // Level 5 Jericho-Split: Hauptbombe teilt sich in 4 Sub-Bomben auf
+      // Level 5 Jericho split: the main bomb splits into 4 sub-bombs
       if (b.tier === 5 && !b.isMini) {
         let bcx = b.x + 7;
         let bcy = b.y + 15;
         Utils.createExplosion(bcx, bcy, '#ffffff', 40);
 
-        // 4 Jericho Mini-Bomben fächern diagonal aus
+        // 4 Jericho mini bombs fan out diagonally
         const offsets = [
           { ox: -75, oy: -65, delay: 10 },
           { ox: 75, oy: -65, delay: 16 },
@@ -867,7 +867,7 @@ export function updateWeapons(laserActive, laserActiveP2) {
           let zcy = z.y + z.size / 2;
           if (Math.hypot(zcx - bcx, zcy - bcy) <= b.radius) {
             if (z.isIndestructible && z.hp !== undefined && !z.isBoss) {
-              // Bomben zerstören Magma-Asteroiden (werden zu Powerup-Trägern)
+              // Bombs destroy magma asteroids (they become powerup carriers)
               z.isIndestructible = false;
               z.carriesPowerup = true;
             }

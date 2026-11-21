@@ -13,7 +13,7 @@ test.beforeEach(async ({ page }) => {
   await page.goto('/');
 });
 
-// Spiel starten und Spielfeld von zufälligen Spawns befreien
+// Start the game and clear the playfield of random spawns
 async function startGame(page) {
   await page.keyboard.down('KeyW');
   await page.waitForFunction(() => window.__game.state.gameRunning);
@@ -28,8 +28,8 @@ async function startGame(page) {
   });
 }
 
-test.describe('Hacker-Gegner', () => {
-  test('erzeugeFeind mit Muster hacker erzeugt gruenen Hacker ohne Schild mit 20 HP', async ({ page }) => {
+test.describe('Hacker opponent', () => {
+  test('createEnemy with pattern hacker creates a green hacker without a shield with 20 HP', async ({ page }) => {
     await startGame(page);
     const f = await page.evaluate(async () => {
       const { state, arrays } = await import('./js/state.js');
@@ -48,7 +48,7 @@ test.describe('Hacker-Gegner', () => {
     expect(f).toEqual({ pattern: 'hacker', hp: 20, shieldHp: 0, color: '#39ff14', hasSvg: true });
   });
 
-  test('Hacker traegt mit 40 % Chance ein Powerup (normaler Feind 20 %)', async ({ page }) => {
+  test('Hacker carries a powerup with a 40 % chance (normal enemy 20 %)', async ({ page }) => {
     await startGame(page);
     const r = await page.evaluate(async () => {
       const { arrays } = await import('./js/state.js');
@@ -63,7 +63,7 @@ test.describe('Hacker-Gegner', () => {
     expect(r).toEqual([true, false]);
   });
 
-  test('Abschuss eines Hackers gibt doppelte Punkte (200)', async ({ page }) => {
+  test('Shooting down a hacker gives double points (200)', async ({ page }) => {
     await startGame(page);
     const diff = await page.evaluate(async () => {
       const { state, arrays } = await import('./js/state.js');
@@ -79,9 +79,9 @@ test.describe('Hacker-Gegner', () => {
     expect(diff).toBe(200);
   });
 
-  test('Hacker stoppt zwischen y 100 und 200 und feuert Hack-Projektile statt Laser', async ({ page }) => {
+  test('Hacker stops between y 100 and 200 and fires hack projectiles instead of lasers', async ({ page }) => {
     await startGame(page);
-    // Anflug, Stopp und erster Schuss in 180 festen Simulationsschritten (~3 s), synchron ausgewertet
+    // Approach, stop and first shot in 180 fixed simulation steps (~3 s), evaluated synchronously
     const r = await page.evaluate(async () => {
       const { state, arrays } = await import('./js/state.js');
       const Entities = await import('./js/entities.js');
@@ -94,7 +94,7 @@ test.describe('Hacker-Gegner', () => {
       const f = arrays.enemies.find(f => f.pattern === 'hacker');
       return { y: f.y, phase: f.phase, shots: f.hackShots, laser: arrays.enemyLaserArray.length };
     });
-    expect(r.phase).toBe('lauern');
+    expect(r.phase).toBe('lurk');
     expect(r.y).toBeGreaterThanOrEqual(100);
     expect(r.y).toBeLessThanOrEqual(200);
     expect(r.shots).toBeGreaterThanOrEqual(1);
@@ -102,7 +102,7 @@ test.describe('Hacker-Gegner', () => {
     await expect(page.locator('.hack-projektil').first()).toBeAttached();
   });
 
-  test('Hack-Projektil hackt den Spieler ohne Schaden und ignoriert den Schild', async ({ page }) => {
+  test('Hack projectile hacks the player without damage and ignores the shield', async ({ page }) => {
     await startGame(page);
     await page.evaluate(async () => {
       const { state, arrays } = await import('./js/state.js');
@@ -112,7 +112,7 @@ test.describe('Hacker-Gegner', () => {
       state.shieldTier = 2;
       Entities.createEnemy(185, 50, 'hacker', 0);
       const f = arrays.enemies[arrays.enemies.length - 1];
-      f.phase = 'lauern';
+      f.phase = 'lurk';
       f.lurkTimer = 9999;
       f.hackTimer = 9999;
       f.y = 100;
@@ -128,7 +128,7 @@ test.describe('Hacker-Gegner', () => {
     expect(r).toEqual({ hacks: 1, lives: 3, shield: 2, landed: true });
   });
 
-  test('Hacker flieht nach Treffer oder nach 10 s nach oben aus dem Bild', async ({ page }) => {
+  test('Hacker flees upwards out of the screen after a hit or after 10 s', async ({ page }) => {
     await startGame(page);
     await page.evaluate(async () => {
       const { state, arrays } = await import('./js/state.js');
@@ -138,16 +138,16 @@ test.describe('Hacker-Gegner', () => {
       Entities.createEnemy(250, 150, 'hacker', 0);
       const [a, b] = arrays.enemies;
       a.id = 'treffer';
-      a.phase = 'lauern';
+      a.phase = 'lurk';
       a.lurkTimer = 9999;
       a.hackTimer = 9999;
       a.hackLanded = true;
       b.id = 'timeout';
-      b.phase = 'lauern';
+      b.phase = 'lurk';
       b.lurkTimer = 1;
       b.hackTimer = 9999;
     });
-    // Feste Simulationsschritte statt Echtzeit: erst Phasenwechsel, dann Flucht aus dem Bild
+    // Fixed simulation steps instead of real time: phase change first, then escape from the screen
     const r = await page.evaluate(() => {
       const { arrays, Loop } = window.__game;
       for (let i = 0; i < 6; i++) Loop.simulationStep();
@@ -159,11 +159,11 @@ test.describe('Hacker-Gegner', () => {
       }
       return { phases, left: arrays.enemies.length };
     });
-    expect(r.phases).toEqual(['flucht', 'flucht']);
+    expect(r.phases).toEqual(['escape', 'escape']);
     expect(r.left).toBe(0);
   });
 
-  test('Ein Hacker kann nur einen Treffer landen', async ({ page }) => {
+  test('A hacker can land only one hit', async ({ page }) => {
     await startGame(page);
     await page.evaluate(async () => {
       const { state, arrays } = await import('./js/state.js');
@@ -172,7 +172,7 @@ test.describe('Hacker-Gegner', () => {
       state.y = 400;
       Entities.createEnemy(185, 50, 'hacker', 0);
       const f = arrays.enemies[0];
-      f.phase = 'lauern';
+      f.phase = 'lurk';
       f.lurkTimer = 9999;
       f.hackTimer = 9999;
       f.y = 100;
@@ -184,30 +184,30 @@ test.describe('Hacker-Gegner', () => {
     expect(hacks).toBe(1);
   });
 
-  test('Hack-Effekte stapeln sich und laufen nach 3 s ab (P1 und P2)', async ({ page }) => {
+  test('Hack effects stack and expire after 3 s (P1 and P2)', async ({ page }) => {
     await startGame(page);
-    // Ablauf ueber HACK_DAUER feste Simulationsschritte statt bis zu 3 s Echtzeit
+    // Expiry over HACK_DURATION fixed simulation steps instead of up to 3 s of real time
     const r = await page.evaluate(async () => {
       const { state } = await import('./js/state.js');
       const Hack = await import('./js/hack.js');
       const { simulationStep } = await import('./js/loop.js');
       Hack.hackPlayer(state, 'hudGlitch');
       Hack.hackPlayer(state, 'inverted');
-      Hack.hackPlayer(state.p2, 'weaponOffline');
-      const beforehand = state.hacks.map(h => h.typ);
-      const p2Beforehand = state.p2.hacks.map(h => h.typ);
+      Hack.hackPlayer(state.p2, 'weaponsOffline');
+      const beforehand = state.hacks.map(h => h.type);
+      const p2Beforehand = state.p2.hacks.map(h => h.type);
       for (let i = 0; i < Hack.HACK_DURATION - 1; i++) simulationStep();
       const shortBeforeEnd = [state.hacks.length, state.p2.hacks.length];
       simulationStep();
       return { beforehand, p2Beforehand, shortBeforeEnd, afterwards: [state.hacks.length, state.p2.hacks.length] };
     });
     expect(r.beforehand).toEqual(['hudGlitch', 'inverted']);
-    expect(r.p2Beforehand).toEqual(['weaponOffline']);
+    expect(r.p2Beforehand).toEqual(['weaponsOffline']);
     expect(r.shortBeforeEnd).toEqual([2, 1]);
     expect(r.afterwards).toEqual([0, 0]);
   });
 
-  test('Effekt invertiert: D bewegt das Schiff nach links', async ({ page }) => {
+  test('Effect inverted: D moves the ship to the left', async ({ page }) => {
     await startGame(page);
     const startX = await page.evaluate(async () => {
       const { state } = await import('./js/state.js');
@@ -224,14 +224,14 @@ test.describe('Hacker-Gegner', () => {
     expect(x).toBeLessThan(startX - 20);
   });
 
-  test('Effekt tastenVertauscht: jede Richtung wird auf eine andere Richtung abgebildet', async ({ page }) => {
+  test('Effect keysSwapped: every direction is mapped to a different direction', async ({ page }) => {
     await startGame(page);
     for (let run = 0; run < 5; run++) {
       const r = await page.evaluate(async () => {
         const { state } = await import('./js/state.js');
         const Hack = await import('./js/hack.js');
         Hack.removeHacks(state);
-        Hack.hackPlayer(state, 'keySwapped');
+        Hack.hackPlayer(state, 'keysSwapped');
         const directions = [
           [0, -1],
           [0, 1],
@@ -248,7 +248,7 @@ test.describe('Hacker-Gegner', () => {
     }
   });
 
-  test('Effekt waffenOffline: Laser, Raketen und Bomben feuern nicht', async ({ page }) => {
+  test('Effect weaponsOffline: laser, missiles and bombs do not fire', async ({ page }) => {
     await startGame(page);
     await page.evaluate(async () => {
       const { state } = await import('./js/state.js');
@@ -257,7 +257,7 @@ test.describe('Hacker-Gegner', () => {
       state.energy = 50;
       state.missileCooldown = 0;
       state.bombCooldown = 0;
-      Hack.hackPlayer(state, 'weaponOffline');
+      Hack.hackPlayer(state, 'weaponsOffline');
     });
     await page.keyboard.down('KeyL');
     await page.keyboard.down('KeyK');
@@ -277,9 +277,9 @@ test.describe('Hacker-Gegner', () => {
     expect(r).toEqual({ laser: 0, missiles: 0, bombs: 0 });
   });
 
-  test('Effekt hudGlitch: HUD bekommt Glitch-Klasse, solange der Effekt aktiv ist', async ({ page }) => {
+  test('Effect hudGlitch: the HUD gets the glitch class while the effect is active', async ({ page }) => {
     await startGame(page);
-    // Feste Simulationsschritte: Klasse ist bis zum letzten Schritt der Hack-Dauer gesetzt, danach weg
+    // Fixed simulation steps: the class is set until the last step of the hack duration, gone afterwards
     const r = await page.evaluate(async () => {
       const { state } = await import('./js/state.js');
       const Hack = await import('./js/hack.js');
@@ -297,14 +297,16 @@ test.describe('Hacker-Gegner', () => {
     await expect(page.locator('#ui-container')).not.toHaveClass(/hud-glitch/);
   });
 
-  test('Gehackter Spieler zeigt Label mit Effektnamen, Restzeit-Balken und Glitch am Schiff', async ({ page }) => {
+  test('Hacked player shows a label with the effect name, remaining time bar and glitch on the ship', async ({
+    page,
+  }) => {
     await startGame(page);
     await page.evaluate(async () => {
       const { state } = await import('./js/state.js');
       const Hack = await import('./js/hack.js');
       state.godMode = true;
       Hack.hackPlayer(state, 'inverted');
-      Hack.hackPlayer(state, 'weaponOffline');
+      Hack.hackPlayer(state, 'weaponsOffline');
     });
     const label = page.locator('#hack-label-p1');
     await expect(label).toBeVisible();
@@ -312,7 +314,7 @@ test.describe('Hacker-Gegner', () => {
     await expect(label).toContainText('WEAPONS OFFLINE');
     await expect(label.locator('.hack-restzeit')).toHaveCount(1);
     await expect(page.locator('#spieler')).toHaveClass(/spieler-gehackt/);
-    // Rest der Hack-Dauer in festen Simulationsschritten statt bis zu 3 s Echtzeit
+    // Rest of the hack duration in fixed simulation steps instead of up to 3 s of real time
     const steps = await page.evaluate(async () => {
       const { state } = await import('./js/state.js');
       const Hack = await import('./js/hack.js');
@@ -329,7 +331,7 @@ test.describe('Hacker-Gegner', () => {
     await expect(page.locator('#spieler')).not.toHaveClass(/spieler-gehackt/);
   });
 
-  test('Spawn: Hacker erst ab Level 2 und hoechstens einer gleichzeitig', async ({ page }) => {
+  test('Spawn: hackers only from level 2 on and at most one at a time', async ({ page }) => {
     await startGame(page);
     const r = await page.evaluate(async () => {
       const { state, arrays } = await import('./js/state.js');
@@ -351,7 +353,7 @@ test.describe('Hacker-Gegner', () => {
     expect(r).toEqual({ level1: 0, level2: 1, again: 1 });
   });
 
-  test('Koop: invertiert wirkt auch auf die Pfeiltasten von Spieler 2', async ({ page }) => {
+  test('Co-op: inverted also affects the arrow keys of player 2', async ({ page }) => {
     await startGame(page);
     await page.evaluate(async () => {
       const { state, config } = await import('./js/state.js');
@@ -372,7 +374,7 @@ test.describe('Hacker-Gegner', () => {
     expect(r.p2).toBeLessThan(280);
   });
 
-  test('Koop: Bot-Partner wird ebenfalls gehackt (invertiert kehrt seine Bewegung um)', async ({ page }) => {
+  test('Co-op: the bot partner gets hacked as well (inverted reverses its movement)', async ({ page }) => {
     await startGame(page);
     const setup = async withHack =>
       page.evaluate(async withHack => {
@@ -400,7 +402,7 @@ test.describe('Hacker-Gegner', () => {
     expect(withEntry).toBeGreaterThan(450);
   });
 
-  test('Online: Snapshot uebertraegt Hacks beider Spieler und Hack-Projektile', async ({ page }) => {
+  test('Online: the snapshot transfers the hacks of both players and hack projectiles', async ({ page }) => {
     await startGame(page);
     const r = await page.evaluate(async () => {
       const { state, arrays } = await import('./js/state.js');
@@ -409,28 +411,28 @@ test.describe('Hacker-Gegner', () => {
       const Network = await import('./js/network.js');
       state.paused = true;
       Hack.hackPlayer(state, 'inverted');
-      Hack.hackPlayer(state.p2, 'keySwapped');
+      Hack.hackPlayer(state.p2, 'keysSwapped');
       Entities.createHackProjectile(100, 100, 100, 300);
       const snap = JSON.parse(JSON.stringify(Network.serializeGameState()));
       const perm = state.p2.hacks[0].perm;
-      // Client-Seite simulieren: lokalen Zustand leeren und Snapshot anwenden
+      // Simulate the client side: clear the local state and apply the snapshot
       Hack.removeHacks(state);
       Hack.removeHacks(state.p2);
       arrays.hackProjectileArray.forEach(h => h.el.remove());
       arrays.hackProjectileArray.length = 0;
       Network.applyGameStateSnapshot(snap);
       return {
-        p1: state.hacks.map(h => h.typ),
-        p2: state.p2.hacks.map(h => h.typ),
+        p1: state.hacks.map(h => h.type),
+        p2: state.p2.hacks.map(h => h.type),
         permEqual: JSON.stringify(state.p2.hacks[0].perm) === JSON.stringify(perm),
         projectiles: arrays.hackProjectileArray.length,
         dom: document.querySelectorAll('.hack-projektil').length,
       };
     });
-    expect(r).toEqual({ p1: ['inverted'], p2: ['keySwapped'], permEqual: true, projectiles: 1, dom: 1 });
+    expect(r).toEqual({ p1: ['inverted'], p2: ['keysSwapped'], permEqual: true, projectiles: 1, dom: 1 });
   });
 
-  test('Online-Client: Hack wirkt auf die lokale Steuerung und zeigt das Label', async ({ page }) => {
+  test('Online client: the hack affects the local controls and shows the label', async ({ page }) => {
     await startGame(page);
     await page.evaluate(async () => {
       const { state, config } = await import('./js/state.js');
@@ -452,7 +454,7 @@ test.describe('Hacker-Gegner', () => {
     await expect(page.locator('#hack-label-p2')).toContainText('INVERTED');
   });
 
-  test('restartGame entfernt aktive Hacks beider Spieler', async ({ page }) => {
+  test('restartGame removes active hacks of both players', async ({ page }) => {
     await startGame(page);
     const r = await page.evaluate(async () => {
       const { state } = await import('./js/state.js');
@@ -466,7 +468,7 @@ test.describe('Hacker-Gegner', () => {
     expect(r).toEqual([0, 0]);
   });
 
-  test('Neuer Hack spielt den Glitch-Sound', async ({ page }) => {
+  test('A new hack plays the glitch sound', async ({ page }) => {
     await startGame(page);
     await page.evaluate(async () => {
       const { state } = await import('./js/state.js');
@@ -487,7 +489,7 @@ test.describe('Hacker-Gegner', () => {
     expect(count).toBe(1);
   });
 
-  test('Hack-Projektil lenkt in Richtung des Spielers', async ({ page }) => {
+  test('Hack projectile steers towards the player', async ({ page }) => {
     await startGame(page);
     await page.evaluate(async () => {
       const { state } = await import('./js/state.js');
@@ -495,7 +497,7 @@ test.describe('Hacker-Gegner', () => {
       state.godMode = true;
       state.x = 330;
       state.y = 500;
-      // Startet senkrecht nach unten, Spieler steht weit rechts
+      // Starts straight down, the player stands far to the right
       Entities.createHackProjectile(50, 100, 50, 500);
     });
     await page.waitForTimeout(500);
@@ -503,10 +505,10 @@ test.describe('Hacker-Gegner', () => {
     expect(vx).toBeGreaterThan(0.5);
   });
 
-  test('Hack-Projektil kann durch seitliches Ausweichen verfehlt werden', async ({ page }) => {
+  test('Hack projectile can be missed by dodging sideways', async ({ page }) => {
     await startGame(page);
-    // Feste Simulationsschritte; Taste D ueber state.tastenGedrueckt (wie der keydown-Handler) gehalten.
-    // Gegenprobe ohne Ausweichen: derselbe Orb trifft.
+    // Fixed simulation steps; key D held via state.keysPressed (like the keydown handler).
+    // Cross-check without dodging: the same orb hits.
     const run = dodge =>
       page.evaluate(async dodge => {
         const { state, arrays } = await import('./js/state.js');
@@ -520,7 +522,7 @@ test.describe('Hacker-Gegner', () => {
         state.x = 185;
         state.y = 450;
         Entities.createHackProjectile(194, 250, 200, 465);
-        // Spaet ausweichen, wenn der Orb ca. 80 px entfernt ist
+        // Dodge late, when the orb is about 80 px away
         let n = 0;
         while (arrays.hackProjectileArray[0] && arrays.hackProjectileArray[0].y <= 370 && n < 300) {
           simulationStep();
@@ -538,7 +540,7 @@ test.describe('Hacker-Gegner', () => {
     expect(without).toEqual({ orbBeforeDodge: true, hacks: 1 });
   });
 
-  test('Hack-Projektil kehrt nach dem Vorbeiflug nicht um', async ({ page }) => {
+  test('Hack projectile does not turn around after the flyby', async ({ page }) => {
     await startGame(page);
     await page.evaluate(async () => {
       const { state } = await import('./js/state.js');
@@ -546,10 +548,10 @@ test.describe('Hacker-Gegner', () => {
       state.godMode = true;
       state.x = 185;
       state.y = 200;
-      // Orb ist bereits unter dem Spieler und fliegt nach unten
+      // The orb is already below the player and flies down
       Entities.createHackProjectile(194, 300, 194, 600);
     });
-    // 72 feste Simulationsschritte (~1,2 s); vy wird in jedem Schritt geprueft, solange der Orb existiert
+    // 72 fixed simulation steps (~1.2 s); vy is checked every step while the orb exists
     const r = await page.evaluate(() => {
       const { arrays, Loop } = window.__game;
       const vys = [];
@@ -576,7 +578,7 @@ test.describe('Hacker-Gegner', () => {
         state.y = 500;
         Entities.createBoss();
         const b = arrays.bosses[arrays.bosses.length - 1];
-        b.phase = 'kampf';
+        b.phase = 'fight';
         b.y = 20;
         b.shotTimer = 999999;
         b.baseShotRate = 999999;
@@ -587,7 +589,7 @@ test.describe('Hacker-Gegner', () => {
     );
   }
 
-  test('Boss feuert ab Level 5 Hack-Projektile, Reset auf 300 Frames', async ({ page }) => {
+  test('Boss fires hack projectiles from level 5 on, reset to 300 frames', async ({ page }) => {
     await bossFight(page, 5, false);
     await page.waitForFunction(() => window.__game.arrays.hackProjectileArray.length > 0);
     const r = await page.evaluate(() => {
@@ -599,14 +601,14 @@ test.describe('Hacker-Gegner', () => {
     expect(r.source).toBeNull();
   });
 
-  test('Boss unter Level 5 feuert keine Hack-Projektile', async ({ page }) => {
+  test('Boss below level 5 fires no hack projectiles', async ({ page }) => {
     await bossFight(page, 4, false);
     await page.waitForTimeout(500);
     const n = await page.evaluate(() => window.__game.arrays.hackProjectileArray.length);
     expect(n).toBe(0);
   });
 
-  test('Boss im Enrage feuert alle 180 Frames', async ({ page }) => {
+  test('Boss in enrage fires every 180 frames', async ({ page }) => {
     await bossFight(page, 5, true);
     await page.waitForFunction(() => window.__game.arrays.hackProjectileArray.length > 0);
     const timer = await page.evaluate(() => window.__game.arrays.bosses[0].hackTimer);
@@ -614,7 +616,7 @@ test.describe('Hacker-Gegner', () => {
     expect(timer).toBeLessThanOrEqual(180);
   });
 
-  test('Boss kann den Spieler mehrfach hacken (Quelle null blockiert nicht)', async ({ page }) => {
+  test('Boss can hack the player several times (source null does not block)', async ({ page }) => {
     await startGame(page);
     await page.evaluate(async () => {
       const { state } = await import('./js/state.js');

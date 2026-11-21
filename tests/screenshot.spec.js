@@ -2,36 +2,36 @@ const { test } = require('@playwright/test');
 const path = require('path');
 const { setGameState } = require('./helpers');
 
-test('Generiere Gameplay-Screenshot fuer README.md', async ({ page }) => {
+test('Generate gameplay screenshot for README.md', async ({ page }) => {
   await setGameState(page);
 
   await page.goto('/');
 
-  // Spiel starten durch Taste
+  // Start the game with a key
   await page.keyboard.down('KeyW');
   await page.waitForTimeout(50);
   await page.keyboard.up('KeyW');
 
-  // Kurz warten, bis Spielfeld aktiv ist
+  // Wait briefly until the playfield is active
   await page.waitForTimeout(500);
 
-  // Dynamisch ein paar actionreiche Elemente spawnen
+  // Spawn a few action-rich elements dynamically
   await page.evaluate(async () => {
     const stateMod = await import('./js/state.js');
-    const entMod = await import('./js/entities.js');
+    const entitiesModule = await import('./js/entities.js');
     const inputMod = await import('./js/input.js');
 
     // Laser feuern
     stateMod.state.energy = 100;
     if (inputMod.fireLaser) inputMod.fireLaser();
 
-    // Feinde und Asteroiden erzeugen
-    entMod.createEnemy();
-    entMod.createEnemy();
-    entMod.createAsteroid();
-    entMod.createAsteroid();
+    // Create enemies and asteroids
+    entitiesModule.createEnemy();
+    entitiesModule.createEnemy();
+    entitiesModule.createAsteroid();
+    entitiesModule.createAsteroid();
 
-    // Positionen der Feinde etwas anpassen fuer gute Bildkomposition
+    // Adjust enemy positions a bit for a good composition
     if (stateMod.arrays.enemies[0]) {
       stateMod.arrays.enemies[0].y = 120;
       stateMod.arrays.enemies[0].x = 100;
@@ -54,7 +54,7 @@ test('Generiere Gameplay-Screenshot fuer README.md', async ({ page }) => {
 
   await page.waitForTimeout(300);
 
-  // Screenshot vom Spielfeld aufnehmen (Pfad unabhaengig vom Arbeitsverzeichnis)
+  // Take a screenshot of the playfield (path independent of the working directory)
   const playfield = page.locator('#spielfeld');
   await playfield.screenshot({ path: path.join(__dirname, '..', 'docs', 'gameplay.png') });
 });

@@ -1,13 +1,13 @@
-// Gemeinsame Logik fuer Stop-Hook und Commit-Hook: Fingerabdruck der relevanten Dateien und
-// npm run check nur, wenn sich seit dem letzten gruenen Lauf etwas geaendert hat.
-// CHECK_STAND_DATEI und CHECK_BEFEHL ersetzen Zustandsdatei und Pruefbefehl (nur fuer tests/hooks.spec.js).
+// Shared logic for the stop hook and the commit hook: fingerprint of the relevant files, and
+// npm run check only if something changed since the last green run.
+// CHECK_STATE_FILE and CHECK_COMMAND replace the state file and the check command (only for tests/hooks.spec.js).
 import { execFileSync, spawnSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
 import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 
 export const root = join(import.meta.dirname, '..', '..');
-const STAND = process.env.CHECK_STAND_FILE || join(root, '.claude', '.check-stand.json');
+const STATE_FILE = process.env.CHECK_STATE_FILE || join(root, '.claude', '.check-state.json');
 const PATHS = [
   'src',
   'tests',
@@ -38,25 +38,25 @@ function fingerprint() {
   return hash.digest('hex');
 }
 
-// Ergebnis: { gruen, ausgabe, versuche } (versuche = rote Laeufe mit demselben Stand)
+// Result: { green, output, attempts } (attempts = red runs with the same state)
 export function checkStand() {
   const print = fingerprint();
-  let stand = {};
+  let saved = {};
   try {
-    stand = JSON.parse(readFileSync(STAND, 'utf8'));
+    saved = JSON.parse(readFileSync(STATE_FILE, 'utf8'));
   } catch {
     /* erster Lauf */
   }
-  if (stand.green === print) return { green: true, output: '', attempts: 0 };
+  if (saved.green === print) return { green: true, output: '', attempts: 0 };
 
   const command = process.env.CHECK_COMMAND ? ['-c', process.env.CHECK_COMMAND] : ['scripts/check.sh'];
   const run = spawnSync('bash', command, { cwd: root, encoding: 'utf8' });
   const output = ((run.stdout || '') + (run.stderr || '')).trim();
   if (run.status === 0) {
-    writeFileSync(STAND, JSON.stringify({ green: print }));
+    writeFileSync(STATE_FILE, JSON.stringify({ green: print }));
     return { green: true, output, attempts: 0 };
   }
-  const attempts = stand.rot === print ? (stand.attempts || 0) + 1 : 1;
-  writeFileSync(STAND, JSON.stringify({ green: stand.green, rot: print, attempts }));
+  const attempts = saved.red === print ? (saved.attempts || 0) + 1 : 1;
+  writeFileSync(STATE_FILE, JSON.stringify({ green: saved.green, red: print, attempts }));
   return { green: false, output, attempts };
 }

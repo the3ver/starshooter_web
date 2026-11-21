@@ -1,12 +1,12 @@
-// Hack-Effekte des Hacker-Gegners. pState ist `state` (P1) oder `state.p2`.
+// Hack effects of the hacker enemy. pState is `state` (P1) or `state.p2`.
 
 import { state, dom } from './state.js';
 import * as Audio from './audio.js';
 
-export const HACK_EFFECTS = ['inverted', 'weaponOffline', 'keySwapped', 'hudGlitch'];
-export const HACK_DURATION = 180; // 3 s bei 60 FPS
+export const HACK_EFFECTS = ['inverted', 'weaponsOffline', 'keysSwapped', 'hudGlitch'];
+export const HACK_DURATION = 180; // 3 s at 60 FPS
 
-// Richtungen: oben, unten, links, rechts
+// Directions: top, bottom, left, right
 const DIRECTIONS = [
   [0, -1],
   [0, 1],
@@ -14,7 +14,7 @@ const DIRECTIONS = [
   [1, 0],
 ];
 
-// Zufällige Permutation ohne Fixpunkt: keine Taste behält ihre Richtung
+// Random permutation without a fixed point: no key keeps its direction
 function randomDerangement() {
   let perm;
   do {
@@ -27,11 +27,11 @@ function randomDerangement() {
   return perm;
 }
 
-export function hackPlayer(pState, typ = null) {
+export function hackPlayer(pState, type = null) {
   if (!pState.hacks) pState.hacks = [];
-  const effect = typ || HACK_EFFECTS[Math.floor(Math.random() * HACK_EFFECTS.length)];
-  const hack = { typ: effect, timer: HACK_DURATION };
-  if (effect === 'keySwapped') hack.perm = randomDerangement();
+  const effect = type || HACK_EFFECTS[Math.floor(Math.random() * HACK_EFFECTS.length)];
+  const hack = { type: effect, timer: HACK_DURATION };
+  if (effect === 'keysSwapped') hack.perm = randomDerangement();
   pState.hacks.push(hack);
   return effect;
 }
@@ -42,18 +42,18 @@ export function tickHacks(pState) {
   pState.hacks = pState.hacks.filter(h => h.timer > 0);
 }
 
-export function hasHack(pState, typ) {
-  return !!pState.hacks && pState.hacks.some(h => h.typ === typ);
+export function hasHack(pState, type) {
+  return !!pState.hacks && pState.hacks.some(h => h.type === type);
 }
 
-// Bildet eine Bewegung (dx, dy) durch alle aktiven Steuerungs-Hacks ab
+// Maps a movement (dx, dy) through all active control hacks
 export function hackMovement(pState, dx, dy) {
   if (!pState.hacks || pState.hacks.length === 0) return { dx, dy };
   for (const h of pState.hacks) {
-    if (h.typ === 'inverted') {
+    if (h.type === 'inverted') {
       dx = -dx;
       dy = -dy;
-    } else if (h.typ === 'keySwapped') {
+    } else if (h.type === 'keysSwapped') {
       let nx = 0,
         ny = 0;
       DIRECTIONS.forEach(([rx, ry], k) => {
@@ -73,8 +73,8 @@ export function removeHacks(pState) {
   pState.hacks = [];
 }
 
-// Hack-Ton und HUD-Glitch beider Spieler; Schiffsklasse spieler-gehackt und das Label ueber dem Schiff
-// zeichnet die Anzeige aus pState.hacks
+// Hack sound and HUD glitch for both players; the display draws the ship class spieler-gehackt and the label
+// above the ship from pState.hacks
 export function showHackStatus() {
   showForPlayer(state, dom.uiContainerP1);
   if (state.p2) showForPlayer(state.p2, dom.uiContainerP2);
@@ -82,14 +82,14 @@ export function showHackStatus() {
 
 export const HACK_NAMES = {
   inverted: 'INVERTED',
-  weaponOffline: 'WEAPONS OFFLINE',
-  keySwapped: 'KEYS SCRAMBLED',
+  weaponsOffline: 'WEAPONS OFFLINE',
+  keysSwapped: 'KEYS SCRAMBLED',
   hudGlitch: 'HUD GLITCH',
 };
 
 function showForPlayer(pState, hudEl) {
   const hacks = pState.hacks || [];
-  // Sound bei neuem Hack (funktioniert auch auf dem Online-Client, der nur Snapshots sieht)
+  // Sound on a new hack (also works on the online client, which only sees snapshots)
   if (hacks.length > (pState.shownHacks || 0)) Audio.playHack();
   pState.shownHacks = hacks.length;
   if (hudEl) hudEl.classList.toggle('hud-glitch', hasHack(pState, 'hudGlitch'));

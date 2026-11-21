@@ -2,36 +2,36 @@ const { test, expect } = require('@playwright/test');
 const path = require('path');
 const { pathToFileURL } = require('url');
 
-// Worker-Validierung ist ein ES-Modul (.mjs), die Spec ist CommonJS
+// The worker validation is an ES module (.mjs), the spec is CommonJS
 async function chargingValidation() {
   return import(pathToFileURL(path.join(__dirname, '..', 'worker', 'validation.mjs')).href);
 }
 
-test('Profanity: nur der verbotene Teil wird ersetzt (BASS+ASS -> BASS+***)', async () => {
+test('Profanity: only the forbidden part is replaced (BASS+ASS -> BASS+***)', async () => {
   const { cleanName } = await chargingValidation();
   expect(cleanName('BASS+ASS')).toEqual({ ok: true, name: 'BASS+***', error: null });
 });
 
-test('Profanity: verbotener Teil vorne, mehrere verbotene Teile, doppelt', async () => {
+test('Profanity: forbidden part in front, several forbidden parts, duplicate', async () => {
   const { cleanName } = await chargingValidation();
   expect(cleanName('ASS+BASS').name).toBe('***+BASS');
   expect(cleanName('FCK+SEX').name).toBe('***+***');
   expect(cleanName('SS+SS').name).toBe('***+***');
 });
 
-test('Profanity: verbotener Name allein wird zensiert', async () => {
+test('Profanity: a forbidden name on its own is censored', async () => {
   const { cleanName } = await chargingValidation();
   expect(cleanName('ASS')).toEqual({ ok: true, name: '***', error: null });
 });
 
-test('Gueltige Namen bleiben unveraendert', async () => {
+test('Valid names stay unchanged', async () => {
   const { cleanName } = await chargingValidation();
   for (const n of ['ABC', 'AAA+BBB', 'BASS', 'A_B-C', 'X1Y2']) {
     expect(cleanName(n)).toEqual({ ok: true, name: n, error: null });
   }
 });
 
-test('Ungueltige Zeichen und leere Namen werden abgelehnt', async () => {
+test('Invalid characters and empty names are rejected', async () => {
   const { cleanName } = await chargingValidation();
   for (const n of ['A B', 'ÄÖÜ', '<script>', 'A!B', '', '   ', null, undefined]) {
     const r = cleanName(n);
@@ -40,12 +40,12 @@ test('Ungueltige Zeichen und leere Namen werden abgelehnt', async () => {
   }
 });
 
-test('Kleinbuchstaben werden groß, Leerraum wird getrimmt', async () => {
+test('Lowercase letters become uppercase, whitespace is trimmed', async () => {
   const { cleanName } = await chargingValidation();
   expect(cleanName('  abc+def ').name).toBe('ABC+DEF');
 });
 
-test('Name wird auf 10 Zeichen gekuerzt', async () => {
+test('Name is shortened to 10 characters', async () => {
   const { cleanName } = await chargingValidation();
   expect(cleanName('ABCDEFGHIJKLMNOP').name).toBe('ABCDEFGHIJ');
 });
@@ -55,7 +55,7 @@ async function chargingTurn() {
   return import(pathToFileURL(path.join(__dirname, '..', 'worker', 'turn.mjs')).href);
 }
 
-test('TURN: filtereIceServers entfernt Port 53 bei Array- und String-urls', async () => {
+test('TURN: filterIceServers removes port 53 for array and string urls', async () => {
   const { filterIceServers } = await chargingTurn();
   const r = filterIceServers([
     { urls: ['stun:stun.cloudflare.com:3478', 'stun:stun.cloudflare.com:53'] },
@@ -68,7 +68,7 @@ test('TURN: filtereIceServers entfernt Port 53 bei Array- und String-urls', asyn
   ]);
 });
 
-test('TURN: filtereIceServers verwirft Eintraege ohne urls und laesst normale unveraendert', async () => {
+test('TURN: filterIceServers drops entries without urls and leaves normal ones unchanged', async () => {
   const { filterIceServers } = await chargingTurn();
   const normal = {
     urls: ['turn:turn.cloudflare.com:443?transport=tcp', 'turns:turn.cloudflare.com:5349?transport=tcp'],
@@ -89,7 +89,7 @@ test('TURN: filtereIceServers verwirft Eintraege ohne urls und laesst normale un
   expect(filterIceServers(undefined)).toEqual([]);
 });
 
-test('TURN: istErlaubteHerkunft erlaubt GitHub Pages und localhost mit beliebigem Port', async () => {
+test('TURN: isAllowedOrigin allows GitHub Pages and localhost with any port', async () => {
   const { isAllowedOrigin } = await chargingTurn();
   expect(isAllowedOrigin('https://the3ver.github.io')).toBe(true);
   expect(isAllowedOrigin('http://localhost:3000')).toBe(true);
@@ -97,7 +97,7 @@ test('TURN: istErlaubteHerkunft erlaubt GitHub Pages und localhost mit beliebige
   expect(isAllowedOrigin('http://127.0.0.1:5173')).toBe(true);
 });
 
-test('TURN: istErlaubteHerkunft lehnt fremde Herkunft ab', async () => {
+test('TURN: isAllowedOrigin rejects a foreign origin', async () => {
   const { isAllowedOrigin } = await chargingTurn();
   for (const o of [
     'https://example.com',
@@ -121,13 +121,13 @@ function turnRequest(origin, ip = '1.2.3.4') {
 }
 const TURN_ENV = {
   TURN_KEY_ID: 'kid',
-  TURN_KEY_API_TOKEN: 'geheim',
+  TURN_KEY_API_TOKEN: 'secret',
   CF_ANALYTICS_TOKEN: 'analytics',
   CF_ACCOUNT_ID: 'account',
 };
 const GRAPHQL_URL = 'https://api.cloudflare.com/client/v4/graphql';
 
-// Beantwortet die Verbrauchsabfrage (Kostenbremse) mit `bytes`, alle anderen Aufrufe gehen an turnFetch
+// Answers the usage query (cost brake) with `bytes`, all other calls go to turnFetch
 function withUsage(turnFetch, bytes = 0) {
   return async (url, opts) => {
     if (url === GRAPHQL_URL) {
@@ -141,10 +141,10 @@ function withUsage(turnFetch, bytes = 0) {
   };
 }
 
-test('TURN-Route: 403 bei fremder oder fehlender Herkunft', async () => {
+test('TURN route: 403 on a foreign or missing origin', async () => {
   const { handleTurnRequest } = await chargingTurn();
   const fetchFn = async () => {
-    throw new Error('darf nicht aufgerufen werden');
+    throw new Error('must not be called');
   };
   for (const o of ['https://evil.example', null]) {
     const r = await handleTurnRequest(turnRequest(o), TURN_ENV, fetchFn);
@@ -152,7 +152,7 @@ test('TURN-Route: 403 bei fremder oder fehlender Herkunft', async () => {
   }
 });
 
-test('TURN-Route: 503 ohne Secrets', async () => {
+test('TURN route: 503 without secrets', async () => {
   const { handleTurnRequest } = await chargingTurn();
   const r = await handleTurnRequest(turnRequest('https://the3ver.github.io'), {}, async () => {
     throw new Error('x');
@@ -161,27 +161,27 @@ test('TURN-Route: 503 ohne Secrets', async () => {
   expect(await r.json()).toEqual({ success: false, error: 'TURN nicht konfiguriert' });
 });
 
-test('TURN-Route: 502 bei Upstream-Fehler ohne Leck von Details', async () => {
+test('TURN route: 502 on an upstream error without leaking details', async () => {
   const { handleTurnRequest } = await chargingTurn();
   const errorStatus = await handleTurnRequest(
     turnRequest('https://the3ver.github.io'),
     TURN_ENV,
-    withUsage(async () => new Response('interner Fehler geheim', { status: 500 })),
+    withUsage(async () => new Response('interner Fehler secret', { status: 500 })),
   );
   expect(errorStatus.status).toBe(502);
-  expect(await errorStatus.text()).not.toContain('geheim');
+  expect(await errorStatus.text()).not.toContain('secret');
   const errorThrow = await handleTurnRequest(
     turnRequest('https://the3ver.github.io'),
     TURN_ENV,
     withUsage(async () => {
-      throw new Error('Token geheim');
+      throw new Error('Token secret');
     }),
   );
   expect(errorThrow.status).toBe(502);
-  expect(await errorThrow.text()).not.toContain('geheim');
+  expect(await errorThrow.text()).not.toContain('secret');
 });
 
-test('TURN-Route: 200 liefert gefilterte iceServers, CORS-Origin und no-store', async () => {
+test('TURN route: 200 returns filtered iceServers, CORS origin and no-store', async () => {
   const { handleTurnRequest, TURN_TTL_SECONDS } = await chargingTurn();
   let call;
   const fetchFn = async (url, opts) => {
@@ -209,11 +209,11 @@ test('TURN-Route: 200 liefert gefilterte iceServers, CORS-Origin und no-store', 
   ]);
   expect(call.url).toBe('https://rtc.live.cloudflare.com/v1/turn/keys/kid/credentials/generate-ice-servers');
   expect(call.opts.method).toBe('POST');
-  expect(call.opts.headers.Authorization).toBe('Bearer geheim');
+  expect(call.opts.headers.Authorization).toBe('Bearer secret');
   expect(JSON.parse(call.opts.body)).toEqual({ ttl: TURN_TTL_SECONDS });
 });
 
-test('TURN-Route: Rate-Limit liefert 429 nach zu vielen Anfragen derselben IP', async () => {
+test('TURN route: rate limit returns 429 after too many requests from the same IP', async () => {
   const { handleTurnRequest, TURN_MAX_REQUESTS_PRO_HOUR } = await chargingTurn();
   const storage = new Map();
   const cache = {
@@ -243,16 +243,16 @@ test('TURN-Route: Rate-Limit liefert 429 nach zu vielen Anfragen derselben IP', 
   expect(otherIp.status).toBe(200);
 });
 
-// --- TURN-Kostenbremse (Monatslimit) ---
+// --- TURN cost brake (monthly limit) ---
 const TURN_OK = async () => new Response(JSON.stringify({ iceServers: [{ urls: ['stun:a:3478'] }] }), { status: 201 });
 
-test('Kostenbremse: monatsZeitraum liefert Monatsanfang bis heute (UTC)', async () => {
+test('Cost brake: monthPeriod returns start of month until today (UTC)', async () => {
   const { monthPeriod } = await chargingTurn();
   expect(monthPeriod(new Date('2026-10-02T12:00:00Z'))).toEqual({ fromEntry: '2026-10-01', until: '2026-10-02' });
   expect(monthPeriod(new Date('2026-12-31T23:59:00Z'))).toEqual({ fromEntry: '2026-12-01', until: '2026-12-31' });
 });
 
-test('Kostenbremse: Verbrauchsabfrage nutzt Konto, Schluessel, Monatszeitraum und Analytics-Token', async () => {
+test('Cost brake: usage query uses account, key, month period and analytics token', async () => {
   const { getMonthlyUsageBytes } = await chargingTurn();
   let call;
   const fetchFn = async (url, opts) => {
@@ -280,7 +280,7 @@ test('Kostenbremse: Verbrauchsabfrage nutzt Konto, Schluessel, Monatszeitraum un
   expect(body.query).toContain('egressBytes');
 });
 
-test('Kostenbremse: unter dem Limit gibt es Zugangsdaten, ab dem Limit 503', async () => {
+test('Cost brake: below the limit there are credentials, from the limit on 503', async () => {
   const { handleTurnRequest } = await chargingTurn();
   const below = await handleTurnRequest(turnRequest('https://the3ver.github.io'), TURN_ENV, withUsage(TURN_OK, 799e9));
   expect(below.status).toBe(200);
@@ -300,7 +300,7 @@ test('Kostenbremse: unter dem Limit gibt es Zugangsdaten, ab dem Limit 503', asy
   expect(turnCalled).toBe(false);
 });
 
-test('Kostenbremse: Limit per TURN_MONATSLIMIT_GB einstellbar', async () => {
+test('Cost brake: limit adjustable via TURN_MONATSLIMIT_GB', async () => {
   const { handleTurnRequest } = await chargingTurn();
   const env = { ...TURN_ENV, TURN_MONATSLIMIT_GB: '1' };
   const below = await handleTurnRequest(turnRequest('https://the3ver.github.io'), env, withUsage(TURN_OK, 0.5e9));
@@ -309,21 +309,21 @@ test('Kostenbremse: Limit per TURN_MONATSLIMIT_GB einstellbar', async () => {
   expect(over.status).toBe(503);
 });
 
-test('Kostenbremse: im Zweifel keine Zugangsdaten (fehlende Analytics-Daten, API-Fehler, GraphQL-Fehler)', async () => {
+test('Cost brake: when in doubt no credentials (missing analytics data, API error, GraphQL error)', async () => {
   const { handleTurnRequest } = await chargingTurn();
   const neverTurn = async url => {
-    if (url === GRAPHQL_URL) throw new Error('Analytics geheim');
-    throw new Error('TURN darf nicht aufgerufen werden');
+    if (url === GRAPHQL_URL) throw new Error('Analytics secret');
+    throw new Error('TURN must not be called');
   };
   const withoutToken = await handleTurnRequest(
     turnRequest('https://the3ver.github.io'),
-    { TURN_KEY_ID: 'kid', TURN_KEY_API_TOKEN: 'geheim' },
+    { TURN_KEY_ID: 'kid', TURN_KEY_API_TOKEN: 'secret' },
     neverTurn,
   );
   expect(withoutToken.status).toBe(503);
   const apiThrows = await handleTurnRequest(turnRequest('https://the3ver.github.io'), TURN_ENV, neverTurn);
   expect(apiThrows.status).toBe(503);
-  expect(await apiThrows.text()).not.toContain('geheim');
+  expect(await apiThrows.text()).not.toContain('secret');
   const apiStatus = await handleTurnRequest(turnRequest('https://the3ver.github.io'), TURN_ENV, async url =>
     url === GRAPHQL_URL ? new Response('x', { status: 403 }) : TURN_OK(),
   );
@@ -336,7 +336,7 @@ test('Kostenbremse: im Zweifel keine Zugangsdaten (fehlende Analytics-Daten, API
   expect(gqlError.status).toBe(503);
 });
 
-test('Kostenbremse: Verbrauch wird zwischengespeichert, nicht bei jeder Anfrage abgefragt', async () => {
+test('Cost brake: usage is cached, not queried on every request', async () => {
   const { handleTurnRequest } = await chargingTurn();
   const storage = new Map();
   const cache = {

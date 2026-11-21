@@ -7,7 +7,7 @@ const ICE_SERVERS = [
   { urls: ['turn:turn.cloudflare.com:3478?transport=udp'], username: 'u', credential: 'c' },
 ];
 
-// Kleines Fake-Modul statt echtem Trystero: merkt sich die Konfiguration von joinRoom
+// Small fake module instead of real Trystero: remembers the joinRoom configuration
 const FAKE_TRYSTERO = `
 export function joinRoom(config, id) {
   window.__joinConfigs = (window.__joinConfigs || []).concat([config]);
@@ -65,27 +65,27 @@ function enterClear(page) {
   });
 }
 
-test('holeTurnConfig liefert die iceServers bei Antwort 200', async ({ page }) => {
+test('getTurnConfig returns the iceServers on response 200', async ({ page }) => {
   await page.route('**/api/turn*', turnResponse(200, { success: true, iceServers: ICE_SERVERS }));
   expect(await getConfig(page)).toEqual(ICE_SERVERS);
 });
 
-test('holeTurnConfig liefert null bei 503', async ({ page }) => {
+test('getTurnConfig returns null on 503', async ({ page }) => {
   await page.route('**/api/turn*', turnResponse(503, { success: false, error: 'TURN nicht konfiguriert' }));
   expect(await getConfig(page)).toBeNull();
 });
 
-test('holeTurnConfig liefert null bei ungueltigem JSON', async ({ page }) => {
+test('getTurnConfig returns null on invalid JSON', async ({ page }) => {
   await page.route('**/api/turn*', turnResponse(200, 'das ist kein json'));
   expect(await getConfig(page)).toBeNull();
 });
 
-test('holeTurnConfig liefert null bei leerer iceServers-Liste', async ({ page }) => {
+test('getTurnConfig returns null on an empty iceServers list', async ({ page }) => {
   await page.route('**/api/turn*', turnResponse(200, { success: true, iceServers: [] }));
   expect(await getConfig(page)).toBeNull();
 });
 
-test('holeTurnConfig liefert null nach Timeout', async ({ page }) => {
+test('getTurnConfig returns null after a timeout', async ({ page }) => {
   await page.route('**/api/turn*', () => {
     /* antwortet nie */
   });
@@ -99,7 +99,7 @@ test('holeTurnConfig liefert null nach Timeout', async ({ page }) => {
   expect(r.ms).toBeLessThan(2000);
 });
 
-test('hostRoom und joinOnlineRoom reichen turnConfig an joinRoom weiter', async ({ page }) => {
+test('hostRoom and joinOnlineRoom pass turnConfig on to joinRoom', async ({ page }) => {
   await page.route('**/api/turn*', turnResponse(200, { success: true, iceServers: ICE_SERVERS }));
   const configs = await enterClear(page);
   expect(configs).toHaveLength(2);
@@ -109,7 +109,7 @@ test('hostRoom und joinOnlineRoom reichen turnConfig an joinRoom weiter', async 
   }
 });
 
-test('hostRoom und joinOnlineRoom laufen ohne turnConfig weiter, wenn TURN fehlt', async ({ page }) => {
+test('hostRoom and joinOnlineRoom continue without turnConfig when TURN is missing', async ({ page }) => {
   await page.route('**/api/turn*', turnResponse(503, { success: false, error: 'TURN nicht konfiguriert' }));
   const configs = await enterClear(page);
   expect(configs).toHaveLength(2);

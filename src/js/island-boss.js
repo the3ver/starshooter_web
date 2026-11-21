@@ -7,11 +7,11 @@ import * as Network from './network.js';
 import { newId } from './entities.js';
 import { nextPlayerMiddle } from './opponents.js';
 
-// Insel-Boss (Fels-Level): Der Koerper ist eine grosse Felsinsel aus Segmenten (rock.js: Kollision, Rueckstoss,
-// Zeichnen, Online-Sync). Sie scrollt herein und bleibt stehen. Trefferzonen sind die Augen (arrays.bosses,
-// bossTyp 'auge', gemeinsame bossId): sie blinzeln, sind nur offen verwundbar und schiessen gezielt Sporen.
-// Roehren an den Inselflanken (Gewaechs 'roehre') werfen Larven aus. Faellt das vorletzte Auge, rueckt der
-// Koerper langsam vor (Enrage). Der Boss ist besiegt, wenn das letzte Auge faellt (zerstoereZiel -> besiegeBoss).
+// Island boss (rock levels): the body is a large rock island made of segments (rock.js: collision, knockback,
+// drawing, online sync). It scrolls in and stops. Hit zones are the eyes (arrays.bosses,
+// bossType 'eye', shared bossId): they blink, are vulnerable only while open and shoot aimed spores.
+// Tubes on the island flanks (growth 'tube') eject larvae. When the second to last eye falls, the
+// body slowly advances (enrage). The boss is defeated when the last eye falls (destroyTarget -> defeatBoss).
 
 export const BOSS_ID = 'island';
 export const ENTRY_SPEED = 1.8;
@@ -23,12 +23,12 @@ export const EYE_SHOT = 45;
 export const SPORE_SPEED = 3;
 export const BONE_COLOR = '#e8dcb8';
 
-// Skelett von unten nach oben, spiegelsymmetrisch zur senkrechten Mittelachse: Wirbelsaeule (Breite in
-// Wirbelbreiten) und Armpaare (arme: Reichweite beider Arme als Anteil der Hoechstbreite). Ein Armpaar ist ein
-// Profilpunkt, an dem die Insel beidseitig bis zu den Armspitzen reicht; die Nachbarpunkte sind Wirbel, so
-// entstehen spitze Knochenfortsaetze. Augen sitzen an der unteren Spitze und an den Spitzen des ersten Armpaars,
+// Skeleton from bottom to top, mirror-symmetric to the vertical center axis: spine (width in
+// vertebra widths) and arm pairs (arms: reach of both arms as a share of the maximum width). An arm pair is a
+// profile point where the island reaches out to the arm tips on both sides; the neighboring points are vertebrae, so
+// pointed bone spurs appear. Eyes sit at the bottom tip and at the tips of the first arm pair,
 // im Coop zusaetzlich am zweiten Armpaar.
-// Alle Teile liegen in den unteren sieben Wirbeln: im Kampf steht der Koerper, darueber entstehen keine Segmente.
+// All parts lie in the lower seven vertebrae: in the fight the body stands still, no segments appear above it.
 const SKELETON = [
   { vortex: 0.6, eyes: ['bottom'] },
   { vortex: 1.1, tubes: true },
@@ -43,7 +43,7 @@ const SKELETON = [
   { vortex: 0.8 },
 ];
 
-let boss = null; // { phase: 'einzug' | 'kampf' | 'enrage' | 'abzug', augenGesamt }
+let boss = null; // { phase: 'entry' | 'fight' | 'enrage' | 'retreat', eyesTotal }
 
 export function reset() {
   boss = null;
@@ -66,7 +66,7 @@ function vortexWidth() {
   return Math.max(60, maxWidth() * 0.28);
 }
 
-// Profilpunkte des Koerpers mit Markierungen (knochen, bossIndex, augen, roehren); Insel immer mittig
+// Profile points of the body with markers (bone, bossIndex, eyes, tubes); the island is always centered
 export function bodyProfile() {
   const c = config.playfieldWidth / 2;
   return SKELETON.map((k, i) => ({
@@ -85,9 +85,9 @@ export function eyeCount() {
   return bodyProfile().reduce((n, p) => n + p.eyes.length, 0);
 }
 
-// Nach der Boss-Warnung (Level.starteBoss)
+// After the boss warning (Level.startBoss)
 export function create() {
-  boss = { phase: 'einzug', eyeTotal: 0 };
+  boss = { phase: 'entry', eyeTotal: 0 };
   state.bossActive = true;
   dom.bossHpContainer.style.display = 'block';
   dom.bossHpBar.style.width = '100%';
@@ -101,7 +101,7 @@ function eyeHp() {
   return Math.round(((400 + (state.level - 1) * 350) * mult * 1.2) / eyeCount());
 }
 
-// Neue Koerpersegmente mit Augen und Roehren besetzen (jedes Segment einmal)
+// Occupy new body segments with eyes and tubes (each segment once)
 function occupySegments() {
   for (const s of arrays.rock) {
     const p = s.top;
@@ -118,8 +118,8 @@ function occupySegments() {
   }
 }
 
-// Augenmitte relativ zum Segment: an einer Armspitze (Profilpunkt oben = Segmentoberkante) oder an der unteren
-// Spitze der Wirbelsaeule (Unterkante des untersten Segments). Fest am Skelett, keine eigene Bewegung.
+// Eye center relative to the segment: at an arm tip (profile point top = segment top edge) or at the bottom
+// tip of the spine (bottom edge of the lowest segment). Fixed to the skeleton, no movement of its own.
 function eyePosition(segment, side) {
   const g = EYE_SIZE;
   const p = segment.top;
@@ -143,7 +143,7 @@ function createEye(segment, side, nr) {
     isEnemy: false,
     isBoss: true,
     bossId: BOSS_ID,
-    bossTyp: 'eye',
+    bossType: 'eye',
     side,
     glowColor: '#ffb347',
     isIndestructible: true,
@@ -167,7 +167,7 @@ function bottomEdge() {
   return bottom ? bottom.y + Rock.SEGMENT_HEIGHT : null;
 }
 
-// Einmal je Schritt aus aktualisiereBosse
+// Once per step from updateBosses
 export function update() {
   if (!boss) return;
   Rock.createSupply(Rock.hasQueue());
@@ -175,12 +175,12 @@ export function update() {
   const edge = bottomEdge();
   const h = config.playfieldHeight;
 
-  if (boss.phase === 'einzug' && edge !== null && edge >= h * 0.45) {
-    boss.phase = 'kampf';
+  if (boss.phase === 'entry' && edge !== null && edge >= h * 0.45) {
+    boss.phase = 'fight';
     Rock.setSpeed(0);
   }
   const alive = eyes();
-  if (boss.phase === 'kampf' && boss.eyeTotal > 1 && alive.length === 1) {
+  if (boss.phase === 'fight' && boss.eyeTotal > 1 && alive.length === 1) {
     boss.phase = 'enrage';
     alive[0].enragePhaseActive = true;
     Rock.setSpeed(ENRAGE_SPEED);
@@ -189,16 +189,16 @@ export function update() {
   }
   if (boss.phase === 'enrage' && edge !== null && edge >= h * 0.72) Rock.setSpeed(0);
 
-  // HP-Balken: Summe aller Augen
+  // HP bar: sum of all eyes
   const all = alive.reduce((s, b) => s + b.hp, 0);
   const max = alive.reduce((s, b) => s + b.maxHp, 0) + (boss.eyeTotal - alive.length) * eyeHp();
   if (max > 0) dom.bossHpBar.style.width = Math.max(0, (all / max) * 100) + '%';
 
-  if (boss.phase !== 'einzug' && boss.eyeTotal > 0 && alive.length === 0) end();
+  if (boss.phase !== 'entry' && boss.eyeTotal > 0 && alive.length === 0) end();
 }
 
-// Letztes Auge gefallen (besiegeBoss lief schon): Roehren und Larven platzen, das Skelett zerfaellt in
-// Explosionen und gibt den Weg zu den Belohnungen frei
+// Last eye fallen (defeatBoss already ran): tubes and larvae burst, the skeleton decays into
+// explosions and clears the way to the rewards
 function end() {
   for (const f of arrays.enemies.slice()) {
     if (f.pattern === 'tube' || f.pattern === 'larva') Utils.destroyTarget(f);
@@ -223,10 +223,10 @@ function showExplosion(x, y) {
   }
 }
 
-// Auge je Schritt (aus aktualisiereBosse statt der Standard-Bossbewegung)
+// Eye per step (from updateBosses instead of the standard boss movement)
 export function updateEye(a, stunned) {
   a.y = a.segment.y + a.offsetY;
-  if (!boss || boss.phase === 'einzug') {
+  if (!boss || boss.phase === 'entry') {
     a.open = false;
     a.isIndestructible = true;
     return;

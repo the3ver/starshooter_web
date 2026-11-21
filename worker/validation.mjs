@@ -1,6 +1,6 @@
-// Reine Validierungslogik fuer den Highscore-Worker (ohne Cloudflare-Abhaengigkeiten, daher testbar)
+// Pure validation logic for the highscore worker (no Cloudflare dependencies, therefore testable)
 
-// Schimpfwort-/Profanity-Filter (einfache Sperrliste für 3-Buchstaben-Kürzel & gängige Begriffe)
+// Profanity filter (simple block list for 3-letter tags and common terms)
 export const FORBIDDEN_WORDS = [
   'ASS',
   'FUK',
@@ -25,7 +25,7 @@ export function cleanName(name) {
     return { ok: false, name: '', error: 'Ungültiger Spielername (nur A-Z, 0-9, max. 10 Zeichen)' };
   }
 
-  // Jeden Teil einzeln pruefen, sonst trifft replace() die erste Fundstelle im ganzen Namen
+  // Check each part separately, otherwise replace() hits the first match in the whole name
   name = name
     .split('+')
     .map(part => (FORBIDDEN_WORDS.includes(part) ? '***' : part))

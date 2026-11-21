@@ -1,10 +1,10 @@
-// Spectre-SR (Model-ID `sniper`): Fadenkreuz-Laser mit Aufladen und Betaeubungsgranate (siehe AGENTS.md, Abschnitt Sniper).
-// Stand S4: Fadenkreuz (Grundposition, Auto-Zielen ab Laser-Stufe 4), Sofort-Schuss auf den Trefferkreis, Aufladen
-// (Druck startet Laden, Loslassen feuert) und Betaeubungsgranate auf der Raketen-Taste.
-// pState ist `state` (P1) oder `state.p2`, pKey 'p1' / 'p2'.
-// Zustand pro Spieler: sniperZielX/sniperZielY (Fadenkreuz-Mitte im Spielfeld, null = noch nicht gesetzt),
-// sniperCooldown (Schritte bis zum naechsten Schuss), sniperGehalten (Laser-Taste im Schritt davor = Ladevorgang laeuft),
-// sniperLadung (Ladeschritte 0-90), sniperVoll (Voll-Ton fuer diesen Ladevorgang schon gespielt).
+// Spectre-SR (model id `sniper`): crosshair laser with charging and a stun grenade (see AGENTS.md, section Sniper).
+// State S4: crosshair (base position, auto aim from laser tier 4), instant shot on the hit circle, charging
+// (press starts charging, release fires) and the stun grenade on the missile key.
+// pState is `state` (P1) or `state.p2`, pKey 'p1' / 'p2'.
+// State per player: sniperTargetX/sniperTargetY (crosshair center on the playfield, null = not set yet),
+// sniperCooldown (steps until the next shot), sniperHeld (laser key in the previous step = charging in progress),
+// sniperCharge (charge steps 0-90), sniperFull (full tone already played for this charge).
 
 import { state, config, arrays, shipColors } from './state.js';
 import * as Utils from './utils.js';
@@ -15,27 +15,27 @@ import { damageTarget, showChargeHud } from './gleve.js';
 import * as Display from './display.js';
 import { createEffect, removeEffects as removeAllEffects } from './effects.js';
 
-export const CROSSHAIR_DISTANCE = 220; // px ueber der Schiffsoberkante
+export const CROSSHAIR_DISTANCE = 220; // px above the ship top edge
 export const SHOT_ENERGY = 6;
 const AUTO_AIM_RANGE = 320;
 const BEAM_STEPS = 8;
-export const CHARGE_FROM = 10; // Haltedauer in Schritten, ab der aus dem Normalschuss ein Ladeschuss wird
-export const CHARGE_FULL = 90; // Schritte bis zur vollen Ladung (1,5 s)
-export const CHARGING_ENERGY = 19; // zusaetzliche Energie fuer das Laden von Schritt 10 bis 90 (gleichmaessig)
+export const CHARGE_FROM = 10; // Hold time in steps from which a normal shot becomes a charged shot
+export const CHARGE_FULL = 90; // Steps until the full charge (1.5 s)
+export const CHARGING_ENERGY = 19; // extra energy for charging from step 10 to 90 (evenly)
 const CHARGING_COST = CHARGING_ENERGY / (CHARGE_FULL - CHARGE_FROM);
 export const MAX_DAMAGE_FACTOR = 4;
 export const MAX_RADIUS_FACTOR = 1.5;
 
-// Werte pro Laser-Stufe 1-5
+// Values per laser tier 1-5
 const RADIUS = [6, 14, 22, 22, 30];
 const DAMAGE = [30, 35, 40, 45, 50];
 const SHOT_DISTANCE = [24, 21, 21, 18, 18];
-const AUTO_AIM_SPEED = [0, 0, 0, 6, 10]; // px pro Schritt, 0 = kein Auto-Zielen
+const AUTO_AIM_SPEED = [0, 0, 0, 6, 10]; // px per step, 0 = no auto aim
 
-// Granate, Werte pro Raketen-Stufe 1-5
-export const GRENADE_FLIGHT = 30; // Schritte bis zur Explosion
-const GRENADE_ARC = 70; // px Bogenhoehe in der Mitte des Flugs
-const PUSH_STEPS = 10; // Wegstossen gleitet ueber so viele Schritte
+// Grenade, values per missile tier 1-5
+export const GRENADE_FLIGHT = 30; // Steps until the explosion
+const GRENADE_ARC = 70; // px arc height in the middle of the flight
+const PUSH_STEPS = 10; // The push glides over this many steps
 const WAVE_STEPS = 14; // Wachstum des Druckwellen-Rings
 const GRENADE_RADIUS = [70, 80, 90, 100, 110];
 const GRENADE_PUSH = [60, 70, 80, 90, 100];
@@ -43,24 +43,24 @@ const GRENADE_STUN = [60, 72, 90, 90, 120];
 const GRENADE_DAMAGE = [0, 15, 25, 35, 45];
 const GRENADE_COOLDOWN = [240, 210, 180, 180, 150];
 
-// Granaten-Taste: Tippen (< HALTEN_AB Schritte) = Granate + EMP, Halten (ab HALTEN_AB) = Haftminen
+// Grenade key: tap (< HOLD_FROM steps) = grenade + EMP, hold (from HOLD_FROM) = sticky mines
 export const HOLD_FROM = 10;
-// EMP (beim Tippen): Ring waechst in EMP_SCHRITTE auf den Radius der Raketen-Stufe, zerstoert feindliche Geschosse und betaeubt Feinde
+// EMP (on tap): the ring grows in EMP_STEPS to the radius of the missile tier, destroys enemy projectiles and stuns enemies
 export const EMP_STEPS = 10;
 export const EMP_STUN = 30;
 const EMP_RADIUS = [70, 80, 90, 100, 110];
 
-// Haftminen (beim Halten): alle MINE_INTERVALL Schritte ab HALTEN_AB eine Mine, max. MINE_MAX_PRO_HALTEN pro Halten,
-// max. MINE_MAX_AKTIV pro Spieler (aelteste weg). Lebensdauer MINE_LEBEN (die letzten MINE_BLINK blinkend); haftet am Ziel
-// und explodiert nach MINE_ZUENDUNG Schritten mit Radius MINE_RADIUS.
+// Sticky mines (on hold): one mine every MINE_INTERVAL steps from HOLD_FROM on, max. MINE_MAX_PER_HOLD per hold,
+// max. MINE_MAX_ACTIVE per player (oldest gone). Lifetime MINE_LIVES (the last MINE_BLINK blinking); sticks to the target
+// and explodes after MINE_IGNITION steps with radius MINE_RADIUS.
 export const MINE_INTERVAL = 12;
-export const MINE_MAX_PRO_HOLD = 5;
+export const MINE_MAX_PER_HOLD = 5;
 export const MINE_MAX_ACTIVE = 8;
 export const MINE_LIVES = 360;
 export const MINE_BLINK = 60;
 export const MINE_IGNITION = 30;
 export const MINE_RADIUS = 30;
-// Freie Minen driften langsam nach oben, den Gegnern entgegen (px pro Schritt)
+// Free mines drift slowly upwards towards the opponents (px per step)
 export const MINE_DRIFT = 0.6;
 export const MINE_SIZE = 12;
 const MINE_DAMAGE = [20, 25, 30, 35, 40];
@@ -92,12 +92,12 @@ export function autoTargetSpeed(pState) {
 export function grenadeCooldown(pState) {
   return GRENADE_COOLDOWN[missileIndex(pState)];
 }
-// Granaten-Ladungen: Raketen-Stufe 1-3 -> 2, 4-5 -> 3. raketenCooldown ist die Ladezeit der naechsten Ladung.
+// Grenade charges: missile tier 1-3 -> 2, 4-5 -> 3. missileCooldown is the charge time of the next charge.
 export function grenadeMax(pState) {
   return (pState.missileTier || 1) >= 4 ? 3 : 2;
 }
 
-// Ladungen voll, kein laufendes Nachladen (Spielstart, Neustart, Schiffswechsel)
+// Charges full, no recharge running (game start, restart, ship change)
 export function setGrenadeChargeFull(pState) {
   if (!pState) return;
   pState.sniperGrenadeCharges = grenadeMax(pState);
@@ -108,13 +108,13 @@ export function grenadeCharges(pState) {
   return pState.sniperGrenadeCharges === undefined ? grenadeMax(pState) : pState.sniperGrenadeCharges;
 }
 
-// Verbraucht eine Ladung; ein Nachladen startet nur, wenn noch keins laeuft
+// Uses up one charge; a recharge starts only if none is running yet
 function consumeGrenade(pState) {
   pState.sniperGrenadeCharges = Math.max(0, grenadeCharges(pState) - 1);
   if ((pState.missileCooldown || 0) <= 0) pState.missileCooldown = grenadeCooldown(pState);
 }
 
-// Pro Schritt (weapons.js): Nachladen nacheinander (laeuft auf 0 -> +1 Ladung, ggf. weiter laden) und HUD
+// Per step (weapons.js): recharge one after another (runs to 0 -> +1 charge, keep charging if needed) and HUD
 export function updateGrenadeCharges(pKey, pState) {
   const max = grenadeMax(pState);
   if (pState.sniperGrenadeCharges === undefined) pState.sniperGrenadeCharges = max;
@@ -126,7 +126,7 @@ export function updateGrenadeCharges(pKey, pState) {
       pState.missileCooldown = pState.sniperGrenadeCharges < max ? grenadeCooldown(pState) : 0;
     }
   } else if (pState.sniperGrenadeCharges < max) {
-    // z. B. nach Upgrade auf Stufe 4: Nachladen starten
+    // e.g. after an upgrade to tier 4: start recharging
     pState.missileCooldown = grenadeCooldown(pState);
   }
   showGrenadeHud(pKey, pState);
@@ -155,7 +155,7 @@ export function mineDamage(pState) {
   return MINE_DAMAGE[missileIndex(pState)];
 }
 
-// Ladeanteil 0-1 (unter 10 Schritten Haltedauer = Normalschuss, also 0)
+// Charge share 0-1 (under 10 steps of hold time = normal shot, so 0)
 export function chargeShare(charge) {
   return charge < CHARGE_FROM ? 0 : Math.min(1, charge / CHARGE_FULL);
 }
@@ -168,7 +168,7 @@ export function radiusFactor(charge) {
 export function isFull(charge) {
   return charge >= CHARGE_FULL;
 }
-// Laedt der Spieler gerade (Taste gehalten)? Dann gibt es keine Energie-Regeneration.
+// Is the player charging right now (key held)? Then there is no energy regeneration.
 export function isCharging(pState) {
   return !!pState && isSniper(pState) && !!pState.sniperHeld;
 }
@@ -178,18 +178,18 @@ function shipColor(pState) {
   return c ? c.prim : '#ffffff';
 }
 
-// Schiffsmitte oben (Strahlursprung)
+// Ship center top (beam origin)
 function shipNose(pState) {
   return { x: pState.x + 15, y: pState.y };
 }
 
-// Grundposition des Fadenkreuzes: ueber dem Schiff, am oberen Feldrand begrenzt
+// Base position of the crosshair: above the ship, clamped at the top field edge
 export function basePosition(pState) {
   const n = shipNose(pState);
   return { x: n.x, y: Math.max(0, n.y - CROSSHAIR_DISTANCE) };
 }
 
-// --- ZIELE ---
+// --- TARGETS ---
 
 function targetBox(z) {
   const g = z.size || 20;
@@ -204,7 +204,7 @@ function targetMiddle(z) {
   return { x: (b.x1 + b.x2) / 2, y: (b.y1 + b.y2) / 2 };
 }
 
-// Schneidet die Box den Kreis? (naechster Punkt der Box zum Kreismittelpunkt)
+// Does the box intersect the circle? (nearest point of the box to the circle center)
 function boxIntersectsCircle(b, cx, cy, r) {
   const nx = Math.max(b.x1, Math.min(cx, b.x2));
   const ny = Math.max(b.y1, Math.min(cy, b.y2));
@@ -221,7 +221,7 @@ function allTargets() {
   ];
 }
 
-// Ziele im Trefferkreis (Magma bleibt unversehrt und zaehlt nicht mit)
+// Targets in the hit circle (magma stays intact and does not count)
 export function targetInCircle(cx, cy, r) {
   return allTargets().filter(
     z =>
@@ -234,7 +234,7 @@ export function targetInCircle(cx, cy, r) {
 
 // --- AUTO-ZIELEN ---
 
-// Naechster Gegner (Feind/Boss, kein Asteroid) oberhalb des Schiffs innerhalb der Reichweite
+// Nearest opponent (enemy/boss, not an asteroid) above the ship within range
 function autoTarget(pState) {
   const n = shipNose(pState);
   let best = null;
@@ -269,7 +269,7 @@ function updateCrosshair(pState) {
   const reason = basePosition(pState);
   const speed = autoTargetSpeed(pState);
   if (pState.sniperTargetX == null || speed === 0) {
-    // Kein Auto-Zielen: Fadenkreuz klebt an der Grundposition (auch beim Wechsel auf eine niedrigere Stufe)
+    // No auto aim: the crosshair sticks to the base position (also when switching to a lower tier)
     pState.sniperTargetX = reason.x;
     pState.sniperTargetY = reason.y;
     return;
@@ -283,7 +283,7 @@ function updateCrosshair(pState) {
 }
 
 // --- DARSTELLUNG ---
-// Das Fadenkreuz samt Ladering zeichnet das Anzeige-Backend aus dem Spielerzustand (zeichneFadenkreuz in display-dom.js).
+// The display backend draws the crosshair with its charge ring from the player state (drawCrosshair in display-dom.js).
 
 function createBeam(pState, share = 0) {
   const n = shipNose(pState);
@@ -308,12 +308,12 @@ function createImpact(pState, cx, cy, share = 0) {
   Utils.createExplosion(cx, cy, shipColor(pState), 4 + Math.round(6 * share));
 }
 
-// --- SCHUSS ---
+// --- SHOT ---
 
-// Trifft Ziele im Kreis um das Fadenkreuz: Stufe 1-2 nur das naechste (Mitte am naechsten am Fadenkreuz), ab Stufe 3 alle.
-// `ladung` (Schritte, 0 = Normalschuss) skaliert Schaden (x1 bis x4) und Radius (x1 bis x1,5); der voll geladene Schuss
-// trifft unabhaengig von der Stufe alle Ziele im Kreis und ignoriert Schilde (Schild weg, Schaden auf die HP).
-// Gibt die Anzahl der getroffenen Ziele zurueck.
+// Hits targets in the circle around the crosshair: tier 1-2 only the nearest (center nearest to the crosshair), from tier 3 all.
+// `charge` (steps, 0 = normal shot) scales damage (x1 to x4) and radius (x1 to x1.5); the fully charged shot
+// hits all targets in the circle regardless of the tier and ignores shields (shield gone, damage to the HP).
+// Returns the number of targets hit.
 export function fireShot(pState, pKey, charge = 0) {
   const cx = pState.sniperTargetX;
   const cy = pState.sniperTargetY;
@@ -353,8 +353,8 @@ function resetCharge(pState) {
   pState.sniperFull = false;
 }
 
-// Einen Ladeschritt (Taste gehalten): die ersten 10 Schritte kosten nichts, danach 19/80 Energie pro Schritt.
-// Reicht die Energie nicht (es muss immer noch der Schuss mit 6 Energie moeglich bleiben), bleibt die Ladung stehen.
+// One charge step (key held): the first 10 steps cost nothing, after that 19/80 energy per step.
+// If the energy is not enough (the shot with 6 energy must always remain possible), the charge stops.
 function charging(pState) {
   if ((pState.sniperCharge || 0) >= CHARGE_FULL) return;
   if (pState.sniperCharge >= CHARGE_FROM && !pState.unlimitedEnergy) {
@@ -368,7 +368,7 @@ function charging(pState) {
   }
 }
 
-// Schuss mit Schussabstand-Sperre und Energiepruefung; false = kein Schuss (Ladung verfaellt)
+// Shot with the shot interval lock and an energy check; false = no shot (the charge expires)
 function attempts(pState, pKey, charge) {
   if ((pState.sniperCooldown || 0) > 0) return false;
   if (!pState.unlimitedEnergy && pState.energy < SHOT_ENERGY) return false;
@@ -378,14 +378,14 @@ function attempts(pState, pKey, charge) {
   return true;
 }
 
-// --- GRANATE ---
+// --- GRENADE ---
 
-// Granaten im Flug: arrays.sniperGranaten, { id, pKey, x, y (Mitte), startX, startY, zielX, zielY, rest, rot, werte }
-// (Client: nur id, pKey, x, y, rest, rot aus dem Snapshot)
+// Grenades in flight: arrays.sniperGrenades, { id, pKey, x, y (center), startX, startY, targetX, targetY, rest, rot, values }
+// (client: only id, pKey, x, y, rest, rot from the snapshot)
 let grenadeId = 0;
 const pushes = []; // { z, vx, vy, rest, pKey } laufendes Wegstossen
 
-// Wurf zum Fadenkreuz (Position beim Wurf), Flug in GRANATE_FLUG Schritten im Bogen; die Werte der Stufe gelten ab dem Wurf.
+// Throw to the crosshair (position at the throw), flight in GRENADE_FLIGHT steps in an arc; the tier values apply from the throw.
 export function throwGrenade(pState, pKey) {
   const n = shipNose(pState);
   const reason = basePosition(pState);
@@ -465,10 +465,10 @@ function explodeGrenade(g) {
   Utils.createExplosion(cx, cy, '#ffffff', 10);
   Utils.createExplosion(cx, cy, '#ffeb3b', 10);
   createBlastWave(cx, cy, w.radius, g.pKey);
-  // Online-Host: der Client zeigt die Druckwelle ueber ein Ereignis (Granate verschwindet im Snapshot)
+  // Online host: the client shows the blast wave via an event (the grenade disappears in the snapshot)
   if (state.gameMode === 'online' && state.network && state.network.isHost) {
     Network.sendNetworkEvent({
-      type: 'granate_detonated',
+      type: 'grenade_detonated',
       x: Math.round(cx * 10) / 10,
       y: Math.round(cy * 10) / 10,
       radius: w.radius,
@@ -489,7 +489,7 @@ function explodeGrenade(g) {
       dist = 1;
     }
     if (w.damage > 0 && !z.isIndestructible) damageTarget(z, w.damage, g.pKey);
-    // Vom Schaden zerstoert: nichts mehr zu tun
+    // Destroyed by the damage: nothing left to do
     if (!pushAwayTargets().includes(z)) continue;
     if (!z.isBoss) {
       pushes.push({
@@ -513,9 +513,9 @@ function explodeGrenade(g) {
   }
 }
 
-// --- GRANATEN-TASTE (Tippen / Halten) und EMP ---
+// --- GRENADE KEY (tap / hold) and EMP ---
 
-// Mittelpunkt des Schiffs (EMP-Ursprung)
+// Center of the ship (EMP origin)
 function shipMiddle(pState) {
   return { x: pState.x + config.playerSize / 2, y: pState.y + config.playerSize / 2 };
 }
@@ -524,7 +524,7 @@ function createEmpRing(cx, cy, radius, pKey) {
   createEffect({ kind: 'sniperEmp', x: cx, y: cy, radius, pKey, rest: EMP_STEPS });
 }
 
-// Feindliche Geschosse im Radius entfernen (mit kleinem Funken); Bomben ohne Detonation
+// Remove enemy projectiles in the radius (with a small spark); bombs without detonation
 function destroyProjectiles(array, cx, cy, r) {
   for (let i = array.length - 1; i >= 0; i--) {
     const p = array[i];
@@ -537,7 +537,7 @@ function destroyProjectiles(array, cx, cy, r) {
   }
 }
 
-// EMP ums eigene Schiff: Geschosse zerstoeren, Feinde (keine Bosse, keine Asteroiden) 30 Schritte betaeuben, kein Schaden.
+// EMP around the own ship: destroy projectiles, stun enemies (no bosses, no asteroids) for 30 steps, no damage.
 export function triggerEmp(pState, pKey) {
   const m = shipMiddle(pState);
   const r = empRadius(pState);
@@ -559,7 +559,7 @@ export function triggerEmp(pState, pKey) {
   }
   if (state.gameMode === 'online' && state.network && state.network.isHost) {
     Network.sendNetworkEvent({
-      type: 'emp_ausgeloest',
+      type: 'emp_triggered',
       x: Math.round(m.x * 10) / 10,
       y: Math.round(m.y * 10) / 10,
       radius: r,
@@ -579,7 +579,7 @@ function mineBox(m) {
   return { x1: m.x - h, y1: m.y - h, x2: m.x + h, y2: m.y + h };
 }
 
-// Ziele fuer Kontakt und Explosion: Feinde, Asteroiden (ausser Magma) und Bosse
+// Targets for contact and explosion: enemies, asteroids (except magma) and bosses
 function mineTargets() {
   return [...arrays.enemies, ...arrays.asteroids, ...arrays.bosses].filter(
     z => !z.isIndestructible && (z.hp === undefined || z.hp > 0),
@@ -588,7 +588,7 @@ function mineTargets() {
 
 let mineId = 0;
 
-// Darstellungsfelder haftet/blinkt aus dem Zustand ableiten (Host); der Client uebernimmt sie aus dem Snapshot
+// Derive the display fields sticks/blinks from the state (host); the client takes them from the snapshot
 function setMineDisplay(m) {
   m.sticks = !!m.target;
   m.blinks = !m.target && m.rest <= MINE_BLINK;
@@ -600,7 +600,7 @@ function removeMine(m) {
   if (i >= 0) arrays.sniperMines.splice(i, 1);
 }
 
-// Mine unter der Schiffsmitte legen; ueber dem Limit pro Spieler faellt die aelteste weg
+// Place a mine below the ship center; above the limit per player the oldest drops out
 function putMine(pState, pKey) {
   const own = arrays.sniperMines.filter(m => m.pKey === pKey);
   while (own.length >= MINE_MAX_ACTIVE) removeMine(own.shift());
@@ -629,13 +629,13 @@ function createMineExplosion(cx, cy, pKey) {
   createBlastWave(cx, cy, MINE_RADIUS, pKey, 'sniperMineExplosion');
 }
 
-// Explosion an der aktuellen Position: jedes Ziel im Radius genau einmal (Schild zuerst)
+// Explosion at the current position: every target in the radius exactly once (shield first)
 function explodeMine(m) {
   removeMine(m);
   createMineExplosion(m.x, m.y, m.pKey);
   if (state.gameMode === 'online' && state.network && state.network.isHost) {
     Network.sendNetworkEvent({
-      type: 'mine_explodiert',
+      type: 'mine_exploded',
       x: Math.round(m.x * 10) / 10,
       y: Math.round(m.y * 10) / 10,
       radius: MINE_RADIUS,
@@ -645,13 +645,13 @@ function explodeMine(m) {
   for (const z of mineTargets().filter(t => boxIntersectsCircle(targetBox(t), m.x, m.y, MINE_RADIUS))) {
     damageTarget(z, m.damage, m.pKey);
   }
-  // Boss-Raketen und -Bomben im Radius werden zerstoert (wie beim EMP)
+  // Boss missiles and bombs in the radius are destroyed (as with the EMP)
   destroyProjectiles(arrays.bossMissileArray, m.x, m.y, MINE_RADIUS);
   destroyProjectiles(arrays.bossBombArray, m.x, m.y, MINE_RADIUS);
 }
 
-// Beruehrt eine Boss-Rakete oder -Bombe die Mine?
-function bossProjectileAnMine(m) {
+// Does a boss missile or bomb touch the mine?
+function bossProjectileOnMine(m) {
   const box = mineBox(m);
   return [...arrays.bossMissileArray, ...arrays.bossBombArray].some(g => overlap(box, targetBox(g)));
 }
@@ -671,7 +671,7 @@ function updateMines(pKey) {
       if (!targetAlive(m.target)) {
         explodeMine(m);
         continue;
-      } // Ziel vorher gestorben: Explosion an der letzten Position
+      } // Target died before: explosion at the last position
       const c = targetMiddle(m.target);
       m.x = c.x + m.offX;
       m.y = c.y + m.offY;
@@ -688,8 +688,8 @@ function updateMines(pKey) {
         removeMine(m);
         continue;
       }
-      // Boss-Raketen und -Bomben loesen die Mine sofort aus (kein Haften an Geschossen)
-      if (bossProjectileAnMine(m)) {
+      // Boss missiles and bombs trigger the mine immediately (no sticking to projectiles)
+      if (bossProjectileOnMine(m)) {
         explodeMine(m);
         continue;
       }
@@ -708,13 +708,13 @@ function updateMines(pKey) {
   }
 }
 
-// Halten der Granaten-Taste (aus aktualisiereGranatenTaste, ab HALTEN_AB): alle MINE_INTERVALL Schritte eine Mine, bei freiem Cooldown.
-// `schritte` = bisherige Haltedauer.
+// Holding the grenade key (from updateGrenadeKey, from HOLD_FROM on): one mine every MINE_INTERVAL steps, with a free cooldown.
+// `steps` = hold time so far.
 export function holdStep(pState, pKey, steps) {
-  if (Hack.hasHack(pState, 'weaponOffline')) return;
-  if ((pState.grenadeMines || 0) >= MINE_MAX_PRO_HOLD) return;
+  if (Hack.hasHack(pState, 'weaponsOffline')) return;
+  if ((pState.grenadeMines || 0) >= MINE_MAX_PER_HOLD) return;
   if ((steps - HOLD_FROM) % MINE_INTERVAL !== 0) return;
-  // Die erste Mine eines Haltens kostet eine Ladung (ohne Ladung keine Minen), weitere nichts
+  // The first mine of a hold costs a charge (no mines without a charge), further ones nothing
   if ((pState.grenadeMines || 0) === 0) {
     if (grenadeCharges(pState) < 1) return;
     consumeGrenade(pState);
@@ -723,18 +723,18 @@ export function holdStep(pState, pKey, steps) {
   pState.grenadeMines = (pState.grenadeMines || 0) + 1;
 }
 
-// Tippen: Granate ins Fadenkreuz und EMP, danach startet der Cooldown
+// Tap: grenade into the crosshair and EMP, then the cooldown starts
 function tapGrenade(pState, pKey) {
   consumeGrenade(pState);
   throwGrenade(pState, pKey);
   triggerEmp(pState, pKey);
 }
 
-// Pro Schritt aus weapons.js (statt der Raketen): `gehalten` ist die Raketen-Taste. Druck startet die Zaehlung, Loslassen
-// entscheidet: unter HALTEN_AB Schritten (und freiem Cooldown) = Tippen; nach dem Halten startet der Cooldown, wenn Minen lagen.
+// Per step from weapons.js (instead of the missiles): `held` is the missile key. A press starts the count, the release
+// decides: under HOLD_FROM steps (and a free cooldown) = tap; after holding the cooldown starts if mines were placed.
 export function updateGrenadeKey(pState, pKey, held) {
   if (!isSniper(pState)) return;
-  const lock = Hack.hasHack(pState, 'weaponOffline') || pState.isDead || !state.gameRunning;
+  const lock = Hack.hasHack(pState, 'weaponsOffline') || pState.isDead || !state.gameRunning;
   if (held && !lock) {
     if (!pState.grenadeHeld) {
       pState.grenadeSteps = 0;
@@ -752,7 +752,7 @@ export function updateGrenadeKey(pState, pKey, held) {
   }
 }
 
-// Wegstossen: pro Schritt ein Stueck, am Feld begrenzt (seitlich und oben; unten darf ein Ziel das Feld verlassen)
+// Push: a bit per step, clamped to the field (sides and top; at the bottom a target may leave the field)
 function updatePushes(pKey) {
   for (let i = pushes.length - 1; i >= 0; i--) {
     const s = pushes[i];
@@ -794,12 +794,12 @@ function removeGrenadeEffects(pKey) {
   }
 }
 
-// Pro Schritt aus player.js (Energie-Phase, nach der Bewegung): Fadenkreuz pflegen und Schuss ausloesen.
-// `gehalten` ist die Laser-Taste (Bot/Online liefern sie ebenfalls). Auswahl des Modells:
-// - normal: Druck startet das Laden, Loslassen feuert (Haltedauer unter 10 Schritten = Normalschuss, sonst Ladeschuss).
-//   Wird in der Schussabstand-Sperre losgelassen, faellt der Schuss (samt Ladung) automatisch, sobald die Sperre abläuft.
-// - `auto` (Joystick-Autofeuer am Handy): Dauerfeuer aus Normalschuessen im Schussabstand, kein Laden.
-// Gibt zurueck, ob in diesem Schritt geschossen wurde.
+// Per step from player.js (energy phase, after the movement): maintain the crosshair and trigger the shot.
+// `held` is the laser key (bot/online deliver it as well). Choice of the model:
+// - normal: a press starts charging, the release fires (hold time under 10 steps = normal shot, otherwise a charged shot).
+//   If released during the shot interval lock, the shot (with its charge) fires automatically as soon as the lock expires.
+// - `auto` (joystick auto-fire on the phone): continuous fire of normal shots at the shot interval, no charging.
+// Returns whether a shot was fired in this step.
 export function updateSniper(pState, pKey, held, auto = false) {
   if (!isSniper(pState)) return false;
   updateGrenades(pKey);
@@ -815,8 +815,8 @@ export function updateSniper(pState, pKey, held, auto = false) {
 
   if (pState.sniperCooldown > 0) pState.sniperCooldown--;
   let shot = false;
-  const canShoot = !Hack.hasHack(pState, 'weaponOffline');
-  // In der Sperre losgelassener Schuss: faellt, sobald die Sperre abgelaufen ist
+  const canShoot = !Hack.hasHack(pState, 'weaponsOffline');
+  // Shot released during the lock: fires as soon as the lock has expired
   if (pState.sniperBuffered != null && pState.sniperCooldown <= 0) {
     if (canShoot) shot = attempts(pState, pKey, pState.sniperBuffered);
     pState.sniperBuffered = null;
@@ -828,10 +828,10 @@ export function updateSniper(pState, pKey, held, auto = false) {
   } else {
     const holds = !!held && canShoot;
     if (holds) {
-      if (!pState.sniperHeld) resetCharge(pState); // Druck
+      if (!pState.sniperHeld) resetCharge(pState); // Press
       charging(pState);
     } else if (pState.sniperHeld && canShoot) {
-      // Loslassen: sofort feuern oder bis zum Ende der Sperre vormerken
+      // Release: fire immediately or queue until the end of the lock
       if (pState.sniperCooldown > 0) pState.sniperBuffered = pState.sniperCharge || 0;
       else shot = attempts(pState, pKey, pState.sniperCharge || 0);
       resetCharge(pState);
@@ -845,7 +845,7 @@ export function updateSniper(pState, pKey, held, auto = false) {
 
 // --- ONLINE ---
 
-// Host: Sniper-Zustand eines Spielers fuer den Snapshot (leer bei anderen Schiffen)
+// Host: sniper state of a player for the snapshot (empty for other ships)
 export function networkStatus(pState) {
   if (!isSniper(pState)) return {};
   const reason = basePosition(pState);
@@ -859,12 +859,12 @@ export function networkStatus(pState) {
   };
 }
 
-// Host: fliegende Granaten fuer den Snapshot (id, Position, Besitzer, Restschritte des Flugs)
+// Host: flying grenades for the snapshot (id, position, owner, remaining flight steps)
 export function networkGrenadeList() {
   return arrays.sniperGrenades.map(g => ({ id: g.id, x: g.x, y: g.y, owner: g.pKey, rest: g.rest }));
 }
 
-// Host: aktive Minen fuer den Snapshot (id, Position, Besitzer, haftet, Restzuendzeit, Restlebensdauer, blinkt)
+// Host: active mines for the snapshot (id, position, owner, sticks, remaining ignition time, remaining lifetime, blinks)
 export function networkMineList() {
   return arrays.sniperMines.map(m => ({
     id: m.id,
@@ -878,12 +878,12 @@ export function networkMineList() {
   }));
 }
 
-// Client: Zustand eines Spielers aus dem Snapshot uebernehmen und darstellen. Der Schuss wird am Sprung des
-// Schussabstands erkannt (Strahl mit der zuletzt bekannten Ladung), Sounds nur fuer das eigene Schiff.
+// Client: apply and render a player's state from the snapshot. The shot is detected by the jump of the
+// shot interval (beam with the last known charge), sounds only for the own ship.
 export function applySnapshot(pState, payload, pKey, ownOne) {
   if (!pState) return;
   if (!isSniper(pState) || !payload || payload.sniperTargetX === undefined || payload.isDead) {
-    // Kein Sniper-Zustand im Snapshot: Fadenkreuz ausblenden (die Anzeige zeichnet es nur bei gesetztem Ziel)
+    // No sniper state in the snapshot: hide the crosshair (the display draws it only with a target set)
     pState.sniperTargetX = null;
     pState.sniperTargetY = null;
     pState.sniperHeld = false;
@@ -914,8 +914,8 @@ export function applySnapshot(pState, payload, pKey, ownOne) {
   if (ownOne && pState.sniperFull && !wasFull) Audio.playSniperFull();
 }
 
-// Client: Granaten des Hosts abgleichen (Modell pro Id in arrays.sniperGranaten, Position und Drehung aus dem Snapshot;
-// auf dem Client laeuft aktualisiereGranaten nicht, die Liste gehoert allein dem Snapshot)
+// Client: match the host's grenades (model per id in arrays.sniperGrenades, position and rotation from the snapshot;
+// updateGrenades does not run on the client, the list belongs to the snapshot alone)
 export function syncGrenades(list) {
   const payload = list || [];
   const ids = new Set(payload.map(d => d.id));
@@ -942,8 +942,8 @@ export function syncGrenades(list) {
   }
 }
 
-// Client: Minen des Hosts abgleichen (Modell pro Id in arrays.sniperMinen; aktualisiereMinen laeuft dort nicht, die
-// Liste gehoert allein dem Snapshot). Legen-, Haft- und Piep-Ton bleiben hier.
+// Client: match the host's mines (model per id in arrays.sniperMines; updateMines does not run there, the
+// list belongs to the snapshot alone). The place, stick and beep sounds stay here.
 export function syncMines(list) {
   const payload = list || [];
   const ids = new Set(payload.map(d => d.id));
@@ -981,13 +981,13 @@ export function syncMines(list) {
   }
 }
 
-// Client: Minen-Explosion (Ereignis 'mine_explodiert')
+// Client: mine explosion (event 'mine_exploded')
 export function showMineExplosion(payload) {
   if (!payload || !Number.isFinite(payload.x) || !Number.isFinite(payload.y)) return;
   createMineExplosion(payload.x, payload.y, payload.owner === 'p2' ? 'p2' : 'p1');
 }
 
-// Client: Explosion einer Granate (Ereignis 'granate_detonated')
+// Client: explosion of a grenade (event 'grenade_detonated')
 export function showDetonation(payload) {
   if (!payload || !Number.isFinite(payload.x) || !Number.isFinite(payload.y) || !(payload.radius > 0)) return;
   Audio.playGrenade();
@@ -996,15 +996,15 @@ export function showDetonation(payload) {
   createBlastWave(payload.x, payload.y, payload.radius, payload.owner === 'p2' ? 'p2' : 'p1');
 }
 
-// Client: EMP-Ring (Ereignis 'emp_ausgeloest')
+// Client: EMP ring (event 'emp_triggered')
 export function showEmp(payload) {
   if (!payload || !Number.isFinite(payload.x) || !Number.isFinite(payload.y) || !(payload.radius > 0)) return;
   Audio.playEmp();
   createEmpRing(payload.x, payload.y, payload.radius, payload.owner === 'p2' ? 'p2' : 'p1');
 }
 
-// Client, jeden Schritt: das eigene Fadenkreuz folgt dem vorhergesagten Schiff
-// (ohne Auto-Zielen liegt es auf der Grundposition, mit Auto-Zielen gilt der Host-Wert)
+// Client, every step: the own crosshair follows the predicted ship
+// (without auto aim it lies on the base position, with auto aim the host value applies)
 export function clientStep() {
   const p = state.p2;
   if (p && isSniper(p) && !p.isDead && p.sniperTargetX != null) {
@@ -1016,7 +1016,7 @@ export function clientStep() {
   }
 }
 
-// Fadenkreuz, Strahlen und Schusszustand eines Spielers zuruecksetzen (restartGame, Game Over, Schiffswechsel)
+// Reset the crosshair, beams and shot state of a player (restartGame, game over, ship change)
 export function reset(pState) {
   if (!pState) return false;
   pState.sniperTargetX = null;
@@ -1034,7 +1034,7 @@ export function reset(pState) {
   return true;
 }
 
-// Alle Sniper-Darstellungen entfernen (Game Over: danach laeuft keine Simulation mehr, die sie abraeumen wuerde)
+// Remove all sniper renderings (game over: no simulation runs afterwards that would clear them)
 export function removeEffects() {
   for (const s of [state, state.p2]) {
     if (!s) continue;

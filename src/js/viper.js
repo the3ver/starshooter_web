@@ -1,11 +1,11 @@
-// Viper-X: Ausweichrolle. Doppeltipp auf links/rechts (Tasten) bzw. schnelles seitliches Wischen auf der
-// Joystick-Zone startet eine Rolle: ROLLE_FRAMES Schritte lang wird das Schiff gleichmaessig um ROLLE_DISTANZ px
-// zur Seite versetzt, die normale Steuerung ruht und das Schiff ist unverwundbar (Utils.istDashUnverwundbar
-// wertet viperRolleTimer mit aus). Danach ROLLE_COOLDOWN Schritte Pause (ab Rollenstart).
-// pState ist `state` (P1) oder `state.p2`, pKey 'p1' / 'p2'.
-// Zustand pro Spieler: viperRolleTimer (Rest-Schritte inkl. aktuellem), viperRolleRichtung (+1 rechts / -1 links),
-// viperRolleCooldown, Erkennung: viperLinksGehalten/viperRechtsGehalten (Tasten-Flanken), viperTapRichtung/
-// viperTapAlter (letzter Tipp und Schritte seitdem), viperJoyRuhe/viperJoyVorher (Wischen).
+// Viper-X: evasive roll. A double tap on left/right (keys) or a fast sideways swipe on the
+// joystick zone starts a roll: for ROLL_FRAMES steps the ship is shifted evenly by ROLL_DISTANCE px
+// to the side, the normal controls rest and the ship is invulnerable (Utils.isDashInvulnerable
+// also evaluates viperRollTimer). Then ROLL_COOLDOWN steps of pause (from the roll start).
+// pState is `state` (P1) or `state.p2`, pKey 'p1' / 'p2'.
+// State per player: viperRollTimer (remaining steps incl. the current one), viperRollDirection (+1 right / -1 left),
+// viperRollCooldown, detection: viperLeftHeld/viperRightHeld (key edges), viperTapDirection/
+// viperTapAge (last tap and steps since), viperJoyRest/viperJoyBeforehand (swipe).
 
 import { state, config, arrays, shipColors, isCoopMode } from './state.js';
 import * as Audio from './audio.js';
@@ -15,23 +15,23 @@ import { createParticles } from './particles.js';
 export const ROLL_FRAMES = 12;
 export const ROLL_DISTANCE = 70;
 export const ROLL_COOLDOWN = 90;
-export const DOUBLE_TAP_WINDOW = 15; // Schritte zwischen zwei Druck-Flanken (250 ms bei 60 Hz)
-export const SWIPE_WINDOW = 8; // Schritte vom Ruhebereich (|x| < 0.2) bis |x| > 0.8
+export const DOUBLE_TAP_WINDOW = 15; // Steps between two press edges (250 ms at 60 Hz)
+export const SWIPE_WINDOW = 8; // Steps from the rest zone (|x| < 0.2) to |x| > 0.8
 const SWIPE_REST = 0.2;
 const SWIPE_THRESHOLD = 0.8;
 
-// Near-Miss + Overdrive: Ein feindliches Geschoss, das dem Schiff auf <= NEAR_MISS_ABSTAND px nahe kommt, ohne zu
-// treffen, und sich dann wieder entfernt, laedt die Leiste (0..100) um NEAR_MISS_LADUNG. Bei 100 startet der
-// Overdrive fuer OVERDRIVE_DAUER Schritte (Leiste leert sich sichtbar): doppelte Feuerrate des Projektil-Lasers und
-// Durchschlag. Erkennung nur auf dem Host/Solo (pruefeNearMiss, einmal pro Schritt ueber alle Geschosslisten).
+// Near miss + overdrive: an enemy projectile that comes within <= NEAR_MISS_DISTANCE px of the ship without
+// hitting and then moves away again charges the strip (0..100) by NEAR_MISS_CHARGE. At 100 the
+// overdrive starts for OVERDRIVE_DURATION steps (the strip visibly empties): double fire rate of the projectile laser and
+// pierce. Detection only on the host/solo (checkNearMiss, once per step over all projectile lists).
 export const NEAR_MISS_DISTANCE = 18;
 export const NEAR_MISS_CHARGE = 10;
 export const OVERDRIVE_DURATION = 300;
 
-// Kill-Kombo (V3, ersetzt den Upgrade-Verlust): Jeder Kill des Spielers (Utils.zerstoereZiel) binnen KOMBO_FENSTER
-// Schritten nach dem letzten Kill erhoeht viperKombo um 1; laeuft das Fenster ab, faellt sie auf 0, jeder Treffer
-// am Schiff (auch vom Schild abgefangen) setzt sie auf 0. Punkte aus Kills x (1 + 0.1 * Kombo), hoechstens x3;
-// Projektil-Laser-Cooldown ab Kombo 5 -> 5, ab Kombo 10 -> 4 (Overdrive = 3 bleibt das Minimum).
+// Kill combo (V3, replaces the upgrade loss): every kill of the player (Utils.destroyTarget) within COMBO_WINDOW
+// steps after the last kill raises viperCombo by 1; when the window expires it drops to 0, every hit
+// on the ship (also one caught by the shield) sets it to 0. Points from kills x (1 + 0.1 * combo), at most x3;
+// projectile laser cooldown from combo 5 -> 5, from combo 10 -> 4 (overdrive = 3 stays the minimum).
 export const COMBO_WINDOW = 120;
 export const COMBO_STEP = 0.1;
 export const COMBO_MAX_FACTOR = 3;
@@ -49,20 +49,20 @@ export function isOverdrive(pState) {
   return !!pState && pState.selectedShipModel === 'viper' && (pState.viperOverdriveTimer || 0) > 0;
 }
 
-// Punkte-Multiplikator fuer Kills dieses Spielers (nur Viper; 1 + 0.1 * Kombo, max 3)
+// Points multiplier for kills of this player (Viper only; 1 + 0.1 * combo, max 3)
 export function comboFactor(pState) {
   if (!isViper(pState)) return 1;
   return Math.min(COMBO_MAX_FACTOR, 1 + COMBO_STEP * (pState.viperCombo || 0));
 }
 
-// Projektil-Laser-Cooldown in Schritten: normal 6, Kombo >= 5 -> 5, >= 10 -> 4, Overdrive 3 (Minimum)
+// Projectile laser cooldown in steps: normal 6, combo >= 5 -> 5, >= 10 -> 4, overdrive 3 (minimum)
 export function shotCooldown(pState) {
   if (isOverdrive(pState)) return 3;
   const combo = isViper(pState) ? pState.viperCombo || 0 : 0;
   return combo >= 10 ? 4 : combo >= 5 ? 5 : 6;
 }
 
-// Ein Kill dieses Spielers (nach der Punktevergabe): Kombo +1, Fenster neu starten, Sound bei 5/10/20
+// A kill of this player (after awarding points): combo +1, restart the window, sound at 5/10/20
 export function registerKill(pState) {
   if (!isViper(pState)) return;
   pState.viperCombo = (pState.viperCombo || 0) + 1;
@@ -77,7 +77,7 @@ export function resetCombo(pState) {
   pState.viperComboTimer = 0;
 }
 
-// Fenster herunterzaehlen (nur Host/Solo/Bot; der Online-Client uebernimmt den Stand aus dem Snapshot)
+// Count the window down (host/solo/bot only; the online client takes the value from the snapshot)
 function tickCombo(p) {
   if ((p.viperComboTimer || 0) > 0) {
     p.viperComboTimer--;
@@ -90,29 +90,29 @@ function shipColor(pState) {
   return c ? c.prim : '#ffffff';
 }
 
-// Doppeltipp (zwei Druck-Flanken derselben Richtung binnen DOPPELTIPP_FENSTER Schritten) oder Wisch-Flick des
-// Joysticks. Liefert die physische Richtung (+1 rechts, -1 links, 0 keine). Laeuft jeden Schritt, auch waehrend
-// Rolle und Cooldown, damit die Flanken nie verloren gehen.
+// Double tap (two press edges in the same direction within DOUBLE_TAP_WINDOW steps) or a swipe flick of the
+// joystick. Returns the physical direction (+1 right, -1 left, 0 none). Runs every step, also during
+// roll and cooldown, so the edges are never lost.
 function detectDirection(p, e) {
   let direction = 0;
-  p.viperTapAlter = Math.min((p.viperTapAlter || 0) + 1, 999);
+  p.viperTapAge = Math.min((p.viperTapAge || 0) + 1, 999);
   const flankL = Boolean(e.left) && !p.viperLeftHeld;
   const flankR = Boolean(e.right) && !p.viperRightHeld;
   p.viperLeftHeld = Boolean(e.left);
   p.viperRightHeld = Boolean(e.right);
   const flank = flankL === flankR ? 0 : flankR ? 1 : -1;
   if (flank) {
-    if (flank === p.viperTapDirection && p.viperTapAlter <= DOUBLE_TAP_WINDOW) {
+    if (flank === p.viperTapDirection && p.viperTapAge <= DOUBLE_TAP_WINDOW) {
       direction = flank;
       p.viperTapDirection = 0;
     } else {
       p.viperTapDirection = flank;
     }
-    p.viperTapAlter = 0;
+    p.viperTapAge = 0;
   }
 
-  // Mobil: Joystick-x springt binnen WISCH_FENSTER Schritten aus der Ruhe ueber die Schwelle. Eine Fingerbewegung
-  // von der Mitte zum Rand ist damit ein Wisch, langsames Hineinziehen oder Halten am Rand loest nichts aus.
+  // Mobile: joystick x jumps from rest over the threshold within SWIPE_WINDOW steps. A finger movement
+  // from the center to the edge is thus a swipe, slowly pulling in or holding at the edge triggers nothing.
   if (e.joyX !== undefined) {
     const amount = Math.abs(e.joyX);
     p.viperJoyRest = amount < SWIPE_REST ? 0 : Math.min((p.viperJoyRest || 0) + 1, 99);
@@ -124,7 +124,7 @@ function detectDirection(p, e) {
   return direction;
 }
 
-// Steuerungs-Hacks lenken die Rolle wie eine normale Seitwaertsbewegung um (0 = nicht seitlich, keine Rolle)
+// Control hacks redirect the roll like a normal sideways movement (0 = not sideways, no roll)
 export function directionAfterHack(pState, direction) {
   if (!direction) return 0;
   return Math.sign(Hack.hackMovement(pState, direction, 0).dx);
@@ -138,7 +138,7 @@ function startRoll(p, direction) {
   p.viperRollTimer = ROLL_FRAMES;
   p.viperRollDirection = direction;
   p.viperRollCooldown = ROLL_COOLDOWN;
-  // Online-Client: Startposition und Richtung gehen im Eingabe-Paket zum Host (siehe netzEingabe)
+  // Online client: start position and direction go to the host in the input packet (see networkInput)
   p.viperNetworkStart = { x: p.x, y: p.y, ro: direction };
   Audio.playRoll();
 }
@@ -151,9 +151,9 @@ function rollStep(p) {
   createAfterimage(p);
 }
 
-// Ein Schritt fuer ein Viper-Schiff, vor der normalen Steuerung. eingabe: { links, rechts, joyX } (physische Tasten
-// bzw. Joystick, Hacks wendet diese Funktion an) oder null; anfrage: fertige Richtung von Bot bzw. Online-Host
-// (Hacks schon angewendet). Liefert true, wenn die Rolle in diesem Schritt die Bewegung uebernimmt.
+// One step for a Viper ship, before the normal controls. input: { left, right, joyX } (physical keys
+// or joystick, this function applies hacks) or null; request: ready direction from the bot or online host
+// (hacks already applied). Returns true if the roll takes over the movement in this step.
 export function updateViper(pState, pKey, input, request = 0) {
   if ((pState.viperRollTimer || 0) > 0) pState.viperRollTimer--;
   if ((pState.viperRollCooldown || 0) > 0) pState.viperRollCooldown--;
@@ -178,7 +178,7 @@ export function updateViper(pState, pKey, input, request = 0) {
   return rolls;
 }
 
-// Overdrive-Restzeit herunterzaehlen, die Leiste folgt (ganzzahlig, 100 -> 0 ueber die Dauer)
+// Count down the remaining overdrive time, the strip follows (integer, 100 -> 0 over the duration)
 function tickOverdrive(p) {
   if ((p.viperOverdriveTimer || 0) > 0) {
     p.viperOverdriveTimer--;
@@ -186,14 +186,14 @@ function tickOverdrive(p) {
   }
 }
 
-// Abstand zweier Rechtecke (0 bei Ueberlappung): Luecken in x und y als Euklid
+// Distance between two rectangles (0 on overlap): gaps in x and y as Euclid
 function rectDistance(ax, ay, aw, ah, bx, by, bw, bh) {
   const dx = Math.max(bx - (ax + aw), ax - (bx + bw), 0);
   const dy = Math.max(by - (ay + ah), ay - (by + bh), 0);
   return Math.hypot(dx, dy);
 }
 
-// Marke am Geschoss: undefined = nie nah, Zahl = kleinster Abstand bisher (nah dran), true = schon gezaehlt
+// Mark on the projectile: undefined = never near, number = smallest distance so far (close), true = already counted
 function nearMissFor(p, markKey, projectiles) {
   const g = config.playerSize;
   for (const list of projectiles) {
@@ -205,9 +205,9 @@ function nearMissFor(p, markKey, projectiles) {
         else if (distance > s[markKey]) {
           s[markKey] = true;
           tallyNearMiss(p);
-        } // entfernt sich wieder
+        } // moves away again
       } else if (typeof s[markKey] === 'number') {
-        s[markKey] = true; // war nah dran und ist jetzt weiter weg
+        s[markKey] = true; // was close and is now farther away
         tallyNearMiss(p);
       }
     }
@@ -215,7 +215,7 @@ function nearMissFor(p, markKey, projectiles) {
 }
 
 function tallyNearMiss(p) {
-  if ((p.viperOverdriveTimer || 0) > 0) return; // waehrend des Overdrives laedt nichts nach
+  if ((p.viperOverdriveTimer || 0) > 0) return; // nothing recharges during the overdrive
   p.viperOverdriveStrip = Math.min(100, (p.viperOverdriveStrip || 0) + NEAR_MISS_CHARGE);
   if (p.viperOverdriveStrip >= 100) {
     p.viperOverdriveTimer = OVERDRIVE_DURATION;
@@ -226,15 +226,15 @@ function tallyNearMiss(p) {
   showNearMissPlus(p);
 }
 
-// Einmal pro Simulationsschritt (loop.js, nach allen Geschoss-Bewegungen und Treffern); nur Host bzw. Solo.
-// Zentral statt in opponents.js/boss.js: eine Stelle fuer alle vier Listen, Treffer haben das Geschoss schon entfernt.
+// Once per simulation step (loop.js, after all projectile movements and hits); host or solo only.
+// Central instead of in opponents.js/boss.js: one place for all four lists, hits have already removed the projectile.
 export function checkNearMiss() {
   const listen = [arrays.enemyLaserArray, arrays.bossLaserArray, arrays.hackProjectileArray, arrays.bossMissileArray];
   if (isViper(state) && !state.isDead) nearMissFor(state, 'nearMissP1', listen);
   if (isCoopMode() && state.p2 && isViper(state.p2) && !state.p2.isDead) nearMissFor(state.p2, 'nearMissP2', listen);
 }
 
-// Kleines Plus am Schiff (sparsam: ein Zeichen, steigt kurz auf)
+// Small plus at the ship (sparse: one character, rises briefly)
 function showNearMissPlus(p) {
   createParticles({
     sort: 'nearMissPlus',
@@ -247,16 +247,16 @@ function showNearMissPlus(p) {
   });
 }
 
-// Tastenzustand eines Spielers fuer aktualisiereViper (Joystick nur, wenn er aktiv ist)
+// Key state of a player for updateViper (joystick only while it is active)
 export function inputFromKeys(left, right, joystick) {
   return { left, right, joyX: joystick && joystick.active ? joystick.x : 0 };
 }
 
 // --- ONLINE ---
-// Der Client sagt seine eigene Rolle mit derselben Funktion voraus (aktualisiereViper). Im Startschritt traegt das
-// Eingabe-Paket Startposition und Richtung (ro); der Host startet von dort dieselbe Rolle, ignoriert waehrenddessen
-// Client-Positionen und ist fuer Treffer massgeblich. Der Snapshot bringt Timer/Richtung/Cooldown fuer die Anzeige
-// (P1 des Hosts) und gleicht den Cooldown des Clients nach oben ab.
+// The client predicts its own roll with the same function (updateViper). In the start step the
+// input packet carries start position and direction (ro); the host starts the same roll from there, ignores
+// client positions meanwhile and is authoritative for hits. The snapshot brings timer/direction/cooldown for the display
+// (the host's P1) and raises the client's cooldown to match.
 
 export function networkInput(pState) {
   return pState.viperNetworkStart || null;
@@ -264,7 +264,7 @@ export function networkInput(pState) {
 
 export function applySnapshot(pState, payload, ownOne) {
   if (!payload || payload.viperRollTimer === undefined) return;
-  // Kombo: Host ist massgeblich; Sound fuer das eigene Schiff beim Erreichen von 5/10/20
+  // Combo: the host is authoritative; sound for the own ship when reaching 5/10/20
   const combo = payload.viperCombo || 0;
   if (ownOne) {
     const tier = COMBO_SOUND_TIERS.filter(s => combo >= s).length;
@@ -273,7 +273,7 @@ export function applySnapshot(pState, payload, ownOne) {
   }
   pState.viperCombo = combo;
   pState.viperComboTimer = payload.viperComboTimer || 0;
-  // Overdrive: Host ist massgeblich; Sounds nur fuer das eigene Schiff, bei Aenderung
+  // Overdrive: the host is authoritative; sounds only for the own ship, on change
   const strip = payload.viperOverdriveStrip || 0;
   const odTimer = payload.viperOverdriveTimer || 0;
   if (ownOne) {
@@ -284,7 +284,7 @@ export function applySnapshot(pState, payload, ownOne) {
   pState.viperOverdriveTimer = odTimer;
   const cooldown = payload.viperRollCooldown || 0;
   if (ownOne) {
-    // Rolle laeuft lokal vorhergesagt; der Cooldown des Hosts gilt, wenn er laenger ist
+    // The roll runs predicted locally; the host's cooldown applies if it is longer
     if (cooldown > (pState.viperRollCooldown || 0)) pState.viperRollCooldown = cooldown;
     return;
   }
@@ -295,13 +295,13 @@ export function applySnapshot(pState, payload, ownOne) {
   pState.viperRollCooldown = cooldown;
 }
 
-// Pro Client-Schritt: Nachbilder und Bereitschaftsanzeige (Klassen viper-rolle/-overdrive leitet die Anzeige ab).
-// Fremde Schiffe (P1 des Hosts) zaehlen den Timer zwischen den Snapshots selbst herunter, das eigene Schiff macht
+// Per client step: afterimages and readiness display (the display derives the classes viper-rolle/-overdrive).
+// Other ships (the host's P1) count the timer down themselves between snapshots, the own ship does
 // aktualisiereViper.
 export function showViperStatus(pState, pKey, ownOne) {
   const viper = isViper(pState) && !pState.isDead;
   const rolls = viper && isRollActive(pState);
-  // Fremdes Schiff (P1 des Hosts): Overdrive-Zeit zwischen den Snapshots selbst herunterzaehlen
+  // Other ship (the host's P1): count the overdrive time down between snapshots yourself
   if (!ownOne && viper) tickOverdrive(pState);
   if (rolls && !ownOne) {
     createAfterimage(pState);
@@ -315,7 +315,7 @@ export function showViperStatus(pState, pKey, ownOne) {
 
 const hudStatus = { p1: '', p2: '' };
 
-// Kleiner Bereitschaftsbalken neben dem Energiebalken, nur bei Viper (P2 nur, wenn P2 mitspielt)
+// Small readiness bar next to the energy bar, Viper only (P2 only if P2 plays)
 export function showRollHud(pKey, pState, visible = true) {
   const el = document.getElementById(pKey === 'p2' ? 'viper-rolle-hud-p2' : 'viper-rolle-hud');
   if (!el) return;
@@ -336,7 +336,7 @@ export function showRollHud(pKey, pState, visible = true) {
 
 const comboHudValue = { p1: 0, p2: 0 };
 
-// Kombo-Anzeige unter dem Score ("KOMBO 7 · x1.7"), ausgeblendet bei 0; kurzer Puls bei Erhoehung
+// Combo display below the score ("KOMBO 7 · x1.7"), hidden at 0; short pulse on increase
 function showComboHud(pKey, pState, show) {
   const el = document.getElementById(pKey === 'p2' ? 'viper-kombo-hud-p2' : 'viper-kombo-hud');
   if (!el) return;
@@ -349,14 +349,14 @@ function showComboHud(pKey, pState, show) {
     el.textContent = 'KOMBO ' + combo + ' · x' + Math.min(COMBO_MAX_FACTOR, 1 + COMBO_STEP * combo).toFixed(1);
   el.classList.remove('puls');
   if (rose) {
-    void el.offsetWidth; // Animation neu starten
+    void el.offsetWidth; // Restart the animation
     el.classList.add('puls');
   }
 }
 
 const odHudStatus = { p1: '', p2: '' };
 
-// Overdrive-Leiste neben dem Rollenbalken (gelb waehrend des Overdrives)
+// Overdrive strip next to the roll bar (yellow during the overdrive)
 function showOverdriveHud(pKey, pState, show) {
   const el = document.getElementById(pKey === 'p2' ? 'viper-overdrive-hud-p2' : 'viper-overdrive-hud');
   if (!el) return;
@@ -381,16 +381,16 @@ export function reset(pState) {
   pState.viperLeftHeld = false;
   pState.viperRightHeld = false;
   pState.viperTapDirection = 0;
-  pState.viperTapAlter = 999;
+  pState.viperTapAge = 999;
   pState.viperJoyRest = 0;
   pState.viperJoyBeforehand = 0;
   pState.viperNetworkStart = null;
-  // Bot und Online-Host: gemerkte Rollenwuensche
+  // Bot and online host: remembered roll requests
   pState.botRollRequest = 0;
   pState.networkRollRequest = 0;
 }
 
-// Nachbild in Schiffsfarbe plus ein Funken-Partikel am Schiff
+// Afterimage in the ship color plus one spark particle at the ship
 function createAfterimage(pState) {
   const color = shipColor(pState);
   createParticles({ sort: 'viperAfterimage', color, x: pState.x, y: pState.y, vx: 0, vy: 0, lives: 0.6, decay: 0.08 });

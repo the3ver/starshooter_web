@@ -44,7 +44,7 @@ export default {
       });
     }
 
-    // --- GET /api/turn (Cloudflare TURN Zugangsdaten, Rate-Limit ueber Cache API) ---
+    // --- GET /api/turn (Cloudflare TURN credentials, rate limit via the Cache API) ---
     if (request.method === 'GET' && url.pathname === '/api/turn') {
       const cache = typeof caches !== 'undefined' ? caches.default : null;
       return handleTurnRequest(request, env, fetch, cache);
@@ -62,7 +62,7 @@ export default {
       try {
         const db = env.starshooterDb || env.DB;
         if (!db) {
-          // Fallback wenn DB nicht gebunden (z.B. Mock-Modus)
+          // Fallback if the DB is not bound (e.g. mock mode)
           return jsonResponse({
             success: true,
             mode,
@@ -87,7 +87,7 @@ export default {
           highscores: results || [],
         });
       } catch (err) {
-        console.error('Interner Fehler:', err);
+        console.error('Internal error:', err);
         return jsonResponse({ success: false, error: 'Interner Serverfehler' }, 500);
       }
     }
@@ -98,20 +98,20 @@ export default {
         const body = await request.json();
         let { mode, name, score, level, shipP1, shipP2, timestamp, hash } = body;
 
-        // 1. Modus validieren
+        // 1. Validate the mode
         if (!VALID_MODES.includes(mode)) {
           return jsonResponse({ success: false, error: 'Ungültiger Spielmodus' }, 400);
         }
 
-        // 2. Name bereinigen & prüfen
-        // (inkl. Zeichen-Check und Profanity-Filter, siehe validation.mjs)
+        // 2. Clean up & check the name
+        // (incl. character check and profanity filter, see validation.mjs)
         const nameResult = cleanName(name);
         if (!nameResult.ok) {
           return jsonResponse({ success: false, error: nameResult.error }, 400);
         }
         name = nameResult.name;
 
-        // 3. Score & Level Plausibilität
+        // 3. Score & level plausibility
         score = parseInt(score, 10);
         level = parseInt(level, 10) || 1;
 
@@ -123,13 +123,13 @@ export default {
           return jsonResponse({ success: false, error: 'Ungültiges Level' }, 400);
         }
 
-        // Plausibilitäts-Limit: Max. 60.000 Punkte pro erreichtem Level + Puffer
+        // Plausibility limit: max. 60,000 points per level reached + buffer
         const maxPossibleScore = (level + 1) * 60000 + 10000;
         if (score > maxPossibleScore) {
           return jsonResponse({ success: false, error: 'Score für erreichtes Level unplausibel' }, 400);
         }
 
-        // 4. Schiffe validieren
+        // 4. Validate the ships
         if (!VALID_SHIPS.includes(shipP1)) {
           shipP1 = 'viper';
         }
@@ -137,7 +137,7 @@ export default {
           shipP2 = 'phantom';
         }
 
-        // 5. Zeitstempel & HMAC-Hash Cheat-Schutz
+        // 5. Timestamp & HMAC hash anti-cheat
         timestamp = parseInt(timestamp, 10);
         const now = Date.now();
         if (!timestamp || Math.abs(now - timestamp) > 10 * 60 * 1000) {
@@ -151,17 +151,17 @@ export default {
           return jsonResponse({ success: false, error: 'Ungültige Signatur (Checksummen-Fehler)' }, 403);
         }
 
-        // 6. Standort über Cloudflare Edge erfassen
+        // 6. Capture the location via the Cloudflare edge
         const country = request.cf && request.cf.country ? request.cf.country : null;
         const city = request.cf && request.cf.city ? request.cf.city : null;
 
-        // Anonymisierter IP-Hash für Rate-Limiting / SPAM-Schutz
+        // Anonymized IP hash for rate limiting / spam protection
         const clientIp = request.headers.get('CF-Connecting-IP') || '127.0.0.1';
         const ipHash = await sha256(`${clientIp}:${new Date().toISOString().slice(0, 10)}`);
 
         const db = env.starshooterDb || env.DB;
         if (db) {
-          // Rate-Limit Check: Max 15 Einträge pro Stunde/IP
+          // Rate limit check: max 15 entries per hour/IP
           const countCheck = await db
             .prepare(
               `SELECT COUNT(*) as cnt FROM highscores WHERE ip_hash = ? AND created_at > datetime('now', '-1 hour')`,
@@ -176,7 +176,7 @@ export default {
             );
           }
 
-          // In Datenbank einfügen
+          // Insert into the database
           const insertResult = await db
             .prepare(
               `INSERT INTO highscores (mode, name, score, level, ship_p1, ship_p2, country, city, ip_hash)
@@ -220,7 +220,7 @@ export default {
           201,
         );
       } catch (err) {
-        console.error('Interner Fehler:', err);
+        console.error('Internal error:', err);
         return jsonResponse({ success: false, error: 'Interner Serverfehler' }, 500);
       }
     }

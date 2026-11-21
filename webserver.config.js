@@ -1,6 +1,6 @@
-// Gemeinsamer Testserver fuer playwright.config.js und playwright.balancing.config.js.
-// Port je Arbeitsbaum (8100-8999 aus dem Pfad), damit zwei Klone oder Worktrees auf einem Rechner
-// nicht gegen den Server des anderen testen (reuseExistingServer). PORT ueberschreibt.
+// Shared test server for playwright.config.js and playwright.balancing.config.js.
+// Port per working tree (8100-8999 from the path), so two clones or worktrees on one machine
+// never test against each other's server (reuseExistingServer). PORT overrides.
 const { createHash } = require('node:crypto');
 
 function portFor(directory, env = process.env) {

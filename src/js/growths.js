@@ -5,16 +5,16 @@ import * as Rock from './rock.js';
 import { newId } from './entities.js';
 import { nextPlayerMiddle } from './opponents.js';
 
-// Gewaechse an Felswaenden und Inseln (Fels-Level). Sie sind Feinde (arrays.feinde), damit alle Waffen, die
-// Schockwelle, Punkte und der Bot sie wie Gegner behandeln, und haengen an einem Felssegment:
-// - bluete: Tentakelbluete, abwechselnd zu (gepanzert: istUnzerstoerbar, Laser prallen ab, die Bombe knackt sie)
-//   und offen (verwundbar, schiesst SPOREN_JE_OEFFNUNG Sporen quer in den Gang)
-// - trichter: Hornroehre, immer verwundbar, schiesst in festem Takt einzelne Sporen
-// - kapsel: Eierkapsel, schiesst nicht, laesst beim Abschuss einen Bonus fallen (Schockwelle oder Zufall)
-// Sporen sind Feindgeschosse (arrays.feindLaserArray) mit spore = true: langsam, rund, quer zum Gang.
+// Growths on rock walls and islands (rock levels). They are enemies (arrays.enemies) so all weapons, the
+// shockwave, points and the bot treat them like opponents, and they hang on a rock segment:
+// - bloom: tentacle bloom, alternately closed (armored: isIndestructible, lasers bounce off, the bomb cracks it)
+//   and open (vulnerable, shoots SPORE_PER_OPENING spores across the corridor)
+// - funnel: horn tube, always vulnerable, shoots single spores on a fixed cadence
+// - capsule: egg capsule, does not shoot, drops a bonus when shot (shockwave or random)
+// Spores are enemy projectiles (arrays.enemyLaserArray) with spore = true: slow, round, across the corridor.
 
-// roehre: Larvenroehre am Insel-Boss (wirft alle takt Schritte eine Larve aus, hoechstens MAX_LARVEN)
-// larve: kleiner Verfolger aus der Roehre (kein Gewaechs, haengt an keinem Segment)
+// tube: larva tube on the island boss (ejects a larva every cadence steps, at most MAX_LARVAE)
+// larva: small chaser from the tube (not a growth, hangs on no segment)
 export const KINDS = ['bloom', 'funnel', 'capsule', 'tube'];
 export const SIZE = { bloom: 34, funnel: 30, capsule: 24, tube: 34, larva: 18 };
 export const COLOR = { bloom: '#e0703a', funnel: '#d9822b', capsule: '#b5a36a', tube: '#c0602a', larva: '#e8b04a' };
@@ -28,13 +28,13 @@ export const SPORE_PER_OPENING = 3;
 export const FUNNEL_CADENCE = 110;
 export const SPORE_SPEED = 2.6;
 export const SPORE_SIZE = 10;
-const MIN_SPOT = 26; // Wand- oder Inselbreite, an der ein Gewaechs Halt findet
+const MIN_SPOT = 26; // Wall or island width on which a growth finds a hold
 
 export function isGrowth(f) {
   return KINDS.includes(f.pattern);
 }
 
-// Moegliche Plaetze an einem Segment (Profil oben): Wand links/rechts, Insel links/rechts
+// Possible spots on a segment (profile top): wall left/right, island left/right
 function spots(segment) {
   const p = segment.top;
   const list = [];
@@ -44,13 +44,13 @@ function spots(segment) {
   return list;
 }
 
-// Blickrichtung in den Gang: +1 = nach rechts, -1 = nach links
+// Facing direction into the corridor: +1 = right, -1 = left
 function direction(side) {
   return side === 'l' || side === 'ir' ? 1 : -1;
 }
 
-// Position an der Felskante auf Hoehe der Gewaechsmitte; ein Drittel steckt im Fels.
-// rot: Grafik-Vorwaerts ist unten, -90 = Blick nach rechts, 90 = nach links
+// Position at the rock edge at the height of the growth center; a third sits inside the rock.
+// rot: forward of the graphic is down, -90 = facing right, 90 = facing left
 function setAnEdge(f) {
   const g = f.size;
   f.y = f.segment.y + f.offsetY;
@@ -61,7 +61,7 @@ function setAnEdge(f) {
   f.rot = f.direction === 1 ? -90 : 90;
 }
 
-// Ein Gewaechs an einem Segment anlegen; liefert null, wenn dort kein Platz ist
+// Create a growth on a segment; returns null if there is no spot there
 export function createGrowth(kind, segment, side = null) {
   const possible = spots(segment);
   if (!possible.length) return null;
@@ -89,7 +89,7 @@ export function createGrowth(kind, segment, side = null) {
     isEnemy: true,
     isIndestructible: kind === 'bloom',
     carriesPowerup: kind === 'capsule',
-    powerupTyp: kind === 'capsule' ? 'bonus' : undefined,
+    powerupType: kind === 'capsule' ? 'bonus' : undefined,
     pattern: kind,
     phase: kind === 'bloom' ? 'closed' : 'open',
     open: kind !== 'bloom',
@@ -105,7 +105,7 @@ export function createGrowth(kind, segment, side = null) {
   return f;
 }
 
-// Spore mit Mittelpunkt (mx, my) und Geschwindigkeit (vx, vy)
+// Spore with center (mx, my) and velocity (vx, vy)
 export function createSporeClosed(mx, my, vx, vy) {
   Audio.playSpore();
   arrays.enemyLaserArray.push(
@@ -125,7 +125,7 @@ export function createSporeClosed(mx, my, vx, vy) {
   );
 }
 
-// Spore quer aus dem Schlund eines Gewaechses in den Gang
+// Spore across from the throat of a growth into the corridor
 export function createSpore(f) {
   const g = f.size;
   createSporeClosed(f.x + g / 2 + f.direction * (g / 2), f.y + g / 2, f.direction * SPORE_SPEED, Rock.getSpeed() * 0.5);
@@ -165,7 +165,7 @@ function createLarva(f) {
   );
 }
 
-// Larve: kriecht auf den naechsten Spieler zu und wackelt dabei
+// Larva: crawls towards the nearest player, wobbling as it goes
 export function moveLarva(f) {
   f.shotTimer = 9999;
   f.time += 0.15;
@@ -178,12 +178,12 @@ export function moveLarva(f) {
   f.rot = (Math.atan2(dy, dx) * 180) / Math.PI - 90;
 }
 
-// Jeder Schritt aus aktualisiereFeinde: an der Kante halten, Phasen und Sporen
+// Every step from updateEnemies: hold at the edge, phases and spores
 export function update(f) {
   setAnEdge(f);
-  f.shotTimer = 9999; // kein Standard-Schuss nach unten
+  f.shotTimer = 9999; // no standard shot downwards
   if (f.pattern === 'capsule') return;
-  if (f.y + f.size < 0) return; // noch ueber dem Feld
+  if (f.y + f.size < 0) return; // still above the field
   f.phaseTimer--;
   if (f.pattern === 'funnel') {
     if (f.phaseTimer <= 0) {
@@ -199,7 +199,7 @@ export function update(f) {
     }
     return;
   }
-  // bluete
+  // bloom
   if (f.phase === 'open') {
     const distance = Math.floor(OPEN_DURATION / (SPORE_PER_OPENING + 1));
     if (f.phaseTimer > 0 && f.phaseTimer % distance === 0 && f.phaseTimer < OPEN_DURATION) createSpore(f);
@@ -212,8 +212,8 @@ export function update(f) {
   f.isIndestructible = !f.open;
 }
 
-// Aus levelSchritt (Fels-Level, waehrend Nachschub): alle GEWAECHS_TAKT Schritte ein Gewaechs am obersten
-// Segment, Art nach Gewicht (Bluete 50 %, Trichter 30 %, Kapsel 20 %)
+// From levelStep (rock levels, during supply): one growth every GROWTH_CADENCE steps on the topmost
+// segment, kind by weight (bloom 50 %, funnel 30 %, capsule 20 %)
 export const GROWTH_CADENCE = 150;
 export function regrow(frame) {
   const cadence = Math.max(80, GROWTH_CADENCE - (state.level - 4) * 10);

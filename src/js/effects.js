@@ -1,12 +1,12 @@
-// Effekte mit Lebensdauer (Schockwellen u. a.): reine Modelle in arrays.effekte, kein DOM.
-// Die Logik zaehlt rest pro Simulationsschritt herunter, das Backend zeichnet Groesse und Deckkraft
-// aus dem Fortschritt (siehe display-dom.js zeichneEffekt). Effekte frieren daher mit der Welt ein.
+// Effects with a lifetime (shockwaves etc.): pure models in arrays.effects, no DOM.
+// The logic counts rest down per simulation step, the backend draws size and opacity
+// from the progress (see display-dom.js drawEffect). Effects therefore freeze with the world.
 import { arrays } from './state.js';
 import * as Display from './display.js';
 
-// Neuer Effekt: daten = { art, x, y, rest, ... }; rest ist die Lebensdauer in Schritten (wird zu dauer).
-// Optional verzoegerung (Schritte, in denen der Effekt noch unsichtbar ist und zur Lebensdauer zaehlt)
-// und pKey (Besitzer, fuer entferneEffekte).
+// New effect: payload = { kind, x, y, rest, ... }; rest is the lifetime in steps (becomes duration).
+// Optional delay (steps during which the effect is still invisible; they count towards the lifetime)
+// and pKey (owner, for removeEffects).
 export function createEffect(payload) {
   const effect = { ...payload, duration: payload.rest };
   arrays.effects.push(Display.create(effect, 'effect'));
@@ -24,7 +24,7 @@ export function updateEffects() {
   }
 }
 
-// Alle Effekte entfernen, mit pKey nur die dieses Spielers
+// Remove all effects; with pKey only this player's
 export function removeEffects(pKey) {
   for (let i = arrays.effects.length - 1; i >= 0; i--) {
     const e = arrays.effects[i];

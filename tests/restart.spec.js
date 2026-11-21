@@ -1,8 +1,8 @@
-// Neustart raeumt alle Weltlisten ab (afd5d90, 5522e68: vergessene Listen blieben nach dem Neustart stehen)
+// Restart clears all world lists (afd5d90, 5522e68: forgotten lists stayed after the restart)
 const { test, expect } = require('@playwright/test');
 const { setGameState } = require('./helpers');
 
-// Listen, die den Neustart bewusst ueberleben
+// Lists that deliberately survive the restart
 const REMAIN = ['stars'];
 
 test.beforeEach(async ({ page }) => {
@@ -17,13 +17,13 @@ test.beforeEach(async ({ page }) => {
   await page.goto('/');
 });
 
-test('restartGame leert jede Liste in arrays (neue Liste ohne Aufraeumen = rot)', async ({ page }) => {
+test('restartGame empties every list in arrays (new list without cleanup = red)', async ({ page }) => {
   const r = await page.evaluate(async remain => {
     const Display = await import('./js/display.js');
     const { arrays, state } = await import('./js/state.js');
     const Utils = await import('./js/utils.js');
     const domBackend = Display.getBackend();
-    // Null-Backend: die Platzhalter haben keine Darstellung
+    // Null backend: the placeholders have no display
     Display.setBackend({
       create() {},
       drawWorld() {},
@@ -45,12 +45,12 @@ test('restartGame leert jede Liste in arrays (neue Liste ohne Aufraeumen = rot)'
     }
   }, REMAIN);
   expect(r.listen.length).toBeGreaterThan(10);
-  expect(r.left, 'restartGame (utils.js) muss diese Listen leeren').toEqual([]);
+  expect(r.left, 'restartGame (utils.js) must empty these lists').toEqual([]);
 });
 
-// Klassen auf body und #spielfeld (Thema, Modus-Effekte) muessen nach dem Neustart wie beim Laden sein
-// (642b082: thema-biozone blieb nach dem Neustart sichtbar)
-test('restartGame stellt die Klassen von body und #spielfeld wie beim Laden her', async ({ page }) => {
+// Classes on body and #spielfeld (theme, mode effects) must be as on load after the restart
+// (642b082: thema-biozone stayed visible after the restart)
+test('restartGame restores the classes of body and #spielfeld to the loaded state', async ({ page }) => {
   const r = await page.evaluate(async () => {
     const { state } = await import('./js/state.js');
     const { simulationStep } = await import('./js/loop.js');
@@ -62,12 +62,12 @@ test('restartGame stellt die Klassen von body und #spielfeld wie beim Laden her'
     const loaded = classes();
     state.godMode = true;
     state.gameRunning = true;
-    state.level = 4; // Fels-Level: setzt das Biozonen-Thema
+    state.level = 4; // Rock level: sets the biozone theme
     simulationStep();
     const inGame = classes();
     Utils.restartGame();
     return { loaded, inGame, afterRestart: classes() };
   });
-  expect(r.inGame, 'Testaufbau: das Fels-Level muss eine Klasse setzen').not.toEqual(r.loaded);
-  expect(r.afterRestart, 'restartGame (utils.js) muss diese Klassen zuruecksetzen').toEqual(r.loaded);
+  expect(r.inGame, 'Test setup: the rock level must set a class').not.toEqual(r.loaded);
+  expect(r.afterRestart, 'restartGame (utils.js) must reset these classes').toEqual(r.loaded);
 });

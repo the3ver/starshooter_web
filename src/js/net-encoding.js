@@ -1,22 +1,22 @@
-// Netzkodierung fuer den Online-Modus (reine Funktionen, kein DOM).
+// Net encoding for online mode (pure functions, no DOM).
 //
-// Host -> Client: Der SnapshotKodierer verwandelt volle Snapshots aus serializeGameState()
-// in kleine Pakete, der SnapshotDekodierer baut daraus wieder volle Snapshots in derselben
-// Form fuer applyGameStateSnapshot(). Gesendet werden nur gerundete Werte, die sich seit dem
-// letzten Paket geaendert haben; Projektile mit Geschwindigkeit sagen beide Seiten voraus.
+// Host -> client: the SnapshotEncoder turns full snapshots from serializeGameState()
+// into small packets, the SnapshotDecoder rebuilds full snapshots from them in the same
+// shape for applyGameStateSnapshot(). Only rounded values that changed since the
+// last packet are sent; both sides predict projectiles with a velocity.
 //
 // Paketformat:
-//   { v: PROTOKOLL_VERSION, n: Laufnummer, t: Weltschritt, k: 1 (nur Keyframe),
-//     o: Delta der Felder ausserhalb der Listen (p1, p2, score, level, ...),
-//     l: { <liste>: { i: [Ids, Zahl = Praefix der Liste + '_' + Zahl], d: [0 | Delta | volles Objekt] } } }
-//   Delta eines Objekts: geaenderte Felder, '_d' = entfernte Felder, '_r' = Wert ersetzt.
-//   Fehlt 'i', bleiben die Ids wie im letzten Paket; fehlt eine Liste, ist sie unveraendert.
+//   { v: PROTOCOL_VERSION, n: sequence number, t: world step, k: 1 (keyframe only),
+//     o: delta of the fields outside the lists (p1, p2, score, level, ...),
+//     l: { <list>: { i: [ids, number = list prefix + '_' + number], d: [0 | delta | full object] } } }
+//   Delta of an object: changed fields, '_d' = removed fields, '_r' = value replaced.
+//   If 'i' is missing, the ids stay as in the last packet; if a list is missing, it is unchanged.
 
 export const PROTOCOL_VERSION = 20;
-export const KEYFRAME_INTERVAL = 30; // jedes 30. Paket ist ein Keyframe (~1 s)
-export const DR_TOLERANCE = 0.5; // px, ab dieser Abweichung wird x/y mitgesendet
+export const KEYFRAME_INTERVAL = 30; // every 30th packet is a keyframe (~1 s)
+export const DR_TOLERANCE = 0.5; // px, from this deviation on x/y is sent along
 
-// Id-Praefix je Liste (siehe Entities.neueId); andere Ids gehen als Text
+// Id prefix per list (see Entities.newId); other ids go as text
 const LISTEN_PREFIX = {
   enemies: 'f',
   asteroids: 'a',
@@ -37,15 +37,15 @@ const LISTEN_PREFIX = {
 };
 export const LISTEN = Object.keys(LISTEN_PREFIX);
 
-// Bewegungsregel wie auf dem Host und in client.js: x += vx, y += Richtung * vy pro Schritt.
-// Spielerlaser fliegen mit y -= vy. Listen ohne gesendete Geschwindigkeit fehlen hier.
+// Movement rule as on the host and in client.js: x += vx, y += direction * vy per step.
+// Player lasers fly with y -= vy. Lists without a sent velocity are missing here.
 const MOVEMENT = { laser: -1, enemyLaser: 1, bossLaser: 1, bossMissiles: 1 };
 
 const round1 = v => Math.round(v * 10) / 10 || 0;
 const round0 = v => Math.round(v) || 0;
 const round2 = v => Math.round(v * 100) / 100 || 0;
 
-// Rundung je Feldname. Ids, Typen, Besitzer, Texte und Booleans werden nie gerundet.
+// Rounding per field name. Ids, types, owners, texts and booleans are never rounded.
 export const ROUNDING = {
   x: round1,
   y: round1,
@@ -61,7 +61,7 @@ export const ROUNDING = {
   missileCooldown: round0,
   bombCooldown: round0,
   phantomShieldRegenTimer: round0,
-  // Gleve: Restframes ganzzahlig, Strahlwinkel (Grad, Schritte von 4,5) mit 1 Nachkommastelle
+  // Gleve: remaining frames as integers, beam angle (degrees, steps of 4.5) with 1 decimal place
   gleveDashCharges: round0,
   sniperGrenadeCharges: round0,
   gleveDashTimer: round0,
@@ -70,17 +70,17 @@ export const ROUNDING = {
   gleveSweepTimer: round0,
   gleveSweepAngle: round1,
   gleveSweepDirection: round0,
-  // Viper-Rolle: Restschritte, Richtung und Cooldown ganzzahlig
+  // Viper roll: remaining steps, direction and cooldown as integers
   viperRollTimer: round0,
   viperRollDirection: round0,
   viperRollCooldown: round0,
-  // Viper-Overdrive: Leiste (0..100) und Restschritte ganzzahlig
+  // Viper overdrive: strip (0..100) and remaining steps as integers
   viperOverdriveStrip: round0,
   viperOverdriveTimer: round0,
-  // Viper-Kill-Kombo: Kills und Restschritte des Fensters ganzzahlig
+  // Viper kill combo: kills and remaining steps of the window as integers
   viperCombo: round0,
   viperComboTimer: round0,
-  // Sniper: Fadenkreuz (x/y 1 Nachkommastelle), Ladung, Schussabstand, Granatenflug und Betaeubung ganzzahlig
+  // Sniper: crosshair (x/y 1 decimal place), charge, shot distance, grenade flight and stun as integers
   sniperTargetX: round1,
   sniperTargetY: round1,
   sniperCharge: round0,
@@ -97,7 +97,7 @@ function roundingReplacer(key, value) {
   return value;
 }
 
-// Gerundete Kopie, so wie sie nach JSON beim Empfaenger ankommt (undefined faellt weg, NaN wird null)
+// Rounded copy, as it arrives at the receiver after JSON (undefined drops out, NaN becomes null)
 export function roundSnapshot(full) {
   return JSON.parse(JSON.stringify(full, roundingReplacer));
 }
@@ -125,7 +125,7 @@ function equal(a, b) {
   return true;
 }
 
-// Delta von alt nach neu (null = keine Aenderung). Felder in 'ohne' werden nicht verglichen.
+// Delta from old to new (null = no change). Fields in 'without' are not compared.
 function objectDelta(old, fresh, without) {
   /** @type {any} */
   let delta = null;
@@ -178,7 +178,7 @@ function decodeId(list, code) {
   return typeof code === 'number' ? LISTEN_PREFIX[list] + '_' + code : code;
 }
 
-// Liste per Id verfolgbar? Sonst geht sie als normales Feld (ganz) ueber 'o'.
+// Is the list trackable by id? Otherwise it goes as a normal field (whole) via 'o'.
 function isTrackable(list) {
   if (!Array.isArray(list)) return false;
   const ids = new Set();
@@ -189,7 +189,7 @@ function isTrackable(list) {
   return true;
 }
 
-// Vorhergesagte Position nach dt Schritten (null = keine Vorhersage fuer diese Liste)
+// Predicted position after dt steps (null = no prediction for this list)
 function sayBeforehand(list, obj, dt) {
   const direction = MOVEMENT[list];
   if (!direction || !(dt > 0)) return null;
@@ -206,14 +206,14 @@ export class SnapshotDecoder {
     this.status = null;
   }
 
-  // True, solange kein Keyframe angewendet ist (Deltas werden dann ignoriert)
+  // True as long as no keyframe has been applied (deltas are ignored then)
   get needsKeyframe() {
     return this.status === null;
   }
 
-  // Liefert den vollen Snapshot oder null (kein Keyframe, Luecke in der Laufnummer, Fehler).
-  // Bei Luecken wartet der Dekodierer auf den naechsten Keyframe: Ohne das verlorene
-  // Paket waeren Ids und Felder nicht sicher, also lieber kurz nichts als etwas Falsches.
+  // Returns the full snapshot or null (no keyframe, gap in the sequence number, error).
+  // On gaps the decoder waits for the next keyframe: without the lost
+  // packet ids and fields would not be certain, so better nothing for a moment than something wrong.
   decode(packet, withOutput = true) {
     if (!isObject(packet) || packet.v !== PROTOCOL_VERSION || !Number.isInteger(packet.n)) return null;
     let z = this.status;
@@ -241,9 +241,9 @@ export class SnapshotDecoder {
     const listen = {};
     const names = new Set([...Object.keys(old.listen), ...Object.keys(listenPacket)]);
     for (const name of names) {
-      if (!LISTEN_PREFIX[name]) throw new Error('Unbekannte Liste ' + name);
+      if (!LISTEN_PREFIX[name]) throw new Error('unknown list ' + name);
       const entry = listenPacket[name];
-      if (entry === null) continue; // Liste wird nicht mehr verfolgt
+      if (entry === null) continue; // List is no longer tracked
       const beforehand = old.listen[name];
       const ids = entry && entry.i ? entry.i.map(c => decodeId(name, c)) : beforehand ? beforehand.ids : [];
       const objects = new Map();
@@ -267,7 +267,7 @@ export class SnapshotDecoder {
     return { n: packet.n, t: packet.t, top, listen };
   }
 
-  // Voller Snapshot als frische Kopie (applyGameStateSnapshot darf ihn behalten)
+  // Full snapshot as a fresh copy (applyGameStateSnapshot may keep it)
   snapshot() {
     const z = this.status;
     if (!z) return null;
@@ -282,7 +282,7 @@ export class SnapshotDecoder {
 
 export class SnapshotEncoder {
   constructor() {
-    // Spiegel: derselbe Dekodierer wie beim Client, damit beide Seiten denselben Stand kennen
+    // Mirror: the same decoder as on the client, so both sides know the same state
     this.mirror = new SnapshotDecoder();
     this.n = 0;
     this.sinceKeyframe = 0;
@@ -298,7 +298,7 @@ export class SnapshotEncoder {
     this.keyframeForce = true;
   }
 
-  // voll: Ergebnis von serializeGameState(); weltSchritt: Zaehler der bewegten Simulationsschritte
+  // full: result of serializeGameState(); worldStep: counter of the moving simulation steps
   encode(full, worldStep) {
     const rounded = roundSnapshot(full);
     const basis = this.mirror.status;
@@ -312,7 +312,7 @@ export class SnapshotEncoder {
     const oldListen = keyframe ? {} : basis.listen;
     const dt = keyframe ? 0 : t - basis.t;
 
-    // Felder ausserhalb der verfolgten Listen (auch nicht verfolgbare Listen)
+    // Fields outside the tracked lists (including non-trackable lists)
     const top = {};
     const listen = {};
     for (const k of Object.keys(rounded)) {
@@ -332,7 +332,7 @@ export class SnapshotEncoder {
     }
     if (Object.keys(l).length) packet.l = l;
 
-    // Spiegel nachfuehren; scheitert das, beim naechsten Mal Keyframe
+    // Keep the mirror up to date; if that fails, send a keyframe next time
     if (!this.mirror.decode(packet, false)) this.keyframeForce = true;
     else this.keyframeForce = false;
     this.sinceKeyframe = keyframe ? 0 : this.sinceKeyframe + 1;
@@ -370,9 +370,9 @@ export class SnapshotEncoder {
   }
 }
 
-// Client -> Host: Eingaben nur bei Aenderung senden.
-// Tasten sofort bei jeder Aenderung, Position hoechstens jeden 2. Schritt und nur wenn bewegt,
-// sonst alle HEARTBEAT_SCHRITTE ein volles Paket. Der Host haelt die Tasten bis zum naechsten Paket.
+// Client -> host: send inputs only on change.
+// Keys immediately on every change, position at most every 2nd step and only when moved,
+// otherwise a full packet every HEARTBEAT_STEPS. The host holds the keys until the next packet.
 export const HEARTBEAT_STEPS = 30;
 export const POSITIONS_INTERVAL = 2;
 
@@ -387,7 +387,7 @@ export class InputSender {
     this.last = null;
   }
 
-  // Einmal pro Client-Schritt aufrufen; liefert das zu sendende Paket oder null
+  // Call once per client step; returns the packet to send or null
   next(input) {
     this.step++;
     const e = {
@@ -399,14 +399,14 @@ export class InputSender {
       missile: Boolean(input.missile),
       bomb: Boolean(input.bomb),
     };
-    // Gleve: Steuerrichtung fuer den Dash (2 Nachkommastellen), geht mit jedem Paket mit
+    // Gleve: steering direction for the dash (2 decimal places), goes along with every packet
     if (Number.isFinite(input.rx) && Number.isFinite(input.ry)) {
       e.rx = round2(input.rx);
       e.ry = round2(input.ry);
     }
-    // Viper: Rollenstart (Richtung -1/+1) geht sofort raus, nur im Startschritt gesetzt
+    // Viper: roll start (direction -1/+1) goes out immediately, set only in the start step
     if (input.ro === 1 || input.ro === -1) e.ro = input.ro;
-    // Sniper: Joystick-Autofeuer (Normalschuesse ohne Laden), nur wenn gesetzt
+    // Sniper: joystick auto-fire (normal shots without charging), only when set
     if (input.auto) e.auto = true;
     const l = this.last;
     const since = this.step - this.lastDispatch;

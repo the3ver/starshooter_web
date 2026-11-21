@@ -1,10 +1,10 @@
-// Gleve-MR: Laser-Sweep als Hauptwaffe (Laser-Taste, laserStufe, kostet Energie), Dash als Zweitwaffe
-// (Raketen-Taste, raketenStufe, Cooldown ueber raketenCooldown). pState ist `state` (P1) oder `state.p2`, pKey 'p1' / 'p2'.
-// Zustand pro Spieler: gleveDashTimer, gleveDashVx/Vy (Schritt pro Frame, auch fuer den Abprall),
-// gleveAbprallTimer, gleveUnverwundbar, gleveDashTasteGehalten (Flanke), gleveDashTreffer (Ziele dieses Dashs).
-// Sweep: gleveSweepTimer (Restframes), gleveSweepWinkel (aktueller Strahlwinkel in Grad, 0 = senkrecht nach oben,
-// positiv = rechts), gleveSweepRichtung (+1 links->rechts, -1 rechts->links; wechselt bei jedem Start),
-// gleveSweepTreffer (Ziele dieses Sweeps), gleveSweepTakt (Frames bis zum naechsten moeglichen Start).
+// Gleve-MR: laser sweep as the main weapon (laser key, laserTier, costs energy), dash as the secondary weapon
+// (missile key, missileTier, cooldown via missileCooldown). pState is `state` (P1) or `state.p2`, pKey 'p1' / 'p2'.
+// State per player: gleveDashTimer, gleveDashVx/Vy (step per frame, also for the bounce),
+// gleveBounceTimer, gleveInvulnerable, gleveDashKeyHeld (edge), gleveDashHit (targets of this dash).
+// Sweep: gleveSweepTimer (remaining frames), gleveSweepAngle (current beam angle in degrees, 0 = straight up,
+// positive = right), gleveSweepDirection (+1 left->right, -1 right->left; switches on every start),
+// gleveSweepHit (targets of this sweep), gleveSweepCadence (frames until the next possible start).
 
 import { state, config, arrays, shipModels, shipColors } from './state.js';
 import * as Utils from './utils.js';
@@ -15,12 +15,12 @@ import * as Display from './display.js';
 import { createParticles } from './particles.js';
 
 export const DASH_FRAMES = 8;
-export const DASH_TRAIL_FRAMES = 10; // Unverwundbar nach dem Dash
+export const DASH_TRAIL_FRAMES = 10; // Invulnerable after the dash
 export const BOUNCE_FRAMES = 8;
-export const BOUNCE_TRAIL_FRAMES = 30; // Unverwundbar nach dem Abprall
+export const BOUNCE_TRAIL_FRAMES = 30; // Invulnerable after the bounce
 const BOUNCE_DEEPER = 30;
 
-// Werte pro Stufe (raketenStufe 1-5)
+// Values per tier (missileTier 1-5)
 const DASH_RANGE = [100, 110, 120, 135, 150];
 const DASH_DAMAGE = [60, 70, 80, 90, 100];
 const DASH_COOLDOWN = [180, 165, 150, 135, 120];
@@ -38,25 +38,25 @@ export function dashDamage(pState) {
 export function dashCooldown(pState) {
   return DASH_COOLDOWN[dashTierIndex(pState)];
 }
-// Dash-Ladungen: Stufe 1-3 -> 2, Stufe 4-5 -> 3. raketenCooldown ist die Ladezeit der naechsten Ladung.
+// Dash charges: tier 1-3 -> 2, tier 4-5 -> 3. missileCooldown is the charge time of the next charge.
 export function dashMaxCharges(pState) {
   return (pState.missileTier || 1) >= 4 ? 3 : 2;
 }
 
-// Ladungen voll, kein laufendes Nachladen (Spielstart, Neustart, Schiffswechsel)
+// Charges full, no recharge running (game start, restart, ship change)
 export function setDashChargeFull(pState) {
   pState.gleveDashCharges = dashMaxCharges(pState);
   pState.missileCooldown = 0;
 }
 
-// Eine Ladung ist fertig geladen: +1, danach weiter nachladen, bis voll
+// One charge has finished charging: +1, then keep recharging until full
 function finishReload(pState) {
   const max = dashMaxCharges(pState);
   pState.gleveDashCharges = Math.min(max, (pState.gleveDashCharges || 0) + 1);
   pState.missileCooldown = pState.gleveDashCharges < max ? dashCooldown(pState) : 0;
 }
 
-// Pro Schritt (weapons.js): Nachladen der Dash-Ladungen
+// Per step (weapons.js): recharge the dash charges
 export function updateDashCharges(pState) {
   const max = dashMaxCharges(pState);
   if (pState.gleveDashCharges === undefined) pState.gleveDashCharges = max;
@@ -68,13 +68,13 @@ export function updateDashCharges(pState) {
       else pState.missileCooldown = 0;
     }
   } else if (pState.gleveDashCharges < max) {
-    // z. B. nach Upgrade auf Stufe 4: Nachladen starten
+    // e.g. after an upgrade to tier 4: start recharging
     pState.missileCooldown = dashCooldown(pState);
   }
 }
 
-// HUD der Dash-Ladungen: Balken = Fortschritt der naechsten Ladung (voll/gruen bei vollen Ladungen),
-// Punkte = Ladungen (gefuellt = vorhanden), mobil Ladungszahl und Fuellung am Raketen-Button des lokalen Schiffs.
+// HUD of the dash charges: bar = progress of the next charge (full/green with full charges),
+// dots = charges (filled = available), on mobile the charge count and fill on the local ship's missile button.
 export function showDashHud(pKey, pState) {
   if (!pState || !isGleve(pState)) return;
   const max = dashMaxCharges(pState);
@@ -87,7 +87,7 @@ export function showDashHud(pKey, pState) {
   );
 }
 
-// Gemeinsam fuer Gleve-Dash und Sniper-Granaten: Balken (Ladefortschritt aus raketenCooldown), Punkte und Mobil-Zahl
+// Shared by the Gleve dash and sniper grenades: bar (charge progress from missileCooldown), dots and mobile number
 export function showChargeHud(pKey, pState, count, max, chargeTime) {
   const sfx = pKey === 'p2' ? '-p2' : '';
   const charges = Math.max(0, Math.min(max, Math.round(count)));
@@ -125,7 +125,7 @@ export function showChargeHud(pKey, pState, count, max, chargeTime) {
   }
 }
 
-// Ab Raketen-Stufe 5 knackt der Dash Magma
+// From missile tier 5 on the dash cracks magma
 export function dashCracksMagma(pState) {
   return (pState.missileTier || 1) >= 5;
 }
@@ -134,7 +134,7 @@ export function isGleve(pState) {
   return !!pState && pState.selectedShipModel === 'gleve';
 }
 
-// Dash oder Abprall laeuft (keine normale Steuerung, keine Energie-Regeneration)
+// Dash or bounce running (no normal controls, no energy regeneration)
 export function isDashActive(pState) {
   return (pState.gleveDashTimer || 0) > 0 || (pState.gleveBounceTimer || 0) > 0;
 }
@@ -146,7 +146,7 @@ function shipColor(pState) {
 
 function canDash(pState) {
   if (pState.isDead || isDashActive(pState)) return false;
-  if (Hack.hasHack(pState, 'weaponOffline')) return false;
+  if (Hack.hasHack(pState, 'weaponsOffline')) return false;
   return (pState.gleveDashCharges || 0) >= 1;
 }
 
@@ -155,7 +155,7 @@ function startDash(pState, pKey, direction) {
   let dy = direction ? direction.dy : 0;
   const length = Math.hypot(dx, dy);
   if (length < 0.01) {
-    // Ohne Eingabe nach oben
+    // Upwards without input
     dx = 0;
     dy = -1;
   } else {
@@ -181,9 +181,9 @@ function clampOnPlayfield(pState) {
   pState.y = Math.max(0, Math.min(config.playfieldHeight - config.playerSize, pState.y));
 }
 
-// Schaden wie bei den anderen Waffen: Schild zuerst, dann HP. Liefert true, wenn das Ziel zerstoert wurde.
+// Damage as with the other weapons: shield first, then HP. Returns true if the target was destroyed.
 export function damageTarget(z, damage, pKey) {
-  if (z.isBoss && z.isIndestructible) return false; // geschlossenes Auge (Insel-Boss)
+  if (z.isBoss && z.isIndestructible) return false; // closed eye (island boss)
   if ((z.shieldHp || 0) > 0) {
     z.shieldHp -= damage;
     if (z.shieldHp <= 0) {
@@ -193,7 +193,7 @@ export function damageTarget(z, damage, pKey) {
   }
   z.hp -= damage;
   Display.flash(z, 2.5);
-  // Boss-Raketen und -Bomben raeumen sich bei hp <= 0 in boss.js selbst ab
+  // Boss missiles and bombs clean themselves up at hp <= 0 in boss.js
   if (z.hp <= 0 && (arrays.enemies.includes(z) || arrays.asteroids.includes(z) || arrays.bosses.includes(z))) {
     Utils.destroyTarget(z, pKey);
     return true;
@@ -201,16 +201,16 @@ export function damageTarget(z, damage, pKey) {
   return false;
 }
 
-// Kill-Kette: jeder durch einen Dash zerstoerte Gegner verkuerzt das laufende Nachladen
+// Kill chain: every opponent destroyed by a dash shortens the running recharge
 function rewardKill(pState, z) {
   if (!z.isEnemy && !z.isBoss) return;
   const bonus = (shipModels.gleve && shipModels.gleve.dashKillCooldown) || 0;
-  if ((pState.missileCooldown || 0) <= 0) return; // nichts am Laden
+  if ((pState.missileCooldown || 0) <= 0) return; // nothing is charging
   pState.missileCooldown = Math.max(0, pState.missileCooldown - bonus);
   if (pState.missileCooldown <= 0) finishReload(pState);
 }
 
-// Magma-Asteroid knacken wie bei der Bombe (wird zum Powerup-Traeger)
+// Crack a magma asteroid as with the bomb (it becomes a powerup carrier)
 function crackMagma(z) {
   z.isIndestructible = false;
   z.carriesPowerup = true;
@@ -228,8 +228,8 @@ function overlaps(pState, z, padding = 0) {
   );
 }
 
-// Abprall schraeg zur Seite: auf die Seite, auf der die Gleve relativ zur Zielmitte ist,
-// mindestens halbe Zielbreite neben der Zielkante und etwas tiefer (raus aus der Schusslinie)
+// Bounce diagonally to the side: to the side where the Gleve is relative to the target center,
+// at least half the target width beside the target edge and a bit lower (out of the line of fire)
 function startBounce(pState, z) {
   const g = z.size || 30;
   const shipMiddle = pState.x + config.playerSize / 2;
@@ -242,7 +242,7 @@ function startBounce(pState, z) {
   const landX = s => Math.max(0, Math.min(maxX, s > 0 ? z.x + g + g / 2 : z.x - g / 2 - config.playerSize));
   const belowTarget = x => x < z.x + g && x + config.playerSize > z.x;
   let targetX = landX(side);
-  // Am Spielfeldrand kein Platz: andere Seite versuchen
+  // No room at the playfield edge: try the other side
   if (belowTarget(targetX) && !belowTarget(landX(-side))) targetX = landX(-side);
   const targetY = Math.max(0, Math.min(maxY, pState.y + BOUNCE_DEEPER));
 
@@ -255,7 +255,7 @@ function startBounce(pState, z) {
   Utils.createExplosion(shipMiddle, pState.y, '#ffffff', 12);
 }
 
-// Ein Dash-Frame: bewegen und alle beruehrten Ziele (je einmal pro Dash) behandeln
+// One dash frame: move and handle all touched targets (each once per dash)
 function dashStep(pState, pKey) {
   const oldX = pState.x;
   const oldY = pState.y;
@@ -284,7 +284,7 @@ function dashStep(pState, pKey) {
     createSparks(pState, z);
 
     if (z.isBoss) {
-      // Boss bekommt Schaden und haelt den Dash auf
+      // A boss takes damage and stops the dash
       if (damageTarget(z, damage, pKey)) rewardKill(pState, z);
       else if (!obstacle) obstacle = z;
     } else if (z.isIndestructible) {
@@ -295,17 +295,17 @@ function dashStep(pState, pKey) {
         obstacle = z;
       }
     } else if (z.isEnemy || (arrays.asteroids.includes(z) && !z.carriesPowerup)) {
-      // Kleine Ziele werden durchschnitten
+      // Small targets are cut through
       Utils.destroyTarget(z, pKey);
       rewardKill(pState, z);
     } else {
-      // Powerup-Asteroiden, Boss-Raketen und -Bomben
+      // Powerup asteroids, boss missiles and bombs
       damageTarget(z, damage, pKey);
     }
   }
 
   if (obstacle) {
-    // Dash endet am Hindernis
+    // The dash ends at the obstacle
     pState.x = oldX;
     pState.y = oldY;
     startBounce(pState, obstacle);
@@ -314,7 +314,7 @@ function dashStep(pState, pKey) {
   }
 }
 
-// Dash-Combo: Endet der Dash regulaer, folgt sofort ein Sweep (normale Energiekosten, ohne auf den Takt zu warten)
+// Dash combo: if the dash ends regularly, a sweep follows immediately (normal energy cost, without waiting for the cadence)
 function startComboSweep(pState, pKey) {
   const cost = pState.unlimitedEnergy ? 0 : sweepCost(pState);
   if ((pState.energy || 0) < cost || !startSweep(pState, pKey)) return;
@@ -330,9 +330,9 @@ function bounceStep(pState) {
   createAfterimage(pState);
 }
 
-// Pro Simulationsschritt fuer eine Gleve aufrufen (vor der normalen Bewegung).
-// tasteGedrueckt: Raketen-Taste dieses Spielers, richtung: { dx, dy } aus der Steuerung (Hacks bereits angewendet).
-// Liefert true, wenn Dash/Abprall die Bewegung in diesem Schritt uebernommen hat.
+// Call once per simulation step for a Gleve (before the normal movement).
+// keyPressed: this player's missile key, direction: { dx, dy } from the controls (hacks already applied).
+// Returns true if dash/bounce took over the movement in this step.
 export function updateGleve(pState, pKey, keyPressed, direction) {
   if ((pState.gleveInvulnerable || 0) > 0) pState.gleveInvulnerable--;
   const flank = !!keyPressed && !pState.gleveDashKeyHeld;
@@ -358,13 +358,13 @@ export function updateGleve(pState, pKey, keyPressed, direction) {
 }
 
 // --- ONLINE-CLIENT ---
-// Der Client steuert sein Schiff selbst und schickt die Position an den Host. Den eigenen Dash sagt er
-// mit derselben Bewegung voraus: Im Schritt des Tastendrucks bleibt das Schiff stehen und das Eingabe-Paket
-// traegt Startposition und Richtung zum Host, der von genau dort aus dasht (und solange Client-Positionen
-// ignoriert). Ab dem naechsten Schritt laufen beide Dashs gleich. Treffer, Schaden und der Abprall bleiben
-// beim Host: An Bossen/Magma haelt die Vorhersage nur an, den Abprall uebernimmt der Client aus dem Snapshot.
+// The client steers its ship itself and sends the position to the host. It predicts its own dash
+// with the same movement: in the step of the key press the ship stays put and the input packet
+// carries start position and direction to the host, which dashes from exactly there (and ignores client
+// positions meanwhile). From the next step on both dashes run the same. Hits, damage and the bounce stay
+// with the host: at bosses/magma the prediction only stops, the client takes the bounce from the snapshot.
 
-// Steht das Schiff im naechsten Dash-Schritt in einem Hindernis (Boss, Magma unter Stufe 5)?
+// Does the ship stand in an obstacle (boss, magma below tier 5) in the next dash step?
 function obstacleOnClient(pState) {
   const tier5 = dashCracksMagma(pState);
   for (const b of arrays.bosses) {
@@ -378,8 +378,8 @@ function obstacleOnClient(pState) {
   return false;
 }
 
-// Pro Client-Schritt fuer das eigene Schiff (vor der normalen Steuerung). Liefert true, wenn
-// Dash/Abprall die Bewegung in diesem Schritt uebernimmt.
+// Per client step for the own ship (before the normal controls). Returns true if
+// dash/bounce takes over the movement in this step.
 export function predictDash(pState, keyPressed, direction) {
   const flank = !!keyPressed && !pState.gleveDashKeyHeld;
   pState.gleveDashKeyHeld = !!keyPressed;
@@ -389,13 +389,13 @@ export function predictDash(pState, keyPressed, direction) {
     return false;
   }
 
-  // Abprall vom Host: zur gemeldeten Host-Position gleiten
+  // Bounce from the host: glide to the reported host position
   if (pState.gleveNetworkBounce) {
     const target = pState.gleveNetworkBounce;
     pState.x += (target.x - pState.x) / 2;
     pState.y += (target.y - pState.y) / 2;
     clampOnPlayfield(pState);
-    // Sicherheitsnetz, falls kein Snapshot mehr kommt
+    // Safety net in case no snapshot comes any more
     if (++target.steps > BOUNCE_FRAMES + BOUNCE_TRAIL_FRAMES) {
       pState.gleveNetworkBounce = null;
       pState.gleveBounceTimer = 0;
@@ -411,7 +411,7 @@ export function predictDash(pState, keyPressed, direction) {
     clampOnPlayfield(pState);
     pState.gleveDashTimer--;
     if (obstacleOnClient(pState)) {
-      // Am Hindernis stehen bleiben, der Host meldet den Abprall
+      // Stop at the obstacle, the host reports the bounce
       pState.x = oldX;
       pState.y = oldY;
       pState.gleveDashTimer = 0;
@@ -419,17 +419,17 @@ export function predictDash(pState, keyPressed, direction) {
     return true;
   }
 
-  // Ohne Ladung laut letztem Snapshot kein Dash (kannDashen prueft gleveDashLadungen)
+  // No dash without a charge according to the last snapshot (canDash checks gleveDashCharges)
   if (flank && canDash(pState)) {
     startDash(pState, 'p2', direction);
     pState.gleveDashStartX = pState.x;
     pState.gleveDashStartY = pState.y;
-    return true; // Startschritt ohne Bewegung (siehe oben)
+    return true; // Start step without movement (see above)
   }
   return false;
 }
 
-// Was der Client dem Host meldet: waehrend des vorhergesagten Dashs Startposition und Dash-Richtung
+// What the client reports to the host: during the predicted dash start position and dash direction
 export function networkInput(pState, direction) {
   if (isGleve(pState) && (pState.gleveDashTimer || 0) > 0 && pState.gleveDashDirection) {
     return {
@@ -442,14 +442,14 @@ export function networkInput(pState, direction) {
   return { x: pState.x, y: pState.y, rx: direction ? direction.dx : 0, ry: direction ? direction.dy : 0 };
 }
 
-// Gleve-Zustand eines Spielers aus dem Host-Snapshot uebernehmen. eigenes: Schiff des Clients
-// (Dash lokal vorhergesagt, vom Host kommen nur Abprall, Sweep und Unverwundbarkeit).
+// Apply a player's Gleve state from the host snapshot. own: the client's ship
+// (dash predicted locally, only bounce, sweep and invulnerability come from the host).
 export function applySnapshot(pState, payload, ownOne) {
   if (!payload || payload.gleveSweepTimer === undefined) return;
   if (payload.gleveDashCharges !== undefined) pState.gleveDashCharges = payload.gleveDashCharges;
   const sweepTimer = payload.gleveSweepTimer || 0;
   const sweepDirection = payload.gleveSweepDirection || 0;
-  // Neuer Sweep: Richtung wechselt bei jedem Einsatz
+  // New sweep: the direction switches on every use
   if (sweepTimer > 0 && sweepDirection !== (pState.gleveSweepDirection || 0)) Audio.playSweep(pState.laserTier);
   pState.gleveSweepTimer = sweepTimer;
   pState.gleveSweepAngle = payload.gleveSweepAngle || 0;
@@ -463,7 +463,7 @@ export function applySnapshot(pState, payload, ownOne) {
       pState.gleveBounceTimer = bounce;
       pState.gleveNetworkBounce = { x: payload.x, y: payload.y, steps: 0 };
     } else if (pState.gleveNetworkBounce) {
-      // Abprall auf dem Host beendet: Landepunkt uebernehmen, danach steuert wieder der Client
+      // Bounce on the host ended: take over the landing point, the client steers again afterwards
       if (Number.isFinite(payload.x)) pState.x = payload.x;
       if (Number.isFinite(payload.y)) pState.y = payload.y;
       pState.gleveNetworkBounce = null;
@@ -477,15 +477,15 @@ export function applySnapshot(pState, payload, ownOne) {
   }
 }
 
-// Pro Client-Schritt fuer beide Schiffe: Dash-Nachbilder und Sweep-Klinge zwischen den Snapshots
-// (Klasse gleve-dash leitet die Anzeige aus dem Zustand ab)
+// Per client step for both ships: dash afterimages and sweep blade between the snapshots
+// (the display derives the class gleve-dash from the state)
 export function showGleveStatus(pState, pKey) {
   const gleve = isGleve(pState) && !pState.isDead;
   const dash = gleve && isDashActive(pState);
   if (dash) createAfterimage(pState);
 
   if (gleve && isSweepActive(pState)) {
-    // Strahl bis zum naechsten Snapshot weiterdrehen
+    // Keep turning the beam until the next snapshot
     pState.gleveSweepAngle += ((pState.gleveSweepDirection || 1) * sweepArc(pState)) / SWEEP_FRAMES;
     pState.gleveSweepTimer--;
     if (pState.gleveSweepTimer <= 0) {
@@ -498,12 +498,12 @@ export function showGleveStatus(pState, pKey) {
 // --- LASER-SWEEP ---
 
 export const SWEEP_FRAMES = 10;
-const SWEEP_REVERSAL_SPEED = 10; // zurueckgeworfene Geschosse fliegen mit vy 10 nach oben
+const SWEEP_REVERSAL_SPEED = 10; // thrown back projectiles fly upwards with vy 10
 const SWEEP_REVERSAL_DAMAGE = 15;
 export const SWEEP_PARRY_COLOR = '#e67e22';
 
-// Werte pro Stufe (laserStufe 1-5). Bogen in Grad, symmetrisch um die Senkrechte;
-// Takt = Frames von einem Sweep-Start bis zum naechsten, solange die Taste gehalten wird
+// Values per tier (laserTier 1-5). Arc in degrees, symmetric around the vertical;
+// cadence = frames from one sweep start to the next while the key is held
 const SWEEP_ARC = [90, 105, 120, 135, 150];
 const SWEEP_LENGTH = [100, 110, 120, 130, 140];
 const SWEEP_DAMAGE = [30, 35, 40, 45, 50];
@@ -534,12 +534,12 @@ export function isSweepActive(pState) {
   return (pState.gleveSweepTimer || 0) > 0;
 }
 
-// Ursprung des Strahls: Schiffsmitte oben
+// Origin of the beam: ship center top
 export function sweepOrigin(pState) {
   return { x: pState.x + config.playerSize / 2, y: pState.y + 5 };
 }
 
-// Box eines Ziels oder Geschosses (Bosse wie bei den anderen Waffen etwas verkleinert)
+// Box of a target or projectile (bosses slightly shrunk as with the other weapons)
 function targetBox(z) {
   const g = z.size || 20;
   const w = z.width || g;
@@ -548,7 +548,7 @@ function targetBox(z) {
   return { x1: z.x + pad, y1: z.y + pad, x2: z.x + w - pad, y2: z.y + h - pad };
 }
 
-// Liegt der Punkt im Kreissektor [winkelA, winkelB] (Grad, 0 = oben) bis zur Laenge?
+// Does the point lie in the circular sector [angleA, angleB] (degrees, 0 = top) up to the length?
 function inSector(o, px, py, angleA, angleB, length) {
   const dx = px - o.x;
   const dy = py - o.y;
@@ -559,7 +559,7 @@ function inSector(o, px, py, angleA, angleB, length) {
   return phi >= Math.min(angleA, angleB) - 0.001 && phi <= Math.max(angleA, angleB) + 0.001;
 }
 
-// Schneidet die Strahl-Strecke (Ursprung, Winkel, Laenge) die Box? (Slab-Verfahren)
+// Does the beam segment (origin, angle, length) intersect the box? (slab method)
 function beamHitsBox(o, angle, length, b) {
   const rad = (angle * Math.PI) / 180;
   const dx = Math.sin(rad) * length;
@@ -584,23 +584,23 @@ function beamHitsBox(o, angle, length, b) {
   return true;
 }
 
-// Wird die Box in diesem Frame vom Strahl ueberstrichen (Teilsektor winkelA -> winkelB)?
+// Is the box swept by the beam in this frame (partial sector angleA -> angleB)?
 function inSweep(o, b, angleA, angleB, length) {
-  // Naechster Punkt der Box zum Ursprung und Mittelpunkt
+  // Nearest point of the box to the origin, and center
   const nx = Math.max(b.x1, Math.min(o.x, b.x2));
   const ny = Math.max(b.y1, Math.min(o.y, b.y2));
   if (inSector(o, nx, ny, angleA, angleB, length)) return true;
   if (inSector(o, (b.x1 + b.x2) / 2, (b.y1 + b.y2) / 2, angleA, angleB, length)) return true;
-  // Breite Ziele, deren naechster Punkt ausserhalb des Bogens liegt, aber vom Strahl geschnitten werden
+  // Wide targets whose nearest point lies outside the arc but are intersected by the beam
   return beamHitsBox(o, angleA, length, b) || beamHitsBox(o, angleB, length, b);
 }
 
 function canSweepen(pState) {
   if (pState.isDead || isSweepActive(pState)) return false;
-  return !Hack.hasHack(pState, 'weaponOffline');
+  return !Hack.hasHack(pState, 'weaponsOffline');
 }
 
-// Startet einen Sweep (Kosten und Takt regelt steuereSweep). Liefert true, wenn der Sweep gestartet wurde.
+// Starts a sweep (controlSweep handles cost and cadence). Returns true if the sweep was started.
 export function startSweep(pState, pKey) {
   if (!canSweepen(pState)) return false;
   pState.gleveSweepDirection = (pState.gleveSweepDirection || -1) > 0 ? -1 : 1;
@@ -611,9 +611,9 @@ export function startSweep(pState, pKey) {
   return true;
 }
 
-// Pro Simulationsschritt aus player.js (Energie-Phase): Takt herunterzaehlen und, solange die Laser-Taste
-// gehalten wird, im Takt pendelnde Sweeps starten (Kosten beim Start, Superwaffe kostenlos).
-// Liefert true, wenn in diesem Schritt ein Sweep gestartet wurde.
+// Per simulation step from player.js (energy phase): count the cadence down and, while the laser key
+// is held, start sweeps swinging on the cadence (cost at the start, superweapon free).
+// Returns true if a sweep was started in this step.
 export function controlSweep(pState, pKey, held) {
   if ((pState.gleveSweepCadence || 0) > 0) pState.gleveSweepCadence--;
   if (!held || (pState.gleveSweepCadence || 0) > 0) return false;
@@ -624,13 +624,13 @@ export function controlSweep(pState, pKey, held) {
   return true;
 }
 
-// Sweep abbrechen (Tod, Neustart): die Anzeige blendet die Klinge ueber den Timer aus
+// Abort the sweep (death, restart): the display hides the blade via the timer
 export function endSweep(pState, pKey) {
   pState.gleveSweepTimer = 0;
   pState.gleveSweepHit = [];
 }
 
-// Schaden fuer alle in diesem Frame ueberstrichenen Ziele (je einmal pro Sweep)
+// Damage for all targets swept in this frame (each once per sweep)
 function sweepHit(pState, pKey, o, angleA, angleB, length) {
   const damage = sweepDamage(pState);
   const hit = pState.gleveSweepHit || (pState.gleveSweepHit = []);
@@ -642,7 +642,7 @@ function sweepHit(pState, pKey, o, angleA, angleB, length) {
     ...arrays.bossBombArray,
   ];
   for (const z of targets) {
-    // Magma bleibt unversehrt
+    // Magma stays intact
     if (z.isIndestructible || hit.includes(z) || (z.immune || 0) > 0) continue;
     if (!inSweep(o, targetBox(z), angleA, angleB, length)) continue;
     hit.push(z);
@@ -651,14 +651,14 @@ function sweepHit(pState, pKey, o, angleA, angleB, length) {
   }
 }
 
-// Sweep-Kills an Feindschiffen geben Energie zurueck (Bosse ausgenommen), damit der Sweep im Kampf weiterlaeuft
+// Sweep kills on enemy ships return energy (bosses excluded), so the sweep keeps running in a fight
 function rewardSweepKill(pState, z) {
   if (!z.isEnemy || z.isBoss) return;
   const bonus = (shipModels.gleve && shipModels.gleve.sweepKillEnergy) || 0;
   pState.energy = Math.min(pState.maxEnergy, (pState.energy || 0) + bonus);
 }
 
-// Parade: Feind-, Hack- und Boss-Geschosse, die der Strahl beruehrt, werden weggeschleudert oder zurueckgeworfen
+// Parry: enemy, hack and boss projectiles touched by the beam are flung away or thrown back
 function sweepParry(pState, pKey, o, angleA, angleB, length) {
   const tier = pState.laserTier || 1;
   const listen = [arrays.enemyLaserArray, arrays.hackProjectileArray, arrays.bossLaserArray];
@@ -678,27 +678,27 @@ function sweepParry(pState, pKey, o, angleA, angleB, length) {
   }
 }
 
-// Seitlich weg von der Schiffsmitte, harmlos (opponents.js / boss.js pruefen `harmlos`), verlaesst das Feld
+// Sideways away from the ship center, harmless (opponents.js / boss.js check `harmless`), leaves the field
 function flingAway(p, o) {
   const b = targetBox(p);
   let side = Math.sign((b.x1 + b.x2) / 2 - o.x);
   if (side === 0) side = Math.random() < 0.5 ? -1 : 1;
   p.harmless = true;
-  p.steerTime = 0; // Hack-Projektile lenken nicht mehr nach
+  p.steerTime = 0; // Hack projectiles no longer steer
   p.vx = side * 9;
   p.vy = -1.5;
   showParried(p, p.vx, p.vy);
 }
 
-// Weggeschleudertes Geschoss (auch beim Online-Client aus dem harmlos-Flag): in Flugrichtung drehen.
-// Die Anzeige faerbt Geschosse mit harmlos orange.
+// Flung projectile (also on the online client from the harmless flag): rotate in the flight direction.
+// The display tints projectiles with harmless orange.
 export function showParried(p, vx, vy) {
   if (Number.isFinite(vx) && Number.isFinite(vy) && (vx || vy)) {
     p.rot = (Math.atan2(vy, vx) * 180) / Math.PI - 90;
   }
 }
 
-// Zurueckgeworfen: wird zum Spieler-Projektil in arrays.laserArray (Bewegung y -= vy)
+// Thrown back: becomes a player projectile in arrays.laserArray (movement y -= vy)
 function throwBack(p, pKey) {
   Display.remove(p);
   arrays.laserArray.push(
@@ -722,7 +722,7 @@ function throwBack(p, pKey) {
   );
 }
 
-// Pro Simulationsschritt fuer eine Gleve aufrufen (aus weapons.js; gestartet wird in steuereSweep)
+// Call once per simulation step for a Gleve (from weapons.js; starting happens in controlSweep)
 export function updateSweep(pState, pKey) {
   if (pState.isDead) {
     if (isSweepActive(pState)) endSweep(pState, pKey);
@@ -750,15 +750,15 @@ export function updateSweep(pState, pKey) {
 }
 
 // --- KLINGENWELLE ---
-// Am Ende jedes Sweeps fliegt eine Sichel nach oben und trifft Ziele jenseits der Sweep-Reichweite.
+// At the end of every sweep a crescent flies upwards and hits targets beyond the sweep range.
 
-export const WAVE_SPEED = 8; // px pro Schritt nach oben
+export const WAVE_SPEED = 8; // px per step upwards
 export const WAVE_STEPS = 15; // Lebensdauer: 15 * 8 = 120 px
 export const WAVE_MIN_WIDTH = 50;
 export const WAVE_HEIGHT = 14;
 const WAVE_DAMAGE_SHARE = 0.5;
 
-// Sehne des Sweep-Bogens auf halber Laenge, mind. WELLE_MIN_BREITE
+// Chord of the sweep arc at half length, at least WAVE_MIN_WIDTH
 export function waveWidth(pState) {
   const chord = sweepLength(pState) * Math.sin(((sweepArc(pState) / 2) * Math.PI) / 180);
   return Math.round(Math.max(WAVE_MIN_WIDTH, chord));
@@ -782,12 +782,12 @@ function startWave(pState, pKey, o, length) {
   arrays.gleveWaves.push(Display.create(w, 'gleveWave'));
 }
 
-// Glow-Farbe einer Klingenwelle (Schiffsfarbe des Besitzers, auch fuer den Online-Client)
+// Glow color of a blade wave (the owner's ship color, also for the online client)
 export function waveColor(pKey) {
   return shipColor(pKey === 'p2' ? state.p2 : state);
 }
 
-// Pro Simulationsschritt (Host/lokal, aus weapons.js): Wellen bewegen, Ziele einmal treffen, am Ende entfernen.
+// Per simulation step (host/local, from weapons.js): move waves, hit targets once, remove at the end.
 export function updateWaves() {
   for (let i = arrays.gleveWaves.length - 1; i >= 0; i--) {
     const w = arrays.gleveWaves[i];
@@ -817,16 +817,16 @@ export function updateWaves() {
   }
 }
 
-// --- EFFEKTE ---
+// --- EFFECTS ---
 
-// Kurz verblassende Faecher-Spur ueber den ganzen Bogen (Kreissektor ueber dem Ursprung)
+// Briefly fading fan trail over the whole arc (circular sector above the origin)
 function createFanTrail(pState) {
   const o = sweepOrigin(pState);
   const length = sweepLength(pState);
   const color = shipColor(pState);
   const arc = sweepArc(pState);
   createParticles({
-    sort: 'gleveFaecher',
+    sort: 'gleveFan',
     color,
     length,
     arc,
@@ -854,7 +854,7 @@ function createStartFlash(pState) {
   Utils.createExplosion(cx, cy, '#ffffff', 6);
 }
 
-// Nachbild in Schiffsfarbe plus Streifen-Partikel entlang der Strecke
+// Afterimage in the ship color plus streak particles along the path
 function createAfterimage(pState) {
   const color = shipColor(pState);
   createParticles({ sort: 'gleveAfterimage', color, x: pState.x, y: pState.y, vx: 0, vy: 0, lives: 0.7, decay: 0.08 });
@@ -872,7 +872,7 @@ function createAfterimage(pState) {
   }
 }
 
-// Funken und Schnitt-Effekt am getroffenen Ziel
+// Sparks and cut effect at the hit target
 function createSparks(pState, z) {
   const g = z.size || 20;
   const cx = z.x + (z.width || g) / 2;

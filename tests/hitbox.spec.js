@@ -13,8 +13,10 @@ test.beforeEach(async ({ page }) => {
   await page.goto('/');
 });
 
-// Tester-Feedback: Treffer durch Asteroiden/Feinde mit sichtbarem Abstand. Die alte Bounding-Box zaehlte leere Ecken mit.
-test('Koerperkollision: diagonal Ecke an Ecke ist kein Treffer mehr, mittig ueberlappend schon', async ({ page }) => {
+// Tester feedback: hits from asteroids/enemies at a visible distance. The old bounding box counted empty corners.
+test('Body collision: corner to corner diagonally is no longer a hit, overlapping in the middle still is', async ({
+  page,
+}) => {
   const r = await page.evaluate(async () => {
     const { config } = await import('./js/state.js');
     const Utils = await import('./js/utils.js');
@@ -24,11 +26,11 @@ test('Koerperkollision: diagonal Ecke an Ecke ist kein Treffer mehr, mittig uebe
     const A = Utils.ASTEROID_HIT_RADIUS;
     const F = Utils.ENEMY_HIT_RADIUS;
     return {
-      // 45er-Asteroid oben links, Boxen ueberlappen um 8 px je Achse (frueher Treffer)
+      // 45px asteroid top left, boxes overlap by 8 px per axis (used to be a hit)
       asteroidCorner: check({ x: player.x - 45 + 8, y: player.y - 45 + 8, size: 45 }, A),
-      // Feind schraeg oben rechts, Boxen ueberlappen um 6 px je Achse (frueher Treffer)
+      // Enemy diagonally top right, boxes overlap by 6 px per axis (used to be a hit)
       enemyCorner: check({ x: player.x + s - 6, y: player.y - 30 + 6, size: 30 }, F),
-      // Frontal: Asteroid direkt ueber dem Schiff, 10 px Ueberlappung
+      // Head-on: asteroid directly above the ship, 10 px overlap
       asteroidFrontal: check({ x: player.x - 7, y: player.y - 45 + 10, size: 45 }, A),
       // Deckungsgleich
       enemyMiddle: check({ x: player.x, y: player.y, size: 30 }, F),
@@ -43,16 +45,16 @@ test('Koerperkollision: diagonal Ecke an Ecke ist kein Treffer mehr, mittig uebe
   expect(r.farGone).toBe(false);
 });
 
-// Grenzfaelle: Trefferradius in Pixeln festgehalten (Schiff 30 px, Asteroid 45 px: 10,8 + 18,9 = 29,7 px;
-// Feind 30 px: 10,8 + 12 = 22,8 px). 0,5 px innerhalb = Treffer, 0,5 px ausserhalb = keiner, auch diagonal.
-test('Koerperkollision: Trefferradius stimmt auf 0,5 px (gerade und diagonal)', async ({ page }) => {
+// Edge cases: hit radius pinned in pixels (ship 30 px, asteroid 45 px: 10.8 + 18.9 = 29.7 px;
+// enemy 30 px: 10.8 + 12 = 22.8 px). 0.5 px inside = hit, 0.5 px outside = none, also diagonally.
+test('Body collision: hit radius is exact to 0.5 px (straight and diagonal)', async ({ page }) => {
   const r = await page.evaluate(async () => {
     const { config } = await import('./js/state.js');
     const Utils = await import('./js/utils.js');
     const s = config.playerSize;
     const player = { x: 100, y: 300 };
     const middle = { x: player.x + s / 2, y: player.y + s / 2 };
-    // Objekt der Groesse g mit Mittelpunktabstand d in Richtung winkel
+    // Object of size g with center distance d in direction angle
     const hits = (g, share, d, angle) =>
       Utils.bodyHitsPlayer(
         player,
@@ -65,7 +67,7 @@ test('Koerperkollision: Trefferradius stimmt auf 0,5 px (gerade und diagonal)', 
       ['enemy', 30, Utils.ENEMY_HIT_RADIUS, 22.8],
     ]) {
       for (const [direction, angle] of [
-        ['gerade', 0],
+        ['straight', 0],
         ['diagonal', Math.PI / 4],
       ]) {
         cases[`${name} ${direction} innen`] = hits(g, share, radius - 0.5, angle);

@@ -1,7 +1,7 @@
 const { test, expect } = require('@playwright/test');
 const { setGameState, installClock, pauseClock } = require('./helpers');
 
-// Netzkodierung im Online-Modus: Delta-Snapshots, Keyframes, Eingaben und Protokollversion
+// Net encoding in online mode: delta snapshots, keyframes, inputs and protocol version
 
 test.beforeEach(async ({ page }) => {
   await page.route('**/api/highscores*', route =>
@@ -32,7 +32,7 @@ const LISTEN_ARRAYS = [
   'bossBombArray',
 ];
 
-// Host-Spiel im Online-Modus herstellen (ohne echte Verbindung)
+// Set up a host game in online mode (without a real connection)
 async function asHost(page) {
   await page.evaluate(LISTEN_ARRAYS => {
     const { state, arrays, Utils } = window.__game;
@@ -55,12 +55,12 @@ async function asHost(page) {
   }, LISTEN_ARRAYS);
 }
 
-test('Carry-over: Splitter-Zaehler und Phantom-Schildladung kommen beim Online-Client an', async ({ page }) => {
+test('Carry-over: splitter counters and Phantom shield charge reach the online client', async ({ page }) => {
   await asHost(page);
   const r = await page.evaluate(() => {
     const g = window.__game;
     const { state } = g;
-    // Host-Zustand
+    // Host state
     state.selectedShipModel = 'viper';
     state.p2.selectedShipModel = 'phantom';
     state.splitterRed = 3;
@@ -72,7 +72,7 @@ test('Carry-over: Splitter-Zaehler und Phantom-Schildladung kommen beim Online-C
     state.p2.phantomShieldRegenMax = 900;
     const snapshot = JSON.parse(JSON.stringify(g.Network.serializeGameState()));
 
-    // Client-Zustand vor dem Snapshot
+    // Client state before the snapshot
     state.splitterRed = 0;
     state.splitterWhite = 0;
     state.p2.splitterRed = 0;
@@ -93,7 +93,7 @@ test('Carry-over: Splitter-Zaehler und Phantom-Schildladung kommen beim Online-C
   expect(r).toEqual({ p1: [3, 7], p2: [2, 5], regen: 450, hudRot: '3', hudWhite: '7', chargingIcon: true });
 });
 
-test('Carry-over: Host sendet auch waehrend der Boss-Warnung Snapshots', async ({ page }) => {
+test('Carry-over: the host sends snapshots during the boss warning as well', async ({ page }) => {
   await asHost(page);
   const r = await page.evaluate(async () => {
     const g = window.__game;
@@ -116,8 +116,8 @@ test('Carry-over: Host sendet auch waehrend der Boss-Warnung Snapshots', async (
   expect(r.during).toBeGreaterThanOrEqual(55);
 });
 
-// Echtes Host-Spiel (Coop mit Bot, Level 6, alle Waffen, Boss-Kampf) ueber simulationsSchritt laufen
-// lassen und jeden 2. Schritt kodieren und dekodieren. verlust: Laufnummern, die nicht ankommen.
+// Run a real host game (co-op with bot, level 6, all weapons, boss fight) via simulationStep
+// and encode and decode every 2nd step. loss: sequence numbers that do not arrive.
 async function runScenario(page, { steps, loss }) {
   return page.evaluate(
     async ({ steps, loss }) => {
@@ -137,7 +137,7 @@ async function runScenario(page, { steps, loss }) {
       state.p2.laserTier = 4;
       state.p2.missileTier = 3;
       state.p2.bombTier = 2;
-      state.frameCounter = 3400; // Boss-Warnung nach 200 Schritten, danach Boss-Kampf
+      state.frameCounter = 3400; // Boss warning after 200 steps, then the boss fight
 
       const encoder = new NK.SnapshotEncoder();
       const decoder = new NK.SnapshotDecoder();
@@ -154,7 +154,7 @@ async function runScenario(page, { steps, loss }) {
         bossSteps: 0,
       };
 
-      // x/y in Listen duerfen per Dead Reckoning bis 0,5 px abweichen, alles andere exakt
+      // x/y in lists may deviate by up to 0.5 px via dead reckoning, everything else exactly
       function compare(should, is, filePath, inList) {
         if (error.length > 20) return;
         if (typeof should === 'number' && typeof is === 'number' && inList && /\.(x|y)$/.test(filePath)) {
@@ -186,7 +186,7 @@ async function runScenario(page, { steps, loss }) {
         keys.d = !keys.a;
         if (i % 45 === 0) g.Entities.createEnemy(80 + ((i * 7) % 400), 20, i % 90 === 0 ? 'hacker' : 'normal');
         if (i % 30 === 0) g.Entities.createAsteroid();
-        if (i % 70 === 0) g.Entities.createPowerup(state.x, state.y, 'energy', 'p2'); // wird von P1 geschleppt
+        if (i % 70 === 0) g.Entities.createPowerup(state.x, state.y, 'energy', 'p2'); // towed by P1
         if (i % 110 === 0) g.Entities.createPowerup(200, 40);
         if (i % 60 === 0) {
           g.Entities.createBossMissile(150 + (i % 300), 120, 1);
@@ -249,9 +249,7 @@ async function runScenario(page, { steps, loss }) {
   );
 }
 
-test('Netzkodierung: Rekonstruktion entspricht dem gerundeten vollen Snapshot (600 Schritte, Boss-Kampf)', async ({
-  page,
-}) => {
+test('Net encoding: the reconstruction matches the rounded full snapshot (600 steps, boss fight)', async ({ page }) => {
   const r = await runScenario(page, { steps: 600 });
   console.log(
     `Snapshot voll: Schnitt ${r.fullCut} B, max ${r.fullMax} B | kodiert: Schnitt ${r.packetCut} B, max ${r.packetMax} B | ` +
@@ -261,7 +259,7 @@ test('Netzkodierung: Rekonstruktion entspricht dem gerundeten vollen Snapshot (6
   expect(r.error).toEqual([]);
   expect(r.applied).toBe(300);
   expect(r.keyframes).toBe(10);
-  // Szenario deckt die wichtigen Listen ab
+  // The scenario covers the important lists
   expect(r.bossSteps).toBeGreaterThan(100);
   expect(r.towed).toBeGreaterThan(0);
   for (const list of [
@@ -280,22 +278,22 @@ test('Netzkodierung: Rekonstruktion entspricht dem gerundeten vollen Snapshot (6
   ]) {
     expect(r.maxListen[list], list).toBeGreaterThan(0);
   }
-  // Groessen-Waechter: kodiert hoechstens 35 % des vollen Snapshots
+  // Size guard: encodes at most 35 % of the full snapshot
   expect(r.packetCut).toBeLessThanOrEqual(r.fullCut * 0.35);
 });
 
-test('Netzkodierung: nach Paketverlust wartet der Client auf den naechsten Keyframe und ist dann wieder exakt', async ({
+test('Net encoding: after packet loss the client waits for the next keyframe and is exact again afterwards', async ({
   page,
 }) => {
   const r = await runScenario(page, { steps: 300, loss: [5, 40, 41, 75, 89] });
   expect(r.error).toEqual([]);
-  // Verlust bei 5 -> 6..30 verworfen, 31 Keyframe; 40/41 -> 42..60; 75 -> 76..90 (89 verloren) -> 91 Keyframe
+  // Loss at 5 -> 6..30 dropped, 31 keyframe; 40/41 -> 42..60; 75 -> 76..90 (89 lost) -> 91 keyframe
   expect(r.keyframes).toBe(5);
   expect(r.nullAfterLoss).toBe(25 + 19 + 14);
   expect(r.applied).toBe(150 - 5 - 25 - 19 - 14);
 });
 
-test('Netzkodierung: Ids, Rundung und Dead Reckoning im Detail', async ({ page }) => {
+test('Net encoding: ids, rounding and dead reckoning in detail', async ({ page }) => {
   const r = await page.evaluate(async () => {
     const NK = await import('./js/net-encoding.js');
     const empty = {
@@ -327,7 +325,7 @@ test('Netzkodierung: Ids, Rundung und Dead Reckoning im Detail', async ({ page }
       return { p, r: d.decode(JSON.parse(JSON.stringify(p))) };
     };
 
-    // Ohne Keyframe nimmt der Dekodierer keine Deltas an
+    // Without a keyframe the decoder accepts no deltas
     const foreign = new NK.SnapshotEncoder();
     foreign.encode(snap([]), 0);
     out.withoutKeyframe = new NK.SnapshotDecoder().decode(JSON.parse(JSON.stringify(foreign.encode(snap([]), 2))));
@@ -344,7 +342,7 @@ test('Netzkodierung: Ids, Rundung und Dead Reckoning im Detail', async ({ page }
     out.idCodes = a.p.l.laser.i;
     out.x = a.r.laser[0].x;
     out.p1x = a.r.p1.x;
-    // 4 Schritte spaeter genau auf der vorhergesagten Bahn (Spielerlaser: y -= vy): kein x/y im Paket
+    // 4 steps later exactly on the predicted path (player laser: y -= vy): no x/y in the packet
     const b = round(
       snap([
         { id: 'l_404', x: 108, y: 440.1, vx: 2, vy: 15, owner: 'p2', color: 'x' },
@@ -354,7 +352,7 @@ test('Netzkodierung: Ids, Rundung und Dead Reckoning im Detail', async ({ page }
     );
     out.deltaB = b.p.l && b.p.l.laser;
     out.reconB = b.r.laser.map(l => [l.x, l.y]);
-    // Abgelenkt (vx geaendert, Position weicht ab): x wird gesendet
+    // Deflected (vx changed, position deviates): x is sent
     const c = round(
       snap([{ id: 'l_404', x: 100, y: 410.1, vx: -3, vy: 15, owner: 'p2', color: 'x' }], { bossWarningActive: true }),
       6,
@@ -363,7 +361,7 @@ test('Netzkodierung: Ids, Rundung und Dead Reckoning im Detail', async ({ page }
     out.topC = c.p.o;
     out.reconC = c.r.laser;
     out.warningC = c.r.bossWarningActive;
-    // Optionales Feld verschwindet wieder
+    // Optional field disappears again
     const e = round(snap([], {}), 8);
     out.topE = e.p.o;
     out.warningE = 'bossWarningActive' in e.r;
@@ -376,7 +374,7 @@ test('Netzkodierung: Ids, Rundung und Dead Reckoning im Detail', async ({ page }
   expect(r.x).toBe(100);
   expect(r.p1x).toBe(1.3);
   expect(r.deltaB).toBeUndefined();
-  // sonder_7 weicht 0,2 px ab und bleibt auf der Vorhersage
+  // sonder_7 deviates by 0.2 px and stays on the prediction
   expect(r.reconB).toEqual([
     [108, 440.1],
     [5, 440.1],
@@ -389,12 +387,12 @@ test('Netzkodierung: Ids, Rundung und Dead Reckoning im Detail', async ({ page }
   expect(r.warningE).toBe(false);
 });
 
-// Client-Modus herstellen (ohne echte Verbindung)
+// Set up client mode (without a real connection)
 async function asClient(page) {
   await page.evaluate(LISTEN_ARRAYS => {
     const { state, arrays, Utils } = window.__game;
     Utils.setGameMode('online');
-    Utils.applyPlayfieldWidth('online'); // Spielstart: erst jetzt gilt die Online-Breite (600 px)
+    Utils.applyPlayfieldWidth('online'); // Game start: only now does the online width (600 px) apply
     state.gameRunning = true;
     state.paused = false;
     state.cutsceneActive = false;
@@ -436,7 +434,7 @@ async function asClient(page) {
   }, LISTEN_ARRAYS);
 }
 
-test('Eingaben: gehaltene Raketen- und Bombentaste feuern auf dem Host genau wie bisher', async ({ page }) => {
+test('Inputs: held missile and bomb keys fire on the host exactly as before', async ({ page }) => {
   await asHost(page);
   const r = await page.evaluate(async () => {
     const g = window.__game;
@@ -444,7 +442,7 @@ test('Eingaben: gehaltene Raketen- und Bombentaste feuern auf dem Host genau wie
     const NK = await import('./js/net-encoding.js');
     const { simulationStep } = await import('./js/loop.js');
     state.godMode = true;
-    // Lange halten, loslassen, kurz tippen (1 Schritt), erneut halten
+    // Hold long, release, tap briefly (1 step), hold again
     const pattern = i => ({
       missile: (i >= 10 && i < 400) || i === 470 || (i >= 520 && i < 560),
       bomb: (i >= 5 && i < 120) || i === 300 || (i >= 400 && i < 410),
@@ -484,7 +482,7 @@ test('Eingaben: gehaltene Raketen- und Bombentaste feuern auf dem Host genau wie
             g.Network.receiveInputPacket(JSON.parse(JSON.stringify(p)));
           }
         } else {
-          // Bisher: jedes Client-Bild ein volles Paket
+          // Before: a full packet every client frame
           packets++;
           g.Network.applyPlayerInput(input);
         }
@@ -494,7 +492,7 @@ test('Eingaben: gehaltene Raketen- und Bombentaste feuern auf dem Host genau wie
         simulationStep();
         if (state.p2.missileCooldown > rcd) missiles++;
         if (state.p2.bombCooldown > bcd) bombs++;
-        // Kurze Bomben-Abklingzeit, damit Halten mehrfach zaehlt (in beiden Laeufen gleich)
+        // Short bomb cooldown so holding counts several times (the same in both runs)
         if (state.p2.bombCooldown > 50) state.p2.bombCooldown = 50;
         arrays.asteroids.forEach(o => o.el && o.el.remove());
         arrays.asteroids.length = 0;
@@ -506,7 +504,7 @@ test('Eingaben: gehaltene Raketen- und Bombentaste feuern auf dem Host genau wie
     return { old: run(false), fresh: run(true), online: state.network.isOnline };
   });
   console.log(
-    `Eingabe-Pakete in 700 Schritten: bisher ${r.old.packets}, neu ${r.fresh.packets} | Raketen ${r.old.missiles}/${r.fresh.missiles}, Bomben ${r.old.bombs}/${r.fresh.bombs}`,
+    `input packets in 700 steps: before ${r.old.packets}, now ${r.fresh.packets} | missiles ${r.old.missiles}/${r.fresh.missiles}, bombs ${r.old.bombs}/${r.fresh.bombs}`,
   );
   expect(r.online).toBe(true);
   expect(r.old.missiles).toBeGreaterThanOrEqual(4);
@@ -516,7 +514,7 @@ test('Eingaben: gehaltene Raketen- und Bombentaste feuern auf dem Host genau wie
   expect(r.fresh.packets).toBeLessThan(r.old.packets / 10);
 });
 
-test('Eingaben: Client sendet nur bei Tastenwechsel sofort, Bewegung jeden 2. Schritt, sonst Heartbeat', async ({
+test('Inputs: the client sends immediately only on a key change, movement every 2nd step, otherwise a heartbeat', async ({
   page,
 }) => {
   await asClient(page);
@@ -564,7 +562,7 @@ test('Eingaben: Client sendet nur bei Tastenwechsel sofort, Bewegung jeden 2. Sc
   });
 });
 
-test('Client wendet kodierte Pakete an und fordert nach einer Luecke einen Keyframe an', async ({ page }) => {
+test('Client applies encoded packets and requests a keyframe after a gap', async ({ page }) => {
   await asClient(page);
   const r = await page.evaluate(async () => {
     const g = window.__game;
@@ -578,7 +576,7 @@ test('Client wendet kodierte Pakete an und fordert nach einer Luecke einen Keyfr
       hp,
       maxHp: 30,
       size: 30,
-      typ: 1,
+      type: 1,
       pattern: 'normal',
       hasShield: false,
       shieldHp: 0,
@@ -590,7 +588,7 @@ test('Client wendet kodierte Pakete an und fordert nach einer Luecke einen Keyfr
     g.Network.receiveSnapshotPacket(send(window.__snapshot({ enemies: [enemy(103.33, 20)], score: 20 }), 2));
     out.afterDelta = [arrays.enemies[0].x, arrays.enemies[0].hp, state.score];
     state.network.lastSentEvent = null;
-    send(window.__snapshot({ enemies: [enemy(106, 20)], score: 30 }), 4); // geht verloren
+    send(window.__snapshot({ enemies: [enemy(106, 20)], score: 30 }), 4); // gets lost
     g.Network.receiveSnapshotPacket(send(window.__snapshot({ enemies: [enemy(109, 20)], score: 40 }), 6));
     out.afterGap = [arrays.enemies[0].x, state.score];
     out.request = state.network.lastSentEvent && state.network.lastSentEvent.type;
@@ -604,15 +602,13 @@ test('Client wendet kodierte Pakete an und fordert nach einer Luecke einen Keyfr
     afterKeyframe: [1, 100, 10],
     afterDelta: [103.3, 20, 20],
     afterGap: [103.3, 20],
-    request: 'keyframe_anfordern',
+    request: 'keyframe_request',
     afterNewKeyframe: [0, 50],
     online: true,
   });
 });
 
-test('Protokoll: passende Version wird akzeptiert, andere Version beendet die Sitzung mit Hinweis', async ({
-  page,
-}) => {
+test('Protocol: a matching version is accepted, another version ends the session with a hint', async ({ page }) => {
   await asHost(page);
   const r = await page.evaluate(async () => {
     const g = window.__game;
@@ -645,7 +641,7 @@ test('Protokoll: passende Version wird akzeptiert, andere Version beendet die Si
   });
 });
 
-test('Protokoll: Client verwirft alte Snapshots und Host alte Eingaben (Sitzung endet mit Hinweis)', async ({
+test('Protocol: the client drops old snapshots and the host old inputs (session ends with a hint)', async ({
   page,
 }) => {
   await asClient(page);
@@ -681,11 +677,11 @@ test('Protokoll: Client verwirft alte Snapshots und Host alte Eingaben (Sitzung 
   });
 });
 
-test('Protokoll: ohne hallo vom Mitspieler endet die Sitzung nach dem Timeout', async ({ page }) => {
+test('Protocol: without hello from the teammate the session ends after the timeout', async ({ page }) => {
   await installClock(page);
   await page.reload();
   await page.waitForFunction(() => window.__game && window.__game.state);
-  // Uhr anhalten: der hallo-Timeout (setTimeout) feuert nur per fastForward, ohne Frame-fuer-Frame-Simulation
+  // Pause the clock: the hello timeout (setTimeout) only fires via fastForward, without frame-by-frame simulation
   await pauseClock(page);
   await page.evaluate(() => {
     const g = window.__game;
@@ -700,7 +696,7 @@ test('Protokoll: ohne hallo vom Mitspieler endet die Sitzung nach dem Timeout', 
       online: window.__game.state.network.isOnline,
       text: document.getElementById('online-status').textContent,
     }));
-  // Kurz vor HALLO_TIMEOUT_MS (10 s) laeuft die Sitzung noch
+  // Shortly before HELLO_TIMEOUT_MS (10 s) the session is still running
   await page.clock.fastForward(10000 - 100);
   expect((await status()).online).toBe(true);
   await page.clock.fastForward(200);

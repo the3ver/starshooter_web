@@ -13,17 +13,17 @@ import * as Shockwave from './shockwave.js';
 import * as IslandBoss from './island-boss.js';
 import * as Level from './level.js';
 import { getShipSvgContent } from './display-dom-objects.js';
-// Schiffs-SVG fuer Hangar und Cutszene (gleiche Vorlage wie im Spiel)
+// Ship SVG for hangar and cutscene (same template as in the game)
 export { getShipSvgContent };
 import { createParticles } from './particles.js';
 import { createEffect, removeEffects } from './effects.js';
 
-// faktor: Punkte-Multiplikator (Viper-Kombo), Ergebnis gerundet
+// factor: points multiplier (Viper combo), result rounded
 export function addScore(points, factor = 1) {
   state.score += Math.round(points * factor);
   dom.scoreDisplay.innerText = state.score.toString().padStart(5, '0');
 }
-// Setzt HTML und entfernt verlorene Symbole (.pu-anim-lost) nach der Animation
+// Sets HTML and removes lost symbols (.pu-anim-lost) after the animation
 function showWithLossAnimation(container, html, lostHtml) {
   container.innerHTML = html + lostHtml;
 
@@ -35,10 +35,10 @@ function showWithLossAnimation(container, html, lostHtml) {
   }
 }
 
-// Herzen für einen Spieler; stilAttr hängt am span (P2: eigene Farbe)
+// Hearts for one player; styleAttr hangs on the span (P2: own color)
 function drawLives(lives, prevValue, container, styleAttr) {
-  // Unveränderte Lebenszahl, Herzen schon im DOM und keine Animationsreste: nichts neu aufbauen
-  // (der Online-Client ruft das pro Snapshot auf). Reste (pu-anim-new/-lost) räumt genau ein Neuaufbau weg.
+  // Unchanged number of lives, hearts already in the DOM and no animation leftovers: rebuild nothing
+  // (the online client calls this per snapshot). Leftovers (pu-anim-new/-lost) are cleared by exactly one rebuild.
   if (
     lives === prevValue &&
     container.querySelectorAll('.leben-herz').length === lives &&
@@ -80,8 +80,8 @@ export function updateLevelUI() {
 export function updateMaxEnergyMarker() {
   dom.maxEnergyMarker.style.left = (state.maxEnergy / state.absMaxEnergy) * 100 + '%';
 }
-// Powerup-Icons eines Spielers (s = state oder state.p2); prev merkt sich den
-// letzten Stand für Animationen und wird am Ende aktualisiert
+// Powerup icons of one player (s = state or state.p2); prev remembers the
+// last state for animations and is updated at the end
 function drawActivePowerups(s, prev, container) {
   let html = '';
   let lostHtml = '';
@@ -176,7 +176,7 @@ export function updateActivePowerupsP2Ui() {
   updateSplitterUI();
 }
 
-// Splitter-HUD eines Spielers ein-/ausblenden und Zähler setzen
+// Show/hide the splitter HUD of one player and set the counters
 function showSplitter(s, hud, rotEl, whiteEl, visible) {
   if (visible) {
     hud.style.display = 'flex';
@@ -209,7 +209,7 @@ export function updateP2UI() {
   updateActivePowerupsP2Ui();
   updateSplitterP2UI();
 }
-// Mehrteilige Bosse (bossId, z. B. Augen des Insel-Bosses) sind erst mit dem letzten Teil besiegt
+// Multi-part bosses (bossId, e.g. the eyes of the island boss) are defeated only with the last part
 function isLastBossPart(target) {
   return !target.bossId || !arrays.bosses.some(b => b !== target && b.bossId === target.bossId);
 }
@@ -231,7 +231,7 @@ function bossPartDestroyed(target, comboFactor) {
   }
 }
 
-// Boss besiegt: Explosion, Punkte, Coop-Wiederbelebung, Drops (Viper-Splitter), naechstes Level
+// Boss defeated: explosion, points, co-op revive, drops (Viper splitters), next level
 function defeatBoss(target, killer, comboFactor) {
   Audio.playExplosion('boss');
   addScore(1000 * state.level, comboFactor);
@@ -247,7 +247,7 @@ function defeatBoss(target, killer, comboFactor) {
     });
   }
 
-  // Co-op Revive bei Boss-Sieg
+  // Co-op revive on boss victory
   if (isCoopMode()) {
     if (state.isDead) {
       state.isDead = false;
@@ -269,11 +269,11 @@ function defeatBoss(target, killer, comboFactor) {
     }
   }
 
-  // 3 Belohnungen fallen lassen (1 Waffe + 2 zufällige verschiedene)
+  // Drop 3 rewards (1 weapon + 2 different random ones)
   const possibleDrops = ['lives', 'energy', 'pierce', 'shield'];
-  let drops = ['superWeapon']; // Super-Waffe ist immer garantiert beim Boss
+  let drops = ['superWeapon']; // The superweapon is always guaranteed from the boss
   let randomIndex = Math.floor(Math.random() * possibleDrops.length);
-  drops.push(possibleDrops.splice(randomIndex, 1)[0]); // Typ entfernen, damit er nicht doppelt kommt
+  drops.push(possibleDrops.splice(randomIndex, 1)[0]); // Remove the type so it does not come twice
   randomIndex = Math.floor(Math.random() * possibleDrops.length);
   drops.push(possibleDrops[randomIndex]);
 
@@ -281,7 +281,7 @@ function defeatBoss(target, killer, comboFactor) {
     Entities.createPowerup(target.x + i * 25, target.y, d);
   });
 
-  // 3 garantierte Splitter nur fallen lassen wenn ein Viper-Schiff beteiligt ist
+  // Drop 3 guaranteed splitters only if a Viper ship takes part
   const killerShipModel = killer === 'p2' ? state.p2 && state.p2.selectedShipModel : state.selectedShipModel;
   const partnerShipModel = killer === 'p2' ? state.selectedShipModel : state.p2 && state.p2.selectedShipModel;
   const shardTarget = isCoopMode()
@@ -308,7 +308,7 @@ function defeatBoss(target, killer, comboFactor) {
   state.level++;
   updateLevelUI();
   dom.bossHpContainer.style.display = 'none';
-  state.frameCounter = 0; // Setzt Level-Timer zurück
+  state.frameCounter = 0; // Resets the level timer
 }
 
 export function destroyTarget(target, killer = 'p1') {
@@ -317,11 +317,11 @@ export function destroyTarget(target, killer = 'p1') {
   let bIndex = arrays.bosses.indexOf(target);
   if (fIndex === -1 && aIndex === -1 && bIndex === -1) return;
 
-  // Viper-Kill-Kombo: Punkte dieses Kills zaehlen mit dem Faktor VOR dem Kill, danach waechst die Kombo
+  // Viper kill combo: points of this kill count with the factor BEFORE the kill, the combo grows afterwards
   const comboStatus = killer === 'p2' && state.p2 ? state.p2 : state;
   const comboFactor = Viper.comboFactor(comboStatus);
 
-  // Boss besiegt: Belohnungen und naechstes Level
+  // Boss defeated: rewards and next level
   if (target.isBoss) {
     if (isLastBossPart(target)) defeatBoss(target, killer, comboFactor);
     else bossPartDestroyed(target, comboFactor);
@@ -376,9 +376,9 @@ export function destroyTarget(target, killer = 'p1') {
       });
     }
     if (target.carriesPowerup) {
-      // Eierkapsel: Bonus (Schockwelle oder Zufall), sonst Zufall
-      const typ = target.powerupTyp === 'bonus' ? Shockwave.bonusType() : null;
-      Entities.createPowerup(target.x + target.size / 2 - 12, target.y + target.size / 2 - 12, typ);
+      // Egg capsule: bonus (shockwave or random), otherwise random
+      const type = target.powerupType === 'bonus' ? Shockwave.bonusType() : null;
+      Entities.createPowerup(target.x + target.size / 2 - 12, target.y + target.size / 2 - 12, type);
     } else if (!target.isEnemy && target.size >= 35) {
       let newSize = target.size * 0.6;
       Entities.createAsteroid(target.x, target.y, newSize, -3, target.vy, 15, true);
@@ -393,12 +393,12 @@ export function destroyTarget(target, killer = 'p1') {
   if (bIndex > -1) arrays.bosses.splice(bIndex, 1);
 }
 
-// Laufende Sweeps, Dashs und Klingenwellen beenden (die Anzeige leitet die Klinge aus dem Zustand ab).
-// Nach dem Game Over laeuft keine Simulation mehr, die sie selbst abraeumen wuerde.
+// End running sweeps, dashes and blade waves (the display derives the blade from the state).
+// After game over no simulation runs any more that would clear them itself.
 function removeGleveEffects() {
   Sniper.removeEffects();
   removeEffects();
-  // Laufende Dashs und Rollen enden mit dem Spiel (die Anzeige leitet die Schiffsklassen daraus ab)
+  // Running dashes and rolls end with the game (the display derives the ship classes from them)
   for (const s of [state, state.p2]) {
     if (!s) continue;
     s.gleveDashTimer = 0;
@@ -483,15 +483,15 @@ export function triggerGameOver(finalScoreFromHost = null) {
   updateMobileControlsVisibility();
 }
 
-// Gleve-Dash (+ Nachlauf/Abprall) und Viper-Rolle: Schiff ist nicht treffbar, Geschosse und Gegner fliegen durch
+// Gleve dash (+ trail/bounce) and Viper roll: the ship cannot be hit, projectiles and opponents fly through
 export function isDashInvulnerable(pState) {
   return !!pState && ((pState.gleveInvulnerable || 0) > 0 || (pState.viperRollTimer || 0) > 0);
 }
 
-// Koerperkollision Spieler gegen Asteroid/Feind: Kreis gegen Kreis statt Bounding-Box. Die Box zaehlte leere Ecken
-// (spitze Schiffsnase, runde Asteroiden mit 70-100 % Radius) mit, das Schiff wurde mit sichtbarem Abstand getroffen.
-export const PLAYER_HIT_RADIUS = 0.36; // Anteil an spielerGroesse (30 px -> 10,8 px)
-export const ASTEROID_HIT_RADIUS = 0.42; // Anteil an groesse (Umriss 35-50 %, Mittel ~42 %)
+// Body collision player vs asteroid/enemy: circle vs circle instead of a bounding box. The box counted empty corners
+// (pointed ship nose, round asteroids with 70-100 % radius), the ship got hit at a visible distance.
+export const PLAYER_HIT_RADIUS = 0.36; // Share of playerSize (30 px -> 10.8 px)
+export const ASTEROID_HIT_RADIUS = 0.42; // Share of size (outline 35-50 %, average ~42 %)
 export const ENEMY_HIT_RADIUS = 0.4;
 export function bodyHitsPlayer(pState, obj, radiusShare) {
   const s = config.playerSize;
@@ -501,7 +501,7 @@ export function bodyHitsPlayer(pState, obj, radiusShare) {
   return dx * dx + dy * dy < r * r;
 }
 
-// Treffer am Spieler; das Schiff (Blinken, Schild, Sichtbarkeit) wird sofort neu gezeichnet
+// Hit on the player; the ship (blinking, shield, visibility) is redrawn immediately
 export function playerHit(collisionObject, exploded = true, targetPlayer = 'p1') {
   hitAmPlayer(collisionObject, exploded, targetPlayer);
   Display.drawPlayer();
@@ -677,7 +677,7 @@ export function updateMobileControlsVisibility() {
   }
 }
 
-// Gleve-Dash- und Sweep-Zustand eines Spielers zuruecksetzen (Felder siehe gleve.js)
+// Reset the Gleve dash and sweep state of a player (fields see gleve.js)
 function resetGleveDash(pState) {
   pState.gleveDashTimer = 0;
   pState.gleveDashVx = 0;
@@ -692,7 +692,7 @@ function resetGleveDash(pState) {
   pState.gleveSweepDirection = 0;
   pState.gleveSweepHit = [];
   pState.gleveSweepCadence = 0;
-  // Online: Dash-Richtung, Client-Vorhersage und Bot-Dash
+  // Online: dash direction, client prediction and bot dash
   pState.gleveDashDirection = null;
   pState.gleveNetworkBounce = null;
   pState.networkDirection = null;
@@ -745,7 +745,7 @@ export function restartGame() {
   state.y = 285;
   state.shipVisible = false;
   state.rotation = 0;
-  // Interpolierte Anzeigeposition eines frueheren Online-Clients gilt nicht mehr
+  // The interpolated display position of an earlier online client no longer applies
   delete state.displayX;
   delete state.displayY;
 
@@ -807,7 +807,7 @@ export function restartGame() {
   Level.resetTheme();
   clearArray(arrays.sniperGrenades);
 
-  // Verwaiste Spiel-Entitäten und Projektile aus dem DOM entfernen
+  // Remove orphaned game entities and projectiles from the DOM
   const orphanSelectors =
     '.boss-rakete, .boss-bombe, .boss-laser, .feind-laser, .laser, .rakete, .bombe, .powerup, .feind, .asteroid, .boss, .partikel, .werfer-abgeworfen, .shockwave, .schockwelle, .cutscene-fireball, .cutscene-shockwave, .cutscene-debris, .tractor-beam-svg';
   if (dom.playfield) {
@@ -857,7 +857,7 @@ export function restartGame() {
     Network.updateOnlineLobbyUI();
   }
 }
-// --- HIGHSCORE LOGIK ---
+// --- HIGHSCORE LOGIC ---
 const SECRET_SALT = 'st4r-sh00t3r-s3cr3t-k3y-2026';
 
 export function getCountryFlagEmoji(countryCode) {
@@ -946,8 +946,8 @@ export function saveHighscore(
     localStorage.setItem('spaceShooterHighscores_coop', JSON.stringify(hs.slice(0, 10)));
   }
 
-  // Parallele asynchrone Übermittlung an die globale Cloudflare-API (sofern kein Cheat aktiv war)
-  // Im Online-Modus übermittelt ausschließlich der Host den Score an die globale Bestenliste
+  // Parallel asynchronous submission to the global Cloudflare API (unless a cheat was active)
+  // In online mode only the host submits the score to the global leaderboard
   const isOnline = normMode === 'online' || (state.network && state.network.isOnline);
   const canSubmitGlobal = !isOnline || (state.network && state.network.isHost);
 
@@ -980,7 +980,7 @@ async function submitGlobalScore(mode, name, score, level, shipP1, shipP2) {
     });
 
     if (response.ok) {
-      // Nach erfolgreichem Submit Cache für diesen Modus invalidieren und neu laden
+      // After a successful submit invalidate the cache for this mode and reload
       if (state.globalHighscoresCache) {
         state.globalHighscoresCache[mode] = null;
       }
@@ -992,11 +992,11 @@ async function submitGlobalScore(mode, name, score, level, shipP1, shipP2) {
       fetchGlobalHighscores(mode);
     }
   } catch (err) {
-    console.warn('Global Highscore Submit fehlgeschlagen, offline Fallback aktiv:', err);
+    console.warn('Global highscore submit failed, offline fallback active:', err);
   }
 }
 
-// Maskiert HTML-Sonderzeichen für Strings aus der API (Name, Stadt, Land)
+// Escapes HTML special characters for strings from the API (name, city, country)
 export function escapeHtml(value) {
   return String(value ?? '')
     .replace(/&/g, '&amp;')
@@ -1006,7 +1006,7 @@ export function escapeHtml(value) {
     .replace(/'/g, '&#39;');
 }
 
-// Badge-Daten je Schiffsmodell für die Bestenliste (unbekannt/fehlend = Viper-X)
+// Badge data per ship model for the leaderboard (unknown/missing = Viper-X)
 const HS_SHIPS = {
   viper: { cls: 'hs-ship-viper', label: 'Viper-X', short: 'V' },
   phantom: { cls: 'hs-ship-phantom', label: 'Phantom-NX', short: 'P' },
@@ -1038,7 +1038,7 @@ export function renderHighscoresTable(currentMode, hsList) {
 
     const rankBadge = `<span class="hs-rank ${rankClass}">#${rank}</span>`;
 
-    // Flaggen-Emoji und Stadt
+    // Flag emoji and city
     let locDisplay = '';
     if (entry.country) {
       const flag = getCountryFlagEmoji(entry.country);
@@ -1084,11 +1084,11 @@ export async function fetchGlobalHighscores(mode) {
       if (statusText) statusText.innerText = '🌐 GLOBALE BESTENLISTE';
       if (spinner) spinner.style.display = 'none';
 
-      // Wenn global noch keine Einträge existieren, aber lokal welche vorhanden sind, zeige diese an
+      // If there are no global entries yet but local ones exist, show those
       const localHs = getHighscores(normMode);
       const scoresToRender = data.highscores.length === 0 && localHs.length > 0 ? localHs : data.highscores;
 
-      // Nur rendern, wenn der Tab noch der aktuelle ist
+      // Render only if the tab is still the current one
       if (state.currentHighscoreTab === normMode) {
         renderHighscoresTable(normMode, scoresToRender);
       }
@@ -1113,7 +1113,7 @@ export function renderHighscores(targetMode = null) {
   const normMode = normalizeHighscoreMode(targetMode || state.currentHighscoreTab || state.gameMode || 'single');
   state.currentHighscoreTab = normMode;
 
-  // Highscore-Tabs aktualisieren
+  // Update the highscore tabs
   const tabSingle = document.getElementById('hs-tab-single');
   const tabBot = document.getElementById('hs-tab-bot');
   const tabOnline = document.getElementById('hs-tab-online');
@@ -1122,13 +1122,13 @@ export function renderHighscores(targetMode = null) {
   if (tabBot) tabBot.classList.toggle('active', normMode === 'coop_bot');
   if (tabOnline) tabOnline.classList.toggle('active', normMode === 'online');
 
-  // Header-Spalte anpassen (SCHIFF vs SCHIFFE)
+  // Adjust the header column (SCHIFF vs SCHIFFE)
   const colHeaderShip = document.getElementById('hs-col-ship');
   if (colHeaderShip) {
     colHeaderShip.innerText = normMode === 'single' ? 'SCHIFF' : 'SHIPS';
   }
 
-  // Zuerst gecachte globale Scores oder lokale Scores sofort anzeigen
+  // Show cached global scores or local scores immediately first
   if (
     state.globalHighscoresCache &&
     state.globalHighscoresCache[normMode] &&
@@ -1140,7 +1140,7 @@ export function renderHighscores(targetMode = null) {
     if (spinner) spinner.style.display = 'none';
     renderHighscoresTable(normMode, state.globalHighscoresCache[normMode]);
   } else {
-    // Lokale Scores sofort anzeigen und asynchron laden
+    // Show local scores immediately and load asynchronously
     const localHs = getHighscores(normMode);
     renderHighscoresTable(normMode, localHs);
     fetchGlobalHighscores(normMode);
@@ -1230,7 +1230,7 @@ export function checkAndCommitOnlineHighscore() {
     const modelP1 = state.selectedShipModel || 'viper';
     const modelP2 = (state.p2 && state.p2.selectedShipModel) || 'phantom';
 
-    // State sofort zurücksetzen, um doppelte Ausführung zu verhindern
+    // Reset the state immediately to prevent double execution
     state.onlineHighscoreNames = { p1: null, p2: null };
 
     saveHighscore(combinedName, state.finalScore, modelP1, 'online', modelP2, state.level || 1);
@@ -1267,7 +1267,7 @@ export function createBombDetonation(bcx, bcy, color = '#f39c12', radius = 150, 
   const playfield = dom.playfield || document.getElementById('spielfeld');
   if (!playfield) return;
 
-  // 1. Partikel
+  // 1. Particles
   createExplosion(bcx, bcy, color || '#f39c12', isMini ? 35 : 60);
 
   // 2. Sound
@@ -1275,7 +1275,7 @@ export function createBombDetonation(bcx, bcy, color = '#f39c12', radius = 150, 
     Audio.playExplosion(isMini ? 'medium' : 'large');
   }
 
-  // 3. Schockwelle (Effekt im Simulationstakt; Stufe 3 Vortex: zweite, leicht verzoegert und violett)
+  // 3. Shockwave (effect on the simulation rate; tier 3 vortex: a second one, slightly delayed and violet)
   createEffect({ kind: 'bombWave', x: bcx, y: bcy, radius, color: color || '#f39c12', rest: 30 });
   if (tier === 3 && !isMini) {
     createEffect({ kind: 'bombWave2', x: bcx, y: bcy, radius: radius * 0.75, rest: 24 + 9, delay: 9 });
@@ -1295,7 +1295,7 @@ export function createMissileDetonation(rcx, rcy, radius = 70) {
   createEffect({ kind: 'missileWave', x: rcx, y: rcy, radius, rest: 18 });
 }
 export function createSmokeSparks(x, y, size) {
-  // Rauch
+  // Smoke
   if (Math.random() < 0.5) {
     createParticles({
       color: '#555',
@@ -1308,7 +1308,7 @@ export function createSmokeSparks(x, y, size) {
       decay: 0.02,
     });
   }
-  // Funken
+  // Sparks
   if (Math.random() < 0.3) {
     createParticles({
       color: '#f1c40f',
@@ -1338,14 +1338,14 @@ export function createDriveSmoke(x, y, vy = -1.5) {
   }
 }
 
-// --- SCHIFFS-AUSWAHL & VISUALS ---
+// --- SHIP SELECTION & VISUALS ---
 
-// Menuebreite (Einzelspieler-Feld), gilt solange der Startbildschirm sichtbar ist
+// Menu width (single player field), applies while the start screen is visible
 export const MENU_WIDTH = 400;
 export const MULTIPLAYER_WIDTH = 600;
 
-// Setzt die Spielfeldbreite: 'single' = 400 px, 'coop'/'online' = 600 px, 'menue' = Menuebreite.
-// Ohne Argument gilt state.gameMode. Wird beim Spielstart (Cutscene) bzw. beim Rueckweg ins Menue gerufen.
+// Sets the playfield width: 'single' = 400 px, 'coop'/'online' = 600 px, 'menu' = menu width.
+// Without an argument state.gameMode applies. Called at game start (cutscene) or on the way back to the menu.
 export function applyPlayfieldWidth(mode = state.gameMode) {
   const wide = mode === 'coop' || mode === 'online';
   config.playfieldWidth = wide ? MULTIPLAYER_WIDTH : MENU_WIDTH;
@@ -1370,8 +1370,8 @@ export function setGameMode(mode) {
   if (btnCoop) btnCoop.classList.toggle('active', isCoop);
   if (btnOnline) btnOnline.classList.toggle('active', isOnline);
 
-  // Die Spielfeldbreite aendert sich NICHT hier: Das Menue bleibt in allen Modi gleich breit,
-  // die Modusbreite gilt erst ab Spielstart (wendeSpielfeldBreiteAn in startCutscene/startOnlineGame).
+  // The playfield width does NOT change here: the menu stays equally wide in all modes,
+  // the mode width applies only from game start on (applyPlayfieldWidth in startCutscene/startOnlineGame).
   const hintSingle = document.getElementById('modus-optionen-single');
   if (hintSingle) hintSingle.style.display = mode === 'single' ? 'block' : 'none';
   const optionsCoop = document.getElementById('modus-optionen-coop');
@@ -1414,7 +1414,7 @@ export function setGameMode(mode) {
   updatePlayerShipVisuals();
   Network.updateOnlineLobbyUI();
 
-  // Bot-State zurücksetzen wenn nicht lokaler Co-op
+  // Reset the bot state if not local co-op
   if (!isCoop) {
     state.p2IsBot = false;
     const botControls = document.getElementById('p2-bot-controls');
@@ -1472,7 +1472,7 @@ export function updateControlsInfo() {
   }
 }
 
-// Beschreibungszeile unter den Perk-Chips (feste Hoehe, Index -1 = Hinweistext)
+// Description line below the perk chips (fixed height, index -1 = hint text)
 export function showPerkDetail(index) {
   const detail = document.getElementById('hangar-perk-detail');
   const container = document.getElementById('hangar-ship-perks');
@@ -1494,7 +1494,7 @@ export function updatePlayerShipVisuals() {
   const activeHangarModel = isP2Hangar ? modelP2 : modelP1;
   const activeHangarColor = isP2Hangar ? colorIdP2 : colorIdP1;
 
-  // Schiffe im Spiel (SVG nach Modell/Farbe, Werfer-Pods) zeichnet die Anzeige aus dem Zustand
+  // The display draws ships in the game (SVG by model/color, launcher pods) from the state
   Display.drawPlayer();
 
   // Hangar Preview im Startscreen aktualisieren
@@ -1523,12 +1523,12 @@ export function updatePlayerShipVisuals() {
     showPerkDetail(-1);
   }
 
-  // Active Klassen auf Hangar Tabs aktualisieren
+  // Update active classes on the hangar tabs
   document.querySelectorAll('.hangar-player-tab').forEach(tab => {
     tab.classList.toggle('active', tab.getAttribute('data-player') === (state.activeHangarPlayer || 'p1'));
   });
 
-  // Active Klassen auf Hangar Buttons aktualisieren
+  // Update active classes on the hangar buttons
   document.querySelectorAll('.hangar-model-btn').forEach(btn => {
     btn.classList.toggle('active', btn.getAttribute('data-model') === activeHangarModel);
   });
@@ -1546,8 +1546,8 @@ export function updatePlayerShipVisuals() {
   updateShipHudLabels();
 }
 
-// HUD-Beschriftungen je Schiff: Gleve nutzt den Energiebalken für den Laser-Sweep
-// und den Raketen-Cooldown für den Dash. Sonst Originaltexte (E / R).
+// HUD labels per ship: the Gleve uses the energy bar for the laser sweep
+// and the missile cooldown for the dash. Otherwise the original texts (E / R).
 const HUD_LABELS = {
   standard: { energy: 'E', missile: 'R', mobileMissile: 'R' },
   gleve: { energy: 'SWEEP', missile: 'DASH', mobileMissile: 'D', lang: true },
@@ -1577,7 +1577,7 @@ export function updateShipHudLabels() {
   );
   setHudLabel(document.querySelector('#raketen-cd-container-p2 .cooldown-letter'), labelsP2.missile, !!labelsP2.lang);
 
-  // Ladungspunkte nur bei Gleve (Dash) und Sniper (Granaten); Inhalt pflegt Gleve.zeigeLadungenHud
+  // Charge dots only for the Gleve (dash) and the Sniper (grenades); Gleve.showChargesHud maintains the content
   for (const [id, model] of [
     ['dash-ladungen', modelP1],
     ['dash-ladungen-p2', modelP2],
@@ -1595,7 +1595,7 @@ export function updateShipHudLabels() {
     if (!mobileGleve) chargeEl.textContent = '';
   }
 
-  // Mobil-Knopf zum Aufladen nur beim Sniper (lokales Schiff)
+  // Mobile charge button only for the Sniper (local ship)
   const chargeBtn = document.getElementById('btn-laden');
   if (chargeBtn) {
     const show = localShipModel() === 'sniper';
@@ -1603,14 +1603,14 @@ export function updateShipHudLabels() {
     if (!show) state.sniperChargingButton = false;
   }
 
-  // Mobile-Raketen-Button gehört dem lokalen Spieler (Online-Client = P2)
+  // The mobile missile button belongs to the local player (online client = P2)
   const mobileLabels = HUD_LABELS[localShipModel()] || HUD_LABELS.standard;
   const mobileSpan = document.querySelector('#btn-rakete span');
   if (mobileSpan && mobileSpan.textContent !== mobileLabels.mobileMissile)
     mobileSpan.textContent = mobileLabels.mobileMissile;
 }
 
-// Schiff des Spielers an diesem Gerät: Online-Client steuert P2, sonst P1
+// Ship of the player on this device: the online client controls P2, otherwise P1
 export function localShipModel() {
   const isClient = state.gameMode === 'online' && state.network && state.network.isClient;
   if (isClient) return (state.p2 && state.p2.selectedShipModel) || 'phantom';
@@ -1618,7 +1618,7 @@ export function localShipModel() {
 }
 
 export function createDroppedLauncher(x, y, vx, vy, vRot) {
-  // Kleine Funken/Rauchwolke am Abreißpunkt
+  // Small sparks/smoke cloud at the break-off point
   for (let i = 0; i < 3; i++) {
     createSmokeSparks(x, y, 8);
   }
@@ -1639,12 +1639,12 @@ export function createDroppedLauncher(x, y, vx, vy, vRot) {
 let prevLauncherStatesP1 = null;
 let prevLauncherStatesP2 = null;
 
-// Sichtbare Raketenwerfer-Pods eines Schiffs nach Modell und Raketen-Stufe (die Anzeige zeichnet sie)
+// Visible missile launcher pods of a ship by model and missile tier (the display draws them)
 export function launcherBinding(pState) {
   const model = pState.selectedShipModel || 'viper';
   const lvl = pState.missileTier || 1;
   if (model === 'gleve' || Sniper.isSniper(pState)) {
-    // Gleve (Dash) und Sniper (Granate) haben keine Raketenwerfer
+    // The Gleve (dash) and the Sniper (grenade) have no missile launchers
     return { left: false, right: false, middle: false };
   }
   if (lvl <= 2) return { left: model !== 'phantom', right: model === 'phantom', middle: false };
@@ -1652,7 +1652,7 @@ export function launcherBinding(pState) {
   return { left: true, right: true, middle: true };
 }
 
-// Abwurf-Effekt, wenn ein Pod durch ein Downgrade wegfaellt (Gleve/Sniper haben keine Pods)
+// Drop effect when a pod disappears through a downgrade (Gleve/Sniper have no pods)
 function checkLauncherDrop(pState, prevKey) {
   if (!pState) return;
   const now = launcherBinding(pState);

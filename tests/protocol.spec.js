@@ -1,8 +1,8 @@
-// Protokoll-Konsistenz: Die Feldform von serializeGameState() ist je PROTOKOLL_VERSION festgehalten
-// (tests/fixtures/protocol.json), und der Online-Client liest jedes gesendete Feld.
+// Protocol consistency: the field shape of serializeGameState() is pinned per PROTOCOL_VERSION
+// (tests/fixtures/protocol.json), and the online client reads every field that is sent.
 // Belege: wiederholte Online-Sync-Fixes (b024ce4, 1def39a, 3e326cc, f108641).
-// Nach einer gewollten Formataenderung: PROTOKOLL_VERSION erhoehen, dann
-//   PROTOKOLL_FIXTURE=1 npx playwright test tests/protocol.spec.js
+// After an intended format change: raise PROTOCOL_VERSION, then
+//   PROTOCOL_FIXTURE=1 npx playwright test tests/protocol.spec.js
 const { test, expect } = require('@playwright/test');
 const fs = require('fs');
 const path = require('path');
@@ -10,8 +10,8 @@ const { setGameState } = require('./helpers');
 
 const FIXTURE = path.join(__dirname, 'fixtures', 'protocol.json');
 
-// Felder, die der Host sendet, der Client aber bewusst nicht aus dem Snapshot liest.
-// Ein neuer Eintrag braucht einen Grund; ein Feld, das kein Client braucht, besser nicht senden.
+// Fields the host sends but the client deliberately does not read from the snapshot.
+// A new entry needs a reason; a field no client needs is better not sent.
 const ONLY_SENT = {
   '.p2.x': 'Client sagt das eigene Schiff voraus',
   '.p2.y': 'Client sagt das eigene Schiff voraus',
@@ -26,7 +26,7 @@ const ONLY_SENT = {
   '.bossLaser[].height': 'ungenutzt, Kandidat zum Entfernen',
 };
 
-// Jede Schiffsart einmal als P1 und als P2, damit alle schiffsabhaengigen Felder vorkommen
+// Every ship kind once as P1 and as P2, so all ship-specific fields appear
 const SCENARIOS = [
   ['sniper', 'gleve'],
   ['gleve', 'viper'],
@@ -61,7 +61,7 @@ async function inspect(page, p1, p2) {
         flashPlayfield() {},
       });
 
-      // Host: in jeder Liste ein Objekt, alle bedingten Felder aktiv
+      // Host: one object in every list, all conditional fields active
       state.gameMode = 'coop';
       state.selectedShipModel = p1;
       state.p2.selectedShipModel = p2;
@@ -108,7 +108,7 @@ async function inspect(page, p1, p2) {
       };
       collect(snapshot, '');
 
-      // Client: Snapshot ueber einen Proxy uebernehmen und gelesene Felder mitschreiben
+      // Client: apply the snapshot through a proxy and record the fields it reads
       const read = new Set();
       const hull = (value, fieldPath) => {
         if (!value || typeof value !== 'object') return value;
@@ -140,7 +140,7 @@ async function inspect(page, p1, p2) {
   );
 }
 
-test('Snapshot-Format passt zur PROTOKOLL_VERSION, Client liest jedes gesendete Feld', async ({ page }) => {
+test('Snapshot format matches PROTOCOL_VERSION, the client reads every field sent', async ({ page }) => {
   const fields = new Set();
   const notRead = new Set();
   let version;
@@ -150,7 +150,7 @@ test('Snapshot-Format passt zur PROTOKOLL_VERSION, Client liest jedes gesendete 
     r.fields.forEach(f => fields.add(f));
     r.notRead.forEach(f => notRead.add(f));
   }
-  // Jedes Szenario ist ein moeglicher Spielstand: ein Feld, das in einem davon ungelesen bleibt, zaehlt
+  // Every scenario is a possible game state: a field left unread in any of them counts
   const current = { version, fields: [...fields].sort() };
 
   if (process.env.PROTOCOL_FIXTURE) {
@@ -161,16 +161,16 @@ test('Snapshot-Format passt zur PROTOKOLL_VERSION, Client liest jedes gesendete 
   if (saved.version === version) {
     expect(
       current.fields,
-      'Snapshot-Format geaendert: PROTOKOLL_VERSION erhoehen, dann Fixture neu schreiben (Kopf von tests/protocol.spec.js)',
+      'Snapshot format changed: raise PROTOCOL_VERSION, then rewrite the fixture (header of tests/protocol.spec.js)',
     ).toEqual(saved.fields);
   } else {
-    expect(saved.version, 'PROTOKOLL_VERSION erhoeht: Fixture neu schreiben (Kopf von tests/protocol.spec.js)').toBe(
+    expect(saved.version, 'PROTOCOL_VERSION raised: rewrite the fixture (header of tests/protocol.spec.js)').toBe(
       version,
     );
   }
 
   const unexpected = [...notRead].filter(f => !ONLY_SENT[f]).sort();
-  expect(unexpected, 'Host sendet Felder, die applyGameStateSnapshot nie liest').toEqual([]);
+  expect(unexpected, 'Host sends fields that applyGameStateSnapshot never reads').toEqual([]);
   const stale = Object.keys(ONLY_SENT).filter(f => !notRead.has(f));
-  expect(stale, 'Client liest diese Felder inzwischen: aus NUR_GESENDET streichen').toEqual([]);
+  expect(stale, 'Client reads these fields by now: remove them from ONLY_SENT').toEqual([]);
 });

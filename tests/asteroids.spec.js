@@ -13,13 +13,13 @@ test.beforeEach(async ({ page }) => {
   await page.goto('/');
 });
 
-test('Asteroiden-Umriss: 8-13 Ecken im Kasten, unterschiedlich geformt', async ({ page }) => {
+test('Asteroid outline: 8-13 corners inside the box, shaped differently', async ({ page }) => {
   const r = await page.evaluate(async () => {
     const Entities = await import('./js/entities.js');
     const shapes = Array.from({ length: 200 }, () => Entities.generateAsteroidForm());
     const corners = shapes.map(f => f.length);
     const inBox = shapes.every(f => f.every(([x, y]) => x >= 0 && x <= 100 && y >= 0 && y <= 100));
-    // kleinster Radius je Form: Einbuchtungen und Streckungen ergeben deutlich kleinere Werte
+    // smallest radius per shape: dents and stretches give clearly smaller values
     const minRadius = shapes.map(f => Math.min(...f.map(([x, y]) => Math.hypot(x - 50, y - 50))));
     return {
       min: Math.min(...corners),
@@ -36,7 +36,7 @@ test('Asteroiden-Umriss: 8-13 Ecken im Kasten, unterschiedlich geformt', async (
   expect(r.round).toBeGreaterThan(20);
 });
 
-test('Asteroiden-Farben kommen aus den Gesteinspaletten', async ({ page }) => {
+test('Asteroid colors come from the rock palettes', async ({ page }) => {
   const r = await page.evaluate(async () => {
     const Entities = await import('./js/entities.js');
     const { arrays, config } = await import('./js/state.js');
@@ -49,7 +49,7 @@ test('Asteroiden-Farben kommen aus den Gesteinspaletten', async ({ page }) => {
   expect(r.different).toBeGreaterThan(3);
 });
 
-test('Asteroiden-Textur: Krater aus der Id (gleich bei gleicher Id), Magma mit Adern, Risse liegen darueber', async ({
+test('Asteroid texture: craters from the id (same for the same id), magma with veins, cracks on top', async ({
   page,
 }) => {
   const r = await page.evaluate(async () => {

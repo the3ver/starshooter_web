@@ -13,7 +13,7 @@ test.beforeEach(async ({ page }) => {
   await page.goto('/');
   await startGame(page);
   await page.waitForFunction(() => window.__game.state.gameRunning);
-  // Feld leeren, Level 4 (Fels-Level), Spieler unten in der Mitte; Helfer in window.__ib
+  // Clear the field, level 4 (rock level), player bottom center; helpers in window.__ib
   await page.evaluate(async () => {
     const { state, arrays, config } = await import('./js/state.js');
     const Display = await import('./js/display.js');
@@ -27,19 +27,19 @@ test.beforeEach(async ({ page }) => {
     Rock.reset();
     IslandBoss.reset();
     state.level = 4;
-    state.frameCounter = 5000; // nach dem Levelablauf: keine Spawns, keine zweite Warnung
+    state.frameCounter = 5000; // after the level flow: no spawns, no second warning
     state.x = config.playfieldWidth / 2 - 15;
     state.y = 560;
     state.godMode = true;
     state.selectedShipModel = 'phantom';
     const Loop = await import('./js/loop.js');
     const Level = await import('./js/level.js');
-    // Boss starten und bis zum Kampf laufen lassen
+    // Start the boss and let it run until the fight
     const untilFight = () => {
       Level.startBoss();
-      for (let i = 0; i < 2000 && IslandBoss.phase() !== 'kampf'; i++) Loop.simulationStep();
+      for (let i = 0; i < 2000 && IslandBoss.phase() !== 'fight'; i++) Loop.simulationStep();
     };
-    const eyes = () => arrays.bosses.filter(b => b.bossTyp === 'eye');
+    const eyes = () => arrays.bosses.filter(b => b.bossType === 'eye');
     window.__ib = {
       IslandBoss,
       Rock,
@@ -56,12 +56,12 @@ test.beforeEach(async ({ page }) => {
   });
 });
 
-test('Levelplan: Fels-Level enden mit dem Insel-Boss, die anderen mit dem Standard-Boss', async ({ page }) => {
+test('Level plan: rock levels end with the island boss, the others with the standard boss', async ({ page }) => {
   const r = await page.evaluate(() => [3, 4, 5, 6].map(l => window.__ib.Level.levelPlan(l).boss));
   expect(r).toEqual(['standard', 'island', 'standard', 'island']);
 });
 
-test('Standard-Boss: Abschuss beendet das Level und laesst drei Belohnungen fallen', async ({ page }) => {
+test('Standard boss: shooting it down ends the level and drops three rewards', async ({ page }) => {
   const r = await page.evaluate(async () => {
     const { state, arrays, Utils } = window.__ib;
     const Entities = await import('./js/entities.js');
@@ -78,13 +78,13 @@ test('Standard-Boss: Abschuss beendet das Level und laesst drei Belohnungen fall
   expect(r).toEqual({ level: 4, bossActive: false, drops: 3, frame: 0 });
 });
 
-test('Einzug: Koerper aus Felssegmenten scrollt herein und haelt an, drei Augen und vier Roehren', async ({ page }) => {
+test('Entry: the body made of rock segments scrolls in and stops, three eyes and four tubes', async ({ page }) => {
   const r = await page.evaluate(() => {
     const { IslandBoss, Rock, arrays, config, eyes, state } = window.__ib;
     state.level = 4;
     window.__ib.Level.startBoss();
     const inEntry = [];
-    for (let i = 0; i < 2000 && IslandBoss.phase() !== 'kampf'; i++) {
+    for (let i = 0; i < 2000 && IslandBoss.phase() !== 'fight'; i++) {
       window.__ib.Loop.simulationStep();
       if (eyes().length) inEntry.push(eyes().every(a => a.isIndestructible && !a.open));
     }
@@ -102,16 +102,16 @@ test('Einzug: Koerper aus Felssegmenten scrollt herein und haelt an, drei Augen 
       bossActive: state.bossActive,
     };
   });
-  expect(r.phase).toBe('kampf');
+  expect(r.phase).toBe('fight');
   expect(r.speed).toBe(0);
-  // Bei stehendem Fels entstehen Segmente nur bis zum oberen Rand; der Koerper reicht darueber hinaus
+  // With the rock standing, segments only appear up to the top edge; the body reaches beyond it
   expect(r.topEdge).toBeLessThanOrEqual(0);
   expect(r.bottomEdge).toBeGreaterThanOrEqual(r.should);
   expect(r.bottomEdge).toBeLessThan(r.should + 3);
   expect(r).toMatchObject({ eyes: 3, tubes: 4, tooInEntry: true, bossActive: true });
 });
 
-test('Augen blinzeln, sind nur offen verwundbar und schiessen offen gezielt Sporen', async ({ page }) => {
+test('Eyes blink, are vulnerable only while open and shoot aimed spores while open', async ({ page }) => {
   const r = await page.evaluate(() => {
     const { Loop, arrays, Display, untilFight, eyes, IslandBoss } = window.__ib;
     untilFight();
@@ -136,7 +136,7 @@ test('Augen blinzeln, sind nur offen verwundbar und schiessen offen gezielt Spor
         ),
       );
     };
-    // zu: Treffer ohne Schaden
+    // closed: hit without damage
     a.phaseTimer = 50;
     let hp = a.hp;
     laser();
@@ -162,7 +162,7 @@ test('Augen blinzeln, sind nur offen verwundbar und schiessen offen gezielt Spor
   expect(r.afterBottom).toBe(true);
 });
 
-test('Erst das letzte Auge besiegt den Boss; vorher Enrage mit Vorruecken, danach scrollt der Koerper hinaus', async ({
+test('Only the last eye defeats the boss; before that enrage with an advance, afterwards the body scrolls out', async ({
   page,
 }) => {
   const r = await page.evaluate(() => {
@@ -186,7 +186,7 @@ test('Erst das letzte Auge besiegt den Boss; vorher Enrage mit Vorruecken, danac
       tubeLarvae: arrays.enemies.filter(f => f.pattern === 'tube' || f.pattern === 'larva').length,
       points: state.score - score > 0,
     };
-    // Das Skelett zerplatzt sofort: kein Knochen-Segment mehr, Explosionspartikel im Feld
+    // The skeleton bursts immediately: no bone segment left, explosion particles in the field
     return {
       afterOne,
       enrage,
@@ -195,14 +195,14 @@ test('Erst das letzte Auge besiegt den Boss; vorher Enrage mit Vorruecken, danac
       particles: arrays.particleArray.length > 0,
     };
   });
-  expect(r.afterOne).toEqual({ level: 4, bossActive: true, phase: 'kampf' });
+  expect(r.afterOne).toEqual({ level: 4, bossActive: true, phase: 'fight' });
   expect(r.enrage).toEqual({ phase: 'enrage', speed: 0.12, eye: true });
   expect(r.victory).toEqual({ level: 5, bossActive: false, active: false, speed: 1.5, tubeLarvae: 0, points: true });
   expect(r.bodyThereafter).toBe(0);
   expect(r.particles).toBe(true);
 });
 
-test('Roehren werfen Larven aus (hoechstens MAX_LARVEN), Larven kriechen auf den Spieler zu', async ({ page }) => {
+test('Tubes eject larvae (at most MAX_LARVAE), larvae crawl towards the player', async ({ page }) => {
   const r = await page.evaluate(async () => {
     const { Loop, arrays, state, untilFight } = window.__ib;
     const G = await import('./js/growths.js');
@@ -227,7 +227,7 @@ test('Roehren werfen Larven aus (hoechstens MAX_LARVEN), Larven kriechen auf den
   expect(r).toEqual({ first: true, closer: true, atMost: true });
 });
 
-test('Im Coop hat der Insel-Boss fuenf Augen (zweites Armpaar)', async ({ page }) => {
+test('In co-op the island boss has five eyes (second arm pair)', async ({ page }) => {
   const r = await page.evaluate(() => {
     const { Utils, untilFight, eyes } = window.__ib;
     Utils.setGameMode('coop');
@@ -237,7 +237,7 @@ test('Im Coop hat der Insel-Boss fuenf Augen (zweites Armpaar)', async ({ page }
   expect(r).toBe(5);
 });
 
-test('Online: Augen mit offen im Snapshot, Client zeigt Lid und Klasse, HP-Balken summiert alle Augen', async ({
+test('Online: eyes with open in the snapshot, the client shows lid and class, the HP bar sums all eyes', async ({
   page,
 }) => {
   const r = await page.evaluate(async () => {
@@ -248,7 +248,7 @@ test('Online: Augen mit offen im Snapshot, Client zeigt Lid und Klasse, HP-Balke
     a1.open = true;
     a1.hp = 0.5 * a1.maxHp;
     const snap = JSON.parse(JSON.stringify(Network.serializeGameState()));
-    const sent = snap.bosses.map(b => ({ typ: b.typ, open: b.open }));
+    const sent = snap.bosses.map(b => ({ type: b.type, open: b.open }));
     arrays.bosses.forEach(b => b.el.remove());
     arrays.bosses.length = 0;
     const network = state.network;
@@ -266,20 +266,20 @@ test('Online: Augen mit offen im Snapshot, Client zeigt Lid und Klasse, HP-Balke
     };
   });
   expect(r.sent).toEqual([
-    { typ: 'eye', open: true },
-    { typ: 'eye', open: false },
-    { typ: 'eye', open: false },
+    { type: 'eye', open: true },
+    { type: 'eye', open: false },
+    { type: 'eye', open: false },
   ]);
   expect(r).toMatchObject({ lid: true, open: true, too: false });
   expect(r.bar).toBeCloseTo((2.5 / 3) * 100, 0);
 });
 
-test('Bot zielt nur auf offene Augen', async ({ page }) => {
+test('Bot aims only at open eyes', async ({ page }) => {
   const r = await page.evaluate(async () => {
     const { untilFight, eyes, config, arrays, Display } = window.__ib;
     const Bot = await import('./js/bot.js');
     untilFight();
-    // nur die Augen als moegliche Ziele (Roehren waeren naeher)
+    // only the eyes as possible targets (tubes would be nearer)
     arrays.enemies.forEach(Display.remove);
     arrays.enemies.length = 0;
     const p2 = { x: config.playfieldWidth / 2, y: 560 };
@@ -296,7 +296,7 @@ test('Bot zielt nur auf offene Augen', async ({ page }) => {
   expect(r.openX).toBe(r.eyeX);
 });
 
-test('Neustart beendet den Insel-Boss und setzt das Felstempo zurueck', async ({ page }) => {
+test('Restart ends the island boss and resets the rock speed', async ({ page }) => {
   const r = await page.evaluate(() => {
     const { Utils, Rock, IslandBoss, arrays, untilFight } = window.__ib;
     untilFight();
@@ -311,9 +311,7 @@ test('Neustart beendet den Insel-Boss und setzt das Felstempo zurueck', async ({
   expect(r).toEqual({ active: false, speed: 1.5, rock: 0, bosses: 0 });
 });
 
-test('Skelett: Augen sitzen an den Armspitzen und an der unteren Spitze und bewegen sich im Kampf nicht', async ({
-  page,
-}) => {
+test('Skeleton: eyes sit at the arm tips and at the bottom tip and do not move during the fight', async ({ page }) => {
   const r = await page.evaluate(() => {
     const { Loop, Rock, arrays, config, untilFight, eyes } = window.__ib;
     untilFight();
@@ -351,7 +349,7 @@ test('Skelett: Augen sitzen an den Armspitzen und an der unteren Spitze und bewe
   });
 });
 
-test('Skelett laesst neben jedem Arm einen Durchgang von mindestens MIN_DURCHGANG frei', async ({ page }) => {
+test('Skeleton leaves a passage of at least MIN_PASSAGE beside every arm', async ({ page }) => {
   const r = await page.evaluate(() => {
     const { IslandBoss, Rock, config, Utils } = window.__ib;
     const result = [];
@@ -368,7 +366,7 @@ test('Skelett laesst neben jedem Arm einen Durchgang von mindestens MIN_DURCHGAN
   expect(r).toBe(true);
 });
 
-test('Online: Knochen-Segmente tragen die Markierung im Profiltext, der Client zeichnet Knochen', async ({ page }) => {
+test('Online: bone segments carry the marker in the profile text, the client draws bone', async ({ page }) => {
   const r = await page.evaluate(async () => {
     const { arrays, state, untilFight, Rock } = window.__ib;
     const Network = await import('./js/network.js');
@@ -394,7 +392,7 @@ test('Online: Knochen-Segmente tragen die Markierung im Profiltext, der Client z
   expect(r).toMatchObject({ polygon: true, roundTrip: true });
 });
 
-test('Skelett ist spiegelsymmetrisch zur senkrechten Mittelachse (Profil und Augen)', async ({ page }) => {
+test('Skeleton is mirror-symmetric to the vertical center axis (profile and eyes)', async ({ page }) => {
   const r = await page.evaluate(() => {
     const { IslandBoss, Utils, config, untilFight, eyes } = window.__ib;
     const c = config.playfieldWidth / 2;

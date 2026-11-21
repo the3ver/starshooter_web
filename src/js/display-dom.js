@@ -1,6 +1,6 @@
-// DOM-Backend der Anzeige (siehe display.js): Weltobjekte sind absolut positionierte Elemente in
-// #spielfeld, das Modell traegt sein Element in obj.el. Nur dieses Modul schreibt Position, Drehung,
-// Deckkraft und Zustandsanzeigen (Schild, Risse, Betaeubung, Schlepp-Strahl ...) der Weltobjekte ins DOM.
+// DOM backend of the display (see display.js): world objects are absolutely positioned elements in
+// #spielfeld, the model carries its element in obj.el. Only this module writes position, rotation,
+// opacity and state displays (shield, cracks, stun, tow beam ...) of the world objects into the DOM.
 import { arrays, dom, state, shipColors } from './state.js';
 import { MINE_SIZE, isSniper, hitRadius, radiusFactor, isFull, chargeShare, CHARGE_FROM } from './sniper.js';
 import {
@@ -25,7 +25,7 @@ function setPosition(o) {
   o.el.style.top = y + 'px';
 }
 
-// Position und, falls das Modell eine Drehung traegt, die Drehung
+// Position and, if the model carries a rotation, the rotation
 function drawObject(o) {
   setPosition(o);
   if (typeof o.rot === 'number') o.el.style.transform = `rotate(${o.rot}deg)`;
@@ -35,7 +35,7 @@ function showStun(o) {
   o.el.classList.toggle('betaeubt', o.stunned > 0);
 }
 
-// Feind: Schild sichtbar solange schildHp > 0, Cling-on-Flammen erst nach dem Abloesen
+// Enemy: shield visible while shieldHp > 0, cling-on flames only after detaching
 function drawEnemy(f) {
   drawObject(f);
   showStun(f);
@@ -55,13 +55,13 @@ function drawEnemy(f) {
   }
 }
 
-// Asteroid: Magma-Klasse aus istUnzerstoerbar, Risse werden mit dem Schaden (hp/maxHp) sichtbar
+// Asteroid: magma class from isIndestructible, cracks become visible with damage (hp/maxHp)
 function drawAsteroid(a) {
   drawObject(a);
   a.el.classList.toggle('unzerstoerbar', !!a.isIndestructible);
   if (a.isIndestructible) return;
   if (!a.crackEl) {
-    // Geknackter Magma-Brocken: Risse ohne Muster
+    // Cracked magma chunk: cracks without a pattern
     a.crackEl = document.createElement('div');
     a.crackEl.classList.add('riss-layer');
     a.el.appendChild(a.crackEl);
@@ -86,7 +86,7 @@ function removeBeam(p) {
   }
 }
 
-// Traktorstrahl vom Schiff (strahlX/strahlY) zur Powerup-Mitte, Farbe nach Schlepper
+// Tractor beam from the ship (beamX/beamY) to the powerup center, color by tug
 function drawBeam(p) {
   if (!p.towedBy || p.beamX === undefined) {
     removeBeam(p);
@@ -151,13 +151,13 @@ function setColor(o, color) {
   o.el.style.boxShadow = `0 0 10px ${color}`;
 }
 
-// Spielerlaser: Farbe kann wechseln (Abpraller an Magma)
+// Player laser: the color can change (bouncer on magma)
 function drawLaser(l) {
   drawObject(l);
   if (l.color) setColor(l, l.color);
 }
 
-// Feindliche Geschosse: von der Gleve pariert (harmlos) orange
+// Enemy projectiles: parried by the Gleve (harmless) orange
 function drawProjectile(o) {
   drawObject(o);
   if (o.harmless && !o.el.classList.contains('gleve-pariert')) {
@@ -166,7 +166,7 @@ function drawProjectile(o) {
   }
 }
 
-// Spielerbombe: Lichter und Aura pulsieren schneller, je naeher das Ziel (fortschritt 1 -> 0)
+// Player bomb: lights and aura pulse faster the closer the target (progress 1 -> 0)
 function drawBomb(b) {
   drawObject(b);
   if (b.progress === undefined) return;
@@ -185,15 +185,15 @@ function drawParticles(p) {
   p.el.style.transform = p.vRot ? `scale(${p.lives}) rotate(${p.rot || 0}deg)` : `scale(${p.lives})`;
 }
 
-// Gleve-Klingenwelle: verblasst mit der zurueckgelegten Strecke
+// Gleve blade wave: fades with the distance traveled
 function drawWave(w) {
   setPosition(w);
   const travel = Math.max(0, (w.startY === undefined ? w.y : w.startY) - w.y);
   w.el.style.opacity = String(Math.max(0.2, 1 - (0.8 * travel) / (WAVE_SPEED * WAVE_STEPS)));
 }
 
-// Sniper-Effekte, je Art eigene Rechnung aus t = 1 - rest / dauer. Ringe wachsen aus der Mitte (x/y) auf den Durchmesser d,
-// der Strahl bleibt stehen und blendet nur aus.
+// Sniper effects, each kind with its own calculation from t = 1 - rest / duration. Rings grow from the center (x/y) to the diameter d,
+// the beam stays in place and only fades out.
 function drawSniperRing(e, d, opacity) {
   e.el.style.width = d + 'px';
   e.el.style.height = d + 'px';
@@ -203,7 +203,7 @@ function drawSniperRing(e, d, opacity) {
 }
 
 const SNIPER_EFFECT_DRAWER = {
-  // Powerup-Schockwelle: waechst linear bis radius (fernste Feldecke), verblasst nur teilweise
+  // Powerup shockwave: grows linearly up to radius (farthest field corner), fades only partly
   shockwave: e => {
     const t = 1 - e.rest / e.duration;
     drawSniperRing(e, e.radius * 2 * t, 1 - t * 0.6);
@@ -211,7 +211,7 @@ const SNIPER_EFFECT_DRAWER = {
   sniperBeam: e => {
     e.el.style.opacity = e.rest / e.duration;
   },
-  // schnell am Anfang, gegen Ende auslaufend
+  // fast at the start, tapering off towards the end
   sniperBlastWave: e => {
     const t = 1 - e.rest / e.duration;
     drawSniperRing(e, e.radius * 2 * Math.sqrt(t), 1 - t * 0.85);
@@ -226,8 +226,8 @@ const SNIPER_EFFECT_DRAWER = {
   },
 };
 
-// Effekt mit Lebensdauer: Fortschritt t aus rest/dauer (nach einer Verzoegerung unsichtbar), Mitte x/y,
-// Groesse waechst bis skala und die Deckkraft sinkt auf 0
+// Effect with a lifetime: progress t from rest/duration (invisible during a delay), center x/y,
+// size grows up to scale and opacity drops to 0
 function drawEffect(e) {
   const sniper = SNIPER_EFFECT_DRAWER[e.kind];
   if (sniper) {
@@ -245,14 +245,14 @@ function drawEffect(e) {
   e.el.style.transform = `scale(${1 + (style.scale - 1) * t})`;
 }
 
-// Sniper-Granate im Flug: x/y = Mitte, 14 px gross, Drehung aus rot
+// Sniper grenade in flight: x/y = center, 14 px, rotation from rot
 function drawSniperGrenade(g) {
   g.el.style.left = g.x - 7 + 'px';
   g.el.style.top = g.y - 7 + 'px';
   g.el.style.transform = `rotate(${g.rot}deg)`;
 }
 
-// Haftmine: x/y = Mitte, 12 px gross (MINE_GROESSE), Klassen haftet/blinkt aus dem Modell
+// Sticky mine: x/y = center, 12 px (MINE_SIZE), classes haftet/blinkt from the model
 function drawSniperMine(m) {
   m.el.style.left = m.x - MINE_SIZE / 2 + 'px';
   m.el.style.top = m.y - MINE_SIZE / 2 + 'px';
@@ -260,7 +260,7 @@ function drawSniperMine(m) {
   m.el.classList.toggle('blinkt', !!m.blinks);
 }
 
-// Zeichner je Objektart (beim Erzeugen) und je Liste (jeder Schritt).
+// Drawer per object kind (on creation) and per list (every step).
 const DRAWER_PER_KIND = {
   star: setPosition,
   enemy: drawEnemy,
@@ -307,19 +307,19 @@ const DRAWER = {
 
 export function create(obj, kind) {
   const build = CREATOR[kind];
-  if (!build) throw new Error(`Unbekannte Objektart fuer die Anzeige: ${kind}`);
+  if (!build) throw new Error(`unknown object kind for the display: ${kind}`);
   obj.el = build(obj);
   dom.playfield.appendChild(obj.el);
   DRAWER_PER_KIND[kind](obj);
 }
 
-// Spielerschiffe: feste Elemente #spieler / #spieler-2 mit Triebwerksflammen
+// Player ships: fixed elements #spieler / #spieler-2 with engine flames
 const SHIPS = [
   { pKey: 'p1', el: () => dom.player, status: () => state, flames: ['flame-left', 'flame-right'] },
   { pKey: 'p2', el: () => dom.player2, status: () => state.p2, flames: ['flame-left-p2', 'flame-right-p2'] },
 ];
 
-// SVG nach Modell und Farbe; Gleve hat nur ein Mittel-Triebwerk (Flammen per Klasse zentriert)
+// SVG by model and color; the Gleve has only a center engine (flames centered via class)
 function drawLook(s, el) {
   const model = s.selectedShipModel || 'viper';
   const color = s.selectedShipColor || 'red';
@@ -331,7 +331,7 @@ function drawLook(s, el) {
   el.classList.toggle('schiff-gleve', model === 'gleve');
 }
 
-// Raketenwerfer-Pods nach Modell und Raketen-Stufe
+// Missile launcher pods by model and missile tier
 function drawLauncher(s, el) {
   const binding = launcherBinding(s);
   const tier = Math.min(5, Math.max(1, s.missileTier || 1));
@@ -352,7 +352,7 @@ function drawLauncher(s, el) {
   }
 }
 
-// Laufende Hacks: Label mit Namen und Restzeit ueber dem Schiff
+// Running hacks: label with name and remaining time above the ship
 function drawHackLabel(s, pKey, active) {
   let label = document.getElementById('hack-label-' + pKey);
   if (!active) {
@@ -367,7 +367,7 @@ function drawHackLabel(s, pKey, active) {
       '<div class="hack-text"></div><div class="hack-restzeit-rahmen"><div class="hack-restzeit"></div></div>';
     dom.playfield.appendChild(label);
   }
-  const text = s.hacks.map(h => HACK_NAMES[h.typ]).join(' + ');
+  const text = s.hacks.map(h => HACK_NAMES[h.type]).join(' + ');
   const textEl = label.querySelector('.hack-text');
   if (textEl.textContent !== text) textEl.textContent = text;
   const restMax = Math.max(...s.hacks.map(h => h.timer));
@@ -378,8 +378,8 @@ function drawHackLabel(s, pKey, active) {
   label.style.top = s.y - 22 + 'px';
 }
 
-// Sniper-Fadenkreuz (Kreis mit vier Strichen) samt Ladering aus sniperZielX/Y, Laser-Stufe, sniperLadung und sniperGehalten.
-// Sichtbar nur fuer lebende Sniper bei laufendem Spiel und gesetztem Ziel.
+// Sniper crosshair (circle with four strokes) with charge ring from sniperTargetX/Y, laser tier, sniperCharge and sniperHeld.
+// Visible only for living snipers in a running game with a target set.
 function drawCrosshair(s, pKey) {
   const id = 'fadenkreuz-' + pKey;
   let el = document.getElementById(id);
@@ -412,7 +412,7 @@ function drawCrosshair(s, pKey) {
   el.style.boxShadow = `0 0 6px ${color}, inset 0 0 4px ${color}`;
 }
 
-// Ladering im Fadenkreuz: zeigt den aktuellen Trefferkreis, waechst mit der Ladung, Klasse voll bei voller Ladung
+// Charge ring in the crosshair: shows the current hit circle, grows with the charge, class voll at full charge
 function drawChargeRing(el, s) {
   let ring = el.querySelector('.sniper-ladering');
   if (!ring) {
@@ -433,8 +433,8 @@ function drawChargeRing(el, s) {
   ring.style.borderWidth = 1.5 + 2.5 * share + 'px';
 }
 
-// Gleve-Sweep-Klinge aus gleveSweepTimer, -Winkel und -Richtung; sichtbar nur fuer lebende Gleve mit laufendem Sweep.
-// Ursprung und Laenge kommen aus der Spiellogik (sweepUrsprung, sweepLaenge), Farbe aus der Schiffsfarbe.
+// Gleve sweep blade from gleveSweepTimer, angle and direction; visible only for living Gleves with a running sweep.
+// Origin and length come from the game logic (sweepOrigin, sweepLength), the color from the ship color.
 function drawBlade(s, pKey) {
   const id = 'gleve-klinge-' + pKey;
   let el = document.getElementById(id);
@@ -457,13 +457,13 @@ function drawBlade(s, pKey) {
   el.style.top = o.y - length + 'px';
   el.style.boxShadow = `0 0 4px #ffffff, 0 0 8px ${color}, 0 0 14px ${color}`;
   el.style.borderColor = color;
-  // Leicht gebogen: Neigung gegen die Laufrichtung
+  // Slightly curved: tilted against the direction of travel
   el.style.borderRadius = (s.gleveSweepDirection || 1) > 0 ? '0 100% 0 0 / 0 100% 0 0' : '100% 0 0 0 / 100% 0 0 0';
   el.style.transform = `rotate(${s.gleveSweepAngle}deg)`;
 }
 
-// Ein Schiff aus seinem Zustand: Sichtbarkeit (schiffSichtbar), Position (anzeigeX/Y oder x/y), Neigung
-// (drehung), Flammen (flammenSkala), Blinken waehrend der Unverwundbarkeit, Schild-Ring je schildStufe
+// One ship from its state: visibility (shipVisible), position (displayX/Y or x/y), tilt
+// (rotation), flames (flameScale), blinking during invulnerability, shield ring per shieldTier
 function drawShip(s, el, flameIds, pKey) {
   drawLook(s, el);
   drawLauncher(s, el);
@@ -498,7 +498,7 @@ export function drawPlayer() {
   drawBeams();
 }
 
-// Autolaser (gedrehter Strahl zum Ziel) und Hitscan-Laser (senkrecht) des Spielers 1
+// Autolaser (rotated beam to the target) and hitscan laser (vertical) of player 1
 function drawBeams() {
   const auto = state.autolaserBeam;
   if (dom.autolaserEl) {
@@ -537,7 +537,7 @@ export function remove(obj) {
   if (obj.el) obj.el.remove();
 }
 
-// Kurzes Aufhellen bei einem Treffer (staerke = Helligkeitsfaktor), unabhaengig vom Simulationstakt
+// Brief brightening on a hit (strength = brightness factor), independent of the simulation rate
 export function flash(obj, strength) {
   const el = obj.el;
   if (!el) return;
@@ -547,19 +547,19 @@ export function flash(obj, strength) {
   }, 50);
 }
 
-// Bildschirm-Blitz: Spielfeldhintergrund kurz faerben, nach ms zurueck zur Grundfarbe. Jeder Blitz setzt seinen
-// eigenen Timer (wie bisher in der Logik): ein zweiter Blitz im ersten setzt die Grundfarbe beim Ablauf des ersten.
+// Screen flash: color the playfield background briefly, back to the base color after ms. Every flash sets its
+// own timer (as before in the logic): a second flash within the first sets the base color when the first expires.
 export function flashPlayfield(color, ms) {
   const el = dom.playfield || document.getElementById('spielfeld');
   if (!el) return;
   el.style.backgroundColor = color;
   setTimeout(() => {
-    // zurueck zur Farbe aus dem Stylesheet (Thema-Klasse)
+    // back to the color from the stylesheet (theme class)
     el.style.backgroundColor = '';
   }, ms);
 }
 
-// Thema als Klasse thema-<name> am Spielfeld; 'standard' = keine Klasse
+// Theme as class thema-<name> on the playfield; 'standard' = no class
 export function setTheme(name) {
   const el = dom.playfield || document.getElementById('spielfeld');
   if (!el) return;

@@ -13,7 +13,7 @@ test.beforeEach(async ({ page }) => {
   await page.goto('/');
 });
 
-test('Host: applyPlayerInput akzeptiert nur endliche Zahlen und begrenzt auf das Spielfeld', async ({ page }) => {
+test('Host: applyPlayerInput accepts only finite numbers and clamps to the playfield', async ({ page }) => {
   const r = await page.evaluate(() => {
     const { state, config, Network } = window.__game;
     state.p2 = state.p2 || {};
@@ -39,7 +39,7 @@ test('Host: applyPlayerInput akzeptiert nur endliche Zahlen und begrenzt auf das
     Network.applyPlayerInput({ x: 99999, y: 99999 });
     out.top = read();
 
-    // gemischt: x gueltig, y ungueltig
+    // mixed: x valid, y invalid
     state.p2.x = 10;
     state.p2.y = 20;
     Network.applyPlayerInput({ x: 77, y: NaN });
@@ -55,7 +55,7 @@ test('Host: applyPlayerInput akzeptiert nur endliche Zahlen und begrenzt auf das
   expect(r.mixed).toEqual({ x: 77, y: 20 });
 });
 
-test('Bestenliste: API-Strings werden escaped, Titel-Attribut bleibt heil', async ({ page }) => {
+test('Leaderboard: API strings are escaped, title attribute stays intact', async ({ page }) => {
   const r = await page.evaluate(() => {
     const { Utils } = window.__game;
     Utils.renderHighscoresTable('single', [

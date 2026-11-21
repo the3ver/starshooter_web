@@ -13,7 +13,7 @@ test.beforeEach(async ({ page }) => {
   await page.goto('/');
 });
 
-// Ermittelt, welchen Spieler naechsterSpieler() fuer die Positionen liefert
+// Determines which player nextPlayer() returns for the positions
 async function choosePlayer(page, opts) {
   return page.evaluate(async o => {
     const { state } = await import('./js/state.js');
@@ -32,22 +32,22 @@ async function choosePlayer(page, opts) {
 }
 
 test.describe('nextPlayer', () => {
-  test('Einzelspieler liefert immer P1, auch wenn P2 naeher waere', async ({ page }) => {
+  test('Single player always returns P1, even if P2 were nearer', async ({ page }) => {
     const r = await choosePlayer(page, { mode: 'single', p1: [300, 500], p2: [100, 100], ref: [100, 100] });
     expect(r.who).toBe('p1');
   });
 
-  test('Coop: naeherer P2 wird gewaehlt', async ({ page }) => {
+  test('Co-op: the nearer P2 is chosen', async ({ page }) => {
     const r = await choosePlayer(page, { mode: 'coop', p1: [300, 500], p2: [100, 100], ref: [110, 90] });
     expect(r.who).toBe('p2');
   });
 
-  test('Online zaehlt als Coop', async ({ page }) => {
+  test('Online counts as co-op', async ({ page }) => {
     const r = await choosePlayer(page, { mode: 'online', p1: [300, 500], p2: [100, 100], ref: [110, 90] });
     expect(r.who).toBe('p2');
   });
 
-  test('Coop: toter P1 fuehrt zu P2, auch wenn P1 naeher ist', async ({ page }) => {
+  test('Co-op: a dead P1 leads to P2, even if P1 is nearer', async ({ page }) => {
     const r = await choosePlayer(page, {
       mode: 'coop',
       p1: [100, 100],
@@ -58,7 +58,7 @@ test.describe('nextPlayer', () => {
     expect(r.who).toBe('p2');
   });
 
-  test('Coop: toter P2 wird nie gewaehlt', async ({ page }) => {
+  test('Co-op: a dead P2 is never chosen', async ({ page }) => {
     const r = await choosePlayer(page, {
       mode: 'coop',
       p1: [400, 500],
@@ -69,14 +69,16 @@ test.describe('nextPlayer', () => {
     expect(r.who).toBe('p1');
   });
 
-  test('Coop: gleicher Abstand behaelt P1', async ({ page }) => {
+  test('Co-op: equal distance keeps P1', async ({ page }) => {
     const r = await choosePlayer(page, { mode: 'coop', p1: [100, 200], p2: [300, 200], ref: [200, 50] });
     expect(r.who).toBe('p1');
   });
 
-  test('Abstand zaehlt von Spieler-Ecke zum Referenzpunkt, Mitte liefert Schiffsmitte', async ({ page }) => {
+  test('Distance counts from the player corner to the reference point, center returns the ship center', async ({
+    page,
+  }) => {
     const h = await page.evaluate(async () => (await import('./js/state.js')).config.playerSize / 2);
-    // Von der Spieler-Mitte aus waere P2 naeher, von der Spieler-Ecke aus ist P1 naeher
+    // From the player center P2 would be nearer, from the player corner P1 is nearer
     const r = await choosePlayer(page, {
       mode: 'coop',
       p1: [100, 100],
@@ -85,7 +87,7 @@ test.describe('nextPlayer', () => {
     });
     expect(r.who).toBe('p1');
     expect(r.middle).toEqual({ x: 100 + h, y: 100 + h });
-    // Gegenprobe: P2 knapp naeher an der Ecke
+    // Cross-check: P2 slightly nearer to the corner
     const r2 = await choosePlayer(page, {
       mode: 'coop',
       p1: [100, 100],
@@ -97,7 +99,7 @@ test.describe('nextPlayer', () => {
   });
 });
 
-// Struktur eines Anzeige-Containers: Kindelemente mit Klassen und sichtbarem Text (ohne Farben/Styles)
+// Structure of a display container: child elements with classes and visible text (without colors/styles)
 async function uiHistory(page) {
   return page.evaluate(async () => {
     const { state, dom } = await import('./js/state.js');
@@ -148,7 +150,7 @@ async function uiHistory(page) {
     };
     const p1 = state,
       p2 = state.p2;
-    // Beide Spieler bekommen in jedem Schritt exakt denselben Zustand
+    // Both players get exactly the same state in every step
     const set = z => {
       for (const s of [p1, p2]) Object.assign(s, z);
     };
@@ -209,7 +211,7 @@ async function uiHistory(page) {
   });
 }
 
-test('P1/P2-UI-Funktionen zeigen Leben, Powerup-Stufen, Marker und Splitter-HUD fuer beide Spieler gleich', async ({
+test('P1/P2 UI functions show lives, powerup tiers, markers and splitter HUD the same for both players', async ({
   page,
 }) => {
   const [start, s1, s2, s3] = await uiHistory(page);
@@ -218,18 +220,18 @@ test('P1/P2-UI-Funktionen zeigen Leben, Powerup-Stufen, Marker und Splitter-HUD 
   const texts = list => list.map(e => e.text);
 
   for (const k of ['p1', 'p2']) {
-    // Start: 3 Herzen, keine Powerup-Icons, kein Splitter-HUD ohne Splitter
+    // Start: 3 hearts, no powerup icons, no splitter HUD without splitters
     expect(start[k].lives.length).toBe(3);
     expect(start[k].pu).toEqual([]);
 
-    // Schritt 1: Leben 1 (2 Verlust-Herzen), alle Powerups mit Stufen-Text in fester Reihenfolge
+    // Step 1: lives 1 (2 lost hearts), all powerups with tier text in a fixed order
     expect(active(s1[k].lives).length).toBe(1);
     expect(lost(s1[k].lives).length).toBe(2);
     expect(texts(active(s1[k].pu))).toEqual(['L3', 'R5', 'B2', '↑', 'O2', 'A']);
     expect(active(s1[k].pu).every(e => e.cls.includes('active-pu-icon') && e.cls.includes('pu-anim-new'))).toBe(true);
     expect(s1[k].hud).toEqual(['flex', '4', '7']);
 
-    // Schritt 2: mehr Leben, Upgrade/Downgrade/Verlust, Phantom-Schild laedt auf
+    // Step 2: more lives, upgrade/downgrade/loss, Phantom shield charges
     expect(active(s2[k].lives).length).toBe(4);
     expect(s2[k].pu.find(e => e.text === 'L5').cls).toContain('pu-anim-upgrade');
     expect(s2[k].pu.find(e => e.text === 'R2').cls).toContain('pu-anim-downgrade');
@@ -237,23 +239,23 @@ test('P1/P2-UI-Funktionen zeigen Leben, Powerup-Stufen, Marker und Splitter-HUD 
     expect(shield.text).toBe('O1');
     expect(shield.title).toMatch(/\d+%/);
     expect(texts(lost(s2[k].pu)).sort()).toEqual(['A', 'B2', '↑'].sort());
-    expect(s2[k].hud[0]).toBe('none'); // Phantom hat kein Splitter-HUD
+    expect(s2[k].hud[0]).toBe('none'); // Phantom has no splitter HUD
 
-    // Schritt 3: unveraenderte Lebenszahl, keine neuen Icons
+    // Step 3: unchanged number of lives, no new icons
     expect(active(s3[k].lives).length).toBe(4);
   }
-  // Einzelspieler: nur P1 (Viper) zeigt das Splitter-HUD
+  // Single player: only P1 (Viper) shows the splitter HUD
   expect(s3.p1.hud[0]).toBe('flex');
   expect(s3.p2.hud[0]).toBe('none');
 
-  // Marker = maxEnergie / absMaxEnergie in Prozent, fuer beide Spieler
+  // Marker = maxEnergy / absMaxEnergy in percent, for both players
   for (const s of [start, s1, s2, s3]) {
     expect(parseFloat(s.p1.marker)).toBeCloseTo(parseFloat(s.erwMarker[0]), 5);
     expect(parseFloat(s.p2.marker)).toBeCloseTo(parseFloat(s.erwMarker[1]), 5);
   }
   expect(parseFloat(s1.p1.marker)).toBeGreaterThan(parseFloat(start.p1.marker));
 
-  // Doppelungs-Abbau: bei gleichem Zustand liefern P1 und P2 dieselbe Struktur (ohne Styles/Titel)
+  // Duplication removal: with the same state P1 and P2 return the same structure (without styles/titles)
   for (const s of [start, s1, s2]) {
     expect(s.p2.livesN).toBe(s.p1.livesN);
     expect(s.p2.pu_n).toBe(s.p1.pu_n);
@@ -262,7 +264,7 @@ test('P1/P2-UI-Funktionen zeigen Leben, Powerup-Stufen, Marker und Splitter-HUD 
   }
 });
 
-// Bewegung und Energie fachlich pruefen: Richtung/Betrag aus dem Schiffsmodell, Randbegrenzung, Regeneration
+// Check movement and energy functionally: direction/amount from the ship model, edge clamping, regeneration
 async function playerBehavior(page, model) {
   return page.evaluate(async m => {
     const { state, config, arrays } = await import('./js/state.js');
@@ -326,7 +328,7 @@ async function playerBehavior(page, model) {
       setPos(s, 300, maxY - 1);
       step(keys.bottom);
       r.edgeBottom = s.y;
-      // Energie: Feuern verbraucht, Nicht-Feuern laedt um energyRegen
+      // Energy: firing consumes, not firing recharges by energyRegen
       s.maxEnergy = 100;
       s.laserTier = 1;
       s.laserShoots = false;
@@ -348,14 +350,12 @@ async function playerBehavior(page, model) {
 }
 
 for (const model of ['viper', 'phantom']) {
-  test(`bewegeSpieler/aktualisiereEnergie: Richtung, Randbegrenzung und Energie fuer P1 und P2 (${model})`, async ({
-    page,
-  }) => {
+  test(`movePlayer/updateEnergy: direction, edge clamping and energy for P1 and P2 (${model})`, async ({ page }) => {
     const o = await playerBehavior(page, model);
     expect(o.speed).toBeGreaterThan(0);
     for (const k of ['p1', 'p2']) {
       const r = o[k];
-      // Bewegung: richtige Richtung um die Geschwindigkeit des Schiffsmodells
+      // Movement: correct direction by the speed of the ship model
       expect(r.left.dx).toBeCloseTo(-o.speed, 5);
       expect(r.left.dy).toBeCloseTo(0, 5);
       expect(r.right.dx).toBeCloseTo(o.speed, 5);
@@ -371,14 +371,14 @@ for (const model of ['viper', 'phantom']) {
       expect(r.edgeTop).toBe(0);
       expect(r.edgeRight).toBeCloseTo(o.maxX, 5);
       expect(r.edgeBottom).toBeCloseTo(o.maxY, 5);
-      // Energie
+      // Energy
       expect(r.fire.shoots).toBe(true);
       expect(r.fire.afterwards).toBeLessThan(r.fire.beforehand);
       expect(r.regen.shoots).toBe(false);
       expect(r.regen.afterwards).toBeCloseTo(r.regen.beforehand + o.regen, 5);
-      expect(r.full).toBeCloseTo(100, 5); // nie ueber maxEnergie
+      expect(r.full).toBeCloseTo(100, 5); // never above maxEnergy
     }
-    // P1 und P2 verhalten sich gleich
+    // P1 and P2 behave the same
     expect(o.p2.fire.afterwards).toBeCloseTo(o.p1.fire.afterwards, 5);
     expect(o.p2.regen.afterwards).toBeCloseTo(o.p1.regen.afterwards, 5);
   });

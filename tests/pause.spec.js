@@ -21,7 +21,7 @@ test.beforeEach(async ({ page }) => {
   await page.waitForFunction(() => window.__game && window.__game.state);
 });
 
-// Versetzt die Seite in einen laufenden Online-Zustand (rolle 'host' oder 'client')
+// Puts the page into a running online state (role 'host' or 'client')
 async function online(page, roll) {
   await page.evaluate(roll => {
     const { state } = window.__game;
@@ -39,7 +39,7 @@ async function online(page, roll) {
   }, roll);
 }
 
-test('Online-Client: P2-Blinken nach player_hit endet nach den I-Frames', async ({ page }) => {
+test('Online client: P2 blinking after player_hit ends after the i-frames', async ({ page }) => {
   await online(page, 'client');
   const r = await page.evaluate(async () => {
     const g = window.__game;
@@ -70,7 +70,7 @@ const pauseStatus = page =>
     };
   });
 
-test('Pause a) Host drueckt P: pausiert, pauseVon p1, pause_start gesendet', async ({ page }) => {
+test('Pause a) host presses P: paused, pauseFrom p1, pause_start sent', async ({ page }) => {
   await online(page, 'host');
   await page.keyboard.press('KeyP');
   await page.waitForFunction(() => window.__game.state.paused);
@@ -81,7 +81,7 @@ test('Pause a) Host drueckt P: pausiert, pauseVon p1, pause_start gesendet', asy
   expect(s.last).toMatchObject({ type: 'pause_start', fromEntry: 'p1', durationMs: 60000 });
 });
 
-test('Pause b) Client erhaelt pause_start, kann nicht fortsetzen und sieht einen Hinweis', async ({ page }) => {
+test('Pause b) client receives pause_start, cannot resume and sees a hint', async ({ page }) => {
   await online(page, 'client');
   await page.evaluate(() => {
     window.__game.Network.handleNetworkEvent({ type: 'pause_start', fromEntry: 'p1', durationMs: 60000 }, 'peer');
@@ -100,7 +100,7 @@ test('Pause b) Client erhaelt pause_start, kann nicht fortsetzen und sieht einen
   expect(s.last).toBeNull();
 });
 
-test('Pause c) Besitzer beendet mit P und sendet pause_ende, Empfang beendet die Gegenseite', async ({ page }) => {
+test('Pause c) the owner ends with P and sends pause_end, receiving it ends the other side', async ({ page }) => {
   await online(page, 'client');
   await page.keyboard.press('KeyP');
   await page.waitForFunction(() => window.__game.state.paused);
@@ -109,23 +109,23 @@ test('Pause c) Besitzer beendet mit P und sendet pause_ende, Empfang beendet die
   await page.waitForFunction(() => !window.__game.state.paused);
   let s = await pauseStatus(page);
   expect(s.visible).toBe(false);
-  expect(s.last).toMatchObject({ type: 'pauseEnd' });
+  expect(s.last).toMatchObject({ type: 'pause_end' });
 
-  // Gegenseite: Host pausiert durch pause_start des Clients und endet durch pause_ende
+  // Other side: the host pauses via the client's pause_start and ends via pause_end
   await online(page, 'host');
   await page.evaluate(() => {
     const { Network } = window.__game;
     Network.handleNetworkEvent({ type: 'pause_start', fromEntry: 'p2', durationMs: 60000 }, 'peer');
   });
   expect((await pauseStatus(page)).paused).toBe(true);
-  await page.evaluate(() => window.__game.Network.handleNetworkEvent({ type: 'pauseEnd' }, 'peer'));
+  await page.evaluate(() => window.__game.Network.handleNetworkEvent({ type: 'pause_end' }, 'peer'));
   s = await pauseStatus(page);
   expect(s.paused).toBe(false);
   expect(s.fromEntry).toBeNull();
   expect(s.visible).toBe(false);
 });
 
-test('Pause d) Zeitablauf beendet die Pause, Host sendet pause_ende, Client beendet lokal', async ({ page }) => {
+test('Pause d) timeout ends the pause, host sends pause_end, client ends locally', async ({ page }) => {
   await online(page, 'host');
   await page.keyboard.press('KeyP');
   await page.waitForFunction(() => window.__game.state.paused);
@@ -136,7 +136,7 @@ test('Pause d) Zeitablauf beendet die Pause, Host sendet pause_ende, Client been
   await page.waitForFunction(() => !window.__game.state.paused);
   let s = await pauseStatus(page);
   expect(s.fromEntry).toBeNull();
-  expect(s.last).toMatchObject({ type: 'pauseEnd' });
+  expect(s.last).toMatchObject({ type: 'pause_end' });
 
   await online(page, 'client');
   await page.evaluate(() => {
@@ -148,7 +148,7 @@ test('Pause d) Zeitablauf beendet die Pause, Host sendet pause_ende, Client been
   expect(s.last).toBeNull();
 });
 
-test('Pause e) peer_left beendet die Pause', async ({ page }) => {
+test('Pause e) peer_left ends the pause', async ({ page }) => {
   await online(page, 'client');
   await page.evaluate(() => {
     window.__game.Network.handleNetworkEvent({ type: 'pause_start', fromEntry: 'p1', durationMs: 60000 }, 'peer');
@@ -159,7 +159,7 @@ test('Pause e) peer_left beendet die Pause', async ({ page }) => {
   expect(s.visible).toBe(false);
 });
 
-test('Pause f) Singleplayer: P schaltet wie bisher ohne Zeitlimit und ohne Event', async ({ page }) => {
+test('Pause f) single player: P toggles as before without a time limit and without an event', async ({ page }) => {
   await page.evaluate(() => {
     const { state } = window.__game;
     state.gameMode = 'single';
@@ -189,7 +189,7 @@ test('Pause f) Singleplayer: P schaltet wie bisher ohne Zeitlimit und ohne Event
   expect(s.last).toBeNull();
 });
 
-// --- Pausenmenue: Knoepfe WEITER / HAUPTMENUE (nur lokal) ---
+// --- Pause menu: buttons RESUME / MAIN MENU (local only) ---
 
 async function startPaused(page, mode) {
   if (mode === 'coop') await page.evaluate(() => window.__game.Utils.setGameMode('coop'));
@@ -212,13 +212,13 @@ const visible = (page, id) =>
   }, id);
 
 for (const mode of ['single', 'coop']) {
-  test(`Pausenmenue (${mode}): Knoepfe, WEITER, ABBRECHEN, ESC`, async ({ page }) => {
+  test(`pause menu (${mode}): buttons, RESUME, CANCEL, ESC`, async ({ page }) => {
     await startPaused(page, mode);
     expect(await visible(page, 'btn-pause-weiter')).toBe(true);
     expect(await visible(page, 'btn-pause-hauptmenue')).toBe(true);
     expect(await visible(page, 'btn-pause-ja')).toBe(false);
 
-    // Abfrage ueber Knopf, ABBRECHEN bleibt pausiert
+    // Query via the button, CANCEL stays paused
     await page.click('#btn-pause-hauptmenue');
     expect(await visible(page, 'btn-pause-ja')).toBe(true);
     expect(await visible(page, 'pause-abfrage-text')).toBe(true);
@@ -227,21 +227,21 @@ for (const mode of ['single', 'coop']) {
     expect(await visible(page, 'btn-pause-weiter')).toBe(true);
     expect(await page.evaluate(() => window.__game.state.paused)).toBe(true);
 
-    // ESC oeffnet und schliesst die Abfrage
+    // ESC opens and closes the query
     await page.keyboard.press('Escape');
     expect(await visible(page, 'btn-pause-ja')).toBe(true);
     await page.keyboard.press('Escape');
     expect(await visible(page, 'btn-pause-ja')).toBe(false);
     expect(await page.evaluate(() => window.__game.state.paused)).toBe(true);
 
-    // WEITER beendet die Pause
+    // RESUME ends the pause
     await page.click('#btn-pause-weiter');
     expect(await page.evaluate(() => window.__game.state.paused)).toBe(false);
     expect(await visible(page, 'pause-overlay')).toBe(false);
     expect(await page.evaluate(() => window.__game.state.gameRunning)).toBe(true);
   });
 
-  test(`Pausenmenue (${mode}): JA beendet das Spiel ohne Game-Over und ein neues Spiel startet`, async ({ page }) => {
+  test(`pause menu (${mode}): YES ends the game without game over and a new game starts`, async ({ page }) => {
     await startPaused(page, mode);
     await page.click('#btn-pause-hauptmenue');
     await page.click('#btn-pause-ja');
@@ -275,14 +275,14 @@ for (const mode of ['single', 'coop']) {
     expect(r.score).toBe(0);
     if (r.scoreText !== null) expect(r.scoreText).not.toContain('1234');
 
-    // Neues Spiel startet normal
+    // A new game starts normally
     await startGame(page);
     await page.waitForFunction(() => window.__game.state.gameRunning);
     expect(await page.evaluate(() => window.__game.state.paused)).toBe(false);
   });
 }
 
-test('Pausenmenue online: keine Knoepfe, ESC wirkungslos', async ({ page }) => {
+test('Pause menu online: no buttons, ESC has no effect', async ({ page }) => {
   await online(page, 'host');
   await page.keyboard.press('KeyP');
   await page.waitForFunction(() => window.__game.state.paused);
@@ -294,7 +294,7 @@ test('Pausenmenue online: keine Knoepfe, ESC wirkungslos', async ({ page }) => {
   expect(await page.evaluate(() => window.__game.state.paused)).toBe(true);
 });
 
-test('Pausenmenue online (Client, fremde Pause): keine Knoepfe', async ({ page }) => {
+test('Pause menu online (client, other side paused): no buttons', async ({ page }) => {
   await online(page, 'client');
   await page.evaluate(() => {
     window.__game.Network.handleNetworkEvent({ type: 'pause_start', fromEntry: 'p1', durationMs: 60000 }, 'peer');

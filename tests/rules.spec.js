@@ -1,4 +1,4 @@
-// Statische Regeln fuer Test- und Spielcode (lesen nur Dateien, kein Browser)
+// Static rules for test and game code (read files only, no browser)
 const { test, expect } = require('@playwright/test');
 const fs = require('fs');
 const path = require('path');
@@ -6,9 +6,9 @@ const path = require('path');
 const TESTS = __dirname;
 const tally = (text, pattern) => (text.match(pattern) || []).length;
 
-// Echtzeit-Wartezeiten machen Tests unter Last wackelig (3e8c59b, 1d732ba, bad758c).
-// Stattdessen simulationsSchritt() in einem evaluate oder die Fake-Uhr aus helpers.js nutzen.
-// Bestand je Datei; er darf nur sinken. Nach dem Abbau den Wert hier senken.
+// Real-time waits make tests flaky under load (3e8c59b, 1d732ba, bad758c).
+// Use simulationStep() inside an evaluate or the fake clock from helpers.js instead.
+// Baseline per file; it may only go down. Lower the value here after removing waits.
 const REAL_TIME_BASELINE = {
   'game.spec.js': 45,
   'gleve.spec.js': 1,
@@ -17,7 +17,7 @@ const REAL_TIME_BASELINE = {
   'screenshot.spec.js': 3,
 };
 
-test('keine neuen Echtzeit-Wartezeiten in Tests (waitForTimeout, setTimeout-Promise)', () => {
+test('no new real-time waits in tests (waitForTimeout, setTimeout promise)', () => {
   const tooMuch = [];
   for (const file of fs.readdirSync(TESTS).filter(d => d.endsWith('.js'))) {
     const text = fs.readFileSync(path.join(TESTS, file), 'utf8');
@@ -25,12 +25,12 @@ test('keine neuen Echtzeit-Wartezeiten in Tests (waitForTimeout, setTimeout-Prom
     const allowed = REAL_TIME_BASELINE[file] || 0;
     if (count > allowed) tooMuch.push(`${file}: ${count} statt hoechstens ${allowed}`);
   }
-  expect(tooMuch, 'Echtzeit-Wartezeit durch simulationsSchritt() oder Fake-Uhr ersetzen').toEqual([]);
+  expect(tooMuch, 'replace the real-time wait with simulationStep() or the fake clock').toEqual([]);
 });
 
-// Modulzustand ueberlebt restartGame(), wenn ihn niemand zuruecksetzt (642b082: aktuellesThema in level.js,
-// vorher afd5d90, 5522e68, b6a55cb). Jede Modulvariable (let auf oberster Ebene) steht hier mit ihrem Reset
-// oder dem Grund, warum sie einen Neustart ueberleben darf.
+// Module state survives restartGame() if nobody resets it (642b082: currentTheme in level.js,
+// before that afd5d90, 5522e68, b6a55cb). Every module variable (top-level let) is listed here with its reset
+// or the reason why it may survive a restart.
 const MODULE_STATUS = {
   'display.js': { lets: ['backend'], reason: 'Anzeige-Backend gilt fuer die ganze Sitzung' },
   'audio.js': {
@@ -106,7 +106,7 @@ const MODULE_STATUS = {
   },
 };
 
-test('jede Modulvariable in src/js hat einen Reset bei restartGame oder einen Grund (MODUL_ZUSTAND)', () => {
+test('every module variable in src/js has a reset in restartGame or a reason (MODULE_STATUS)', () => {
   const folder = path.join(TESTS, '..', 'src', 'js');
   const is = {};
   for (const file of fs.readdirSync(folder).filter(d => d.endsWith('.js'))) {
@@ -117,6 +117,6 @@ test('jede Modulvariable in src/js hat einen Reset bei restartGame oder einen Gr
   const should = Object.fromEntries(Object.entries(MODULE_STATUS).map(([file, e]) => [file, e.lets]));
   expect(
     is,
-    'Neue Modulvariable: in restartGame (utils.js) zuruecksetzen und in MODUL_ZUSTAND eintragen, oder dort begruenden',
+    'New module variable: reset it in restartGame (utils.js) and add it to MODULE_STATUS, or give a reason there',
   ).toEqual(should);
 });

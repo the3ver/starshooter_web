@@ -13,7 +13,7 @@ test.beforeEach(async ({ page }) => {
   await page.goto('/');
   await startGame(page);
   await page.waitForFunction(() => window.__game.state.gameRunning);
-  // Feld leeren, Spieler unten links parken, keine Zufalls-Spawns
+  // Clear the field, park the player bottom left, no random spawns
   await page.evaluate(async () => {
     const { state, arrays } = await import('./js/state.js');
     const Display = await import('./js/display.js');
@@ -29,7 +29,7 @@ test.beforeEach(async ({ page }) => {
   });
 });
 
-test('Bahnen liegen vor dem Start ausserhalb des Felds, ab t = 0 laufen sie ins Feld', async ({ page }) => {
+test('Lanes lie outside the field before the start, from t = 0 on they run into the field', async ({ page }) => {
   const r = await page.evaluate(() => {
     const K = window.__chain;
     const error = [];
@@ -47,7 +47,7 @@ test('Bahnen liegen vor dem Start ausserhalb des Felds, ab t = 0 laufen sie ins 
   expect(r).toEqual([]);
 });
 
-test('Glieder folgen der Spur des Kopfes mit festem Zeitversatz und drehen sich in Flugrichtung', async ({ page }) => {
+test('Links follow the head trail with a fixed time offset and rotate in the flight direction', async ({ page }) => {
   const r = await page.evaluate(async () => {
     const K = window.__chain;
     const { arrays } = await import('./js/state.js');
@@ -60,7 +60,7 @@ test('Glieder folgen der Spur des Kopfes mit festem Zeitversatz und drehen sich 
       simulationStep();
       trail.push(middle(chainLinks[0]));
     }
-    // Glied 3 steht jetzt dort, wo der Kopf 3 * ABSTAND Schritte vorher war
+    // Link 3 is now where the head was 3 * DISTANCE steps earlier
     const should = trail[trail.length - 1 - 3 * K.linkDistance('loop', 1)];
     const is = middle(chainLinks[3]);
     return {
@@ -74,7 +74,7 @@ test('Glieder folgen der Spur des Kopfes mit festem Zeitversatz und drehen sich 
   expect(r).toMatchObject({ allStillThere: true, headLarger: true, rotSet: true });
 });
 
-test('Glieder liegen auf jeder Bahn im Mittel etwa GLIED_ABSTAND_PX auseinander', async ({ page }) => {
+test('Links are on average about LINK_DISTANCE_PX apart on every lane', async ({ page }) => {
   const r = await page.evaluate(() => {
     const K = window.__chain;
     const result = {};
@@ -93,7 +93,7 @@ test('Glieder liegen auf jeder Bahn im Mittel etwa GLIED_ABSTAND_PX auseinander'
   expect(r).toEqual({ snake: true, sCurve: true, loop: true, spiral: true });
 });
 
-test('Wartende Glieder ausserhalb des Felds werden nicht entfernt (Bahn von der Seite)', async ({ page }) => {
+test('Waiting links outside the field are not removed (lane from the side)', async ({ page }) => {
   const count = await page.evaluate(async () => {
     const { arrays } = await import('./js/state.js');
     const { simulationStep } = await import('./js/loop.js');
@@ -104,7 +104,7 @@ test('Wartende Glieder ausserhalb des Felds werden nicht entfernt (Bahn von der 
   expect(count).toBe(10);
 });
 
-test('Nur der Kopf schiesst', async ({ page }) => {
+test('Only the head shoots', async ({ page }) => {
   const r = await page.evaluate(async () => {
     const { arrays } = await import('./js/state.js');
     const { simulationStep } = await import('./js/loop.js');
@@ -119,11 +119,11 @@ test('Nur der Kopf schiesst', async ({ page }) => {
   expect(r).toEqual({ headReady: true, linkMuted: true });
 });
 
-test('Kettenbonus: komplett abgeschossene Kette gibt ein Powerup und 500 Bonuspunkte', async ({ page }) => {
+test('Chain bonus: a chain shot down completely gives a powerup and 500 bonus points', async ({ page }) => {
   const r = await page.evaluate(async () => {
     const { state, arrays } = await import('./js/state.js');
     const Utils = await import('./js/utils.js');
-    state.selectedShipModel = 'phantom'; // ohne Viper-Kill-Kombo (Faktor 1)
+    state.selectedShipModel = 'phantom'; // without the Viper kill combo (factor 1)
     window.__chain.createChain('snake', 4, 1);
     const chainLinks = arrays.enemies.slice();
     chainLinks.slice(0, 3).forEach(g => Utils.destroyTarget(g));
@@ -142,14 +142,14 @@ test('Kettenbonus: komplett abgeschossene Kette gibt ein Powerup und 500 Bonuspu
   expect(r.points).toBe(100 + r.bonus);
 });
 
-test('Kein Kettenbonus, wenn ein Glied entkommt oder den Spieler rammt', async ({ page }) => {
+test('No chain bonus if a link escapes or rams the player', async ({ page }) => {
   const powerups = await page.evaluate(async () => {
     const { arrays } = await import('./js/state.js');
     const Utils = await import('./js/utils.js');
     const Display = await import('./js/display.js');
     window.__chain.createChain('snake', 4, 1);
     const chainLinks = arrays.enemies.slice();
-    // Glied 2 verschwindet ohne Abschuss
+    // Link 2 vanishes without a kill
     Display.remove(chainLinks[2]);
     arrays.enemies.splice(arrays.enemies.indexOf(chainLinks[2]), 1);
     [0, 1, 3].forEach(i => Utils.destroyTarget(chainLinks[i]));
@@ -158,7 +158,7 @@ test('Kein Kettenbonus, wenn ein Glied entkommt oder den Spieler rammt', async (
   expect(powerups).toBe(0);
 });
 
-test('Spawn: ab Level 3 erzeugt verwalteFeindSpawns Ketten, in Level 2 nicht', async ({ page }) => {
+test('Spawn: from level 3 on manageEnemySpawns creates chains, not in level 2', async ({ page }) => {
   const r = await page.evaluate(async () => {
     const { state, arrays } = await import('./js/state.js');
     const { manageEnemySpawns } = await import('./js/opponents.js');
@@ -168,7 +168,7 @@ test('Spawn: ab Level 3 erzeugt verwalteFeindSpawns Ketten, in Level 2 nicht', a
       arrays.enemies.forEach(Display.remove);
       arrays.enemies.length = 0;
       state.level = level;
-      // Level 3: V 0,10 + Kreuz 0,15 + Swoop 0,15 + Cling-on 0,15 = 0,55; Kette bis 0,60
+      // Level 3: V 0.10 + cross 0.15 + swoop 0.15 + cling-on 0.15 = 0.55; chain up to 0.60
       Math.random = () => 0.57;
       try {
         manageEnemySpawns();
@@ -179,12 +179,12 @@ test('Spawn: ab Level 3 erzeugt verwalteFeindSpawns Ketten, in Level 2 nicht', a
     };
     return { level3: run(3), level2: run(2) };
   });
-  // 0,57: Bahn schleife, 6 + floor(0,57 * 5) = 8 Glieder, Seite -1
+  // 0.57: lane loop, 6 + floor(0.57 * 5) = 8 links, side -1
   expect(r.level3).toEqual(Array(8).fill('chain'));
   expect(r.level2).not.toContain('chain');
 });
 
-test('Darstellung: Kopf und Glieder bekommen den pulsierenden Kettenkoerper, Puls versetzt', async ({ page }) => {
+test('Display: head and links get the pulsing chain body, pulse offset', async ({ page }) => {
   const r = await page.evaluate(async () => {
     const { arrays } = await import('./js/state.js');
     window.__chain.createChain('snake', 3, 1);
@@ -200,7 +200,7 @@ test('Darstellung: Kopf und Glieder bekommen den pulsierenden Kettenkoerper, Pul
   expect(r.lag).toBe(2);
 });
 
-test('Online: Snapshot traegt Muster, Groesse und Drehung, der Client baut daraus Kopf und Glieder', async ({
+test('Online: the snapshot carries pattern, size and rotation, the client builds head and links from it', async ({
   page,
 }) => {
   const r = await page.evaluate(async () => {
@@ -217,7 +217,7 @@ test('Online: Snapshot traegt Muster, Groesse und Drehung, der Client baut darau
       hasRot: typeof f.rot === 'number',
     }));
 
-    // Als Client uebernehmen
+    // Apply as the client
     arrays.enemies.forEach(f => f.el.remove());
     arrays.enemies.length = 0;
     const networkBeforehand = state.network;
@@ -241,7 +241,7 @@ test('Online: Snapshot traegt Muster, Groesse und Drehung, der Client baut darau
   expect(r.client.every(c => c.body)).toBe(true);
 });
 
-test('Neustart entfernt alle Kettenglieder', async ({ page }) => {
+test('Restart removes all chain links', async ({ page }) => {
   const count = await page.evaluate(async () => {
     const { arrays } = await import('./js/state.js');
     const Utils = await import('./js/utils.js');
@@ -252,7 +252,7 @@ test('Neustart entfernt alle Kettenglieder', async ({ page }) => {
   expect(count).toBe(0);
 });
 
-test('Bot nimmt Kettenglieder als Ziel', async ({ page }) => {
+test('Bot targets chain links', async ({ page }) => {
   const r = await page.evaluate(async () => {
     const { state, arrays } = await import('./js/state.js');
     const Bot = await import('./js/bot.js');

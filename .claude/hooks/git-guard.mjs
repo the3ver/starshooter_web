@@ -1,5 +1,5 @@
-// PreToolUse-Hook (Bash, PowerShell): blockiert zerstoererische Git-Befehle.
-// Normales git push bleibt erlaubt (Push-Gate: vorher npm run check gruen).
+// PreToolUse hook (Bash, PowerShell): blocks destructive git commands.
+// Plain git push stays allowed (push gate: npm run check green first).
 let input = '';
 process.stdin.on('data', d => {
   input += d;
@@ -11,7 +11,7 @@ process.stdin.on('end', () => {
   } catch {
     process.exit(0);
   }
-  // [^\n;&|]* bleibt innerhalb eines Teilbefehls, damit Text in Heredocs oder Folgebefehlen nicht mitzaehlt
+  // [^\n;&|]* stays within one sub-command, so text in heredocs or following commands does not count
   const forbidden = [
     /git\s+push\b[^\n;&|]*(--force\b|--force-with-lease\b|\s-f\b|\s\+\S)/,
     /git\s+reset\s+[^\n;&|]*--hard\b/,
@@ -23,7 +23,7 @@ process.stdin.on('end', () => {
   const hit = forbidden.find(pattern => pattern.test(command));
   if (hit) {
     console.error(
-      `BLOCKIERT: '${command}' passt auf ${hit}. Zerstoererische Git-Befehle nur nach Freigabe durch den Nutzer, der sie selbst ausfuehrt.`,
+      `BLOCKED: '${command}' matches ${hit}. Destructive git commands only after approval by the user, who runs them personally.`,
     );
     process.exit(2);
   }

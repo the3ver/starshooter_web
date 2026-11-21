@@ -10,7 +10,7 @@ import * as Sniper from './sniper.js';
 import * as Rock from './rock.js';
 import { checkTheme } from './level.js';
 
-// Steuerrichtung des Clients (Joystick normalisiert oder Tasten, Hacks angewendet)
+// Steering direction of the client (normalized joystick or keys, hacks applied)
 function controlDirection(keys) {
   if (state.joystick && state.joystick.active) {
     const mag = Math.sqrt(state.joystick.x * state.joystick.x + state.joystick.y * state.joystick.y);
@@ -24,20 +24,20 @@ function controlDirection(keys) {
   );
 }
 
-// --- GLAETTUNG ZWISCHEN HOST-SNAPSHOTS ---
-// Der Host sendet nur jeden 2. Simulationsschritt einen Snapshot. Dazwischen bewegt der Client:
-// - Projektile mit bekannter Geschwindigkeit weiter (Extrapolation, der naechste Snapshot korrigiert)
-// - alle anderen entfernten Objekte gleichmaessig zur letzten Snapshot-Position (Interpolation)
-export const INTERPOLATION_STEPS = 2; // Schritte zwischen zwei Host-Snapshots
-export const JUMP_DISTANCE = 100; // ab dieser Distanz (px) springen statt gleiten (Respawn/Teleport)
-export const MAX_EXTRAPOLATION_STEPS = 4; // ohne neuen Snapshot nicht endlos weiterfliegen
+// --- SMOOTHING BETWEEN HOST SNAPSHOTS ---
+// The host sends a snapshot only every 2nd simulation step. In between the client moves:
+// - projectiles with a known velocity further (extrapolation, the next snapshot corrects)
+// - all other remote objects evenly towards the last snapshot position (interpolation)
+export const INTERPOLATION_STEPS = 2; // Steps between two host snapshots
+export const JUMP_DISTANCE = 100; // from this distance (px) on jump instead of glide (respawn/teleport)
+export const MAX_EXTRAPOLATION_STEPS = 4; // do not keep flying forever without a new snapshot
 
-// Angezeigte Position des Host-Schiffs (P1) auf dem Client
+// Displayed position of the host ship (P1) on the client
 export const p1Display = {};
 
 let stepsSinceSnapshot = 0;
 
-// Angezeigte Position des Host-Schiffs ins Modell (state.anzeigeX/Y), die Anzeige zeichnet P1 dort
+// Displayed position of the host ship into the model (state.displayX/Y), the display draws P1 there
 export function applyP1Display() {
   state.displayX = p1Display.displayX;
   state.displayY = p1Display.displayY;
@@ -47,15 +47,15 @@ export function snapshotReceived() {
   stepsSinceSnapshot = 0;
 }
 
-// Glaetten nur, wenn clientSchritt auch laeuft; sonst Snapshot-Position direkt zeigen
+// Smooth only if clientStep runs too; otherwise show the snapshot position directly
 function smoothingActive() {
   return Boolean(state.network && state.network.isClient && state.network.connected && !state.paused);
 }
 
-// Neue Snapshot-Position (x, y) fuer ein entferntes Objekt merken. Das Objekt gleitet in
-// INTERPOLATION_SCHRITTE Schritten von seiner angezeigten Position (anzeigeX/Y) dorthin.
+// Remember a new snapshot position (x, y) for a remote object. The object glides from its displayed
+// position (displayX/Y) there in INTERPOLATION_STEPS steps.
 export function setInterpolationTarget(obj, x, y) {
-  const distance = Math.hypot(x - obj.displayX, y - obj.displayY); // NaN beim ersten Mal
+  const distance = Math.hypot(x - obj.displayX, y - obj.displayY); // NaN the first time
   obj.targetX = x;
   obj.targetY = y;
   if (!smoothingActive() || !(distance <= JUMP_DISTANCE)) {
@@ -69,7 +69,7 @@ export function setInterpolationTarget(obj, x, y) {
   obj.ipSteps = INTERPOLATION_STEPS;
 }
 
-// Schiebt die Anzeigeposition (anzeigeX/Y) einen Schritt weiter; gezeichnet wird danach ueber die Anzeige
+// Moves the display position (displayX/Y) one step further; drawing happens afterwards via the display
 function interpolate(obj) {
   if (!obj.ipSteps) return;
   obj.ipSteps--;
@@ -82,7 +82,7 @@ function interpolate(obj) {
   }
 }
 
-// Fuer Projektile ohne Geschwindigkeit im Snapshot: aus zwei Snapshots ableiten
+// For projectiles without a velocity in the snapshot: derive it from two snapshots
 export function deriveSpeed(obj, x, y) {
   if (obj.snapX !== undefined) {
     obj.vx = (x - obj.snapX) / INTERPOLATION_STEPS;
@@ -101,7 +101,7 @@ function moveProjectile(o, vx, vy) {
 function extrapolateProjectiles() {
   if (stepsSinceSnapshot >= MAX_EXTRAPOLATION_STEPS) return;
   stepsSinceSnapshot++;
-  // Spielerlaser fliegen auf dem Host mit y -= vy
+  // Player lasers fly with y -= vy on the host
   arrays.laserArray.forEach(l => moveProjectile(l, l.vx, -(l.vy || 0)));
   [
     arrays.enemyLaserArray,
@@ -124,8 +124,8 @@ function interpolateObjects() {
   applyP1Display();
 }
 
-// Startpunkt der Traktorstrahlen geschleppter Powerups (P1 an seiner angezeigten Position); den Strahl
-// zeichnet die Anzeige aus towedBy und strahlX/strahlY
+// Start point of the tractor beams of towed powerups (P1 at its displayed position); the display draws
+// the beam from towedBy and beamX/beamY
 function setBeamStarts() {
   const ss = config.playerSize;
   arrays.powerups.forEach(p => {
@@ -145,7 +145,7 @@ function setBeamStarts() {
 }
 
 export function clientStep() {
-  // I-Frames / Blink-Timer auf Client dekrementieren
+  // Decrement i-frames / blink timers on the client
   if (state.invulnerableTimer > 0) {
     state.invulnerableTimer--;
   }
@@ -162,8 +162,8 @@ export function clientStep() {
     const p2Speed = (shipModels && shipModels[state.p2.selectedShipModel]?.speed) || config.speed;
     const keys = state.keysPressed;
 
-    // Gleve: Steuerrichtung (fuer Dash und Eingabe-Paket) und lokal vorhergesagter Dash (Raketen-Taste,
-    // mobil der Raketen-Button)
+    // Gleve: steering direction (for dash and input packet) and locally predicted dash (missile key,
+    // on mobile the missile button)
     let gleveDash = false;
     if (Gleve.isGleve(state.p2)) {
       const direction = controlDirection(keys);
@@ -171,7 +171,7 @@ export function clientStep() {
       gleveDash = Gleve.predictDash(state.p2, keys.k || keys.v, direction);
     }
 
-    // Viper: Ausweichrolle des eigenen Schiffs lokal vorhergesagt (Startposition geht im Eingabe-Paket zum Host)
+    // Viper: the own ship's evasive roll is predicted locally (the start position goes to the host in the input packet)
     const viperRoll =
       Viper.isViper(state.p2) &&
       Viper.updateViper(
@@ -224,7 +224,7 @@ export function clientStep() {
     if (state.p2.x > config.playfieldWidth - config.playerSize) state.p2.x = config.playfieldWidth - config.playerSize;
     if (state.p2.y > config.playfieldHeight - config.playerSize)
       state.p2.y = config.playfieldHeight - config.playerSize;
-    // Vorhersage: aus dem Fels schieben wie der Host (Schaden meldet der Host)
+    // Prediction: push out of the rock like the host (the host reports damage)
     Rock.pushOut(state.p2);
 
     state.p2.rotate = targetRotateP2;
@@ -232,26 +232,26 @@ export function clientStep() {
     state.p2.flameScale = baseFlameScaleP2;
   }
 
-  // Gleve-Effekte beider Schiffe (Dash-Klasse, Nachbilder, Sweep-Klinge)
+  // Gleve effects of both ships (dash class, afterimages, sweep blade)
   Gleve.showGleveStatus(state, 'p1');
   if (state.p2) Gleve.showGleveStatus(state.p2, 'p2');
-  // Viper-Rolle: Klasse, Nachbilder und Bereitschaftsanzeige beider Schiffe
+  // Viper roll: class, afterimages and readiness display of both ships
   Viper.showViperStatus(state, 'p1', false);
   if (state.p2) Viper.showViperStatus(state.p2, 'p2', true);
 
-  // Sniper: Strahlen, Druckwellen und das Fadenkreuz des eigenen Schiffs
+  // Sniper: beams, blast waves and the crosshair of the own ship
   Sniper.clientStep();
 
-  // Entfernte Objekte zwischen den Snapshots weiterbewegen
+  // Keep moving remote objects between snapshots
   extrapolateProjectiles();
   interpolateObjects();
   setBeamStarts();
 
-  // Partikel auf dem Client animieren und löschen
+  // Animate and delete particles on the client
   animateParticles();
   updateEffects();
   Hack.showHackStatus();
 
-  // Eingaben nur bei Aenderung, Bewegung (jeden 2. Schritt) oder als Heartbeat senden
+  // Send inputs only on change, movement (every 2nd step) or as a heartbeat
   Network.sendInput();
 }

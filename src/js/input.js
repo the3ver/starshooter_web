@@ -200,19 +200,19 @@ export function setupInput() {
   let jCenterY = 0;
   const maxJoystickRadius = 50;
 
-  // 1. Tap to Pause on Spielfeld & Tap to start on start screen
+  // 1. Tap to pause on the playfield & tap to start on the start screen
   playfieldContainer.addEventListener(
     'touchstart',
     e => {
       Audio.initAudio();
 
-      // Wenn der Startscreen aktiv ist:
+      // While the start screen is active:
       const startScreen = document.getElementById('start-screen');
       const isStartScreenVisible = startScreen && startScreen.style.display !== 'none';
 
       if (isStartScreenVisible) {
-        // Wenn der Tap auf ein Element im Startscreen erfolgt (Buttons, Hangar, Infos, Selektoren),
-        // darf das Spiel AUF KEINEN FALL gestartet werden – außer bei direktem Tippen auf den Start-Text!
+        // If the tap hits an element on the start screen (buttons, hangar, info, selectors),
+        // the game must NOT start under any circumstances, except for a direct tap on the start text!
         if (/** @type {Element} */ (e.target).closest('#start-screen')) {
           if (/** @type {Element} */ (e.target).closest('#start-text')) {
             if (state.gameMode === 'online') {
@@ -227,14 +227,14 @@ export function setupInput() {
           return;
         }
 
-        // Tap außerhalb des Start-Screens auf das Spielfeld:
+        // Tap outside the start screen on the playfield:
         if (state.gameMode === 'online') return;
         startScreen.style.display = 'none';
         Cutscene.startCutscene();
         return;
       }
 
-      // Ignoriere Klicks auf alle UI-Elemente / Overlays
+      // Ignore clicks on all UI elements / overlays
       if (
         /** @type {Element} */ (e.target).closest(
           'button, input, select, textarea, a, .gamemode-selector, #online-lobby-container, #hangar-container, #whats-new-overlay, #steuerung-overlay, #btn-open-steuerung, #btn-open-whats-new, #btn-sound-toggle, #game-over-screen, .highscore-tab, .credits',
@@ -282,8 +282,8 @@ export function setupInput() {
         joystickStick.style.transform = `translate(-50%, -50%)`;
 
         state.joystick.active = true;
-        state.keysPressed.l = true; // Auto-fire laser (Gleve: Dauer-Sweep)
-        state.joystick.fires = true; // Autofeuer, nicht die echte Taste (Sniper: Normalschuesse statt Laden)
+        state.keysPressed.l = true; // Auto-fire laser (Gleve: continuous sweep)
+        state.joystick.fires = true; // Auto-fire, not the real key (Sniper: normal shots instead of charging)
       },
       { passive: false },
     );
@@ -333,7 +333,7 @@ export function setupInput() {
       e.preventDefault();
       if (state.gameRunning && !state.gameOverActive && !state.paused) {
         state.keysPressed.k = true;
-        // Sniper: Halten zaehlt (Tippen = Granate + EMP, Halten = Minen), also bis zum Loslassen gedrueckt lassen
+        // Sniper: holding counts (tap = grenade + EMP, hold = mines), so keep it pressed until release
         if (!Sniper.isSniper(state)) setTimeout(() => (state.keysPressed.k = false), 100);
       }
     });
@@ -345,7 +345,7 @@ export function setupInput() {
     btnMissile.addEventListener('touchcancel', missileEnd);
   }
 
-  // Sniper: Halten laedt, Loslassen feuert (wie die Laser-Taste; der Joystick feuert dagegen Normalschuesse)
+  // Sniper: holding charges, releasing fires (like the laser key; the joystick fires normal shots instead)
   const btnCharge = document.getElementById('btn-laden');
   if (btnCharge) {
     btnCharge.addEventListener('touchstart', e => {

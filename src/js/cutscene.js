@@ -103,7 +103,7 @@ export function startCutscene(callback) {
   if (cutsceneActive) return;
   onCompleteCallback = callback;
 
-  // Ab Spielstart gilt die Breite des gewaehlten Modus (im Menue bleibt sie fest)
+  // From game start on, the width of the chosen mode applies (in the menu it stays fixed)
   Utils.applyPlayfieldWidth(state.gameMode);
 
   try {
@@ -254,7 +254,7 @@ export function startCutscene(callback) {
   const playerSvg = Utils.getShipSvgContent(playerModel, playerColor);
 
   if (isCoop) {
-    // Spieler 1 (Upper Center Lead)
+    // Player 1 (upper center lead)
     const p1Ship = createShipElement(
       'player',
       'ship-player ship-player-p1',
@@ -268,7 +268,7 @@ export function startCutscene(callback) {
     );
     playerShips.push(p1Ship);
 
-    // Spieler 2 (Lower Center Lead)
+    // Player 2 (lower center lead)
     const p2Model = (state.p2 && state.p2.selectedShipModel) || 'phantom';
     const p2Color = (state.p2 && state.p2.selectedShipColor) || 'blue';
     const p2Svg = Utils.getShipSvgContent(p2Model, p2Color);
@@ -738,7 +738,7 @@ function endCutsceneAndStartGame(instant = false) {
     function flyInStep(time) {
       if (!state.gameRunning || state.gameOverActive) return;
       if (entryY > targetY) {
-        // Zeitbasiert: 6px pro 16.6ms, unabhaengig von der Bildrate
+        // Time based: 6px per 16.6ms, independent of the frame rate
         const dt = flyInLastTime === null ? 16.6 : Math.max(0, Math.min(32, time - flyInLastTime));
         flyInLastTime = time;
         entryY -= 6 * (dt / 16.6);

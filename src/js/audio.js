@@ -157,7 +157,7 @@ export function playMissile() {
   const now = ctx.currentTime;
   const duration = 0.32;
 
-  // 1. Silvester-Raketen Rausch-Zischen (Resonant Bandpass Sweep über Noise-Buffer)
+  // 1. New Year's rocket hiss (resonant bandpass sweep over a noise buffer)
   try {
     const noiseBuf = getNoiseBuffer(ctx);
     if (noiseBuf) {
@@ -201,7 +201,7 @@ export function playMissile() {
   whistleOsc.start(now);
   whistleOsc.stop(now + duration);
 
-  // 3. Kurzer Abschuss-Poff (Druckwelle am Rohr)
+  // 3. Short launch puff (pressure wave at the tube)
   const popOsc = ctx.createOscillator();
   const popGain = ctx.createGain();
   popOsc.type = 'triangle';
@@ -227,7 +227,7 @@ export function playMissileExplosion() {
   const now = ctx.currentTime;
   const duration = 0.35;
 
-  // 1. Zischendes Knall-Rauschen (High-frequency Bandpass Sizzle & Crackle)
+  // 1. Hissing bang noise (high-frequency bandpass sizzle & crackle)
   try {
     const noiseBuf = getNoiseBuffer(ctx);
     if (noiseBuf) {
@@ -303,7 +303,7 @@ export function playBombBeep(urgency = 0, isBoss = false) {
   const gain = ctx.createGain();
 
   const clampedUrgency = Math.max(0, Math.min(1, urgency));
-  // Frequenz steigt mit Dringlichkeit
+  // Frequency rises with urgency
   const baseFreq = isBoss ? 500 : 900;
   const maxFreq = isBoss ? 1500 : 2600;
   const freq = baseFreq + clampedUrgency * (maxFreq - baseFreq);
@@ -393,7 +393,7 @@ export function playHack() {
   if (!ctx) return;
   if (ctx.state === 'suspended') ctx.resume().catch(() => {});
 
-  // Digitales Stottern: schnelle Rechteck-Sprünge zwischen zufälligen Frequenzen
+  // Digital stutter: fast square jumps between random frequencies
   const now = ctx.currentTime;
   const osc = ctx.createOscillator();
   const gain = ctx.createGain();
@@ -734,7 +734,7 @@ export function playLightBeamWhoosh() {
   osc.stop(now + 0.9);
 }
 
-// Gleve-Dash: kurzer "Whoosh" (Rausch-Sweep nach oben) mit tiefem Schub-Ton
+// Gleve dash: short "whoosh" (noise sweep upwards) with a deep thrust tone
 export function playDash(level = 1) {
   recordSound('dash', { level });
   if (isMuted) return;
@@ -745,7 +745,7 @@ export function playDash(level = 1) {
   const now = ctx.currentTime;
   const duration = 0.22;
 
-  // 1. Luftzug: Bandpass-Rauschen, Frequenz steigt schnell und fällt wieder
+  // 1. Air rush: bandpass noise, frequency rises fast and falls again
   try {
     const noiseBuf = getNoiseBuffer(ctx);
     if (noiseBuf) {
@@ -774,7 +774,7 @@ export function playDash(level = 1) {
     }
   } catch (e) {}
 
-  // 2. Schub-Ton: tiefer Sägezahn, der kurz nach oben gezogen wird
+  // 2. Thrust tone: deep sawtooth that is briefly pulled up
   const osc = ctx.createOscillator();
   const gain = ctx.createGain();
   osc.type = 'sawtooth';
@@ -789,10 +789,10 @@ export function playDash(level = 1) {
   osc.stop(now + duration);
 }
 
-// Sniper-Schuss (Fadenkreuz-Laser): trockener, tiefer Knall mit kurzem hellem Zischen; hoehere Stufen klingen kraeftiger,
-// `ladung` (0-1) macht ihn laenger, lauter und tiefer
+// Sniper shot (crosshair laser): dry, deep bang with a short bright hiss; higher tiers sound stronger,
+// `charge` (0-1) makes it longer, louder and deeper
 export function playSniperShot(level = 1, charge = 0) {
-  recordSound('sniperSchuss', { level, charge });
+  recordSound('sniperShot', { level, charge });
   if (isMuted) return;
   const ctx = getAudioContext();
   if (!ctx) return;
@@ -812,7 +812,7 @@ export function playSniperShot(level = 1, charge = 0) {
   osc.stop(now + 0.16 + charge * 0.2);
 }
 
-// Sniper: Ladung voll (einmal pro Ladevorgang), zwei helle steigende Toene
+// Sniper: charge full (once per charge), two bright rising tones
 export function playSniperFull() {
   recordSound('sniperFull');
   if (isMuted) return;
@@ -836,7 +836,7 @@ export function playSniperFull() {
   });
 }
 
-// Sniper-Granate: dumpfer Druckwellen-Knall (tiefer Sinus faellt ab) mit kurzem hellem Nachklang
+// Sniper grenade: dull blast-wave bang (deep sine falls off) with a short bright reverb
 export function playGrenade() {
   recordSound('grenade');
   if (isMuted) return;
@@ -870,9 +870,9 @@ export function playGrenade() {
   osc2.stop(now + 0.24);
 }
 
-// Sniper-Mine legen: kurzes dumpfes Klicken
+// Sniper mine placed: short dull click
 export function playMinePut() {
-  recordSound('mine_legen');
+  recordSound('mine_place');
   if (isMuted) return;
   const ctx = getAudioContext();
   if (!ctx) return;
@@ -892,9 +892,9 @@ export function playMinePut() {
   osc.stop(now + 0.12);
 }
 
-// Sniper-Mine haftet / zaehlt herunter: kurzer heller Piep
+// Sniper mine sticks / counts down: short bright beep
 export function playMineBeep() {
-  recordSound('mine_piep');
+  recordSound('mine_beep');
   if (isMuted) return;
   const ctx = getAudioContext();
   if (!ctx) return;
@@ -913,7 +913,7 @@ export function playMineBeep() {
   osc.stop(now + 0.09);
 }
 
-// Sniper-Mine explodiert: kurzer, trockener Knall
+// Sniper mine explodes: short, dry bang
 export function playMineExplosion() {
   recordSound('mine_explosion');
   if (isMuted) return;
@@ -936,7 +936,7 @@ export function playMineExplosion() {
 }
 
 // Sniper-EMP: elektrisches Knistern (Saegezahn faellt ab, Sinus steigt)
-// Spore: weiches Ploppen
+// Spore: soft pop
 export function playSpore() {
   recordSound('spore');
   if (isMuted) return;
@@ -958,7 +958,7 @@ export function playSpore() {
   osc.stop(now + 0.15);
 }
 
-// Schockwelle: tiefer Wumms mit abfallendem Rauschen-Sweep
+// Shockwave: deep thump with a falling noise sweep
 export function playShockwave() {
   recordSound('shockwave');
   if (isMuted) return;
@@ -1025,7 +1025,7 @@ export function playEmp() {
   osc2.stop(now + 0.22);
 }
 
-// Viper-Ausweichrolle: kurzes, leichtes Wusch (Rauschen steigt und faellt) mit schnellem Sinus-Glissando
+// Viper evasive roll: short, light whoosh (noise rises and falls) with a fast sine glissando
 export function playRoll() {
   recordSound('roll');
   if (isMuted) return;
@@ -1096,7 +1096,7 @@ export function playNearMiss() {
   osc.stop(now + duration);
 }
 
-// Viper-Kill-Kombo erreicht 5/10/20: kurzer Doppelton, hoeher je Stufe (stufe 1..3)
+// Viper kill combo reaches 5/10/20: short double tone, higher per tier (tier 1..3)
 export function playCombo(tier = 1) {
   recordSound('combo', { tier });
   if (isMuted) return;
@@ -1150,7 +1150,7 @@ export function playOverdrive() {
   });
 }
 
-// Gleve-Laser-Sweep: heller, singender Klingen-Ton mit kurzem Zisch-Rauschen
+// Gleve laser sweep: bright, singing blade tone with a short hiss of noise
 export function playSweep(level = 1) {
   recordSound('sweep', { level });
   if (isMuted) return;
@@ -1161,7 +1161,7 @@ export function playSweep(level = 1) {
   const now = ctx.currentTime;
   const duration = 0.25;
 
-  // 1. Zischen: Hochpass-Rauschen, schnell ein- und ausgeblendet
+  // 1. Hiss: high-pass noise, faded in and out quickly
   try {
     const noiseBuf = getNoiseBuffer(ctx);
     if (noiseBuf) {
@@ -1188,7 +1188,7 @@ export function playSweep(level = 1) {
     }
   } catch (e) {}
 
-  // 2. Klinge: zwei leicht verstimmte Dreiecks-Toene, die nach oben gleiten
+  // 2. Blade: two slightly detuned triangle tones that glide upwards
   [0, 7].forEach(detune => {
     const osc = ctx.createOscillator();
     const gain = ctx.createGain();

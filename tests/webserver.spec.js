@@ -1,8 +1,8 @@
-// Testserver-Port je Arbeitsbaum (webserver.config.js): zwei Klone auf einem Rechner teilen sich keinen Server
+// Test server port per working tree (webserver.config.js): two clones on one machine never share a server
 const { test, expect } = require('@playwright/test');
 const { portFor } = require('../webserver.config');
 
-test('Port haengt vom Arbeitsbaum ab und bleibt je Pfad gleich', () => {
+test('port depends on the working tree and is stable per path', () => {
   const a = portFor('/home/dev/repos/starshooter-web', {});
   const b = portFor('/tmp/scratch/om', {});
   expect(a).not.toBe(b);
@@ -13,6 +13,6 @@ test('Port haengt vom Arbeitsbaum ab und bleibt je Pfad gleich', () => {
   }
 });
 
-test('PORT ueberschreibt den Port aus dem Pfad', () => {
+test('PORT overrides the port derived from the path', () => {
   expect(portFor('/beliebig', { PORT: '9123' })).toBe(9123);
 });

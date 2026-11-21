@@ -53,7 +53,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   });
 
-  // Initialisiere Sterne
+  // Initialize stars
   for (let i = 0; i < 60; i++) {
     let x = Math.random() * config.playfieldWidth;
     let y = Math.random() * config.playfieldHeight;
@@ -265,7 +265,7 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   });
 
-  // Was gibt's Neues Changelog
+  // What's new changelog
   Changelog.checkAndShowWhatsNew();
 
   const btnClose = document.getElementById('btn-close-whats-new');
@@ -285,7 +285,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
   Utils.updateControlsInfo();
 
-  // Steuerungs-Overlay (Knopf im Menue, ESC und SCHLIESSEN schliessen)
+  // Controls overlay (button in the menu, ESC and CLOSE close it)
   const controlsOverlay = document.getElementById('steuerung-overlay');
   const btnOpenControls = document.getElementById('btn-open-steuerung');
   if (controlsOverlay && btnOpenControls) {
@@ -302,7 +302,7 @@ document.addEventListener('DOMContentLoaded', () => {
       });
   }
 
-  // Perk-Chips im Hangar: Ueberfahren bzw. Antippen zeigt die Beschreibung
+  // Perk chips in the hangar: hovering or tapping shows the description
   const perkList = document.getElementById('hangar-ship-perks');
   if (perkList) {
     const perkIndex = e => {

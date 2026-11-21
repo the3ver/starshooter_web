@@ -13,7 +13,7 @@ test.beforeEach(async ({ page }) => {
   await page.goto('/');
 });
 
-test('berechneSchritte liefert 60 Schritte pro Sekunde bei 144, 60 und 30 Hz', async ({ page }) => {
+test('computeSteps yields 60 steps per second at 144, 60 and 30 Hz', async ({ page }) => {
   const r = await page.evaluate(async () => {
     const { computeSteps } = await import('./js/loop.js');
     const results = {};
@@ -35,7 +35,7 @@ test('berechneSchritte liefert 60 Schritte pro Sekunde bei 144, 60 und 30 Hz', a
   }
 });
 
-test('berechneSchritte begrenzt grosse Deltas und ignoriert negative', async ({ page }) => {
+test('computeSteps clamps large deltas and ignores negative ones', async ({ page }) => {
   const r = await page.evaluate(async () => {
     const { computeSteps, MAX_STEPS_PRO_FRAME } = await import('./js/loop.js');
     return {
@@ -51,7 +51,7 @@ test('berechneSchritte begrenzt grosse Deltas und ignoriert negative', async ({ 
   expect(r.nan.steps).toBe(0);
 });
 
-test('simulationsSchritt plant keinen Animation-Frame ein', async ({ page }) => {
+test('simulationStep does not schedule an animation frame', async ({ page }) => {
   const count = await page.evaluate(async () => {
     const { simulationStep } = await import('./js/loop.js');
     const { state } = await import('./js/state.js');
@@ -64,7 +64,7 @@ test('simulationsSchritt plant keinen Animation-Frame ein', async ({ page }) => 
     try {
       // Startbildschirm (Frueh-Return-Zweig)
       for (let i = 0; i < 3; i++) simulationStep();
-      // Laufendes Spiel (kompletter Schritt bis zum Ende)
+      // Running game (complete step to the end)
       state.gameRunning = true;
       state.godMode = true;
       for (let i = 0; i < 3; i++) simulationStep();

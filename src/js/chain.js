@@ -5,38 +5,38 @@ import * as Shockwave from './shockwave.js';
 import * as Growths from './growths.js';
 import { nextPlayerMiddle } from './opponents.js';
 
-// Kettengegner: Kopf und Glieder folgen derselben Bahn, Glied i mit i * gliedAbstand(...) Schritten Rueckstand.
-// Die Bahn ist eine reine Funktion der Zeit (bahnPunkt), die Glieder brauchen keinen Positionsspeicher.
-// Wer alle Glieder einer Kette abschiesst, bekommt ein Powerup (Kettenbonus).
+// Chain opponents: head and links follow the same lane, link i lags behind by i * linkDistance(...) steps.
+// The lane is a pure function of time (lanePoint), the links need no position memory.
+// Whoever shoots down all links of a chain gets a powerup (chain bonus).
 
 export const CHAIN_LANES = ['snake', 'sCurve', 'loop', 'spiral'];
-export const LINK_DISTANCE_PX = 17; // mittlerer Abstand zweier Gliedmitten: Glieder liegen aneinander
+export const LINK_DISTANCE_PX = 17; // average distance between two link centers: links touch each other
 export const HEAD_SIZE = 28;
 export const LINK_SIZE = 22;
 export const CHAIN_BONUS_POINTS = 500;
 
-// Mittelpunkt auf der Bahn zur Zeit t >= 0. seite = 1 oder -1 spiegelt die Bahn an der Feldmitte.
+// Center on the lane at time t >= 0. side = 1 or -1 mirrors the lane at the field center.
 function laneRaw(lane, t, side, width) {
   const middle = width / 2;
   if (lane === 'snake') {
     return { x: middle + side * width * 0.3 * Math.sin(t * 0.04), y: -40 + 1.6 * t };
   }
   if (lane === 'sCurve') {
-    // von der Seite herein, flach nach unten, mit Welle
+    // in from the side, flat downwards, with a wave
     const x = -40 + 2.2 * t;
     return { x: side === 1 ? x : width - x, y: 60 + 0.35 * t + 70 * Math.sin(t * 0.03) };
   }
   if (lane === 'loop') {
-    // y laeuft zwischendurch kurz zurueck: Schleifen
+    // y briefly runs backwards in between: loops
     return { x: middle + side * width * 0.3 * Math.sin(t * 0.025), y: -40 + 1.4 * t + 50 * Math.sin(t * 0.045) };
   }
-  // spirale: Kreis um einen Mittelpunkt, der langsam nach unten wandert
+  // spiral: circle around a center that slowly moves down
   const r = Math.min(width * 0.3, 90);
   const a = t * 0.05 * side;
   return { x: middle + r * Math.sin(a), y: -40 + t + r * (1 - Math.cos(a)) };
 }
 
-// Vor dem Start (t < 0) liegt der Punkt auf der Verlaengerung der Anfangsrichtung, also ausserhalb des Felds.
+// Before the start (t < 0) the point lies on the extension of the initial direction, i.e. outside the field.
 export function lanePoint(lane, t, side = 1, width = config.playfieldWidth) {
   if (t >= 0) return laneRaw(lane, t, side, width);
   const p0 = laneRaw(lane, 0, side, width);
@@ -44,8 +44,8 @@ export function lanePoint(lane, t, side = 1, width = config.playfieldWidth) {
   return { x: p0.x + (p1.x - p0.x) * t, y: p0.y + (p1.y - p0.y) * t };
 }
 
-// Position aus der Bahn, Drehung aus der Flugrichtung (Vorwaerts der Grafik = unten)
-// Schritte zwischen zwei Gliedern: GLIED_ABSTAND_PX geteilt durch das mittlere Tempo der Bahn (erste 300 Schritte)
+// Position from the lane, rotation from the flight direction (forward of the graphic = down)
+// Steps between two links: LINK_DISTANCE_PX divided by the lane's average speed (first 300 steps)
 export function linkDistance(lane, side = 1, width = config.playfieldWidth) {
   let gone = 0;
   let beforeEntry = laneRaw(lane, 0, side, width);
@@ -65,9 +65,9 @@ function setOnLane(f) {
   f.rot = (Math.atan2(p.y - beforeEntry.y, p.x - beforeEntry.x) * 180) / Math.PI - 90;
 }
 
-// Muster, die als Kettenglieder auf einer gemeinsamen Bahn laufen
-// kette: Kopf schiesst; stachelkette: Hindernis (zaeh, langsam, schiesst nicht); kugelkette: jedes dritte
-// Glied traegt eine Blase (groesse POD_GROESSE) und schiesst gezielte Kugeln
+// Patterns that run as chain links on a shared lane
+// chain: head shoots; spikeChain: obstacle (tough, slow, does not shoot); ballChain: every third
+// link carries a bubble (size POD_SIZE) and shoots aimed balls
 export const CHAIN_PATTERN = ['chain', 'spikeChain', 'ballChain'];
 export const POD_SIZE = 24;
 export const BALL_CADENCE = 150;
@@ -81,7 +81,7 @@ export function isChainLink(f) {
   return CHAIN_PATTERN.includes(f.pattern);
 }
 
-// Erzeugt eine Kette mit anzahl Gliedern (Index 0 = Kopf). Nur der Kopf schiesst.
+// Creates a chain with count links (index 0 = head). Only the head shoots.
 export function createChain(lane = 'snake', count = 8, side = 1, pattern = 'chain') {
   const chain = { total: count, shotDown: 0 };
   const hpMult = isCoopMode() ? 1.25 : 1.0;
@@ -144,13 +144,13 @@ export function moveLink(f) {
   Growths.createSporeClosed(mx, my, Math.cos(w) * 2.4, Math.sin(w) * 2.4);
 }
 
-// Glieder, die noch auf ihren Start warten, liegen ausserhalb des Felds und bleiben erhalten.
+// Links still waiting for their start lie outside the field and are kept.
 export function waitsForStart(f) {
   return isChainLink(f) && f.chainT < 0;
 }
 
-// Aus zerstoereZiel: zaehlt Abschuesse; das letzte Glied einer vollstaendig abgeschossenen Kette
-// laesst ein Powerup fallen und gibt Bonuspunkte. Liefert true beim Kettenbonus.
+// From destroyTarget: counts kills; the last link of a chain shot down completely
+// drops a powerup and gives bonus points. Returns true on a chain bonus.
 export function linkShotDown(f) {
   if (!f.chain) return false;
   f.chain.shotDown++;
@@ -159,7 +159,7 @@ export function linkShotDown(f) {
   return true;
 }
 
-// Zufaellige Kette fuer verwalteFeindSpawns: Bahn, Laenge (6-10) und Seite aus Math.random
+// Random chain for manageEnemySpawns: lane, length (6-10) and side from Math.random
 export function createRandomChain() {
   const lane = CHAIN_LANES[Math.floor(Math.random() * CHAIN_LANES.length)];
   const count = 6 + Math.floor(Math.random() * 5);

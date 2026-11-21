@@ -13,7 +13,7 @@ test.beforeEach(async ({ page }) => {
   await page.goto('/');
   await startGame(page);
   await page.waitForFunction(() => window.__game.state.gameRunning);
-  // Feld leeren, Spieler unten in der Mitte, keine Zufalls-Spawns; Helfer in window.__bw
+  // Clear the field, player bottom center, no random spawns; helpers in window.__bw
   await page.evaluate(async () => {
     const { state, arrays, config } = await import('./js/state.js');
     const Display = await import('./js/display.js');
@@ -35,7 +35,7 @@ test.beforeEach(async ({ page }) => {
       arrays.rock.push(s);
       return s;
     };
-    // n Schritte, Fels dabei festhalten (Tempo 0) und keine Level-Spawns
+    // n steps, keep the rock fixed (speed 0) and no level spawns
     const Loop = await import('./js/loop.js');
     const steps = n => {
       for (let i = 0; i < n; i++) {
@@ -58,9 +58,7 @@ test.beforeEach(async ({ page }) => {
   });
 });
 
-test('Levelplan: Fels-Level nutzen den Bio-Spawner, starten frueher und haben halb so viele Asteroiden', async ({
-  page,
-}) => {
+test('Level plan: rock levels use the bio spawner, start earlier and have half as many asteroids', async ({ page }) => {
   const r = await page.evaluate(() => {
     const { L } = window.__bw;
     const p3 = L.levelPlan(3);
@@ -76,12 +74,12 @@ test('Levelplan: Fels-Level nutzen den Bio-Spawner, starten frueher und haben ha
   });
   expect(r.spawner).toEqual(['standard', 'bio', 'standard']);
   expect(r.start4).toBe(r.bioStart);
-  // Level 4: 90/70/50 ohne Fels, also 180/140/100
+  // Level 4: 90/70/50 without rock, so 180/140/100
   expect(r.cadence).toEqual([180, 140, 100]);
   expect(r.cadenceWithoutRock).toEqual([80, 60, 40]);
 });
 
-test('Bio-Spawner erzeugt nur organische Gegner, alle fuenf Arten kommen vor', async ({ page }) => {
+test('Bio spawner creates only organic opponents, all five kinds appear', async ({ page }) => {
   const r = await page.evaluate(() => {
     const { B, arrays, Display } = window.__bw;
     const kinds = new Set();
@@ -96,7 +94,7 @@ test('Bio-Spawner erzeugt nur organische Gegner, alle fuenf Arten kommen vor', a
   expect(r).toEqual(['ballChain', 'chain', 'crab', 'spikeChain', 'tentacler']);
 });
 
-test('Stachelkette ist ein Hindernis: zaeh, langsamer, schiesst nicht', async ({ page }) => {
+test('Spike chain is an obstacle: tough, slower, does not shoot', async ({ page }) => {
   const r = await page.evaluate(() => {
     const { K, arrays, steps } = window.__bw;
     K.createChain('snake', 6, 1, 'spikeChain');
@@ -116,7 +114,7 @@ test('Stachelkette ist ein Hindernis: zaeh, langsamer, schiesst nicht', async ({
   expect(r.svg).toBe(true);
 });
 
-test('Kugelkette: nur Blasenglieder (jedes dritte) schiessen Kugeln auf den Spieler', async ({ page }) => {
+test('Ball chain: only bubble links (every third) shoot balls at the player', async ({ page }) => {
   const r = await page.evaluate(() => {
     const { K, arrays, steps } = window.__bw;
     K.createChain('snake', 9, 1, 'ballChain');
@@ -145,7 +143,7 @@ test('Kugelkette: nur Blasenglieder (jedes dritte) schiessen Kugeln auf den Spie
   expect(r.balls).toBeGreaterThanOrEqual(3);
 });
 
-test('Krabbe ohne Fels: Anflug, dann seitlich krabbeln im Feld, Kugelpaare, spaeter Abzug', async ({ page }) => {
+test('Crab without rock: approach, then crawls sideways in the field, ball pairs, later retreat', async ({ page }) => {
   const r = await page.evaluate(async () => {
     const { B, steps, config } = window.__bw;
     const Audio = await import('./js/audio.js');
@@ -157,7 +155,7 @@ test('Krabbe ohne Fels: Anflug, dann seitlich krabbeln im Feld, Kugelpaare, spae
     for (let i = 0; i < B.CRAB_DURATION + 20; i++) {
       steps(1);
       phases.add(k.phase);
-      if (k.phase === 'krabbeln') {
+      if (k.phase === 'crawl') {
         minX = Math.min(minX, k.x);
         maxX = Math.max(maxX, k.x + k.size);
       }
@@ -166,12 +164,12 @@ test('Krabbe ohne Fels: Anflug, dann seitlich krabbeln im Feld, Kugelpaare, spae
       phases: [...phases],
       inField: minX >= 0 && maxX <= config.playfieldWidth,
       gone: maxX - minX,
-      // Kugeln ueber die Schussgeraeusche zaehlen (Treffer am Spieler entfernen Kugeln)
+      // Count balls via the shot sounds (hits on the player remove balls)
       balls: Audio.audioHistory.filter(h => h.name === 'spore').length,
       svg: !!k.el.querySelector('.krabbe-beine') && k.el.querySelectorAll('.stielauge').length === 2,
     };
   });
-  expect(r.phases).toEqual(['anflug', 'krabbeln', 'abzug']);
+  expect(r.phases).toEqual(['approach', 'crawl', 'retreat']);
   expect(r.inField).toBe(true);
   expect(r.gone).toBeGreaterThan(150);
   expect(r.balls % 2).toBe(0);
@@ -179,7 +177,7 @@ test('Krabbe ohne Fels: Anflug, dann seitlich krabbeln im Feld, Kugelpaare, spae
   expect(r.svg).toBe(true);
 });
 
-test('Krabbe an der Felswand: laeuft an der Kante mit Blick in den Gang, springt dann ab', async ({ page }) => {
+test('Crab on the rock wall: walks along the edge facing the corridor, then jumps off', async ({ page }) => {
   const r = await page.evaluate(() => {
     const { B, Rock, segment, steps } = window.__bw;
     for (let y = -40; y <= 600; y += 40) segment(y, { l: 90, r: 30, inner: 200, ib: 0 });
@@ -189,7 +187,7 @@ test('Krabbe an der Felswand: laeuft an der Kante mit Blick in den Gang, springt
     const anEdge = Math.abs(k.x + k.size * 0.25 - 90) < 0.01;
     const y0 = k.y;
     let jumpX = null;
-    for (let i = 0; i < 400 && k.phase !== 'krabbeln'; i++) {
+    for (let i = 0; i < 400 && k.phase !== 'crawl'; i++) {
       steps(1);
       if (k.phase === 'jump' && jumpX === null) jumpX = k.x;
     }
@@ -199,18 +197,18 @@ test('Krabbe an der Felswand: laeuft an der Kante mit Blick in den Gang, springt
   expect(r.anEdge).toBe(true);
   expect(r.run).toBe(true);
   expect(r.jumpX).not.toBeNull();
-  expect(r.endX).toBeGreaterThan(r.jumpX + 30); // in den Gang hinein
-  expect(r.endPhase).toBe('krabbeln');
+  expect(r.endX).toBeGreaterThan(r.jumpX + 30); // into the corridor
+  expect(r.endPhase).toBe('crawl');
   expect(r.endRot).toBe(0);
 });
 
-test('Krabbe bleibt beim Krabbeln im freien Gang zwischen den Felswaenden', async ({ page }) => {
+test('Crab stays in the free corridor between the rock walls while crawling', async ({ page }) => {
   const r = await page.evaluate(() => {
     const { B, Rock, segment, steps } = window.__bw;
     for (let y = -40; y <= 600; y += 40) segment(y, { l: 120, r: 100, inner: 200, ib: 0 });
     Rock.setSpeed(0);
     const k = B.createCrab(150);
-    k.phase = 'krabbeln';
+    k.phase = 'crawl';
     k.y = 200;
     let ok = true;
     for (let i = 0; i < 300; i++) {
@@ -222,7 +220,7 @@ test('Krabbe bleibt beim Krabbeln im freien Gang zwischen den Felswaenden', asyn
   expect(r).toBe(true);
 });
 
-test('Tentakler pendelt beim Sinken und stoesst Kugelringe aus', async ({ page }) => {
+test('Tentacler swings while sinking and emits ball rings', async ({ page }) => {
   const r = await page.evaluate(() => {
     const { B, arrays, steps } = window.__bw;
     const t = B.createTentacler(180);
@@ -246,7 +244,7 @@ test('Tentakler pendelt beim Sinken und stoesst Kugelringe aus', async ({ page }
   expect(r).toEqual({ ring: 6, allAround: true, pendulum: true, svg: true });
 });
 
-test('Online: Muster und Drehung kommen beim Client an, er zeichnet dieselben Wesen', async ({ page }) => {
+test('Online: pattern and rotation reach the client, it draws the same creatures', async ({ page }) => {
   const r = await page.evaluate(async () => {
     const { B, K, arrays, state, segment, Rock } = window.__bw;
     const Network = await import('./js/network.js');

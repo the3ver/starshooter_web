@@ -8,20 +8,20 @@ import * as Display from './display.js';
 import * as IslandBoss from './island-boss.js';
 import { manageBioSpawns } from './bio-creatures.js';
 
-// Ablauf eines Levels: Asteroiden-Takt in drei Phasen, Feinde ab feindStart im Takt feindRate,
-// Boss-Warnung bei bossFrame. levelPlan(level) liefert die Werte; neue Levelarten bekommen hier ihren Plan.
-export const LEVEL_DURATION = 3600; // 60 s bei 60 Hz
-export const ROCK_RUNOUT = 900; // so viele Schritte vor dem Boss laufen die Felswaende aus
+// Flow of a level: asteroid cadence in three phases, enemies from enemyStart on at cadence enemyRate,
+// boss warning at bossFrame. levelPlan(level) returns the values; new level kinds get their plan here.
+export const LEVEL_DURATION = 3600; // 60 s at 60 Hz
+export const ROCK_RUNOUT = 900; // this many steps before the boss the rock walls run out
 
-// Fels-Level: ab Level 4 jedes zweite Level
+// Rock levels: every second level from level 4 on
 export function isRockLevel(level) {
   return level >= 4 && level % 2 === 0;
 }
 
-// Gegner-Spawner je Levelart (Plan-Feld spawner)
+// Opponent spawner per level kind (plan field spawner)
 const SPAWNER = { standard: manageEnemySpawns, bio: manageBioSpawns };
 
-// Fels-Level (Biozone): eigener Gegnermix aus Ketten und Wesen, frueher Start, Asteroiden halb so oft
+// Rock levels (biozone): own opponent mix of chains and creatures, earlier start, half as many asteroids
 export const BIO_ENEMY_START = 300;
 
 export function levelPlan(level) {
@@ -33,7 +33,7 @@ export function levelPlan(level) {
   return {
     theme: isRockLevel(level) ? 'biozone' : 'standard',
     rock: isRockLevel(level),
-    // [abFrame, Takt]: der letzte Eintrag mit abFrame < frame gilt
+    // [fromFrame, cadence]: the last entry with fromFrame < frame applies
     asteroidsCadence: [
       [0, asteroidsStart * factor],
       [1200, asteroidsMiddle * factor],
@@ -47,7 +47,7 @@ export function levelPlan(level) {
   };
 }
 
-// Boss des Levels erzeugen (nach der Boss-Warnung)
+// Create the level's boss (after the boss warning)
 export function startBoss() {
   if (levelPlan(state.level).boss === 'island') IslandBoss.create();
   else Entities.createBoss();
@@ -59,9 +59,9 @@ function cadenceAt(phases, frame) {
   return cadence;
 }
 
-// Thema des aktuellen Levels an die Anzeige geben, nur bei Wechsel (Host jeden Schritt, Online-Client in clientSchritt)
+// Pass the current level's theme to the display, only on change (host every step, online client in clientStep)
 let currentTheme = null;
-// Neustart: zurueck zum Standard-Look (Cutszene, Level 1), naechstes pruefeThema setzt neu
+// Restart: back to the standard look (cutscene, level 1), the next checkTheme sets it again
 export function resetTheme() {
   currentTheme = null;
   Display.setTheme('standard');
@@ -74,7 +74,7 @@ export function checkTheme() {
   Display.setTheme(theme);
 }
 
-// Ein Simulationsschritt des Level-Ablaufs: zaehlt den Level-Frame hoch und spawnt nach Plan.
+// One simulation step of the level flow: counts up the level frame and spawns according to the plan.
 export function levelStep() {
   checkTheme();
   state.frameCounter++;
@@ -92,7 +92,7 @@ export function levelStep() {
 
   if (frame === plan.bossFrame && !state.bossWarningActive) {
     state.bossWarningActive = true;
-    state.bossWarningTimer = 120; // 2 Sekunden Pause bei 60 FPS
+    state.bossWarningTimer = 120; // 2 second pause at 60 FPS
     Audio.playBossAlert();
     dom.warningOverlay.style.display = 'flex';
   }

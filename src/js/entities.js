@@ -2,15 +2,15 @@ import { state, dom, config, arrays, isCoopMode } from './state.js';
 import * as Audio from './audio.js';
 import * as Display from './display.js';
 
-// Stabile Objekt-IDs, damit der Online-Client DOM-Elemente zwischen Snapshots wiederverwenden kann
+// Stable object IDs so the online client can reuse DOM elements between snapshots
 let idCounter = 0;
 export function newId(prefix) {
   return `${prefix}_${++idCounter}`;
 }
 
-// Zufaelliger Asteroiden-Umriss: Eckpunkte [x, y] in Prozent der Groesse (eine Nachkommastelle)
-// Umriss in Prozent der Kantenlaenge: 8-13 Ecken mit unregelmaessigem Radius, gelegentlich gestreckt
-// (Faktor 0,72-1 entlang einer zufaelligen Achse) und mit einer tiefen Einbuchtung (Abplatzung)
+// Random asteroid outline: corner points [x, y] in percent of the size (one decimal place)
+// Outline in percent of the edge length: 8-13 corners with an irregular radius, occasionally stretched
+// (factor 0.72-1 along a random axis) and with one deep dent (chipped off)
 export function generateAsteroidForm() {
   const points = [];
   const countCorners = Math.floor(Math.random() * 6) + 8;
@@ -21,7 +21,7 @@ export function generateAsteroidForm() {
   for (let i = 0; i < countCorners; i++) {
     const angle = offset + (i / countCorners) * Math.PI * 2;
     let radius = i === notch ? 0.5 + Math.random() * 0.12 : 0.74 + Math.random() * 0.26;
-    // Streckung: Anteil entlang der Achse bleibt, quer dazu schrumpft er
+    // Stretch: the share along the axis stays, across it shrinks
     const across = Math.sin(angle - axis);
     radius *= Math.sqrt(1 - (1 - stretch * stretch) * across * across);
     const px = 50 + Math.cos(angle) * 50 * radius;
@@ -31,7 +31,7 @@ export function generateAsteroidForm() {
   return points;
 }
 
-// Umriss fuer das Netz: "x y,x y,..." und zurueck
+// Outline for the network: "x y,x y,..." and back
 export function formAsText(form) {
   return form.map(([px, py]) => `${px} ${py}`).join(',');
 }
@@ -39,7 +39,7 @@ export function formFromText(text) {
   return text.split(',').map(pair => pair.split(' ').map(Number));
 }
 
-// Leuchtfarbe eines Powerups (Rahmen, Bildschirm-Blitz beim Einsammeln)
+// Glow color of a powerup (frame, screen flash on pickup)
 const POWERUP_COLORS = {
   lives: '#e74c3c',
   energy: '#f1c40f',
@@ -126,7 +126,7 @@ export function createAsteroid(
       isIndestructible = true;
     }
   }
-  // Farbverlauf (farbe -> farbe2), Umriss und Rissmuster sind Modelldaten; die Anzeige zeichnet daraus
+  // Gradient (color -> color2), outline and crack pattern are model data; the display draws from them
   let color, color2;
   if (isMagma) {
     let c = config.magmaBasisColors[Math.floor(Math.random() * config.magmaBasisColors.length)];
@@ -144,7 +144,7 @@ export function createAsteroid(
   let startHp = size * 1.2;
   if (carriesPowerup) startHp *= 3;
   let computedVx = startVx !== undefined ? startVx : (Math.random() - 0.5) * 4;
-  // LANGSAMERE SKALIERUNG: Asteroiden fallen in höheren Leveln nur dezent schneller
+  // SLOWER SCALING: asteroids fall only slightly faster in higher levels
   let computedVy = startVy !== undefined ? startVy : Math.random() * 1.5 + 1.0 + state.level * 0.1;
   if (carriesPowerup && startVx === undefined) computedVx = Math.random() - 0.5;
   let startRot = Math.random() * 360;
@@ -240,7 +240,7 @@ export function createEnemy(sX, sY, forcePattern = null, forceVx = 0, forceShiel
         isIndestructible: false,
         carriesPowerup: Math.random() < (pattern === 'hacker' ? 0.4 : 0.2),
         pattern: pattern,
-        phase: 'anflug',
+        phase: 'approach',
         stopTimer: 0,
         stopY: stopY,
         lurkTimer: 0,
@@ -255,16 +255,16 @@ export function createEnemy(sX, sY, forcePattern = null, forceVx = 0, forceShiel
 
 export function createClingOnEnemy() {
   let size = Math.random() * 20 + 30; // 30-50
-  // Erzeuge garantiert zerstörbaren (grauen) Asteroiden
+  // Create a guaranteed destructible (gray) asteroid
   createAsteroid(undefined, undefined, size, undefined, undefined, 0, true);
   let ast = arrays.asteroids[arrays.asteroids.length - 1]; // Zuletzt erstellter Asteroid
 
-  // Erzeuge den Feind auf der Position des Asteroiden
+  // Create the enemy at the asteroid's position
   createEnemy(ast.x, ast.y, 'clingOn', 0);
   let f = arrays.enemies[arrays.enemies.length - 1];
   f.attachedAsteroid = ast;
   f.phase = 'attached';
-  f.shotTimer = 9999; // Schießt nicht, während er haftet
+  f.shotTimer = 9999; // Does not shoot while it clings
 }
 export function createHackProjectile(fx, fy, targetX, targetY, source = null) {
   const speed = 3;
@@ -332,15 +332,15 @@ export function createBoss() {
   dom.bossHpBar.style.width = '100%';
   dom.bossHpBar.style.backgroundColor = '#e74c3c';
 
-  // Bestimme Boss Typ basierend auf Level
-  let bTyp = state.level % 4;
-  if (bTyp === 0) bTyp = 4; // 1, 2, 3, 4, 1, 2, ...
+  // Determine boss type based on level
+  let bType = state.level % 4;
+  if (bType === 0) bType = 4; // 1, 2, 3, 4, 1, 2, ...
 
   let bossSize = 100 + (state.level - 1) * 10;
-  bossSize = Math.min(bossSize, 160); // Maximale Größe deckeln
+  bossSize = Math.min(bossSize, 160); // Cap the maximum size
   let startX = config.playfieldWidth / 2 - bossSize / 2;
 
-  // SKALIERUNG: HP wachsen im Co-op Modus moderat (+40%), im Solomodus Standard
+  // SCALING: HP grows moderately in co-op mode (+40%), standard in solo mode
   const bossHpMult = isCoopMode() ? 1.4 : 1.0;
   let bossHp = Math.round((400 + (state.level - 1) * 350) * bossHpMult);
   let bossVx = 2 + (state.level - 1) * 0.2;
@@ -356,13 +356,13 @@ export function createBoss() {
         maxHp: bossHp,
         vx: bossVx,
         vy: 1,
-        phase: 'einzug',
+        phase: 'entry',
         shotTimer: 60,
         baseShotRate: shotRhythmus,
         isEnemy: false,
         isBoss: true,
         isIndestructible: false,
-        bossTyp: bTyp,
+        bossType: bType,
         glowColor: getBossColor(state.level),
         enragePhaseActive: false,
         hackTimer: 180, // erster Hack-Orb nach 3 s Kampf (ab Level 5)

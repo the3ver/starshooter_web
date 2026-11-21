@@ -13,13 +13,13 @@ test.beforeEach(async ({ page }) => {
   await page.goto('/');
 });
 
-test('Gleve-MR: im Hangar wählbar, Perks, Manta-SVG, keine Werfer-Pods, HUD SWEEP/DASH', async ({ page }) => {
+test('Gleve-MR: selectable in the hangar, perks, manta SVG, no launcher pods, HUD SWEEP/DASH', async ({ page }) => {
   const gleveBtn = page.locator('.hangar-model-btn[data-model="gleve"]');
   await expect(gleveBtn).toBeVisible();
   await gleveBtn.click();
   await expect(gleveBtn).toHaveClass(/active/);
 
-  // Name und Perks kommen aus dem Schiffsmodell; Balancing-Werte prueft das Verhalten in den Dash-/Sweep-Tests
+  // Name and perks come from the ship model; the dash/sweep tests check the balancing values through behavior
   const values = await page.evaluate(async () => {
     const { state, shipModels } = await import('./js/state.js');
     return {
@@ -36,22 +36,22 @@ test('Gleve-MR: im Hangar wählbar, Perks, Manta-SVG, keine Werfer-Pods, HUD SWE
     await expect(page.locator('#hangar-perk-detail')).toContainText(values.perks[i]);
   }
 
-  // Spiel starten
+  // Start the game
   await page.keyboard.down('KeyW');
   await page.waitForTimeout(50);
   await page.keyboard.up('KeyW');
   await expect(page.locator('#spieler')).toBeVisible();
 
-  // Manta-SVG wird gerendert
+  // The manta SVG is rendered
   const svgHtml = await page.locator('#spieler svg').evaluate(el => el.innerHTML);
   expect(svgHtml).toContain('Gleve-MR');
   expect(await page.locator('#spieler svg path').count()).toBeGreaterThanOrEqual(5);
 
-  // HUD-Beschriftungen: Energie = Sweep, Raketen-Cooldown = Dash
+  // HUD labels: energy = sweep, missile cooldown = dash
   await expect(page.locator('#energie-cd-container .cooldown-letter')).toHaveText('SWEEP');
   await expect(page.locator('#raketen-cd-container .cooldown-letter')).toHaveText('DASH');
 
-  // Werfer-Pods auch bei Raketenstufe 5 ausgeblendet, ohne Abwurf-Effekt
+  // Launcher pods hidden even at missile tier 5, without a drop effect
   await expect(page.locator('#spieler .werfer-links')).toBeHidden();
   await expect(page.locator('#spieler .werfer-rechts')).toBeHidden();
   await expect(page.locator('#spieler .werfer-center')).toBeHidden();
@@ -67,7 +67,7 @@ test('Gleve-MR: im Hangar wählbar, Perks, Manta-SVG, keine Werfer-Pods, HUD SWE
   expect(drop).toBe(0);
   await expect(page.locator('#spieler .werfer-center')).toBeHidden();
 
-  // Zurück zur Viper: Originaltexte und Werfer
+  // Back to the Viper: original texts and launchers
   await page.evaluate(async () => {
     const { state } = await import('./js/state.js');
     const Utils = await import('./js/utils.js');
@@ -79,9 +79,9 @@ test('Gleve-MR: im Hangar wählbar, Perks, Manta-SVG, keine Werfer-Pods, HUD SWE
   await expect(page.locator('#spieler .werfer-links')).toBeVisible();
 });
 
-// Gleve im Hangar wählen (optional als P2 im lokalen Coop), Spiel starten und Feld leeren.
-// Danach stellt window.__gleveTest.leeren() einen deterministischen Ausgangszustand her;
-// Aufbau, simulationsSchritt()-Aufrufe und Auswertung laufen je Test in einem synchronen Block.
+// Pick the Gleve in the hangar (optionally as P2 in local co-op), start the game and clear the field.
+// Then window.__gleveTest.empty() sets up a deterministic initial state;
+// setup, simulationStep() calls and evaluation run in one synchronous block per test.
 async function startGleve(page, { coop = false } = {}) {
   if (coop) {
     await page.evaluate(() => window.__game.Utils.setGameMode('coop'));
@@ -115,7 +115,7 @@ async function startGleve(page, { coop = false } = {}) {
         Object.keys(state.keysPressed).forEach(k => {
           state.keysPressed[k] = false;
         });
-        state.frameCounter = 1; // keine Spawns in den naechsten 100 Schritten
+        state.frameCounter = 1; // no spawns in the next 100 steps
         state.level = 1;
         state.bossActive = false;
         state.hacks = [];
@@ -150,8 +150,8 @@ async function startGleve(page, { coop = false } = {}) {
   });
 }
 
-test.describe('Gleve-MR Dash (Raketen-Taste)', () => {
-  test('Dash bewegt das Schiff um die Reichweite in Steuerrichtung, kostet keine Energie und startet den Cooldown', async ({
+test.describe('Gleve-MR dash (missile key)', () => {
+  test('Dash moves the ship by the range in the steering direction, costs no energy and starts the cooldown', async ({
     page,
   }) => {
     await startGleve(page);
@@ -159,7 +159,7 @@ test.describe('Gleve-MR Dash (Raketen-Taste)', () => {
       const { state } = window.__game;
       const T = window.__gleveTest;
       T.empty();
-      // Diagonal rechts oben, Stufe 1: 100 px, 180 Frames Cooldown
+      // Diagonally up right, tier 1: 100 px, 180 frames cooldown
       state.keysPressed.d = true;
       state.keysPressed.w = true;
       state.keysPressed.k = true;
@@ -185,22 +185,22 @@ test.describe('Gleve-MR Dash (Raketen-Taste)', () => {
         dashSounds: window.__game.Audio.audioHistory.filter(a => a.name === 'dash').length,
       };
     });
-    // Der Cooldown laeuft im selben Schritt schon einen Frame herunter
+    // The cooldown already counts one frame down in the same step
     expect(r.afterStart).toEqual({ energy: 50, timer: 7, cd: 179 });
     expect(r.classDuring).toBe(true);
     expect(r.classThereafter).toBe(false);
     expect(r.end.x).toBeCloseTo(185 + 100 / Math.SQRT2, 1);
     expect(r.end.y).toBeCloseTo(400 - 100 / Math.SQRT2, 1);
-    // Der Dash selbst ist kostenlos (nachStart), am Ende folgt der Combo-Sweep (Stufe 1: 8 Energie)
+    // The dash itself is free (afterStart), at the end the combo sweep follows (tier 1: 8 energy)
     expect(r.end.energy).toBe(42);
     expect(r.end.cd).toBe(172);
-    // HUD-Raketenbalken zeigt den Dash-Cooldown
+    // The HUD missile bar shows the dash cooldown
     expect(r.bar).toBeCloseTo(100 - (172 / 180) * 100, 3);
     expect(r.effects).toBeGreaterThan(0);
     expect(r.dashSounds).toBe(1);
   });
 
-  test('Nur ein Dash pro Tastendruck, Ladungen und Reichweite nach Raketen-Stufe, waffenOffline blockiert, keine Raketen', async ({
+  test('Only one dash per key press, charges and range by missile tier, weaponsOffline blocks, no missiles', async ({
     page,
   }) => {
     await startGleve(page);
@@ -209,11 +209,11 @@ test.describe('Gleve-MR Dash (Raketen-Taste)', () => {
       const Hack = await import('./js/hack.js');
       const T = window.__gleveTest;
       T.empty();
-      // Taste 30 Schritte gehalten: nur ein Dash nach oben
+      // Key held for 30 steps: only one dash upwards
       state.keysPressed.k = true;
       T.steps(30);
       const held = { y: state.y, charges: state.gleveDashCharges };
-      // Loslassen und erneut druecken: zweite Ladung, zweiter Dash
+      // Release and press again: second charge, second dash
       state.keysPressed.k = false;
       T.steps(1);
       state.keysPressed.k = true;
@@ -221,13 +221,13 @@ test.describe('Gleve-MR Dash (Raketen-Taste)', () => {
       const secondary = { y: state.y, charges: state.gleveDashCharges, cd: state.missileCooldown };
       state.keysPressed.k = false;
       T.steps(1);
-      // Keine Ladung mehr: kein Dash
+      // No charge left: no dash
       state.keysPressed.k = true;
       T.steps(10);
       const withoutCharge = { y: state.y, charges: state.gleveDashCharges };
       state.keysPressed.k = false;
       T.steps(1);
-      // Wieder eine Ladung: Dash
+      // A charge again: dash
       state.gleveDashCharges = 1;
       state.keysPressed.k = true;
       T.steps(10);
@@ -235,11 +235,11 @@ test.describe('Gleve-MR Dash (Raketen-Taste)', () => {
       state.keysPressed.k = false;
       T.steps(1);
 
-      // waffenOffline-Hack blockiert den Dash
+      // The weaponsOffline hack blocks the dash
       state.y = 400;
       state.missileCooldown = 0;
       state.gleveDashCharges = 2;
-      Hack.hackPlayer(state, 'weaponOffline');
+      Hack.hackPlayer(state, 'weaponsOffline');
       state.keysPressed.k = true;
       T.steps(10);
       const hacked = { y: state.y, cd: state.missileCooldown, charges: state.gleveDashCharges };
@@ -247,7 +247,7 @@ test.describe('Gleve-MR Dash (Raketen-Taste)', () => {
       state.hacks = [];
       T.steps(1);
 
-      // Reichweite und Cooldown je Raketen-Stufe (nach 8 Schritten)
+      // Range and cooldown per missile tier (after 8 steps)
       const tiers = [];
       for (let s = 1; s <= 5; s++) {
         state.missileTier = s;
@@ -273,10 +273,10 @@ test.describe('Gleve-MR Dash (Raketen-Taste)', () => {
         missileSounds: Audio.audioHistory.filter(a => a.name === 'missile').length,
       };
     });
-    // Gehaltene Taste: nur ein Dash, eine Ladung verbraucht
+    // Held key: only one dash, one charge used
     expect(r.held.y).toBeCloseTo(300, 5);
     expect(r.held.charges).toBe(1);
-    // Zweiter Druck nutzt die zweite Ladung; das laufende Nachladen wird nicht neu gestartet
+    // A second press uses the second charge; the running recharge is not restarted
     expect(r.secondary.y).toBeCloseTo(200, 5);
     expect(r.secondary.charges).toBe(0);
     expect(r.secondary.cd).toBe(139);
@@ -293,13 +293,13 @@ test.describe('Gleve-MR Dash (Raketen-Taste)', () => {
       { gone: 135, cd: 127 },
       { gone: 150, cd: 112 },
     ]);
-    // Die Gleve feuert weder Laser-Projektile noch Raketen
+    // The Gleve fires neither laser projectiles nor missiles
     expect(r.lasers).toBe(0);
     expect(r.missiles).toBe(0);
     expect(r.missileSounds).toBe(0);
   });
 
-  test('Normale Feinde auf der Strecke werden zerstört, Kill-Kette verkürzt das Nachladen um 30 Frames pro Kill', async ({
+  test('Normal enemies on the path are destroyed, the kill chain shortens the recharge by 30 frames per kill', async ({
     page,
   }) => {
     await startGleve(page);
@@ -307,7 +307,7 @@ test.describe('Gleve-MR Dash (Raketen-Taste)', () => {
       const { state, arrays, Entities } = window.__game;
       const T = window.__gleveTest;
       T.empty();
-      // Zwei Feinde (einer mit Schild) direkt ueber dem Schiff, kein Schuss
+      // Two enemies (one with a shield) directly above the ship, no shot
       Entities.createEnemy(185, 350, 'normal', 0, true);
       Entities.createEnemy(185, 315, 'normal', 0, false);
       arrays.enemies.forEach(f => {
@@ -331,14 +331,14 @@ test.describe('Gleve-MR Dash (Raketen-Taste)', () => {
     expect(r.enemies).toBe(0);
     expect(r.lives).toBe(3);
     expect(r.points).toBeGreaterThanOrEqual(200);
-    // 180 (Nachladen) - 2 * 30 (Kill-Kette) - 8 Schritte
+    // 180 (recharge) - 2 * 30 (kill chain) - 8 steps
     expect(r.cd).toBe(112);
     expect(r.charges).toBe(1);
-    expect(r.energy).toBe(42); // nur der Combo-Sweep kostet Energie
+    expect(r.energy).toBe(42); // only the combo sweep costs energy
     expect(r.y).toBeCloseTo(300, 5);
   });
 
-  test('Boss bekommt Dash-Schaden, Schiff prallt schräg zur Seite ab', async ({ page }) => {
+  test('A boss takes dash damage, the ship bounces off diagonally to the side', async ({ page }) => {
     await startGleve(page);
     const r = await page.evaluate(() => {
       const { state, arrays, Entities } = window.__game;
@@ -347,7 +347,7 @@ test.describe('Gleve-MR Dash (Raketen-Taste)', () => {
       Entities.createBoss();
       const b = arrays.bosses[0];
       Object.assign(b, {
-        phase: 'kampf',
+        phase: 'fight',
         x: 150,
         y: 20,
         vx: 0,
@@ -355,7 +355,7 @@ test.describe('Gleve-MR Dash (Raketen-Taste)', () => {
         bombTimer: 9999,
         missileTimer: 9999,
       });
-      // Schiff links der Bossmitte, Dash nach oben in den Boss
+      // Ship left of the boss center, dash upwards into the boss
       state.x = 170;
       state.y = 160;
       state.keysPressed.k = true;
@@ -378,21 +378,21 @@ test.describe('Gleve-MR Dash (Raketen-Taste)', () => {
     expect(r.impact.hp).toBe(r.impact.maxHp - 60);
     expect(r.impact.dash).toBe(0);
     expect(r.impact.bounce).toBe(8);
-    // Landepunkt: halbe Bossbreite links neben der Bosskante, 30 px tiefer als der Aufprallpunkt (y 110)
+    // Landing point: half a boss width left of the boss edge, 30 px lower than the impact point (y 110)
     expect(r.x).toBeCloseTo(r.bossX - r.size / 2 - 30, 5);
     expect(r.y).toBeCloseTo(140, 5);
     expect(r.lives).toBe(3);
-    // Unverwundbarkeit laeuft nach dem Abprall noch 30 Frames
+    // Invulnerability runs for another 30 frames after the bounce
     expect(r.invulnerable).toBe(31);
   });
 
-  test('Unverwundbar während des Dashs und kurz danach: Feindlaser trifft nicht', async ({ page }) => {
+  test('Invulnerable during the dash and shortly after: an enemy laser does not hit', async ({ page }) => {
     await startGleve(page);
     const r = await page.evaluate(() => {
       const { state, arrays, Entities } = window.__game;
       const T = window.__gleveTest;
       T.empty();
-      // Stehende Feindlaser auf der Strecke und am Zielpunkt
+      // Stationary enemy lasers on the path and at the target point
       Entities.createEnemyLaser(198, 350);
       Entities.createEnemyLaser(198, 310);
       arrays.enemyLaserArray.forEach(fl => {
@@ -400,9 +400,9 @@ test.describe('Gleve-MR Dash (Raketen-Taste)', () => {
         fl.vx = 0;
       });
       state.keysPressed.k = true;
-      T.steps(12); // 8 Dash-Frames + 4 Nachlauf
+      T.steps(12); // 8 dash frames + 4 trail
       const during = { lives: state.lives, laser: arrays.enemyLaserArray.length, blink: state.invulnerableTimer };
-      T.steps(10); // Nachlauf vorbei: der Laser am Zielpunkt trifft jetzt
+      T.steps(10); // Trail over: the laser at the target point hits now
       state.keysPressed.k = false;
       return { during, thereafter: state.lives, y: state.y };
     });
@@ -413,7 +413,7 @@ test.describe('Gleve-MR Dash (Raketen-Taste)', () => {
     expect(r.thereafter).toBe(2);
   });
 
-  test('Magma: unter Raketen-Stufe 5 Abprall, auf Stufe 5 wird es geknackt und zerstört', async ({ page }) => {
+  test('Magma: below missile tier 5 a bounce, at tier 5 it is cracked and destroyed', async ({ page }) => {
     await startGleve(page);
     const r = await page.evaluate(() => {
       const { state, arrays, Entities } = window.__game;
@@ -432,7 +432,7 @@ test.describe('Gleve-MR Dash (Raketen-Taste)', () => {
         return m;
       };
 
-      // Stufe 1 (Laser-Stufe 5 aendert daran nichts): Abprall, Magma bleibt heil
+      // Tier 1 (laser tier 5 changes nothing): bounce, magma stays intact
       T.empty();
       state.laserTier = 5;
       const m1 = createMagma();
@@ -446,7 +446,7 @@ test.describe('Gleve-MR Dash (Raketen-Taste)', () => {
         y: state.y,
       };
 
-      // Raketen-Stufe 5: knacken und durchschneiden
+      // Missile tier 5: crack and cut through
       T.empty();
       state.missileTier = 5;
       const m5 = createMagma();
@@ -465,7 +465,7 @@ test.describe('Gleve-MR Dash (Raketen-Taste)', () => {
     });
     expect(r.tier1.there).toBe(true);
     expect(r.tier1.indestructible).toBe(true);
-    // Seitlich neben dem Magma gelandet (halbe Breite Abstand zur Kante)
+    // Landed beside the magma (half a width away from the edge)
     expect(r.tier1.x <= 185 - 15 - 30 + 0.01 || r.tier1.x >= 185 + 30 + 15 - 0.01).toBe(true);
     expect(r.tier1.y).toBeGreaterThan(330);
     expect(r.tier5.indestructible).toBe(false);
@@ -474,7 +474,7 @@ test.describe('Gleve-MR Dash (Raketen-Taste)', () => {
     expect(r.tier5.y).toBeCloseTo(250, 5);
   });
 
-  test('Coop: Spieler 2 dasht mit Ö, eigener Cooldown', async ({ page }) => {
+  test('Co-op: player 2 dashes with Ö, own cooldown', async ({ page }) => {
     await startGleve(page, { coop: true });
     const r = await page.evaluate(() => {
       const { state } = window.__game;
@@ -499,7 +499,7 @@ test.describe('Gleve-MR Dash (Raketen-Taste)', () => {
     });
     expect(r.x).toBeCloseTo(300, 5);
     expect(r.y).toBeCloseTo(400, 5);
-    expect(r.energy).toBe(42); // nur der Combo-Sweep kostet Energie
+    expect(r.energy).toBe(42); // only the combo sweep costs energy
     expect(r.cdP2).toBe(172);
     expect(r.cdP1).toBe(0);
     expect(r.p1y).toBeCloseTo(400, 5);
@@ -507,14 +507,14 @@ test.describe('Gleve-MR Dash (Raketen-Taste)', () => {
   });
 });
 
-test('Gleve-MR Dash-Combo: am Ende eines regulären Dashs folgt sofort ein Sweep (normale Kosten), ohne Energie nicht', async ({
+test('Gleve-MR dash combo: at the end of a regular dash a sweep follows immediately (normal cost), not without energy', async ({
   page,
 }) => {
   await startGleve(page);
   const r = await page.evaluate(() => {
     const { state, arrays, Entities } = window.__game;
     const T = window.__gleveTest;
-    // Dash nach oben (Stufe 1: 100 px, 8 Schritte) endet bei y 300; der Feind liegt danach in Sweep-, aber nicht in Dash-Reichweite
+    // Dash upwards (tier 1: 100 px, 8 steps) ends at y 300; the enemy then lies within sweep range but not within dash range
     const dashOnEnemy = energy => {
       T.empty();
       state.energy = energy;
@@ -534,13 +534,13 @@ test('Gleve-MR Dash-Combo: am Ende eines regulären Dashs folgt sofort ein Sweep
   expect(r.full.afterDash.sweep).toBeGreaterThan(0);
   expect(r.full.afterDash.energy).toBe(42);
   expect(r.full.enemyThere).toBe(false);
-  // Zu wenig Energie fuer einen Sweep: kein Combo-Sweep, der Feind bleibt
+  // Too little energy for a sweep: no combo sweep, the enemy stays
   expect(r.empty.afterDash.sweep).toBe(0);
   expect(r.empty.enemyThere).toBe(true);
 });
 
-test.describe('Gleve-MR Dash-Ladungen', () => {
-  test('Start mit 2 Ladungen: zwei Dashs direkt hintereinander, der dritte nicht; Nachladen je dashCooldown Schritte', async ({
+test.describe('Gleve-MR dash charges', () => {
+  test('Start with 2 charges: two dashes right after each other, the third not; recharge every dashCooldown steps', async ({
     page,
   }) => {
     await startGleve(page);
@@ -548,7 +548,7 @@ test.describe('Gleve-MR Dash-Ladungen', () => {
       const { state } = window.__game;
       const Gleve = await import('./js/gleve.js');
       const T = window.__gleveTest;
-      // Ein Dash pro Druck: Taste druecken, Dash-Dauer abwarten, loslassen (11 Schritte)
+      // One dash per press: press the key, wait for the dash duration, release (11 steps)
       const dash = () => {
         state.keysPressed.k = true;
         T.steps(10);
@@ -565,7 +565,7 @@ test.describe('Gleve-MR Dash-Ladungen', () => {
       const afterTwo = { charges: state.gleveDashCharges, y: state.y };
       dash();
       const afterThree = { charges: state.gleveDashCharges, y: state.y };
-      // Das Nachladen laeuft seit dem ersten Dash (33 Schritte vergangen)
+      // The recharge has been running since the first dash (33 steps passed)
       T.steps(dashCd - 33 - 1);
       const beforeOne = state.gleveDashCharges;
       T.steps(1);
@@ -591,7 +591,7 @@ test.describe('Gleve-MR Dash-Ladungen', () => {
     expect(r.permanent).toBe(2);
   });
 
-  test('HUD: DASH-Balken zeigt das Nachladen, Punkte zeigen die Ladungen (2, Stufe 4: 3), Viper ohne Punkte', async ({
+  test('HUD: the DASH bar shows the recharge, dots show the charges (2, tier 4: 3), Viper without dots', async ({
     page,
   }) => {
     await startGleve(page);
@@ -627,14 +627,14 @@ test.describe('Gleve-MR Dash-Ladungen', () => {
     expect(r.afterDash.color).not.toBe('rgb(46, 204, 113)');
     expect(await points()).toEqual({ total: r.max, full: 1, visible: true });
 
-    // Voll geladen: alle Punkte gefuellt
+    // Fully charged: all dots filled
     await page.evaluate(() => {
       window.__gleveTest.empty();
       window.__gleveTest.steps(1);
     });
     expect(await points()).toEqual({ total: 2, full: 2, visible: true });
 
-    // Stufe 4: drei Punkte, der dritte fehlt bis zum Nachladen
+    // Tier 4: three dots, the third is missing until recharged
     await page.evaluate(() => {
       const { state } = window.__game;
       state.missileTier = 4;
@@ -642,7 +642,7 @@ test.describe('Gleve-MR Dash-Ladungen', () => {
     });
     expect(await points()).toEqual({ total: 3, full: 2, visible: true });
 
-    // Viper: keine Punkte
+    // Viper: no dots
     await page.evaluate(() => {
       const { state, Utils } = window.__game;
       state.selectedShipModel = 'viper';
@@ -652,7 +652,7 @@ test.describe('Gleve-MR Dash-Ladungen', () => {
     expect(await points()).toEqual({ total: 0, full: 0, visible: false });
   });
 
-  test('Max-Ladungen nach Raketen-Stufe: 1-3 -> 2, 4-5 -> 3; Upgrade lädt von selbst nach, Ladungen nie über Max', async ({
+  test('Max charges by missile tier: 1-3 -> 2, 4-5 -> 3; an upgrade recharges by itself, charges never above max', async ({
     page,
   }) => {
     await startGleve(page);
@@ -665,7 +665,7 @@ test.describe('Gleve-MR Dash-Ladungen', () => {
         state.missileTier = s;
         return Gleve.dashMaxCharges(state);
       });
-      // Upgrade auf Stufe 4: 2 von 3 Ladungen, Nachladen startet und fuellt auf 3
+      // Upgrade to tier 4: 2 of 3 charges, the recharge starts and fills up to 3
       state.missileTier = 4;
       T.steps(1);
       const afterUpgrade = { charges: state.gleveDashCharges, cd: state.missileCooldown };
@@ -673,7 +673,7 @@ test.describe('Gleve-MR Dash-Ladungen', () => {
       const charged = { charges: state.gleveDashCharges, cd: state.missileCooldown };
       T.steps(Gleve.dashCooldown(state) * 3);
       const neverOverMax = state.gleveDashCharges;
-      // Zu viele Ladungen werden geklemmt
+      // Too many charges are clamped
       state.gleveDashCharges = 9;
       T.steps(1);
       const clamped = state.gleveDashCharges;
@@ -687,7 +687,7 @@ test.describe('Gleve-MR Dash-Ladungen', () => {
     expect(r.clamped).toBe(3);
   });
 
-  test('Kill-Kette verkürzt das Nachladen; erreicht es 0, kommt die Ladung sofort und es wird weitergeladen', async ({
+  test('The kill chain shortens the recharge; when it reaches 0 the charge comes immediately and charging continues', async ({
     page,
   }) => {
     await startGleve(page);
@@ -695,7 +695,7 @@ test.describe('Gleve-MR Dash-Ladungen', () => {
       const { state, arrays, Entities } = window.__game;
       const T = window.__gleveTest;
       T.empty();
-      // Eine Ladung ist bereits unterwegs (40 Frames Rest): der Dash-Kill (-30) verkuerzt, zweiter Kill beendet es
+      // A charge is already on its way (40 frames left): the dash kill (-30) shortens it, the second kill finishes it
       state.gleveDashCharges = 1;
       state.missileCooldown = 40;
       Entities.createEnemy(185, 350, 'normal', 0, false);
@@ -710,15 +710,15 @@ test.describe('Gleve-MR Dash-Ladungen', () => {
       return { enemies: arrays.enemies.length, charges: state.gleveDashCharges, cd: state.missileCooldown };
     });
     expect(r.enemies).toBe(0);
-    // Dash 1 -> 0 Ladungen; Kill 1: 40 -> 10; Kill 2: Nachladen fertig, +1 Ladung, neues Nachladen (180), davon bis Schrittende abgezogen
+    // Dash 1 -> 0 charges; kill 1: 40 -> 10; kill 2: recharge done, +1 charge, new recharge (180), minus what passed until the end of the step
     expect(r.charges).toBe(1);
     expect(r.cd).toBeGreaterThan(100);
     expect(r.cd).toBeLessThan(180);
   });
 });
 
-test.describe('Gleve-MR Laser-Sweep (Laser-Taste)', () => {
-  test('Klingenwelle: ein Sweep sendet genau eine Welle, die Ziele jenseits der Reichweite einmal mit halbem Schaden trifft; Magma heil, Welle verschwindet, Neustart raeumt auf', async ({
+test.describe('Gleve-MR laser sweep (laser key)', () => {
+  test('Blade wave: one sweep sends exactly one wave that hits targets beyond the range once with half damage; magma intact, wave disappears, restart cleans up', async ({
     page,
   }) => {
     await startGleve(page);
@@ -726,14 +726,14 @@ test.describe('Gleve-MR Laser-Sweep (Laser-Taste)', () => {
       const { state, arrays, Entities, Utils } = window.__game;
       const T = window.__gleveTest;
       T.empty();
-      // Ursprung (200, 405), Laenge 100: Spitze bei y = 305; Welle 70 px breit (x 165-235), startet bei y = 298
+      // Origin (200, 405), length 100: tip at y = 305; wave 70 px wide (x 165-235), starts at y = 298
       const enemy = (x, y) => {
         Entities.createEnemy(x, y, 'normal', 0, false);
         const f = arrays.enemies[arrays.enemies.length - 1];
         Object.assign(f, { vy: 0, shotTimer: 9999, carriesPowerup: false });
         return f;
       };
-      const top = enemy(185, 220); // ca. 60 px ueber der Sweep-Reichweite
+      const top = enemy(185, 220); // about 60 px above the sweep range
       const lateral = enemy(330, 220);
       Entities.createAsteroid(185, 230, 30, 0, 0, 0, true);
       const magma = arrays.asteroids[arrays.asteroids.length - 1];
@@ -754,7 +754,7 @@ test.describe('Gleve-MR Laser-Sweep (Laser-Taste)', () => {
       out.endDom = document.querySelectorAll('.gleve-welle').length;
       out.endDamage = hp0[0] - top.hp;
       out.magmaThere = arrays.asteroids.includes(magma);
-      // Neustart entfernt Wellen
+      // Restart removes waves
       state.keysPressed.l = true;
       T.steps(10);
       state.keysPressed.l = false;
@@ -767,7 +767,7 @@ test.describe('Gleve-MR Laser-Sweep (Laser-Taste)', () => {
     expect(r.dom).toBe(1);
     expect(r.owner).toBe('p1');
     expect(r.width).toBeGreaterThanOrEqual(50);
-    // Feind oben: genau einmal halber Sweep-Schaden (15); seitlich und Magma nichts
+    // Enemy at the top: exactly once half the sweep damage (15); sideways and magma nothing
     expect(r.afterFlight).toEqual([15, 0, 0]);
     expect(r.endDamage).toBe(15);
     expect(r.magmaThere).toBe(true);
@@ -777,7 +777,7 @@ test.describe('Gleve-MR Laser-Sweep (Laser-Taste)', () => {
     expect(r.afterRestart).toEqual([0, 0]);
   });
 
-  test('Sweep trifft Ziele im Bogen genau einmal, nicht seitlich, dahinter oder zu weit weg; Magma bleibt heil', async ({
+  test('Sweep hits targets in the arc exactly once, not sideways, behind or too far away; magma stays intact', async ({
     page,
   }) => {
     await startGleve(page);
@@ -785,21 +785,21 @@ test.describe('Gleve-MR Laser-Sweep (Laser-Taste)', () => {
       const { state, arrays, Entities } = window.__game;
       const T = window.__gleveTest;
       T.empty();
-      // Ursprung des Strahls: (200, 405), Stufe 1: 90-Grad-Bogen, Länge 100, Schaden 30
+      // Origin of the beam: (200, 405), tier 1: 90 degree arc, length 100, damage 30
       const asteroid = (x, y, g = 30) => {
         Entities.createAsteroid(x, y, g, 0, 0, 0, true);
         const a = arrays.asteroids[arrays.asteroids.length - 1];
         a.vRot = 0;
         return a;
       };
-      // Feind mit Schild direkt voraus: Schild fängt den Schaden ab
+      // Enemy with a shield straight ahead: the shield catches the damage
       Entities.createEnemy(185, 340, 'normal', 0, true);
       const enemy = arrays.enemies[0];
       Object.assign(enemy, { vy: 0, shotTimer: 9999 });
       const inArc = asteroid(167, 322); // ca. -15 Grad, 70 px
       const lateral = asteroid(240, 390); // 90 Grad
       const behind = asteroid(185, 440);
-      const tooFar = asteroid(185, 265); // naechster Punkt 110 px entfernt
+      const tooFar = asteroid(185, 265); // nearest point 110 px away
       Entities.createAsteroid(250, 330, 30, 0, 0, 0, true);
       const magma = arrays.asteroids[arrays.asteroids.length - 1];
       Object.assign(magma, { x: 205, y: 340, isIndestructible: true, isMagma: true, carriesPowerup: false, vRot: 0 });
@@ -819,7 +819,7 @@ test.describe('Gleve-MR Laser-Sweep (Laser-Taste)', () => {
         fan: document.querySelectorAll('.gleve-faecher').length,
         energy: state.energy,
       };
-      // Weitere Schritte ohne Taste: kein zweiter Sweep, kein zweiter Schaden
+      // Further steps without the key: no second sweep, no second damage
       T.steps(20);
       return {
         enemy: { there: arrays.enemies.includes(enemy), shield: enemy.shieldHp, hp: enemy.hp },
@@ -834,31 +834,31 @@ test.describe('Gleve-MR Laser-Sweep (Laser-Taste)', () => {
     expect(r.enemy.there).toBe(true);
     expect(r.enemy.shield).toBe(0);
     expect(r.enemy.hp).toBe(20);
-    // im Bogen: genau einmal 30 Schaden; seitlich, dahinter, Magma: nichts;
-    // zu weit fuer den Sweep: nur die Klingenwelle trifft (halber Schaden, einmal)
+    // in the arc: exactly once 30 damage; sideways, behind, magma: nothing;
+    // too far for the sweep: only the blade wave hits (half damage, once)
     expect(r.hp).toEqual([30, 0, 0, 15, 0]);
     expect(r.magma.there).toBe(true);
     expect(r.magma.indestructible).toBe(true);
-    // Klinge rotiert um den Schiffsbug (nach 5 von 10 Frames senkrecht)
+    // The blade rotates around the ship bow (vertical after 5 of 10 frames)
     expect(r.bladeDuring).not.toBeNull();
     expect(r.bladeDuring.transform).toBe('rotate(0deg)');
     expect(r.bladeDuring.origin).toMatch(/ 100px$/);
     expect(r.afterSweep.blade).toBe(0);
     expect(r.afterSweep.fan).toBe(1);
-    // 8 Energie pro Sweep, beim Halten keine Regeneration
+    // 8 energy per sweep, no regeneration while holding
     expect(r.afterSweep.energy).toBe(42);
     expect(r.timer).toBe(0);
     expect(r.sounds).toBe(1);
   });
 
-  test('Bogen nach Laser-Stufe: Stufe 1 (90 Grad) trifft bei 40, nicht bei 60 Grad; Stufe 5 (150 Grad) trifft bei 70 Grad', async ({
+  test('Arc by laser tier: tier 1 (90 degrees) hits at 40, not at 60 degrees; tier 5 (150 degrees) hits at 70 degrees', async ({
     page,
   }) => {
     await startGleve(page);
     const r = await page.evaluate(() => {
       const { state, arrays, Entities } = window.__game;
       const T = window.__gleveTest;
-      // Kleines Ziel (10 px) mit Mitte 70 px vom Strahlursprung (200, 405) unter dem Winkel (Grad, 0 = oben)
+      // Small target (10 px) with its center 70 px from the beam origin (200, 405) at the angle (degrees, 0 = top)
       const target = angle => {
         const rad = (angle * Math.PI) / 180;
         Entities.createAsteroid(200 + Math.sin(rad) * 70 - 5, 405 - Math.cos(rad) * 70 - 5, 10, 0, 0, 0, true);
@@ -889,7 +889,7 @@ test.describe('Gleve-MR Laser-Sweep (Laser-Taste)', () => {
     expect(r.tier5).toEqual([50, 50, 0]);
   });
 
-  test('Gehalten pendelt der Sweep im Takt, verbraucht Energie ohne Regeneration; Takt nach Stufe, Energie-Grenze, Superwaffe, waffenOffline', async ({
+  test('Held, the sweep swings on the cadence, uses energy without regeneration; cadence by tier, energy limit, superweapon, weaponsOffline', async ({
     page,
   }) => {
     await startGleve(page);
@@ -905,7 +905,7 @@ test.describe('Gleve-MR Laser-Sweep (Laser-Taste)', () => {
         energy: state.energy,
       });
 
-      // Stufe 1: Takt 20, 8 Energie pro Sweep
+      // Tier 1: cadence 20, 8 energy per sweep
       T.empty();
       Audio.clearAudioHistory();
       state.keysPressed.l = true;
@@ -920,12 +920,12 @@ test.describe('Gleve-MR Laser-Sweep (Laser-Taste)', () => {
       const colorFull = color();
       state.keysPressed.l = false;
       T.steps(9);
-      const released = z(); // letzter Sweep laeuft noch: keine Regeneration
+      const released = z(); // the last sweep is still running: no regeneration
       T.steps(10);
       const loaded = state.energy;
       const sounds = Audio.audioHistory.filter(a => a.name === 'sweep').length;
 
-      // Stufe 5: Takt 16, 6 Energie, 150-Grad-Bogen
+      // Tier 5: cadence 16, 6 energy, 150 degree arc
       T.empty();
       state.laserTier = 5;
       state.keysPressed.l = true;
@@ -938,7 +938,7 @@ test.describe('Gleve-MR Laser-Sweep (Laser-Taste)', () => {
       state.keysPressed.l = false;
       T.steps(1);
 
-      // Zu wenig Energie: kein Sweep, gehalten auch keine Regeneration, Balken orange
+      // Too little energy: no sweep, no regeneration while held either, bar orange
       T.empty();
       state.energy = 7;
       state.keysPressed.l = true;
@@ -947,7 +947,7 @@ test.describe('Gleve-MR Laser-Sweep (Laser-Taste)', () => {
       state.keysPressed.l = false;
       T.steps(1);
 
-      // Superwaffe: Sweep ohne Kosten
+      // Superweapon: sweep without cost
       T.empty();
       state.unlimitedEnergy = true;
       state.energy = 0;
@@ -957,9 +957,9 @@ test.describe('Gleve-MR Laser-Sweep (Laser-Taste)', () => {
       state.keysPressed.l = false;
       T.steps(1);
 
-      // waffenOffline blockiert den Sweep
+      // weaponsOffline blocks the sweep
       T.empty();
-      Hack.hackPlayer(state, 'weaponOffline');
+      Hack.hackPlayer(state, 'weaponsOffline');
       state.keysPressed.l = true;
       T.steps(5);
       const hacked = z();
@@ -985,17 +985,17 @@ test.describe('Gleve-MR Laser-Sweep (Laser-Taste)', () => {
         missiles: arrays.missileArray.length,
       };
     });
-    // Erster Sweep links -> rechts: Start bei -45 Grad, 9 Grad pro Schritt
+    // First sweep left -> right: start at -45 degrees, 9 degrees per step
     expect(r.first).toEqual({ direction: 1, angle: -36, timer: 9, energy: 42 });
     expect(r.beforeSecond).toEqual({ direction: 1, angle: 45, timer: 0, energy: 42 });
-    // Zweiter Sweep nach 20 Frames rechts -> links
+    // Second sweep after 20 frames right -> left
     expect(r.secondary).toEqual({ direction: -1, angle: 36, timer: 9, energy: 34 });
     expect(r.third.direction).toBe(1);
     expect(r.third.energy).toBe(26);
     expect(r.colorFull).toBe('rgb(26, 188, 156)');
     expect(r.released.timer).toBe(0);
     expect(r.released.energy).toBe(26);
-    // Danach 0,4 pro Schritt
+    // After that 0.4 per step
     expect(r.loaded).toBeCloseTo(30, 5);
     expect(r.sounds).toBe(3);
     expect(r.s5erster).toEqual({ direction: 1, angle: -60, timer: 9, energy: 44 });
@@ -1017,18 +1017,16 @@ test.describe('Gleve-MR Laser-Sweep (Laser-Taste)', () => {
     expect(r.missiles).toBe(0);
   });
 
-  test('Parade Laser-Stufe 1: Feindlaser wird seitlich weggeschleudert, ist harmlos und verlässt das Feld', async ({
-    page,
-  }) => {
+  test('Parry laser tier 1: an enemy laser is flung sideways, is harmless and leaves the field', async ({ page }) => {
     await startGleve(page);
     const r = await page.evaluate(() => {
       const { state, arrays, Entities } = window.__game;
       const T = window.__gleveTest;
       T.empty();
-      // Feindlaser fliegt von oben auf das Schiff zu (leicht rechts der Mitte)
+      // An enemy laser flies from above towards the ship (slightly right of the center)
       Entities.createEnemyLaser(201, 320);
       const fl = arrays.enemyLaserArray[0];
-      // Hack-Projektil links davon, ohne Zielsuche
+      // Hack projectile to the left of it, without homing
       Entities.createHackProjectile(186, 330, 186, 600);
       const hp = arrays.hackProjectileArray[0];
       hp.steerTime = 0;
@@ -1045,7 +1043,7 @@ test.describe('Gleve-MR Laser-Sweep (Laser-Taste)', () => {
         hackVx: hp.vx,
         hackSteerTime: hp.steerTime,
       };
-      // Schiff direkt in die Flugbahn stellen: kein Treffer
+      // Put the ship directly into the flight path: no hit
       state.x = fl.x + fl.vx - 10;
       state.y = fl.y + fl.vy - 10;
       T.steps(1);
@@ -1076,18 +1074,18 @@ test.describe('Gleve-MR Laser-Sweep (Laser-Taste)', () => {
     expect(r.hackRest).toBe(0);
     expect(r.lives).toBe(3);
     expect(r.hacks).toBe(0);
-    // Stufe 1 wirft nichts zurück
+    // Tier 1 throws nothing back
     expect(r.playerLaser).toBe(0);
   });
 
-  test('Parade Laser-Stufe 5: Boss-Laser wird zurückgeworfen und trifft; Stufe 3 mit 50 % Chance', async ({ page }) => {
+  test('Parry laser tier 5: a boss laser is thrown back and hits; tier 3 with a 50 % chance', async ({ page }) => {
     await startGleve(page);
     const r = await page.evaluate(() => {
       const { state, arrays, Entities } = window.__game;
       const T = window.__gleveTest;
       T.empty();
       state.laserTier = 5;
-      // Ziel weit oberhalb der Sweep-Länge (140 px) und der Klingenwelle (+120 px), direkt über dem Schiff
+      // Target far above the sweep length (140 px) and the blade wave (+120 px), directly above the ship
       Entities.createAsteroid(185, 100, 30, 0, 0, 0, true);
       const target = arrays.asteroids[0];
       target.vRot = 0;
@@ -1106,13 +1104,13 @@ test.describe('Gleve-MR Laser-Sweep (Laser-Taste)', () => {
         vy: l && l.vy,
         vx: l && l.vx,
         color: l && l.el.style.backgroundColor,
-        // Der Boss-Laser verschwindet, an seiner Stelle entsteht ein zurueckgeworfener Spielerlaser
+        // The boss laser vanishes, a thrown back player laser appears in its place
         reflectedEl: l && l.el.classList.contains('gleve-reflektiert') && !bl.el.isConnected,
       };
       T.steps(30);
       const result = { damage: hpBeforehand - target.hp, playerLaser: arrays.laserArray.length, lives: state.lives };
 
-      // Stufe 3: Zufall entscheidet (Math.random gestubbt)
+      // Tier 3: chance decides (Math.random stubbed)
       const original = Math.random;
       const parry = random => {
         T.empty();
@@ -1150,7 +1148,7 @@ test.describe('Gleve-MR Laser-Sweep (Laser-Taste)', () => {
     expect(r.tier3Gone).toEqual({ enemyLaser: 1, harmless: true, playerLaser: 0 });
   });
 
-  test('Coop: Spieler 2 sweept mit Ä und eigener Energie', async ({ page }) => {
+  test('Co-op: player 2 sweeps with Ä and own energy', async ({ page }) => {
     await startGleve(page, { coop: true });
     const r = await page.evaluate(() => {
       const { state, arrays, Entities } = window.__game;
@@ -1181,12 +1179,12 @@ test.describe('Gleve-MR Laser-Sweep (Laser-Taste)', () => {
   });
 });
 
-test('Gleve-MR: Sweep-Kill an einem Feindschiff gibt Energie zurück, an Asteroiden nicht', async ({ page }) => {
+test('Gleve-MR: a sweep kill on an enemy ship returns energy, on asteroids not', async ({ page }) => {
   await startGleve(page);
   const r = await page.evaluate(() => {
     const { state, arrays, Entities, shipModels } = window.__game;
     const T = window.__gleveTest;
-    // Ein Sweep (Stufe 1: 30 Schaden, 8 Energie) auf ein Ziel direkt voraus; Energie messen, solange der Sweep noch laeuft
+    // One sweep (tier 1: 30 damage, 8 energy) at a target straight ahead; measure the energy while the sweep is still running
     const sweepOn = create => {
       T.empty();
       const target = create();
@@ -1213,13 +1211,13 @@ test('Gleve-MR: Sweep-Kill an einem Feindschiff gibt Energie zurück, an Asteroi
   expect(r.bonus).toBeGreaterThan(0);
   expect(r.enemy.destroyed).toBe(true);
   expect(r.asteroid.destroyed).toBe(true);
-  // Beide Sweeps kosten gleich viel; nur der Feind-Kill gibt den Bonus zurueck
+  // Both sweeps cost the same; only the enemy kill returns the bonus
   expect(r.enemy.energy - r.asteroid.energy).toBeCloseTo(r.bonus, 5);
   expect(r.asteroid.energy).toBeLessThan(r.start);
 });
 
-test.describe('Gleve-MR Bot und Online-Host', () => {
-  // Bot (schwer: entscheidet jeden Schritt) fliegt die Gleve als Spieler 2
+test.describe('Gleve-MR bot and online host', () => {
+  // The bot (hard: decides every step) flies the Gleve as player 2
   async function startBot(page) {
     await startGleve(page, { coop: true });
     await page.evaluate(async () => {
@@ -1240,7 +1238,7 @@ test.describe('Gleve-MR Bot und Online-Host', () => {
     });
   }
 
-  test('Bot dasht gezielt auf einen nahen Feind, aber nicht ohne Ziel, ohne Ladung oder in einen Boss', async ({
+  test('Bot dashes deliberately at a near enemy, but not without a target, without a charge or into a boss', async ({
     page,
   }) => {
     await startBot(page);
@@ -1257,12 +1255,12 @@ test.describe('Gleve-MR Bot und Online-Host', () => {
       };
       const out = {};
 
-      // Leeres Feld: kein Dash
+      // Empty field: no dash
       T.botEmpty();
       T.steps(60);
       out.empty = dashes();
 
-      // Feind schraeg rechts oben in Reichweite (ohne Energie fuer den Sweep, damit nur der Dash trifft)
+      // Enemy diagonally up right within range (without energy for the sweep, so only the dash hits)
       T.botEmpty();
       state.p2.energy = 0;
       enemy(440, 330);
@@ -1275,11 +1273,11 @@ test.describe('Gleve-MR Bot und Online-Host', () => {
         y: state.p2.y,
         pressure: state.p2.botFireMissile,
       };
-      // Danach kein weiterer Dash ohne Ziel
+      // After that no further dash without a target
       T.steps(60);
       out.nearThereafter = dashes();
 
-      // Keine Dash-Ladung: kein Dash
+      // No dash charge: no dash
       T.botEmpty();
       state.p2.energy = 0;
       state.p2.gleveDashCharges = 0;
@@ -1288,13 +1286,13 @@ test.describe('Gleve-MR Bot und Online-Host', () => {
       T.steps(12);
       out.withoutCharge = { dashes: dashes(), enemies: arrays.enemies.length };
 
-      // Feind hinter einem Boss: kein Dash in den Boss
+      // Enemy behind a boss: no dash into the boss
       T.botEmpty();
       state.p2.energy = 0;
       Entities.createBoss();
       const b = arrays.bosses[0];
       Object.assign(b, {
-        phase: 'kampf',
+        phase: 'fight',
         x: 360,
         y: 280,
         vx: 0,
@@ -1314,7 +1312,7 @@ test.describe('Gleve-MR Bot und Online-Host', () => {
     expect(r.near.cd).toBeGreaterThan(100);
     expect(r.near.x).toBeGreaterThan(400);
     expect(r.near.y).toBeLessThan(400);
-    // Der Dash-Druck ist eine Flanke und bleibt nicht stehen
+    // The dash press is an edge and does not stay
     expect(r.near.pressure).toBe(false);
     expect(r.nearThereafter).toBe(1);
     expect(r.withoutCharge).toEqual({ dashes: 0, enemies: 1 });
@@ -1322,18 +1320,18 @@ test.describe('Gleve-MR Bot und Online-Host', () => {
     expect(r.boss.bossHp).toBe(r.boss.maxHp);
   });
 
-  test('Bot sweept bei einem Feindlaser vor sich und pariert ihn', async ({ page }) => {
+  test('Bot sweeps at an enemy laser in front of it and parries it', async ({ page }) => {
     await startBot(page);
     const r = await page.evaluate(() => {
       const { state, arrays, Entities, Audio } = window.__game;
       const T = window.__gleveTest;
       T.botEmpty();
-      // Feindlaser seitlich daneben (ausserhalb von Bogen und Laenge): kein Sweep, keine Energie verbraucht
+      // Enemy laser off to the side (outside of arc and length): no sweep, no energy used
       Entities.createEnemyLaser(300, 330);
       T.steps(3);
       const lateral = { sweeps: Audio.audioHistory.filter(a => a.name === 'sweep').length, energy: state.p2.energy };
       T.botEmpty();
-      // Feindlaser direkt vor dem Schiff
+      // Enemy laser directly in front of the ship
       Entities.createEnemyLaser(state.p2.x + 13, 330);
       const fl = arrays.enemyLaserArray[0];
       T.steps(10);
@@ -1354,7 +1352,7 @@ test.describe('Gleve-MR Bot und Online-Host', () => {
     expect(r.dashes).toBe(0);
   });
 
-  test('Online-Host: Dash des Clients ueber die Raketen-Eingabe mit gemeldeter Richtung, auch bei kurzem Druck; Sweep ueber gehaltene Laser-Eingabe', async ({
+  test('Online host: the client dash via the missile input with the reported direction, also on a short press; sweep via the held laser input', async ({
     page,
   }) => {
     await startGleve(page, { coop: true });
@@ -1373,7 +1371,7 @@ test.describe('Gleve-MR Bot und Online-Host', () => {
           Object.assign({ x: 300, y: 400, rotate: 0, laser: false, missile: false, bomb: false, rx: 0, ry: 0 }, e),
         );
 
-      // Druck und Loslassen kommen vor demselben Host-Schritt an
+      // Press and release arrive before the same host step
       input({ missile: true, rx: 1, ry: 0 });
       input({ missile: false, rx: 1, ry: 0 });
       T.steps(1);
@@ -1383,15 +1381,15 @@ test.describe('Gleve-MR Bot und Online-Host', () => {
         cd: state.p2.missileCooldown,
         sweep: state.p2.gleveSweepTimer,
       };
-      // Position des Clients waehrend des Dashs wird ignoriert
+      // The client position during the dash is ignored
       input({ x: 500, y: 300 });
       T.steps(7);
       const end = { x: state.p2.x, y: state.p2.y };
-      // Danach gilt wieder die Client-Position
+      // After that the client position applies again
       input({ x: 410, y: 390 });
       const thereafter = { x: state.p2.x, y: state.p2.y };
 
-      // Gehaltene Laser-Eingabe: pendelnde Sweeps, kein Dash
+      // Held laser input: swinging sweeps, no dash
       input({ x: 410, y: 390, laser: true });
       T.steps(21);
       const sweep = {
@@ -1415,7 +1413,7 @@ test.describe('Gleve-MR Bot und Online-Host', () => {
   });
 });
 
-test('Gleve-MR: im Coop für Spieler 2 wählbar, P2-HUD und Highscore-Badge G', async ({ page }) => {
+test('Gleve-MR: selectable for player 2 in co-op, P2 HUD and highscore badge G', async ({ page }) => {
   await page.evaluate(async () => {
     const Utils = await import('./js/utils.js');
     Utils.setGameMode('coop');
@@ -1435,7 +1433,7 @@ test('Gleve-MR: im Coop für Spieler 2 wählbar, P2-HUD und Highscore-Badge G', 
   const p2Svg = await page.locator('#spieler-2 svg').evaluate(el => el.innerHTML);
   expect(p2Svg).toContain('Gleve-MR');
 
-  // Highscore-Badges: Solo "Gleve-MR", Coop-Mini "G" mit eigener Klasse
+  // Highscore badges: solo "Gleve-MR", co-op mini "G" with its own class
   const badges = await page.evaluate(async () => {
     const Utils = await import('./js/utils.js');
     Utils.renderHighscoresTable('single', [{ name: 'GLV', score: 500, shipP1: 'gleve' }]);
@@ -1449,7 +1447,7 @@ test('Gleve-MR: im Coop für Spieler 2 wählbar, P2-HUD und Highscore-Badge G', 
   expect(badges.miniText).toBe('P2:G');
 });
 
-test('Gleve-MR: Game Over während Sweep und Dash räumt Klinge und Dash-Darstellung ab', async ({ page }) => {
+test('Gleve-MR: game over during sweep and dash clears the blade and the dash rendering', async ({ page }) => {
   await startGleve(page);
   const r = await page.evaluate(() => {
     const { state, Utils } = window.__game;
@@ -1466,7 +1464,7 @@ test('Gleve-MR: Game Over während Sweep und Dash räumt Klinge und Dash-Darstel
       state.keysPressed[k] = false;
     });
     Utils.triggerGameOver();
-    // Nach dem Game Over laeuft die Simulation nicht weiter
+    // After game over the simulation does not continue
     T.steps(5);
     return {
       beforehand,
@@ -1480,10 +1478,10 @@ test('Gleve-MR: Game Over während Sweep und Dash räumt Klinge und Dash-Darstel
   expect(r.dash).toBe(false);
 });
 
-test.describe('Gleve-MR Mobile-Steuerung', () => {
+test.describe('Gleve-MR mobile controls', () => {
   test.use({ hasTouch: true, isMobile: true, viewport: { width: 412, height: 915 } });
 
-  test('Joystick sweept bei der Gleve automatisch, Raketen-Button "D" löst genau einen Dash aus, kein eigener Dash-Button', async ({
+  test('Joystick sweeps automatically for the Gleve, missile button "D" triggers exactly one dash, no separate dash button', async ({
     page,
   }) => {
     await page.locator('.hangar-model-btn[data-model="gleve"]').click();
@@ -1517,7 +1515,7 @@ test.describe('Gleve-MR Mobile-Steuerung', () => {
       state.gleveSweepCadence = 0;
       state.x = 185;
       state.y = 400;
-      const touch = (el, typ) => {
+      const touch = (el, type) => {
         const t = new Touch({
           identifier: 1,
           target: el,
@@ -1525,8 +1523,8 @@ test.describe('Gleve-MR Mobile-Steuerung', () => {
           clientY: el.getBoundingClientRect().top + 20,
         });
         el.dispatchEvent(
-          new TouchEvent(typ, {
-            touches: typ === 'touchstart' ? [t] : [],
+          new TouchEvent(type, {
+            touches: type === 'touchstart' ? [t] : [],
             changedTouches: [t],
             bubbles: true,
             cancelable: true,
@@ -1536,7 +1534,7 @@ test.describe('Gleve-MR Mobile-Steuerung', () => {
       const zone = document.getElementById('joystick-zone');
       const btn = document.getElementById('btn-rakete');
 
-      // Joystick-Berührung: Auto-Fire, also Sweep (ohne Ausschlag keine Bewegung)
+      // Joystick touch: auto-fire, i.e. sweep (no movement without a deflection)
       touch(zone, 'touchstart');
       const laserAfterJoystick = state.keysPressed.l;
       Loop.simulationStep();
@@ -1544,7 +1542,7 @@ test.describe('Gleve-MR Mobile-Steuerung', () => {
       touch(zone, 'touchend');
       const laserReleased = state.keysPressed.l;
 
-      // Raketen-Button: ein Dash nach oben, solange der kurze Druck anliegt
+      // Missile button: one dash upwards while the short press lasts
       touch(btn, 'touchstart');
       const missilePressed = state.keysPressed.k;
       for (let i = 0; i < 20; i++) Loop.simulationStep();
@@ -1557,12 +1555,12 @@ test.describe('Gleve-MR Mobile-Steuerung', () => {
     expect(r.sweepAfterJoystick).toEqual({ timer: 9, energy: 42, dash: 0 });
     expect(r.laserReleased).toBe(false);
     expect(r.missilePressed).toBe(true);
-    // Genau ein Dash nach oben (Stufe 1: 100 px), Button-Füllstand = Dash-Cooldown
+    // Exactly one dash upwards (tier 1: 100 px), button fill level = dash cooldown
     expect(r.yAfterDash).toBeCloseTo(300, 5);
     expect(r.cd).toBe(160);
     expect(r.cdHeight).toBeCloseTo(100 - (160 / 180) * 100, 3);
 
-    // Viper: Joystick feuert weiter automatisch, Button heißt wieder R
+    // Viper: the joystick keeps firing automatically, the button is called R again
     const viper = await page.evaluate(() => {
       const { state, Utils } = window.__game;
       state.selectedShipModel = 'viper';
@@ -1585,7 +1583,7 @@ test.describe('Gleve-MR Mobile-Steuerung', () => {
     expect(viper).toEqual({ anAtContact: true, offThereafter: false, label: 'R' });
   });
 
-  test('Raketen-Button zeigt die Anzahl der Dash-Ladungen und den Ladefortschritt, nur bei der Gleve', async ({
+  test('Missile button shows the number of dash charges and the charge progress, only for the Gleve', async ({
     page,
   }) => {
     await page.locator('.hangar-model-btn[data-model="gleve"]').click();
@@ -1636,7 +1634,7 @@ test.describe('Gleve-MR Mobile-Steuerung', () => {
     expect(r.viper).toMatchObject({ text: '', visible: false });
   });
 
-  test('Online-Client: Raketen-Button-Beschriftung folgt dem eigenen Schiff (P2)', async ({ page }) => {
+  test('Online client: the missile button label follows the own ship (P2)', async ({ page }) => {
     const r = await page.evaluate(() => {
       const { state, Utils } = window.__game;
       const old = { mode: state.gameMode, isClient: state.network.isClient, p2: state.p2.selectedShipModel };

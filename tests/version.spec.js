@@ -1,4 +1,4 @@
-// Alle Versionsstellen stimmen ueberein (gesetzt von scripts/version.mjs)
+// All version locations agree (set by scripts/version.mjs)
 const { test, expect } = require('@playwright/test');
 const fs = require('fs');
 const path = require('path');
@@ -6,11 +6,11 @@ const path = require('path');
 const read = file => fs.readFileSync(path.join(__dirname, '..', file), 'utf8');
 const find = (file, pattern) => {
   const hit = pattern.exec(read(file));
-  if (!hit) throw new Error(`Versionsstelle in ${file} nicht gefunden`);
+  if (!hit) throw new Error(`version location not found in ${file}`);
   return hit[1];
 };
 
-test('Version ist an allen Stellen gleich', () => {
+test('version is the same everywhere', () => {
   const version = JSON.parse(read('package.json')).version;
   const lock = JSON.parse(read('package-lock.json'));
   const places = {
@@ -23,6 +23,6 @@ test('Version ist an allen Stellen gleich', () => {
   for (const [place, value] of Object.entries(places)) {
     expect(value, `${place} weicht von package.json ab`).toBe(version);
   }
-  expect(read('src/js/changelog.js'), 'changelogData-Eintrag fehlt').toContain(`'${version}': {`);
+  expect(read('src/js/changelog.js'), 'changelogData entry missing').toContain(`'${version}': {`);
   expect(read('src/js/changelog.js'), 'Highlights im Changelog ausfuellen').not.toMatch(/'TODO'/);
 });

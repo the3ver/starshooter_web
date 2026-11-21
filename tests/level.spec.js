@@ -15,8 +15,8 @@ test.beforeEach(async ({ page }) => {
   await page.waitForFunction(() => window.__game.state.gameRunning);
 });
 
-// Ein Simulationsschritt bei Level/Frame (frame = Zaehlerstand nach dem Schritt) auf leerem Feld.
-// Math.random = 0.99: kein Hacker, verwalteFeindSpawns erzeugt genau einen normalen Jaeger.
+// One simulation step at level/frame (frame = counter value after the step) on an empty field.
+// Math.random = 0.99: no hacker, manageEnemySpawns creates exactly one normal fighter.
 async function stepAt(page, level, frame, bossActive = false) {
   return page.evaluate(
     async ({ level, frame, bossActive }) => {
@@ -41,7 +41,7 @@ async function stepAt(page, level, frame, bossActive = false) {
       }
       const r = {
         asteroids: arrays.asteroids.length,
-        // nur Feinde aus dem Feind-Takt; Gewaechse (Fels-Level) wachsen nach eigenem Takt
+        // only enemies from the enemy cadence; growths (rock levels) grow on their own cadence
         enemies: arrays.enemies.filter(f => !Growths.isGrowth(f)).length,
         bossWarning: state.bossWarningActive,
       };
@@ -53,10 +53,10 @@ async function stepAt(page, level, frame, bossActive = false) {
   );
 }
 
-// Charakterisierung des Level-Ablaufs: Asteroiden-Takt in drei Phasen (bis 1200, bis 2400, danach),
-// Feinde ab einem Startframe im festen Takt, Boss-Warnung bei Frame 3600. Raten skalieren mit dem Level.
+// Characterization of the level flow: asteroid cadence in three phases (until 1200, until 2400, after),
+// enemies from a start frame on a fixed cadence, boss warning at frame 3600. Rates scale with the level.
 const cases = [
-  // [level, frame, asteroiden, feinde]
+  // [level, frame, asteroids, enemies]
   [1, 120, 1, 0],
   [1, 121, 0, 0],
   [1, 900, 0, 0],
@@ -73,19 +73,19 @@ const cases = [
 ];
 
 for (const [level, frame, asteroids, enemies] of cases) {
-  test(`Level ${level}, Frame ${frame}: ${asteroids} Asteroid(en), ${enemies} Feind(e)`, async ({ page }) => {
+  test(`Level ${level}, frame ${frame}: ${asteroids} asteroid(s), ${enemies} enemy(ies)`, async ({ page }) => {
     const r = await stepAt(page, level, frame);
     expect(r).toEqual({ asteroids, enemies, bossWarning: false });
   });
 }
 
-test('Boss-Warnung genau bei Frame 3600, nicht davor oder danach', async ({ page }) => {
+test('Boss warning exactly at frame 3600, not before or after', async ({ page }) => {
   expect((await stepAt(page, 1, 3599)).bossWarning).toBe(false);
   expect((await stepAt(page, 1, 3600)).bossWarning).toBe(true);
   expect((await stepAt(page, 1, 3601)).bossWarning).toBe(false);
 });
 
-test('Waehrend des Bosskampfs keine Spawns', async ({ page }) => {
+test('No spawns during the boss fight', async ({ page }) => {
   const r = await stepAt(page, 1, 1500, true);
   expect(r).toEqual({ asteroids: 0, enemies: 0, bossWarning: false });
 });

@@ -24,11 +24,11 @@ import { levelStep, startBoss } from './level.js';
 import { updateRock } from './rock.js';
 import { updateShockwaves } from './shockwave.js';
 
-// Bestehende Exporte bleiben ueber loop.js erreichbar
+// Existing exports stay reachable via loop.js
 export { manageEnemySpawns, animateParticles };
 
-// Zaehlt die Schritte, in denen sich die Welt bewegt. Die Netzkodierung sagt damit
-// Projektilpositionen voraus (Dead Reckoning); in der Boss-Warnung steht die Welt still.
+// Counts the steps in which the world moves. The net encoding uses it to
+// predict projectile positions (dead reckoning); during the boss warning the world stands still.
 let worldStep = 0;
 
 function sendHostSnapshot() {
@@ -37,7 +37,7 @@ function sendHostSnapshot() {
   }
 }
 
-// Sterne fallen und erscheinen oben neu (alle Spielphasen, auch auf dem Online-Client)
+// Stars fall and reappear at the top (all game phases, also on the online client)
 export function moveStars() {
   arrays.stars.forEach(star => {
     star.y += star.speed;
@@ -48,7 +48,7 @@ export function moveStars() {
   });
 }
 
-// Ein fester Schritt: erst die Simulation, dann die Anzeige der Welt (display.js)
+// One fixed step: simulation first, then the display of the world (display.js)
 export function simulationStep() {
   simulate();
   Display.drawWorld();
@@ -100,7 +100,7 @@ function simulate() {
         return;
       }
     } else {
-      // Vor dem Start bewegen sich nur die Sterne
+      // Before the start only the stars move
       moveStars();
       return;
     }
@@ -114,17 +114,17 @@ function simulate() {
       startBoss();
     }
     moveStars();
-    // Auch waehrend der Warnung senden, damit der Client sie sicher sieht (und danach den Boss)
+    // Send during the warning too, so the client is sure to see it (and the boss afterwards)
     if (state.bossWarningTimer % 2 === 0) sendHostSnapshot();
     return;
   }
   if (state.gameOverActive) {
-    // Nur Sterne fliegen weiter
+    // Only stars keep flying
     moveStars();
     return;
   }
 
-  // --- ONLINE CLIENT LOKALE STEUERUNG & RENDERING ---
+  // --- ONLINE CLIENT LOCAL CONTROL & RENDERING ---
   if (state.network && state.network.isClient && state.network.connected) {
     clientStep();
     return;
@@ -132,10 +132,10 @@ function simulate() {
 
   worldStep++;
 
-  // --- I-Frames (Unverwundbarkeit Timer) ---
+  // --- I-frames (invulnerability timer) ---
   updateInvulnerability();
 
-  // --- 9.1 SPIELER 1 & 2 BEWEGUNG ---
+  // --- 9.1 PLAYER 1 & 2 MOVEMENT ---
   movePlayer();
   if (state.pierceTimer > 0) {
     state.pierceTimer--;
@@ -149,10 +149,10 @@ function simulate() {
   if (state.p2) Hack.tickHacks(state.p2);
   Hack.showHackStatus();
 
-  // --- 9.2 STERNE BEWEGUNG & SPARTIKEL ---
+  // --- 9.2 STAR MOVEMENT & PARTICLES ---
   moveStars();
 
-  // --- 9.3 SPAWNS & BOSS-WARNUNG nach Levelplan (level.js) ---
+  // --- 9.3 SPAWNS & BOSS WARNING per level plan (level.js) ---
   levelStep();
   updateRock();
 
@@ -163,63 +163,63 @@ function simulate() {
   }
   if (state.frameCounter % 60 === 0) Utils.addScore(5);
 
-  // --- 9.4 ENERGIE SPIELER 1 & 2 ---
+  // --- 9.4 ENERGY PLAYER 1 & 2 ---
   const { laserActive, laserActiveP2 } = updateEnergy();
 
-  // --- 9.4b SCHILD REGENERATION (Phantom-NX) ---
+  // --- 9.4b SHIELD REGENERATION (Phantom-NX) ---
   regenerateShield();
 
   // --- 9.5 POWERUPS ---
   updatePowerups();
 
-  // --- 9.6 ASTEROIDEN ---
+  // --- 9.6 ASTEROIDS ---
   updateAsteroids();
 
-  // --- 9.7 FEINDE ---
+  // --- 9.7 ENEMIES ---
   updateEnemies();
 
-  // --- 9.8 FEIND-LASER ---
+  // --- 9.8 ENEMY LASERS ---
   updateEnemyLaser();
 
-  // --- 9.8b HACK-PROJEKTILE ---
+  // --- 9.8b HACK PROJECTILES ---
   updateHackProjectiles();
 
-  // --- BOSS LOGIK ---
+  // --- BOSS LOGIC ---
   updateBosses();
 
-  // --- 9.8c BOSS BOMBEN UPDATE ---
+  // --- 9.8c BOSS BOMB UPDATE ---
   updateBossBombs();
 
-  // --- 9.8d BOSS RAKETEN UPDATE ---
+  // --- 9.8d BOSS MISSILE UPDATE ---
   updateBossMissiles();
 
-  // --- 9.8e VIPER NEAR-MISS (nach allen Geschoss-Bewegungen und Treffern) ---
+  // --- 9.8e VIPER NEAR MISS (after all projectile movements and hits) ---
   Viper.checkNearMiss();
 
-  // --- 9.9 - 9.14 WAFFEN (Autolaser, Hitscan, Laser, Raketen, Bomben) ---
+  // --- 9.9 - 9.14 WEAPONS (autolaser, hitscan, laser, missiles, bombs) ---
   updateWeapons(laserActive, laserActiveP2);
 
-  // --- 9.11 PARTIKEL ANIMIEREN ---
+  // --- 9.11 ANIMATE PARTICLES ---
   animateParticles();
   updateShockwaves();
   updateEffects();
 
-  // Network Syncing in Online Mode (der Client sendet seine Eingaben in clientSchritt)
+  // Network syncing in online mode (the client sends its inputs in clientStep)
   if (state.frameCounter % 2 === 0) sendHostSnapshot();
 }
 
-// --- FESTE SIMULATIONSSCHRITTE (60 Hz, unabhaengig von der Monitor-Bildrate) ---
+// --- FIXED SIMULATION STEPS (60 Hz, independent of the monitor frame rate) ---
 export const STEP_MS = 1000 / 60;
 export const MAX_STEPS_PRO_FRAME = 5;
 
-// Wie viele feste Simulationsschritte fuer die vergangene Zeit faellig sind
+// How many fixed simulation steps are due for the elapsed time
 export function computeSteps(accountMs, deltaMs) {
   const delta = typeof deltaMs === 'number' && deltaMs > 0 ? deltaMs : 0;
   const account = typeof accountMs === 'number' && accountMs > 0 ? accountMs : 0;
   let newAccount = account + delta;
   const steps = Math.floor(newAccount / STEP_MS);
   if (steps > MAX_STEPS_PRO_FRAME) {
-    // Rueckstand (z.B. nach Tab-Wechsel) verwerfen statt vorzuspulen
+    // Drop a backlog (e.g. after a tab switch) instead of fast-forwarding
     return { steps: MAX_STEPS_PRO_FRAME, accountMs: 0 };
   }
   newAccount -= steps * STEP_MS;
@@ -231,7 +231,7 @@ let timeAccountMs = 0;
 
 export function gameLoop(timestamp) {
   if (lastTimestamp === null || typeof timestamp !== 'number') {
-    // Erster Aufruf: genau ein Schritt
+    // First call: exactly one step
     simulationStep();
   } else {
     const result = computeSteps(timeAccountMs, timestamp - lastTimestamp);

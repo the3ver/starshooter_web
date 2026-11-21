@@ -13,7 +13,7 @@ test.beforeEach(async ({ page }) => {
   await page.goto('/');
   await startGame(page);
   await page.waitForFunction(() => window.__game.state.gameRunning);
-  // Feld leeren, keine Zufalls-Spawns; Helfer in window.__fe
+  // Clear the field, no random spawns; helpers in window.__fe
   await page.evaluate(async () => {
     const { state, arrays, config } = await import('./js/state.js');
     const Display = await import('./js/display.js');
@@ -31,14 +31,14 @@ test.beforeEach(async ({ page }) => {
     state.shieldTier = 0;
     state.lives = 3;
     state.selectedShipModel = 'phantom';
-    // Segment mit festem Profil (oben = unten) auf Hoehe y
+    // Segment with a fixed profile (top = bottom) at height y
     const segment = (y, p) =>
       arrays.rock.push(Display.create({ id: 'fe_t' + y, x: 0, y, top: { ...p }, bottom: { ...p } }, 'rock'));
     window.__fe = { Rock, Display, state, arrays, config, segment, Loop: await import('./js/loop.js') };
   });
 });
 
-test('Abschnitte halten Mindestgang und Inseldurchgang ein (Feldbreite 400 und 600)', async ({ page }) => {
+test('Sections keep the minimum corridor and island passage (field width 400 and 600)', async ({ page }) => {
   const r = await page.evaluate(() => {
     const { Rock, arrays, config, Display } = window.__fe;
     const error = [];
@@ -48,7 +48,7 @@ test('Abschnitte halten Mindestgang und Inseldurchgang ein (Feldbreite 400 und 6
       Rock.reset();
       for (let round = 0; round < 60; round++) {
         Rock.createSupply(true);
-        for (const s of arrays.rock) s.y += Rock.SEGMENT_HEIGHT; // Platz fuer neue Segmente
+        for (const s of arrays.rock) s.y += Rock.SEGMENT_HEIGHT; // Room for new segments
       }
       for (const s of arrays.rock) {
         const p = s.top;
@@ -71,7 +71,7 @@ test('Abschnitte halten Mindestgang und Inseldurchgang ein (Feldbreite 400 und 6
   expect(r).toEqual([]);
 });
 
-test('Nachschub fuellt bis oben lueckenlos, Segmente scrollen und verschwinden unten', async ({ page }) => {
+test('Supply fills up to the top without gaps, segments scroll and vanish at the bottom', async ({ page }) => {
   const r = await page.evaluate(() => {
     const { Rock, arrays, config } = window.__fe;
     for (let i = 0; i < 700; i++) {
@@ -93,7 +93,7 @@ test('Nachschub fuellt bis oben lueckenlos, Segmente scrollen und verschwinden u
   expect(r.count).toBeLessThanOrEqual(Math.ceil(800 / 40) + 2);
 });
 
-test('Auslauf: Waende schrumpfen auf null, danach kommt kein Fels mehr', async ({ page }) => {
+test('Runout: walls shrink to zero, after that no more rock comes', async ({ page }) => {
   const r = await page.evaluate(() => {
     const { Rock, arrays } = window.__fe;
     for (let i = 0; i < 200; i++) {
@@ -109,11 +109,11 @@ test('Auslauf: Waende schrumpfen auf null, danach kommt kein Fels mehr', async (
   expect(r).toBe(0);
 });
 
-test('Wand beruehrt: Schaden und Rueckstoss in den Gang; waehrend der I-Frames nur Rueckstoss', async ({ page }) => {
+test('Wall touched: damage and knockback into the corridor; during the i-frames only knockback', async ({ page }) => {
   const r = await page.evaluate(() => {
     const { Rock, state, segment } = window.__fe;
     segment(480, { l: 120, r: 30, inner: 0, ib: 0 });
-    state.x = 110; // steckt 10 px in der linken Wand
+    state.x = 110; // sits 10 px inside the left wall
     const lives = state.lives;
     Rock.updateRock();
     const first = { lives: state.lives, x: state.x, iframes: state.invulnerableTimer > 0 };
@@ -127,19 +127,19 @@ test('Wand beruehrt: Schaden und Rueckstoss in den Gang; waehrend der I-Frames n
   expect(r.second).toEqual({ lives: r.lives - 1, x: 134 });
 });
 
-test('Rechte Wand und Insel schieben zur naeheren freien Seite', async ({ page }) => {
+test('Right wall and island push towards the nearer free side', async ({ page }) => {
   const r = await page.evaluate(() => {
     const { Rock, state, segment, config } = window.__fe;
     const b = config.playfieldWidth;
     state.godMode = true;
     segment(480, { l: 20, r: 60, inner: b / 2, ib: 100 });
-    state.x = b - 60 - 20; // 10 px in der rechten Wand
+    state.x = b - 60 - 20; // 10 px inside the right wall
     Rock.updateRock();
     const right = state.x;
-    state.x = b / 2 - 40; // linke Haelfte der Insel
+    state.x = b / 2 - 40; // left half of the island
     Rock.updateRock();
     const islandLeft = state.x;
-    state.x = b / 2 + 15; // rechte Haelfte der Insel
+    state.x = b / 2 + 15; // right half of the island
     Rock.updateRock();
     return { right, islandLeft, islandRight: state.x, b };
   });
@@ -149,7 +149,7 @@ test('Rechte Wand und Insel schieben zur naeheren freien Seite', async ({ page }
   expect(r.islandRight).toBe(r.b / 2 + 50 + 14);
 });
 
-test('Levelplan: Fels ab Level 4 in jedem zweiten Level, Auslauf vor dem Boss', async ({ page }) => {
+test('Level plan: rock from level 4 on in every second level, runout before the boss', async ({ page }) => {
   const r = await page.evaluate(async () => {
     const L = await import('./js/level.js');
     const { state, arrays, Loop, Display, Rock } = window.__fe;
@@ -180,12 +180,12 @@ test('Levelplan: Fels ab Level 4 in jedem zweiten Level, Auslauf vor dem Boss', 
     [8, true],
   ]);
   expect(r.level3).toBe(0);
-  // Fels scrollt von oben herein: 120 Schritte * 1,5 px = 180 px, also 5-6 Segmente
+  // Rock scrolls in from the top: 120 steps * 1.5 px = 180 px, so 5-6 segments
   expect(r.level4).toBeGreaterThanOrEqual(5);
-  expect(r.inRunout).toBe(0); // Auslauf ohne vorherigen Fels: nichts Neues
+  expect(r.inRunout).toBe(0); // Runout without previous rock: nothing new
 });
 
-test('Darstellung: Segment mit Polygonen fuer Wand und Insel', async ({ page }) => {
+test('Display: segment with polygons for wall and island', async ({ page }) => {
   const r = await page.evaluate(() => {
     const { arrays, segment } = window.__fe;
     segment(100, { l: 40, r: 40, inner: 200, ib: 60 });
@@ -200,7 +200,7 @@ test('Darstellung: Segment mit Polygonen fuer Wand und Insel', async ({ page }) 
   expect(r).toEqual({ withEntry: 3, empty: 0, top: '100px' });
 });
 
-test('Online: Snapshot traegt Hoehe und Profil, der Client baut dieselben Segmente und schiebt sein Schiff', async ({
+test('Online: the snapshot carries height and profile, the client builds the same segments and pushes its ship', async ({
   page,
 }) => {
   const r = await page.evaluate(async () => {
@@ -217,7 +217,7 @@ test('Online: Snapshot traegt Hoehe und Profil, der Client baut dieselben Segmen
     Network.applyGameStateSnapshot(snap);
     state.network = network;
     const client = arrays.rock.map(s => ({ id: s.id, y: s.y, p: Rock.profileAsText(s), el: !!s.el }));
-    // Client-Vorhersage: eigenes Schiff ragt in die linke Wand
+    // Client prediction: own ship reaches into the left wall
     const ship = { x: 40, y: 200 };
     const touched = Rock.pushOut(ship);
     return { sent, client, touched, x: ship.x };
@@ -232,7 +232,7 @@ test('Online: Snapshot traegt Hoehe und Profil, der Client baut dieselben Segmen
   expect(r.x).toBe(50 + 14);
 });
 
-test('Bot weicht von Wand und Insel zur Mitte des freien Bereichs aus', async ({ page }) => {
+test('Bot dodges wall and island towards the middle of the free range', async ({ page }) => {
   const r = await page.evaluate(async () => {
     const { segment, config } = window.__fe;
     const Bot = await import('./js/bot.js');
@@ -248,20 +248,20 @@ test('Bot weicht von Wand und Insel zur Mitte des freien Bereichs aus', async ({
   expect(r).toEqual({ leftWall: 1, rightWall: -1, beforeIsland: -1, free: 0 });
 });
 
-test('Neustart leert den Fels und setzt das Profil zurueck', async ({ page }) => {
+test('Restart clears the rock and resets the profile', async ({ page }) => {
   const r = await page.evaluate(async () => {
     const { Rock, arrays } = window.__fe;
     const Utils = await import('./js/utils.js');
     for (let i = 0; i < 50; i++) Rock.createSupply(true);
     Utils.restartGame();
     const afterRestart = arrays.rock.length;
-    Rock.createSupply(false); // ohne Profil kein Auslauf-Fels
+    Rock.createSupply(false); // without a profile no runout rock
     return { afterRestart, runout: arrays.rock.length };
   });
   expect(r).toEqual({ afterRestart: 0, runout: 0 });
 });
 
-test('Powerups im Fels schweben in den freien Gang (Wand und Insel)', async ({ page }) => {
+test('Powerups inside the rock float into the free corridor (wall and island)', async ({ page }) => {
   const r = await page.evaluate(async () => {
     const { arrays, segment, config, state, Loop } = window.__fe;
     const Entities = await import('./js/entities.js');
@@ -270,11 +270,11 @@ test('Powerups im Fels schweben in den freien Gang (Wand und Insel)', async ({ p
     state.x = b / 2 - 15;
     state.y = 580;
     for (let y = -40; y <= 600; y += 40) segment(y, { l: 100, r: 30, inner: b / 2 + 20, ib: 80 });
-    Entities.createPowerup(20, 100, 'energy'); // in der linken Wand
-    Entities.createPowerup(b / 2 + 10, 300, 'energy'); // in der Insel, rechts der Mitte
+    Entities.createPowerup(20, 100, 'energy'); // inside the left wall
+    Entities.createPowerup(b / 2 + 10, 300, 'energy'); // inside the island, right of the center
     const [inWall, inIsland] = arrays.powerups;
     for (let i = 0; i < 60; i++) {
-      for (const s of arrays.rock) s.y -= 1.5; // Fels festhalten
+      for (const s of arrays.rock) s.y -= 1.5; // Keep the rock fixed
       Loop.simulationStep();
     }
     const g = inWall.size;
@@ -286,7 +286,7 @@ test('Powerups im Fels schweben in den freien Gang (Wand und Insel)', async ({ p
   expect(r).toEqual({ wall: true, island: true });
 });
 
-test('Engstelle: Waende kommen bis auf ENG_GANG zusammen, versetzt und nicht immer mittig', async ({ page }) => {
+test('Narrows: walls come together down to NARROW_CORRIDOR, offset and not always centered', async ({ page }) => {
   const r = await page.evaluate(() => {
     const { Rock, config } = window.__fe;
     const b = config.playfieldWidth;
@@ -309,7 +309,7 @@ test('Engstelle: Waende kommen bis auf ENG_GANG zusammen, versetzt und nicht imm
     return { result, narrow: Rock.NARROW_CORRIDOR, b, names: Rock.SECTION_NAMES };
   });
   for (const e of r.result) {
-    expect(e.narrowest).toBeGreaterThanOrEqual(r.narrow - 6); // Rohpunkte mit Zittern, begrenze erzwingt ENG_GANG
+    expect(e.narrowest).toBeGreaterThanOrEqual(r.narrow - 6); // Raw points with jitter, clamp enforces NARROW_CORRIDOR
     expect(e.narrowest).toBeLessThan(r.narrow + 20);
     expect(e.leftFirst).toBe(true);
   }
@@ -317,7 +317,7 @@ test('Engstelle: Waende kommen bis auf ENG_GANG zusammen, versetzt und nicht imm
   expect(r.names).toContain('narrows');
 });
 
-test('Bot findet durch eine Engstelle, ohne den Fels zu beruehren', async ({ page }) => {
+test('Bot finds its way through a narrows without touching the rock', async ({ page }) => {
   const r = await page.evaluate(async () => {
     const { Rock, Loop, arrays, state, config, Display } = window.__fe;
     const Bot = await import('./js/bot.js');
@@ -339,7 +339,7 @@ test('Bot findet durch eine Engstelle, ohne den Fels zu beruehren', async ({ pag
     state.p2.invulnerableTimer = 0;
     Bot.resetBot();
     const orig = Math.random;
-    Math.random = () => 0.85; // Durchlass deutlich rechts der Mitte
+    Math.random = () => 0.85; // Passage clearly right of the center
     try {
       Rock.enqueue(Rock.SECTIONS.narrows());
     } finally {

@@ -1,16 +1,16 @@
-// Gemeinsame Testhelfer (kein Spec, wird von Playwright nicht als Test geladen)
+// Shared test helpers (not a spec, Playwright does not load it as a test)
 const fs = require('fs');
 const path = require('path');
 
-// Aktuelle Spielversion direkt aus dem Spielcode lesen, damit Tests bei einem Release nicht angepasst werden muessen.
-// changelog.js ist ein ES-Modul im Browser-Quelltext, deshalb hier per Regex statt require.
+// Read the current game version straight from the game code, so tests need no change on a release.
+// changelog.js is an ES module in the browser source, hence a regex here instead of require.
 const CHANGELOG_FILE_PATH = path.join(__dirname, '..', 'src', 'js', 'changelog.js');
 const hit = /export\s+const\s+GAME_VERSION\s*=\s*['"]([^'"]+)['"]/.exec(fs.readFileSync(CHANGELOG_FILE_PATH, 'utf8'));
-if (!hit) throw new Error(`GAME_VERSION nicht in ${CHANGELOG_FILE_PATH} gefunden`);
+if (!hit) throw new Error(`GAME_VERSION not found in ${CHANGELOG_FILE_PATH}`);
 const GAME_VERSION = hit[1];
 
-// Markiert die aktuelle Version als gesehen (kein "Was gibt's Neues"-Dialog) und ueberspringt
-// standardmaessig die Intro-Cutszene. Gilt fuer alle folgenden Seitenaufrufe dieser Seite.
+// Marks the current version as seen (no "what's new" dialog) and skips
+// the intro cutscene by default. Applies to all following page loads of this page.
 async function setGameState(page, { skipCutscene = true } = {}) {
   await page.addInitScript(
     ({ version, skip }) => {
@@ -21,37 +21,37 @@ async function setGameState(page, { skipCutscene = true } = {}) {
   );
 }
 
-// Startet das Spiel per Tastendruck. Die Taste bleibt gedrueckt, bis der Game-Loop den Start
-// verarbeitet hat (Spiel laeuft oder Intro-Cutszene aktiv). Feste 50 ms koennen unter Last zu kurz sein.
+// Starts the game with a key press. The key stays pressed until the game loop has processed
+// the start (game running or intro cutscene active). A fixed 50 ms can be too short under load.
 async function startGame(page, key = 'w') {
   await page.keyboard.down(key);
   await page.waitForFunction(() => window.__game.state.gameRunning || window.__game.state.cutsceneActive);
   await page.keyboard.up(key);
 }
 
-// Fake-Uhr fuer zeitabhaengige Tests (Cutszene, Verbindungs-Timer):
-// installiereUhr vor page.goto, haltUhrAn nach dem Laden. Danach vergeht Seitenzeit nur noch
-// per page.clock.fastForward/runFor, unabhaengig von Rechnerlast und Echtzeit.
+// Fake clock for time-dependent tests (cutscene, connection timers):
+// installClock before page.goto, pauseClock after loading. After that, page time only passes
+// via page.clock.fastForward/runFor, independent of machine load and real time.
 const CLOCK_START = new Date('2026-01-01T12:00:00Z').getTime();
 async function installClock(page) {
   await page.clock.install({ time: CLOCK_START });
 }
 async function pauseClock(page) {
-  // Bis hierhin laeuft die Fake-Uhr in Echtzeit ab UHR_START; 60 s Vorlauf reichen fuer jedes Laden
+  // Up to here the fake clock runs in real time from CLOCK_START; 60 s lead time is enough for any load
   await page.clock.pauseAt(CLOCK_START + 60_000);
 }
-// Spult in kleinen Schritten vor, damit requestAnimationFrame-Animationen zwischendurch laufen
+// Advances in small steps so requestAnimationFrame animations run in between
 async function advanceClock(page, ms, step = 250) {
   for (let t = 0; t < ms; t += step) await page.clock.fastForward(Math.min(step, ms - t));
 }
-// Spult in Schritten vor, bis bedingung() (im Test, async) wahr ist; hoechstens bisMs Seitenzeit.
-// Liefert die vergangene Seitenzeit oder wirft, wenn die Bedingung nicht eintritt.
+// Advances in steps until condition() (in the test, async) is true; at most untilMs page time.
+// Returns the elapsed page time or throws if the condition is not met.
 async function windUntil(page, condition, untilMs, step = 250) {
   for (let t = 0; t <= untilMs; t += step) {
     if (await condition()) return t;
     await page.clock.fastForward(step);
   }
-  throw new Error(`Bedingung nicht innerhalb von ${untilMs} ms Seitenzeit erfuellt`);
+  throw new Error(`condition not met within ${untilMs} ms page time`);
 }
 
 module.exports = { GAME_VERSION, setGameState, startGame, installClock, pauseClock, advanceClock, windUntil };

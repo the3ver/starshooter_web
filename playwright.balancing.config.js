@@ -1,7 +1,7 @@
 const { defineConfig, devices } = require('@playwright/test');
 const server = require('./webserver.config');
 
-// Balancing-Messstand: laeuft nur ueber 'npm run balancing', nie in 'npm test' oder CI
+// Balancing bench: runs only via 'npm run balancing', never in 'npm test' or CI
 // (playwright.config.js testet ausschliesslich ./tests).
 module.exports = defineConfig({
   testDir: './balancing',

@@ -13,7 +13,7 @@ test.beforeEach(async ({ page }) => {
   await page.goto('/');
   await startGame(page);
   await page.waitForFunction(() => window.__game.state.gameRunning);
-  // Feld leeren, Spieler unten links, keine Zufalls-Spawns; Helfer in window.__sw
+  // Clear the field, player bottom left, no random spawns; helpers in window.__sw
   await page.evaluate(async () => {
     const { state, arrays } = await import('./js/state.js');
     const Display = await import('./js/display.js');
@@ -38,13 +38,11 @@ test.beforeEach(async ({ page }) => {
   });
 });
 
-test('Ring erfasst Feinde in Reihenfolge der Entfernung, nach WELLEN_DAUER Schritten sind alle weg', async ({
-  page,
-}) => {
+test('Ring captures enemies in order of distance, after WAVE_DURATION steps all are gone', async ({ page }) => {
   const r = await page.evaluate(() => {
     const { SW, Entities, Loop, arrays } = window.__sw;
     Entities.createEnemy(185, 500, 'swoop', 0, false); // nah
-    Entities.createEnemy(185, 100, 'swoop', 0, false); // fern
+    Entities.createEnemy(185, 100, 'swoop', 0, false); // far
     const [near, remote] = arrays.enemies;
     near.vy = remote.vy = 0;
     SW.trigger(200, 560, 'p1');
@@ -62,9 +60,7 @@ test('Ring erfasst Feinde in Reihenfolge der Entfernung, nach WELLEN_DAUER Schri
   expect(r.rest).toBe(0);
 });
 
-test('Abschuesse zaehlen fuer den Sammler (Punkte), Asteroiden bleiben, Feindgeschosse verschwinden', async ({
-  page,
-}) => {
+test('Kills count for the collector (points), asteroids stay, enemy projectiles vanish', async ({ page }) => {
   const r = await page.evaluate(() => {
     const { SW, Entities, Loop, arrays, state } = window.__sw;
     Entities.createEnemy(100, 200, 'swoop', 0, false);
@@ -86,19 +82,19 @@ test('Abschuesse zaehlen fuer den Sammler (Punkte), Asteroiden bleiben, Feindges
   expect(r.points).toBeGreaterThanOrEqual(100);
 });
 
-test('Boss verliert einmal 15 % der Max-HP und stirbt nicht', async ({ page }) => {
+test('Boss loses 15 % of max HP once and does not die', async ({ page }) => {
   const r = await page.evaluate(() => {
     const { SW, Entities, Loop, arrays, state } = window.__sw;
     Entities.createBoss();
     const b = arrays.bosses[0];
     b.y = 50;
     b.vx = b.vy = 0;
-    b.phase = 'kampf';
+    b.phase = 'fight';
     const full = b.hp;
     SW.trigger(200, 300, 'p1');
     for (let s = 0; s < SW.WAVE_DURATION; s++) Loop.simulationStep();
     const afterFull = b.hp;
-    // fast tot: bleibt bei 1 HP
+    // almost dead: stays at 1 HP
     b.hp = 5;
     SW.trigger(200, 300, 'p1');
     for (let s = 0; s < SW.WAVE_DURATION; s++) Loop.simulationStep();
@@ -114,7 +110,7 @@ test('Boss verliert einmal 15 % der Max-HP und stirbt nicht', async ({ page }) =
   expect(r).toMatchObject({ almostDead: 1, alive: true, bossActive: true });
 });
 
-test('Einsammeln loest Ring, Blitz und Ton aus (Powerup-Typ schockwelle)', async ({ page }) => {
+test('Pickup triggers ring, flash and sound (powerup type shockwave)', async ({ page }) => {
   const r = await page.evaluate(() => {
     const { Entities, Loop, Audio, arrays, state } = window.__sw;
     Audio.clearAudioHistory();
@@ -135,7 +131,7 @@ test('Einsammeln loest Ring, Blitz und Ton aus (Powerup-Typ schockwelle)', async
   expect(r).toEqual({ collected: true, wave: true, owner: 'p1', ring: true, tone: true, symbol: 'Z' });
 });
 
-test('Kettenbonus: Schockwelle mit Zufall, hoechstens eine pro Level, nie im Bosskampf', async ({ page }) => {
+test('Chain bonus: shockwave by chance, at most one per level, never during the boss fight', async ({ page }) => {
   const r = await page.evaluate(async () => {
     const { arrays, state } = window.__sw;
     const K = await import('./js/chain.js');
@@ -176,7 +172,7 @@ test('Kettenbonus: Schockwelle mit Zufall, hoechstens eine pro Level, nie im Bos
   expect(r.nextLevel).toEqual(['shockwave']);
 });
 
-test('Neustart setzt die Schockwellen-Sperre zurueck und entfernt laufende Ringe', async ({ page }) => {
+test('Restart resets the shockwave lock and removes running rings', async ({ page }) => {
   const r = await page.evaluate(async () => {
     const { SW, arrays, state } = window.__sw;
     const Utils = await import('./js/utils.js');
@@ -188,7 +184,7 @@ test('Neustart setzt die Schockwellen-Sperre zurueck und entfernt laufende Ringe
   expect(r).toEqual({ lock: 0, rings: 0 });
 });
 
-test('Bot nimmt die Schockwelle erst bei mindestens 4 Zielen im Bild oder kurz vor dem unteren Rand', async ({
+test('Bot takes the shockwave only with at least 4 targets on screen or shortly before the bottom edge', async ({
   page,
 }) => {
   const r = await page.evaluate(async () => {
@@ -211,7 +207,7 @@ test('Bot nimmt die Schockwelle erst bei mindestens 4 Zielen im Bild oder kurz v
   expect(r).toEqual({ empty: false, threeTargets: false, fourTargets: true, bottomEdge: true });
 });
 
-test('Online: Host sendet das Ereignis, der Client zeigt nur Ring und Blitz ohne Trefferlogik', async ({ page }) => {
+test('Online: the host sends the event, the client shows only ring and flash without hit logic', async ({ page }) => {
   const r = await page.evaluate(async () => {
     const { SW, Entities, arrays, state } = window.__sw;
     const Network = await import('./js/network.js');
@@ -221,7 +217,7 @@ test('Online: Host sendet das Ereignis, der Client zeigt nur Ring und Blitz ohne
     arrays.effects.forEach(e => e.el && e.el.remove());
     arrays.effects.length = 0;
 
-    // Client: Ereignis anwenden, Ring ohne getroffen; ein Feind bleibt stehen
+    // Client: apply the event, ring without hit; one enemy stays
     Entities.createEnemy(110, 330, 'swoop', 0, false);
     Network.handleNetworkEvent(sent);
     const wave = arrays.effects.find(e => e.kind === 'shockwave');

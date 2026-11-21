@@ -1,9 +1,9 @@
-// DOM-Backend: Aufbau der Elemente je Objektart (aus den Modellfeldern, Host und Online-Client gleich).
-// Jeder Erzeuger liefert das Element; display-dom.js haengt es ins Spielfeld und zeichnet es.
+// DOM backend: building the elements per object kind (from the model fields, the same on host and online client).
+// Every creator returns the element; display-dom.js attaches it to the playfield and draws it.
 import { config, shipColors } from './state.js';
 
-// Kettenglied (Vorwaerts = unten, wie bei den Jaegern): Panzerring mit Auge und seitlichen Stacheln;
-// der Kopf (groesser) laeuft vorne spitz zu
+// Chain link (forward = down, as with the fighters): armor ring with an eye and side spikes;
+// the head (larger) tapers to a point at the front
 function getChainSvgHtml(isHead) {
   const spikes = `<path d="M1 15 L-3 13 L1 11 Z M29 15 L33 13 L29 11 Z M2 21 L-2 21 L3 18 Z M28 21 L32 21 L27 18 Z" fill="#c9ced6"/>`;
   if (isHead) {
@@ -30,8 +30,8 @@ function getChainSvgHtml(isHead) {
   `;
 }
 
-// Gewaechse (Vorwaerts = unten, Ansatz am Fels = oben): Tentakelbluete mit Kappe (zu) und leuchtendem Schlund
-// (Klasse offen), Hornroehre, Eierkapsel
+// Growths (forward = down, base on the rock = top): tentacle bloom with a cap (closed) and a glowing throat
+// (class offen), horn tube, egg capsule
 const GROWTH_SVG = {
   bloom: () => {
     let tentacle = '';
@@ -84,8 +84,8 @@ const GROWTH_SVG = {
   `,
 };
 
-// Organische Gegner (Vorwaerts = unten): Stachelkette (gepanzert, Stacheln), Kugelkette (Blasenglieder, Glieder
-// mit Leuchtblase), Krabbe (Panzer, Scheren, Stielaugen, krabbelnde Beine), Tentakler (Schirm, wehende Tentakel)
+// Organic opponents (forward = down): spike chain (armored, spikes), ball chain (bubble links, links
+// with a glowing bubble), crab (shell, claws, eye stalks, crawling legs), tentacler (bell, waving tentacles)
 const SPIKES = Array.from({ length: 8 }, (_, i) => {
   const w = (i * Math.PI) / 4;
   const p = (r, d) => `${(15 + Math.cos(w + d) * r).toFixed(1)},${(15 + Math.sin(w + d) * r).toFixed(1)}`;
@@ -201,7 +201,7 @@ function getEnemySvgHtml(pattern = 'normal', hasShield = false, size = 30) {
   return '';
 }
 
-// Auge des Insel-Bosses: Lid (zu) ueber Iris und Pupille, Klasse offen zieht das Lid weg
+// Eye of the island boss: lid (closed) over iris and pupil, class offen pulls the lid away
 const EYE_SVG = `
   <svg viewBox="0 0 36 36" style="position: absolute; width: 100%; height: 100%; overflow: visible;">
     <ellipse cx="18" cy="18" rx="17" ry="14" fill="#5a2a12" stroke="#2b0f05" stroke-width="1.5"/>
@@ -213,15 +213,15 @@ const EYE_SVG = `
   </svg>
 `;
 
-function getBossSVGHtml(bTyp, bossColor) {
-  if (bTyp === 'eye') return EYE_SVG;
+function getBossSVGHtml(bType, bossColor) {
+  if (bType === 'eye') return EYE_SVG;
   let defs = `<defs>
     <radialGradient id='gMet' cx='50%' cy='30%' r='60%'><stop offset='0%' stop-color='#ffffff'/><stop offset='20%' stop-color='${bossColor}'/><stop offset='100%' stop-color='#222222'/></radialGradient>
     <radialGradient id='gSha' cx='50%' cy='20%' r='80%'><stop offset='0%' stop-color='${bossColor}'/><stop offset='70%' stop-color='#000000'/><stop offset='100%' stop-color='#000000'/></radialGradient>
     <filter id='glow' x='-50%' y='-50%' width='200%' height='200%'><feGaussianBlur stdDeviation='3' result='coloredBlur'/><feMerge><feMergeNode in='coloredBlur'/><feMergeNode in='SourceGraphic'/></feMerge></filter>
   </defs>`;
 
-  if (bTyp === 1) {
+  if (bType === 1) {
     return `<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100' style='position:absolute; width:100%; height:100%; z-index:2;'>${defs}
       <path d='M20 20 L80 20 L90 50 L70 90 L50 100 L30 90 L10 50 Z' fill='url(#gMet)' stroke='#f1c40f' stroke-width='2' stroke-linejoin='round'/>
       <path d='M22 22 L78 22 L87 49 L68 87 L50 96 L32 87 L13 49 Z' fill='none' stroke='rgba(255,255,255,0.6)' stroke-width='2'/>
@@ -230,7 +230,7 @@ function getBossSVGHtml(bTyp, bossColor) {
       <circle cx='50' cy='60' r='5' fill='#ffffff'/>
       <rect x='25' y='5' width='10' height='15' fill='#7f8c8d'/><rect x='65' y='5' width='10' height='15' fill='#7f8c8d'/>
     </svg><div class='boss-flame' style='left: 25%; top: -15%; width: 10%;'></div><div class='boss-flame' style='left: 65%; top: -15%; width: 10%;'></div>`;
-  } else if (bTyp === 2) {
+  } else if (bType === 2) {
     return `<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100' style='position:absolute; width:100%; height:100%; z-index:2;'>${defs}
       <path d='M10 30 L50 90 L90 30 L70 20 L50 35 L30 20 Z' fill='url(#gSha)' stroke='#3498db' stroke-width='2' stroke-linejoin='round'/>
       <path d='M14 32 L50 85 L86 32 L69 24 L50 39 L31 24 Z' fill='none' stroke='rgba(0,0,0,0.8)' stroke-width='3'/>
@@ -239,7 +239,7 @@ function getBossSVGHtml(bTyp, bossColor) {
       <circle cx='50' cy='65' r='3' fill='#ffffff'/>
       <rect x='30' y='5' width='10' height='15' fill='#7f8c8d'/><rect x='60' y='5' width='10' height='15' fill='#7f8c8d'/>
     </svg><div class='boss-flame' style='left: 31%; top: -15%; width: 8%;'></div><div class='boss-flame' style='left: 61%; top: -15%; width: 8%;'></div>`;
-  } else if (bTyp === 3) {
+  } else if (bType === 3) {
     return `<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100' style='position:absolute; width:100%; height:100%; z-index:2;'>${defs}
       <polygon points='50,10 90,30 90,70 50,95 10,70 10,30' fill='url(#gMet)' stroke='#9b59b6' stroke-width='2' stroke-linejoin='round'/>
       <polygon points='50,14 86,32 86,68 50,91 14,68 14,32' fill='none' stroke='rgba(255,255,255,0.6)' stroke-width='2'/>
@@ -249,7 +249,7 @@ function getBossSVGHtml(bTyp, bossColor) {
       <circle cx='50' cy='50' r='15' fill='#00ffff' opacity='0.3'/>
       <rect x='35' y='2' width='30' height='10' fill='#7f8c8d'/>
     </svg><div class='boss-flame' style='left: 37%; top: -15%; width: 26%;'></div>`;
-  } else if (bTyp === 4) {
+  } else if (bType === 4) {
     return `<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100' style='position:absolute; width:100%; height:100%; z-index:2;'>${defs}
       <rect x='10' y='20' width='80' height='60' rx='5' fill='url(#gSha)' stroke='#e67e22' stroke-width='3'/>
       <rect x='13' y='23' width='74' height='54' rx='3' fill='none' stroke='rgba(0,0,0,0.8)' stroke-width='3'/>
@@ -263,7 +263,7 @@ function getBossSVGHtml(bTyp, bossColor) {
   return '';
 }
 
-// Powerup: Rahmen und Leuchten in p.farbe (Spieldaten), Symbol je Typ, Splitter als Kristall
+// Powerup: frame and glow in p.color (game data), symbol per type, splitter as a crystal
 const POWERUP_SYMBOL = {
   lives: '&hearts;',
   energy: 'E',
@@ -327,18 +327,18 @@ function enemyElement(f) {
   el.style.height = f.size + 'px';
   el.innerHTML = getEnemySvgHtml(f.pattern, f.hasShield, f.size);
   if (['chain', 'spikeChain', 'ballChain'].includes(f.pattern)) {
-    // Puls-Phase aus der Id: aufeinanderfolgende Glieder pulsieren versetzt (Welle), Host und Client gleich
+    // Pulse phase from the id: consecutive links pulse offset (wave), the same on host and client
     const nr = parseInt(String(f.id).replace(/\D/g, ''), 10) || 0;
     el.style.setProperty('--puls-verzug', `${-(nr % 8) * 0.09}s`);
   }
   el.dataset.baseColor = f.color;
-  // Bis die Zustandsanzeige im Backend liegt, entfernt die Logik das Schild-Element ueber schildEl
+  // Until the state display lives in the backend, the logic removes the shield element via shieldEl
   f.shieldEl = f.hasShield ? el.querySelector('.feind-schild') : null;
   return el;
 }
 
-// Asteroid: Verlauf aus farbe/farbe2, Umriss aus form (Punkte in Prozent), Risse ausser bei Magma-Brocken
-// Oberflaeche aus der Id (Host und Client gleich): Krater mit Lichtkante und Koernung, bei Magma gluehende Adern
+// Asteroid: gradient from color/color2, outline from form (points in percent), cracks except on magma chunks
+// Surface from the id (the same on host and client): craters with a light edge and grain, glowing veins on magma
 function asteroidTexture(a) {
   const random = rockRandom(a.id);
   let content = '';
@@ -383,7 +383,7 @@ function asteroidElement(a) {
   if (a.isIndestructible) el.classList.add('unzerstoerbar');
   el.style.width = a.size + 'px';
   el.style.height = a.size + 'px';
-  // Licht oben links, Schattenseite unten rechts ueber dem Grundverlauf
+  // Light top left, shadow side bottom right over the base gradient
   el.style.background =
     `radial-gradient(circle at 72% 78%, rgba(0, 0, 0, 0.42), transparent 58%), ` +
     `radial-gradient(circle at 30% 28%, ${a.color}, ${a.color2})`;
@@ -405,9 +405,9 @@ function asteroidElement(a) {
 function bossElement(b) {
   const el = document.createElement('div');
   el.classList.add('boss-schiff');
-  // Augen des Insel-Bosses sitzen fest am Skelett (keine Schwebe-Animation)
-  if (b.bossTyp === 'eye') el.classList.add('boss-auge');
-  el.innerHTML = getBossSVGHtml(b.bossTyp, b.glowColor);
+  // Eyes of the island boss sit fixed on the skeleton (no hover animation)
+  if (b.bossType === 'eye') el.classList.add('boss-auge');
+  el.innerHTML = getBossSVGHtml(b.bossType, b.glowColor);
   el.style.filter = `drop-shadow(0 10px 20px rgba(0,0,0,0.9)) drop-shadow(0 0 15px ${b.glowColor})`;
   el.style.width = b.size + 'px';
   el.style.height = b.size + 'px';
@@ -448,7 +448,7 @@ function missileElement(r) {
   return el;
 }
 
-// Spielerbombe; Mini-Bomben (Jericho, Stufe 5) mit enger stehenden Lichtern
+// Player bomb; mini bombs (Jericho, tier 5) with lights closer together
 function bombElement(b) {
   const el = document.createElement('div');
   el.classList.add('bomben-projektil', `bombe-lvl-${b.tier}`);
@@ -493,7 +493,7 @@ const BOSS_BOMB_HTML = `
   <div class="boss-bombe-core"></div>
 `;
 
-// Gleve-Klingenwelle: weisse Sichel mit Glow in Schiffsfarbe
+// Gleve blade wave: white crescent with a glow in the ship color
 function waveElement(w) {
   const el = document.createElement('div');
   el.classList.add('gleve-welle');
@@ -513,7 +513,7 @@ const PARTICLE_CLASS = {
   nearMissPlus: 'viper-nearmiss-plus',
 };
 
-// Abgeworfener Raketenwerfer (dreht sich weg)
+// Dropped missile launcher (spins away)
 function launcherElement() {
   const el = document.createElement('div');
   el.classList.add('werfer-pod', 'werfer-abgeworfen');
@@ -530,7 +530,7 @@ function launcherElement() {
   return el;
 }
 
-// Gleve: Kreissektor ueber dem Sweep-Ursprung (laenge = Radius, bogen in Grad)
+// Gleve: circular sector above the sweep origin (length = radius, arc in degrees)
 function fanElement(p) {
   const el = document.createElement('div');
   el.classList.add('gleve-faecher');
@@ -543,7 +543,7 @@ function fanElement(p) {
 
 function particleElement(p) {
   if (p.sort === 'launcher') return launcherElement();
-  if (p.sort === 'gleveFaecher') return fanElement(p);
+  if (p.sort === 'gleveFan') return fanElement(p);
   const el = document.createElement('div');
   el.classList.add(PARTICLE_CLASS[p.sort || 'spark']);
   if (p.color) el.style.backgroundColor = p.color;
@@ -556,7 +556,7 @@ function particleElement(p) {
   return el;
 }
 
-// Effekte mit Lebensdauer (arrays.effekte): Kreis um die Mitte, waechst bis skala und blendet aus
+// Effects with a lifetime (arrays.effects): circle around the center, grows up to scale and fades out
 const BOMB_WAVE_COLOR = {
   '#00ffff': 'rgba(0, 255, 255, 0.4)',
   '#9b59b6': 'rgba(155, 89, 182, 0.4)',
@@ -584,7 +584,7 @@ export const EFFECT_STYLE = {
   },
 };
 
-// Sniper-Effekte: Klasse (Aussehen in style.css), Groesse und Deckkraft rechnet zeichneEffekt je Art
+// Sniper effects: class (look in style.css), drawEffect computes size and opacity per kind
 const SNIPER_EFFECT_CLASS = {
   sniperBeam: 'sniper-strahl',
   sniperBlastWave: 'sniper-druckwelle',
@@ -593,7 +593,7 @@ const SNIPER_EFFECT_CLASS = {
   shockwave: 'schockwelle-ring',
 };
 
-// Strahl: Hoehe = Laenge, Spitze an der Schiffsnase (x/y), Drehung um den Startpunkt, dreifacher Schein aus glow (0..1)
+// Beam: height = length, tip at the ship nose (x/y), rotation around the start point, triple glow from glow (0..1)
 function sniperBeamElement(e) {
   const el = document.createElement('div');
   el.classList.add('sniper-strahl');
@@ -618,7 +618,7 @@ function effectElement(e) {
     return ring;
   }
   const style = EFFECT_STYLE[e.kind];
-  if (!style) throw new Error(`Unbekannte Effektart fuer die Anzeige: ${e.kind}`);
+  if (!style) throw new Error(`unknown effect kind for the display: ${e.kind}`);
   const el = document.createElement('div');
   if (style.cls) el.classList.add(style.cls);
   Object.assign(el.style, {
@@ -634,14 +634,14 @@ function effectElement(e) {
   return el;
 }
 
-// Felsoptik nach Xenon-Vorbild: flache, gestapelte Steinplatten in Lavendelgrau, Kanten aus vorstehenden
-// Plattenenden, dazu Wurmloecher (rund gerandete Roehrenoeffnungen) und eingewachsene Kugeln.
-// Das Plattenmuster liegt einmal unsichtbar im Dokument (#fels-defs, fill: url(#fels-steine)); Musterhoehe 40 =
-// SEGMENT_HOEHE, damit die Reihen ueber Segmentgrenzen fortlaufen. Alles Zufaellige (Kantenstufen, Loecher) kommt
-// aus der Segment-Id, damit Host und Online-Client dasselbe Bild zeichnen.
+// Rock look modeled after Xenon: flat, stacked stone plates in lavender gray, edges made of protruding
+// plate ends, plus wormholes (round-rimmed tube openings) and embedded balls.
+// The plate pattern lies once invisibly in the document (#fels-defs, fill: url(#fels-steine)); pattern height 40 =
+// SEGMENT_HEIGHT, so the rows continue across segment borders. Everything random (edge steps, holes) comes
+// from the segment id, so host and online client draw the same picture.
 const ROCK_PATTERN_WIDTH = 96;
-const ROCK_ROW = 20; // Plattenhoehe inklusive Fuge (zwei Reihen je Segment)
-// Platten je Reihe: [Start, Breite]; Reihen gegeneinander versetzt, Ueberlaeufe werden am Musterrand gespiegelt
+const ROCK_ROW = 20; // Plate height including the joint (two rows per segment)
+// Plates per row: [start, width]; rows offset against each other, overflows are mirrored at the pattern edge
 const ROCK_ROWS = [
   [
     [0, 41],
@@ -655,7 +655,7 @@ const ROCK_ROWS = [
   ],
 ];
 
-// Wulstige Platte: dunkler Sockel, Koerper, helle Oberseite mit Glanzstrich, Schatten an der Unterseite
+// Bulging plate: dark base, body, bright top with a gloss stroke, shadow at the bottom
 function rockPlate(x, y, w) {
   const h = ROCK_ROW - 1.5;
   return (
@@ -694,7 +694,7 @@ function secureRockDefs() {
   document.body.appendChild(svg);
 }
 
-// Deterministische Zufallszahlen aus der Segment-Id (mulberry32 auf einem einfachen Text-Hash)
+// Deterministic random numbers from the segment id (mulberry32 on a simple text hash)
 function rockRandom(id) {
   let a = 0;
   for (const c of String(id)) a = (Math.imul(a, 31) + c.charCodeAt(0)) | 0;
@@ -706,8 +706,8 @@ function rockRandom(id) {
   };
 }
 
-// Gestufte Kante: je Plattenreihe ein senkrechtes Stueck, um bis zu 6 px vor- oder zurueckversetzt (Plattenenden).
-// x0/x1 = Kante oben/unten, richtung = +1 wenn der Fels rechts der Kante liegt (Versatz zeigt dann nach links).
+// Stepped edge: one vertical piece per plate row, shifted forward or back by up to 6 px (plate ends).
+// x0/x1 = edge top/bottom, direction = +1 if the rock lies right of the edge (the offset then points left).
 function tierEdge(x0, x1, h, random, direction) {
   const points = [];
   const rows = 2;
@@ -721,7 +721,7 @@ function tierEdge(x0, x1, h, random, direction) {
   return points;
 }
 
-// Wurmloecher und Kugeln in einer Felsflaeche: links/rechts begrenzen den Bereich (ohne Kantenzone)
+// Wormholes and balls in a rock area: left/right bound the area (without the edge zone)
 function wormholes(left, right, h, random) {
   const width = right - left;
   if (width < 30) return '';
@@ -732,14 +732,14 @@ function wormholes(left, right, h, random) {
     const cx = left + r + 2 + random() * (width - 2 * r - 4);
     const cy = 8 + random() * (h - 16);
     if (random() < 0.65) {
-      // Roehrenoeffnung: dunkler Rand, oranger Wulst, schwarzes Loch mit Lichtkante
+      // Tube opening: dark rim, orange bulge, black hole with a light edge
       svg +=
         `<circle cx="${cx.toFixed(1)}" cy="${cy.toFixed(1)}" r="${(r + 1.5).toFixed(1)}" fill="#3a1a08"/>` +
         `<circle cx="${cx.toFixed(1)}" cy="${cy.toFixed(1)}" r="${r.toFixed(1)}" fill="#c0682a" class="wurmloch"/>` +
         `<circle cx="${(cx + 0.6).toFixed(1)}" cy="${(cy + 0.8).toFixed(1)}" r="${(r * 0.55).toFixed(1)}" fill="#160602"/>` +
         `<path d="M${(cx - r * 0.7).toFixed(1)} ${(cy - r * 0.35).toFixed(1)} A${r.toFixed(1)} ${r.toFixed(1)} 0 0 1 ${(cx + r * 0.4).toFixed(1)} ${(cy - r * 0.8).toFixed(1)}" stroke="#f0b070" stroke-width="1.4" fill="none"/>`;
     } else {
-      // eingewachsene Kugel (Ei) mit Schattenrand
+      // embedded ball (egg) with a shadow rim
       svg +=
         `<circle cx="${(cx + 1).toFixed(1)}" cy="${(cy + 1.5).toFixed(1)}" r="${r.toFixed(1)}" fill="#1e1a30"/>` +
         `<circle cx="${cx.toFixed(1)}" cy="${cy.toFixed(1)}" r="${r.toFixed(1)}" fill="url(#fels-ei)" class="fels-kugel"/>`;
@@ -748,9 +748,9 @@ function wormholes(left, right, h, random) {
   return svg;
 }
 
-// Felssegment: volle Feldbreite, Hoehe 41 px (1 px Ueberlappung gegen Naehte); Wand links/rechts und Insel
-// als Flaechen zwischen Profil oben (y = 0) und unten (y = 40). Fels mit gestufter Kante und Wurmloechern,
-// Knochen (Insel-Boss) glatt mit Rippe, Markstrang und Knotenkante.
+// Rock segment: full field width, height 41 px (1 px overlap against seams); wall left/right and island
+// as areas between profile top (y = 0) and bottom (y = 40). Rock with a stepped edge and wormholes,
+// bone (island boss) smooth with a rib, marrow strand and node edge.
 function rockElement(s) {
   secureRockDefs();
   const b = config.playfieldWidth;
@@ -763,7 +763,7 @@ function rockElement(s) {
   const edge = points =>
     `<polyline class="fels-kante" points="${pts(points)}"/>` +
     (bone ? `<polyline class="fels-knoten" points="${pts(points)}"/>` : '');
-  // Kante von oben (x0) nach unten (x1): bei Fels gestuft, bei Knochen gerade
+  // Edge from top (x0) to bottom (x1): stepped for rock, straight for bone
   const edgesPoints = (x0, x1, direction) =>
     bone
       ? [
@@ -792,7 +792,7 @@ function rockElement(s) {
       const ml = (left[0][0] + left.at(-1)[0]) / 2;
       const mr = (right[0][0] + right.at(-1)[0]) / 2;
       svg += `<path class="knochen-rippe" d="M${ml + 4} ${m} Q${(ml + mr) / 2} ${m + 7} ${mr - 4} ${m}"/>`;
-      // Markstrang in der Mitte der Wirbelsaeule (der Insel-Boss steht immer mittig), nicht in der Inselmitte
+      // Marrow strand in the middle of the spine (the island boss is always centered), not in the island center
       svg += `<line class="knochen-mark" x1="${b / 2}" y1="0" x2="${b / 2}" y2="${h}"/>`;
     } else {
       const inside = Math.max(o.inner - o.ib / 2, u.inner - u.ib / 2) + 10;
@@ -825,7 +825,7 @@ export const CREATOR = {
   laser: laserElement,
   missile: missileElement,
   bomb: bombElement,
-  // Spore (Gewaechs): runde, leuchtende Kugel statt Laserstrich
+  // Spore (growth): round, glowing ball instead of a laser stroke
   enemyLaser: l => {
     const el = document.createElement('div');
     el.classList.add(l.spore ? 'spore' : 'feind-laser');
@@ -845,7 +845,7 @@ export const CREATOR = {
   },
 };
 
-// Schiffs-SVG nach Modell und Farbe (Spiel, Hangar-Vorschau, Cutszene)
+// Ship SVG by model and color (game, hangar preview, cutscene)
 export function getShipSvgContent(model, colorId) {
   const c = shipColors[colorId] || shipColors.red;
   if (model === 'phantom') {

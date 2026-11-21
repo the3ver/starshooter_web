@@ -17,22 +17,22 @@ export function updateBosses() {
   for (let i = arrays.bosses.length - 1; i >= 0; i--) {
     let b = arrays.bosses[i];
     if (!b) break;
-    const stunned = tickStun(b); // Sniper-Granate: keine Bewegung, keine Angriffe
-    if (b.bossTyp === 'eye') {
-      // Insel-Boss: Augen sitzen im Koerper (Fels), keine eigene Bewegung, kein Rammschaden
+    const stunned = tickStun(b); // Sniper grenade: no movement, no attacks
+    if (b.bossType === 'eye') {
+      // Island boss: eyes sit in the body (rock), no movement of their own, no ram damage
       IslandBoss.updateEye(b, stunned);
       continue;
     }
-    if (b.phase === 'einzug') {
+    if (b.phase === 'entry') {
       b.repulsorActive = true;
       b.y += b.vy;
       if (b.y >= 20) {
         b.y = 20;
-        b.phase = 'kampf';
+        b.phase = 'fight';
         b.repulsorActive = false;
       }
 
-      // Repulsor auf Projektile anwenden
+      // Apply the repulsor to projectiles
       arrays.laserArray.forEach(l => {
         let cx = b.x + b.size / 2;
         let cy = b.y + b.size / 2;
@@ -42,23 +42,23 @@ export function updateBosses() {
         let dy = ly - cy;
         let dist = Math.hypot(dx, dy);
         if (dist < b.size * 1.5 && dy > 0) {
-          // Wirkt am besten nach unten abwehrend
+          // Works best defending downwards
           let force = (b.size * 1.5 - dist) * 0.15;
           l.vx += dx > 0 ? force : -force;
         }
       });
       dom.bossHpBar.style.width = Math.max(0, (b.hp / b.maxHp) * 100) + '%';
-      continue; // Überspringt Kampf-Bewegungen und Schießen
+      continue; // Skips fight movements and shooting
     } else {
-      // Enrage Check für alle Typen
+      // Enrage check for all types
       if (!b.enragePhaseActive && b.hp < b.maxHp * 0.5) {
         b.enragePhaseActive = true;
         b.baseShotRate = Math.max(15, Math.floor(b.baseShotRate / 2));
-        dom.bossHpBar.style.backgroundColor = '#8e44ad'; // Visualisiert Enrage im Balken
-        if (b.bossTyp === 2) b.vx *= 1.5; // Jäger wird im Enrage schneller
+        dom.bossHpBar.style.backgroundColor = '#8e44ad'; // Visualizes enrage in the bar
+        if (b.bossType === 2) b.vx *= 1.5; // The hunter gets faster in enrage
       }
 
-      // Hack-Projektile ab Level 5 (Quelle null, damit der Boss mehrfach hacken kann)
+      // Hack projectiles from level 5 on (source null so the boss can hack several times)
       if (!stunned && state.level >= BOSS_HACK_FROM_LEVEL) {
         b.hackTimer--;
         if (b.hackTimer <= 0) {
@@ -68,48 +68,48 @@ export function updateBosses() {
         }
       }
 
-      // Bewegung
+      // Movement
       if (stunned) {
         // betaeubt: steht still
-      } else if (b.bossTyp === 1) {
+      } else if (b.bossType === 1) {
         // Kreuzer
         b.x += b.vx;
         if (b.x <= 10 || b.x >= config.playfieldWidth - b.size - 10) b.vx *= -1;
-      } else if (b.bossTyp === 2) {
-        // Jäger - verfolgt den näheren lebenden Spieler
+      } else if (b.bossType === 2) {
+        // Hunter - chases the nearer living player
         let targetX = nextPlayerMiddle(b).x - b.size / 2;
         if (b.x < targetX - 5) b.x += b.vx;
         else if (b.x > targetX + 5) b.x -= b.vx;
-      } else if (b.bossTyp === 3) {
-        // Träger
+      } else if (b.bossType === 3) {
+        // Carrier
         b.time = (b.time || 0) + 0.02 * (b.enragePhaseActive ? 1.5 : 1);
         b.x = config.playfieldWidth / 2 - b.size / 2 + Math.sin(b.time) * (config.playfieldWidth / 2 - b.size / 2 - 10);
-      } else if (b.bossTyp === 4) {
+      } else if (b.bossType === 4) {
         // Festung
-        b.x += b.vx * 0.5; // Bewegt sich sehr langsam
+        b.x += b.vx * 0.5; // Moves very slowly
         if (b.x <= 10 || b.x >= config.playfieldWidth - b.size - 10) b.vx *= -1;
       }
 
-      // Update HP Balken Breite
+      // Update the HP bar width
       dom.bossHpBar.style.width = Math.max(0, (b.hp / b.maxHp) * 100) + '%';
       if (b.enragePhaseActive) {
         Utils.createSmokeSparks(b.x, b.y, b.size);
       }
-      if (b.bossTyp === 1) {
+      if (b.bossType === 1) {
         Utils.createDriveSmoke(b.x + b.size * 0.3, b.y - b.size * 0.05, -2);
         Utils.createDriveSmoke(b.x + b.size * 0.7, b.y - b.size * 0.05, -2);
-      } else if (b.bossTyp === 2) {
+      } else if (b.bossType === 2) {
         Utils.createDriveSmoke(b.x + b.size * 0.35, b.y - b.size * 0.05, -2);
         Utils.createDriveSmoke(b.x + b.size * 0.65, b.y - b.size * 0.05, -2);
-      } else if (b.bossTyp === 3) {
+      } else if (b.bossType === 3) {
         Utils.createDriveSmoke(b.x + b.size * 0.5, b.y - b.size * 0.05, -2);
-      } else if (b.bossTyp === 4) {
+      } else if (b.bossType === 4) {
         Utils.createDriveSmoke(b.x + b.size * 0.25, b.y - b.size * 0.05, -2);
         Utils.createDriveSmoke(b.x + b.size * 0.75, b.y - b.size * 0.05, -2);
       }
       if (!stunned) b.shotTimer--;
       if (!stunned && b.shotTimer <= 0) {
-        if (b.bossTyp === 1) {
+        if (b.bossType === 1) {
           Entities.createBossLaser(b.x + b.size * 0.2, b.y + b.size * 0.7);
           Entities.createBossLaser(b.x + b.size * 0.46, b.y + b.size * 0.9);
           Entities.createBossLaser(b.x + b.size * 0.72, b.y + b.size * 0.7);
@@ -117,8 +117,8 @@ export function updateBosses() {
             Entities.createBossLaser(b.x + b.size * 0.1, b.y + b.size * 0.5);
             Entities.createBossLaser(b.x + b.size * 0.82, b.y + b.size * 0.5);
           }
-        } else if (b.bossTyp === 2) {
-          // Gezielter Schuss auf den näheren lebenden Spieler
+        } else if (b.bossType === 2) {
+          // Aimed shot at the nearer living player
           const target = nextPlayerMiddle(b);
           let startX = b.x + b.size / 2 - 4;
           let startY = b.y + b.size;
@@ -128,12 +128,12 @@ export function updateBosses() {
             Entities.createBossLaser(startX, startY, Math.cos(angle - 0.2) * 8, Math.sin(angle - 0.2) * 8);
             Entities.createBossLaser(startX, startY, Math.cos(angle + 0.2) * 8, Math.sin(angle + 0.2) * 8);
           }
-        } else if (b.bossTyp === 3) {
-          // Spawnt einen Feind
+        } else if (b.bossType === 3) {
+          // Spawns an enemy
           Entities.createEnemy(b.x + b.size / 2 - 15, b.y + b.size);
           if (Math.random() < 0.5 || b.enragePhaseActive) Entities.createBossLaser(b.x + b.size / 2 - 4, b.y + b.size);
-        } else if (b.bossTyp === 4) {
-          // Fächerschuss (Spread)
+        } else if (b.bossType === 4) {
+          // Fan shot (spread)
           let count = b.enragePhaseActive ? 7 : 5;
           let startX = b.x + b.size / 2 - 4;
           let startY = b.y + b.size - 10;
@@ -145,14 +145,14 @@ export function updateBosses() {
         b.shotTimer = b.baseShotRate;
       }
 
-      // Boss-Bomben Abwurf
+      // Boss bomb drop
       b.bombTimer = (b.bombTimer !== undefined ? b.bombTimer : Math.random() * 120 + 240) - (stunned ? 0 : 1);
       if (!stunned && b.bombTimer <= 0) {
         Entities.createBossBomb(b.x + b.size / 2 - 13, b.y + b.size * 0.7);
         b.bombTimer = Math.max(160, 360 - (state.level - 1) * 30);
       }
 
-      // Boss-Raketen Abwurf (seitlich zielsuchend)
+      // Boss missile drop (homing from the side)
       b.missileTimer = (b.missileTimer !== undefined ? b.missileTimer : Math.random() * 140 + 200) - (stunned ? 0 : 1);
       if (!stunned && b.missileTimer <= 0) {
         let side = Math.random() < 0.5 ? -1 : 1;
@@ -197,7 +197,7 @@ export function updateBosses() {
       arrays.bossLaserArray.splice(i, 1);
       continue;
     }
-    // Von der Gleve seitlich weggeschleudert: trifft keine Spieler mehr
+    // Flung sideways by the Gleve: no longer hits players
     if (bl.harmless) continue;
     if (
       !state.isDead &&
@@ -238,7 +238,7 @@ export function updateBossBombs() {
     bb.y += bb.vy;
     bb.timer--;
 
-    // Beep-Takt beschleunigen je näher an der Detonation
+    // Speed up the beep cadence the closer it gets to detonation
     let bbProgress = Math.max(0, bb.timer / (bb.maxTimer || 180));
     let bbUrgency = 1.0 - bbProgress;
     bb.beepTimer = (bb.beepTimer || 0) + 1;
@@ -322,7 +322,7 @@ export function updateBossMissiles() {
       Audio.playBossRocketFlight();
     }
 
-    // Homing Richtung näherer lebender Spieler
+    // Homing towards the nearer living player
     const target = nextPlayerMiddle(br);
     let dx = target.x - (br.x + br.width / 2);
     let dy = target.y - (br.y + br.height / 2);
@@ -344,7 +344,7 @@ export function updateBossMissiles() {
     br.y += br.vy;
     br.rot = (Math.atan2(br.vy, br.vx) * 180) / Math.PI + 90;
 
-    // Partikel-Schweif
+    // Particle trail
     if (Math.random() < 0.4) {
       const color = Math.random() < 0.6 ? '#e74c3c' : '#f39c12';
       createParticles({
@@ -358,7 +358,7 @@ export function updateBossMissiles() {
       });
     }
 
-    // Wenn vom Spieler zerstört
+    // When destroyed by the player
     if (br.hp <= 0) {
       Utils.addScore(100);
       Audio.playMissileExplosion();
@@ -368,14 +368,14 @@ export function updateBossMissiles() {
       continue;
     }
 
-    // Bildschirm weit verlassen
+    // Left the screen far behind
     if (br.y > config.playfieldHeight + 60 || br.x < -80 || br.x > config.playfieldWidth + 80 || br.y < -100) {
       Display.remove(br);
       arrays.bossMissileArray.splice(i, 1);
       continue;
     }
 
-    // Kollision mit Spieler
+    // Collision with a player
     if (
       !state.isDead &&
       !Utils.isDashInvulnerable(state) &&

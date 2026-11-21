@@ -1,5 +1,5 @@
-// Anzeige-Schnittstelle (src/js/display.js): Die Spiellogik aendert nur Modellfelder, ein austauschbares
-// Backend zeichnet die Weltobjekte. Diese Tests setzen ein Test-Backend statt des DOM-Backends ein.
+// Display interface (src/js/display.js): the game logic only changes model fields, an exchangeable
+// backend draws the world objects. These tests plug in a test backend instead of the DOM backend.
 const { test, expect } = require('@playwright/test');
 const { setGameState } = require('./helpers');
 
@@ -15,7 +15,7 @@ test.beforeEach(async ({ page }) => {
   await page.goto('/');
 });
 
-test('Test-Backend: zeichneWelt einmal pro Schritt, Logik schreibt keine Positionen ins DOM, entferne beim Verlassen des Felds', async ({
+test('Test backend: drawWorld once per step, logic writes no positions into the DOM, remove when leaving the field', async ({
   page,
 }) => {
   const r = await page.evaluate(async () => {
@@ -69,11 +69,13 @@ test('Test-Backend: zeichneWelt einmal pro Schritt, Logik schreibt keine Positio
   expect(r.topEqual).toBe(true);
   expect(r.removedEnemy).toBe(true);
   expect(r.offList).toBe(true);
-  // Das Test-Backend entfernt nichts aus dem DOM: das Entfernen laeuft nur ueber die Anzeige
+  // The test backend removes nothing from the DOM: removal goes only through the display
   expect(r.elementStillThere).toBe(true);
 });
 
-test('DOM-Backend zeichnet aus dem Modell: Position, Drehung, Anzeigeposition des Online-Clients', async ({ page }) => {
+test('DOM backend draws from the model: position, rotation, display position of the online client', async ({
+  page,
+}) => {
   const r = await page.evaluate(async () => {
     const Display = await import('./js/display.js');
     const { arrays } = await import('./js/state.js');
@@ -97,7 +99,7 @@ test('DOM-Backend zeichnet aus dem Modell: Position, Drehung, Anzeigeposition de
   expect(r.removed).toBe(true);
 });
 
-test('setzeBackend lehnt ein Backend ohne Pflichtfunktionen ab', async ({ page }) => {
+test('setBackend rejects a backend without the required functions', async ({ page }) => {
   const error = await page.evaluate(async () => {
     const Display = await import('./js/display.js');
     const messages = [];
@@ -118,10 +120,10 @@ test('setzeBackend lehnt ein Backend ohne Pflichtfunktionen ab', async ({ page }
     }
     return messages;
   });
-  expect(error.every(m => typeof m === 'string' && m.startsWith('Anzeige-Backend ohne'))).toBe(true);
+  expect(error.every(m => typeof m === 'string' && m.startsWith('display backend without'))).toBe(true);
 });
 
-test('Spiellogik erzeugt Weltobjekte nur ueber die Anzeige: Test-Backend bekommt Objekt und Art, kein DOM-Element', async ({
+test('Game logic creates world objects only via the display: the test backend gets object and kind, no DOM element', async ({
   page,
 }) => {
   const r = await page.evaluate(async () => {
@@ -195,7 +197,7 @@ test('Spiellogik erzeugt Weltobjekte nur ueber die Anzeige: Test-Backend bekommt
   expect(r.asteroid).toEqual({ color: 'string', color2: 'string', formPoints: true, crack: 'number' });
 });
 
-test('Host und Online-Client bauen gleiche Elemente; der Snapshot traegt Modelldaten statt CSS-Text', async ({
+test('Host and online client build the same elements; the snapshot carries model data instead of CSS text', async ({
   page,
 }) => {
   const r = await page.evaluate(async () => {
@@ -213,14 +215,14 @@ test('Host und Online-Client bauen gleiche Elemente; der Snapshot traegt Modelld
       powerup: arrays.powerups[0].el.outerHTML,
     };
     const snapshot = Network.serializeGameState();
-    // Host-Objekte entfernen, damit der Client sie aus dem Snapshot neu baut
+    // Remove the host objects so the client rebuilds them from the snapshot
     for (const list of [arrays.asteroids, arrays.enemies, arrays.powerups]) {
       list.forEach(Display.remove);
       list.length = 0;
     }
     Network.applyGameStateSnapshot(snapshot);
     const sa = snapshot.asteroids[0];
-    // transform (Drehung) haengt vom Zeitpunkt ab, der Rest muss gleich sein
+    // transform (rotation) depends on the point in time, the rest must be equal
     const withoutRotation = html => html.replace(/ ?transform: [^;]*;/g, '');
     return {
       equal: {
@@ -237,21 +239,21 @@ test('Host und Online-Client bauen gleiche Elemente; der Snapshot traegt Modelld
   expect(r.formText).toBe('string');
 });
 
-// Bugfix: Der Snapshot schickte immer Boss-Typ 1 (Host speichert bossTyp), der Client zeigte daher immer den ersten Boss
-test('Snapshot traegt den Boss-Typ des Hosts', async ({ page }) => {
-  const typ = await page.evaluate(async () => {
+// Bugfix: the snapshot always sent boss type 1 (the host stores bossType), so the client always showed the first boss
+test('Snapshot carries the host boss type', async ({ page }) => {
+  const type = await page.evaluate(async () => {
     const { state } = await import('./js/state.js');
     const Entities = await import('./js/entities.js');
     const Network = await import('./js/network.js');
     state.level = 3;
     Entities.createBoss();
-    return Network.serializeGameState().bosses[0].typ;
+    return Network.serializeGameState().bosses[0].type;
   });
-  expect(typ).toBe(3);
+  expect(type).toBe(3);
 });
 
-// Bugfix: Der Client uebernahm schildHp nicht, das Feind-Schild blieb nach dem Brechen beim Host sichtbar
-test('Online-Client: Feind-Schild verschwindet, wenn der Host es bricht', async ({ page }) => {
+// Bugfix: the client did not apply shieldHp, the enemy shield stayed visible after the host broke it
+test('Online client: the enemy shield disappears when the host breaks it', async ({ page }) => {
   const r = await page.evaluate(async () => {
     const { arrays, state } = await import('./js/state.js');
     const Entities = await import('./js/entities.js');
@@ -273,7 +275,7 @@ test('Online-Client: Feind-Schild verschwindet, wenn der Host es bricht', async 
   expect(r).toEqual({ beforehand: true, afterwards: false });
 });
 
-test('DOM-Backend zeigt Zustand aus Modellfeldern: Schild, Risse, Magma, Betaeubung, Repulsor, Schlepp-Strahl, Parade', async ({
+test('DOM backend shows state from model fields: shield, cracks, magma, stun, repulsor, tow beam, parry', async ({
   page,
 }) => {
   const r = await page.evaluate(async () => {
@@ -312,7 +314,7 @@ test('DOM-Backend zeigt Zustand aus Modellfeldern: Schild, Risse, Magma, Betaeub
       beam: beam ? [beam.getAttribute('x1'), beam.getAttribute('y1')] : null,
       parried: fl.el.classList.contains('gleve-pariert'),
     };
-    // Zustand zurueck: Klassen und Strahl verschwinden wieder; Magma-Brocken bekommt seine Klasse
+    // State back: classes and beam disappear again; the magma chunk gets its class
     f.stunned = 0;
     b.repulsorActive = false;
     p.towedBy = null;
@@ -342,7 +344,7 @@ test('DOM-Backend zeigt Zustand aus Modellfeldern: Schild, Risse, Magma, Betaeub
   expect(r.back).toEqual({ stunned: false, repulsor: false, towed: false, beam: null, magma: true });
 });
 
-test('Treffer melden einen Blitz an die Anzeige, ohne Element-Zugriff der Logik', async ({ page }) => {
+test('Hits report a flash to the display without element access from the logic', async ({ page }) => {
   const r = await page.evaluate(async () => {
     const { arrays, state } = await import('./js/state.js');
     const Entities = await import('./js/entities.js');
@@ -369,9 +371,9 @@ test('Treffer melden einen Blitz an die Anzeige, ohne Element-Zugriff der Logik'
   expect(r.flash).toEqual([[r.id, 2.5]]);
 });
 
-// Bugfix: Der Snapshot schickte state.rotate, das nie gesetzt wurde (die Neigung lag nur im DOM), der
+// Bugfix: the snapshot sent state.rotate, which was never set (the tilt lived only in the DOM), the
 // Online-Client sah P1 daher nie geneigt
-test('Snapshot traegt die angezeigte Neigung von P1', async ({ page }) => {
+test('Snapshot carries the displayed tilt of P1', async ({ page }) => {
   const rotate = await page.evaluate(async () => {
     const { state } = await import('./js/state.js');
     const { movePlayer } = await import('./js/player.js');
@@ -386,7 +388,7 @@ test('Snapshot traegt die angezeigte Neigung von P1', async ({ page }) => {
   expect(rotate).toBeGreaterThan(10);
 });
 
-test('Spielerschiff aus dem Zustand: Position, Neigung, Flammen, Sichtbarkeit, Blinken, Schild', async ({ page }) => {
+test('Player ship from state: position, tilt, flames, visibility, blinking, shield', async ({ page }) => {
   const r = await page.evaluate(async () => {
     const { state, dom } = await import('./js/state.js');
     const Display = await import('./js/display.js');
@@ -409,7 +411,7 @@ test('Spielerschiff aus dem Zustand: Position, Neigung, Flammen, Sichtbarkeit, B
       blink: el.classList.contains('spieler-blink'),
       shield: Array.from(el.classList).filter(k => k.startsWith('schild-aktiv-')),
     };
-    // Online-Client: P1 an der interpolierten Anzeigeposition
+    // Online client: P1 at the interpolated display position
     Object.assign(state, { displayX: 70, displayY: 80, shipVisible: false, invulnerableTimer: 0, shieldTier: 0 });
     Display.drawPlayer();
     const off = {
@@ -433,9 +435,7 @@ test('Spielerschiff aus dem Zustand: Position, Neigung, Flammen, Sichtbarkeit, B
   expect(r.off).toEqual({ pos: ['70px', '80px'], display: 'none', blink: false, shield: [] });
 });
 
-test('Schiffsaussehen und -zustand aus dem Modell: SVG, Werfer-Pods, Dash/Rolle/Overdrive/Hack, Strahlen', async ({
-  page,
-}) => {
+test('Ship look and state from the model: SVG, launcher pods, dash/roll/overdrive/hack, beams', async ({ page }) => {
   const r = await page.evaluate(async () => {
     const { state, dom } = await import('./js/state.js');
     const Display = await import('./js/display.js');
@@ -463,7 +463,7 @@ test('Schiffsaussehen und -zustand aus dem Modell: SVG, Werfer-Pods, Dash/Rolle/
       gleveDashTimer: 0,
       viperRollTimer: 3,
       viperOverdriveTimer: 10,
-      hacks: [{ typ: 'inverted', timer: 90 }],
+      hacks: [{ type: 'inverted', timer: 90 }],
       autolaserBeam: { x: 100, y: 300, length: 50, angle: 20 },
       hitscanBeam: { x: 100, y: 300, length: 300 },
     });
@@ -525,7 +525,7 @@ test('Schiffsaussehen und -zustand aus dem Modell: SVG, Werfer-Pods, Dash/Rolle/
   });
 });
 
-test('Detonationen erzeugen Effekte ueber die Anzeige: Test-Backend bekommt Art effekt, kein Element im Spielfeld', async ({
+test('Detonations create effects via the display: the test backend gets kind effect, no element in the playfield', async ({
   page,
 }) => {
   const r = await page.evaluate(async () => {
@@ -563,7 +563,7 @@ test('Detonationen erzeugen Effekte ueber die Anzeige: Test-Backend bekommt Art 
   expect(r.children).toBe(0);
 });
 
-test('Effekt laeuft nach dauer Schritten ab (Element weg), in der Pause nicht', async ({ page }) => {
+test('Effect expires after duration steps (element gone), not during the pause', async ({ page }) => {
   const r = await page.evaluate(async () => {
     const Utils = await import('./js/utils.js');
     const { simulationStep } = await import('./js/loop.js');
@@ -593,7 +593,7 @@ test('Effekt laeuft nach dauer Schritten ab (Element weg), in der Pause nicht', 
   expect(r.gone).toBe(true);
 });
 
-test('Stufe-3-Bombe erzeugt zwei Effekte, der zweite ist in den ersten 9 Schritten unsichtbar', async ({ page }) => {
+test('Tier 3 bomb creates two effects, the second is invisible during the first 9 steps', async ({ page }) => {
   const r = await page.evaluate(async () => {
     const Utils = await import('./js/utils.js');
     const { simulationStep } = await import('./js/loop.js');
@@ -621,11 +621,11 @@ test('Stufe-3-Bombe erzeugt zwei Effekte, der zweite ist in den ersten 9 Schritt
   expect(r.kinds).toEqual(['bombWave', 'bombWave2']);
   expect(r.invisible).toEqual([true, true, true, true, true, true, true, true, true, false, false, false]);
   expect(r.firstVisible).toBe(true);
-  // Mini-Bomben (Stufe 3) bekommen keine zweite Welle
+  // Mini bombs (tier 3) get no second wave
   expect(r.afterMini).toBe(1);
 });
 
-test('Boss-Bombe erzeugt eine Boss-Welle als Effekt, Game Over und Neustart raeumen Effekte ab', async ({ page }) => {
+test('Boss bomb creates a boss wave as an effect, game over and restart clear effects', async ({ page }) => {
   const r = await page.evaluate(async () => {
     const Utils = await import('./js/utils.js');
     const { updateBossBombs } = await import('./js/boss.js');
@@ -652,7 +652,7 @@ test('Boss-Bombe erzeugt eine Boss-Welle als Effekt, Game Over und Neustart raeu
   expect(r.elGone).toBe(true);
 });
 
-test('Sniper-Effekte (Strahl, Druckwelle, Minen-Explosion, EMP) laufen als Effekt ueber die Anzeige, Rest und Aufraeumen nach pKey', async ({
+test('Sniper effects (beam, blast wave, mine explosion, EMP) run as effects via the display, rest and cleanup by pKey', async ({
   page,
 }) => {
   await page.keyboard.down('KeyW');
@@ -685,7 +685,7 @@ test('Sniper-Effekte (Strahl, Druckwelle, Minen-Explosion, EMP) laufen als Effek
       Sniper.showDetonation({ x: 100, y: 100, radius: 70, owner: 'p1' });
       Sniper.showMineExplosion({ x: 150, y: 150, radius: 30, owner: 'p2' });
       Sniper.showEmp({ x: 200, y: 200, radius: 80, owner: 'p1' });
-      // das Fadenkreuz bleibt vorerst direkt im DOM, die Effekte nicht
+      // the crosshair stays directly in the DOM for now, the effects do not
       const children = document.querySelectorAll(
         '.sniper-strahl, .sniper-druckwelle, .sniper-mine-explosion, .sniper-emp',
       ).length;
@@ -721,7 +721,7 @@ test('Sniper-Effekte (Strahl, Druckwelle, Minen-Explosion, EMP) laufen als Effek
   expect(r.removed).toBe(4);
 });
 
-test('Sniper-Granate: entsteht ueber Anzeige.erzeuge (sniperGranate), fliegt im Modell, wird nach dem Flug entfernt', async ({
+test('Sniper grenade: created via Display.create (sniperGrenade), flies in the model, removed after the flight', async ({
   page,
 }) => {
   await page.keyboard.down('KeyW');
@@ -789,9 +789,7 @@ test('Sniper-Granate: entsteht ueber Anzeige.erzeuge (sniperGranate), fliegt im 
   expect(r.removed).toEqual([r.id]);
 });
 
-test('Online-Client baut aus dem Snapshot-Listeneintrag ein Granaten-Modell in arrays.sniperGranaten', async ({
-  page,
-}) => {
+test('Online client builds a grenade model in arrays.sniperGrenades from the snapshot list entry', async ({ page }) => {
   const r = await page.evaluate(async () => {
     const Sniper = await import('./js/sniper.js');
     const { arrays } = await import('./js/state.js');
@@ -823,7 +821,7 @@ test('Online-Client baut aus dem Snapshot-Listeneintrag ein Granaten-Modell in a
   expect(r.gone).toBe(true);
 });
 
-test('Haftmine: entsteht ueber Anzeige.erzeuge (sniperMine) ohne DOM-Element, wird ueber Anzeige.entferne abgeraeumt', async ({
+test('Sticky mine: created via Display.create (sniperMine) without a DOM element, cleared via Display.remove', async ({
   page,
 }) => {
   await page.keyboard.down('KeyW');
@@ -883,7 +881,7 @@ test('Haftmine: entsteht ueber Anzeige.erzeuge (sniperMine) ohne DOM-Element, wi
   expect(r.length).toBe(1);
 });
 
-test('Haftmine: Klassen haftet und blinkt kommen aus den Modellfeldern (DOM-Backend)', async ({ page }) => {
+test('Sticky mine: classes haftet and blinkt come from the model fields (DOM backend)', async ({ page }) => {
   const r = await page.evaluate(async () => {
     const Display = await import('./js/display.js');
     const { arrays } = await import('./js/state.js');
@@ -915,7 +913,7 @@ test('Haftmine: Klassen haftet und blinkt kommen aus den Modellfeldern (DOM-Back
   expect(r.gone).toBe(true);
 });
 
-test('Online-Client baut aus dem Snapshot-Listeneintrag ein Minen-Modell in arrays.sniperMinen', async ({ page }) => {
+test('Online client builds a mine model in arrays.sniperMines from the snapshot list entry', async ({ page }) => {
   const r = await page.evaluate(async () => {
     const Sniper = await import('./js/sniper.js');
     const { arrays } = await import('./js/state.js');
@@ -940,9 +938,7 @@ test('Online-Client baut aus dem Snapshot-Listeneintrag ein Minen-Modell in arra
   expect(r.gone).toBe(true);
 });
 
-test('Fadenkreuz und Ladering kommen aus den Zustandsfeldern (DOM-Backend), verschwinden bei isDead', async ({
-  page,
-}) => {
+test('Crosshair and charge ring come from the state fields (DOM backend), disappear on isDead', async ({ page }) => {
   const r = await page.evaluate(async () => {
     const Display = await import('./js/display.js');
     const { state } = await import('./js/state.js');
@@ -1037,7 +1033,7 @@ test('Fadenkreuz und Ladering kommen aus den Zustandsfeldern (DOM-Backend), vers
   expect(r.noSniper).toBeNull();
 });
 
-test('Gleve-Klinge kommt aus den Zustandsfeldern (DOM-Backend), verschwindet bei Sweep-Ende und isDead', async ({
+test('Gleve blade comes from the state fields (DOM backend), disappears at sweep end and on isDead', async ({
   page,
 }) => {
   const r = await page.evaluate(async () => {
@@ -1113,7 +1109,7 @@ test('Gleve-Klinge kommt aus den Zustandsfeldern (DOM-Backend), verschwindet bei
   expect(r.active.left).toBe(r.o.x - 2 + 'px');
   expect(r.active.top).toBe(r.o.y - r.length + 'px');
   expect(r.active.transform).toBe('rotate(-18deg)');
-  // Richtung +1: Rundung oben rechts, Richtung -1: oben links (Browser serialisiert die Kurzform)
+  // Direction +1: rounding top right, direction -1: top left (the browser serializes the short form)
   expect(r.active.radius).toMatch(/^0px 100% 0px 0px/);
   expect(r.reversed.transform).toBe('rotate(30deg)');
   expect(r.reversed.radius).toMatch(/^100% 0px 0px/);
@@ -1123,7 +1119,7 @@ test('Gleve-Klinge kommt aus den Zustandsfeldern (DOM-Backend), verschwindet bei
   expect(r.noGleve).toBeNull();
 });
 
-test('Spielertreffer und Powerup melden den Bildschirm-Blitz (Farbe, Dauer) an die Anzeige, ohne dass die Logik das Spielfeld anfasst', async ({
+test('Player hit and powerup report the screen flash (color, duration) to the display without the logic touching the playfield', async ({
   page,
 }) => {
   const r = await page.evaluate(async () => {
@@ -1169,7 +1165,7 @@ test('Spielertreffer und Powerup melden den Bildschirm-Blitz (Farbe, Dauer) an d
   expect(r.afterwards).toBe(r.beforehand);
 });
 
-test('Sterne entstehen ueber die Anzeige (Art stern, Modell mit groesse statt Element-Styles)', async ({ page }) => {
+test('Stars are created via the display (kind star, model with size instead of element styles)', async ({ page }) => {
   const r = await page.evaluate(async () => {
     const { arrays } = await import('./js/state.js');
     const Display = await import('./js/display.js');
@@ -1185,12 +1181,12 @@ test('Sterne entstehen ueber die Anzeige (Art stern, Modell mit groesse statt El
   });
   expect(r.count).toBe(60);
   expect(r.size).toBe('number');
-  expect(r.cls).toBe('stern'); // CSS-Klasse bleibt
+  expect(r.cls).toBe('stern'); // CSS class stays
   expect(r.left).toBe(true);
   expect(r.width).toMatch(/px$/);
 });
 
-test('Null-Backend: Coop mit Bot, Gleve gegen Boss, Bomben, Granaten, Minen und Raketen laufen ohne Fehler und ohne neue Kinder in #spielfeld', async ({
+test('Null backend: co-op with bot, Gleve against boss, bombs, grenades, mines and missiles run without errors and without new children in #spielfeld', async ({
   page,
 }) => {
   const error = [];

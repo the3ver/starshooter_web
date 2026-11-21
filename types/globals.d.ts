@@ -1,9 +1,9 @@
-// Typen fuer tsc --checkJs (jsconfig.json): Browser-Erweiterungen und Testzugang, die das Spiel nutzt
+// Types for tsc --checkJs (jsconfig.json): browser extensions and test access used by the game
 interface Window {
   __game: any;
   resizeGame: () => void;
   webkitAudioContext: typeof AudioContext;
 }
 
-// Trystero wird zur Laufzeit vom CDN geladen
+// Trystero is loaded from the CDN at runtime
 declare module 'https://cdn.jsdelivr.net/*';

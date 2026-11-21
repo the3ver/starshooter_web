@@ -5,14 +5,14 @@ import * as Network from './network.js';
 import * as Display from './display.js';
 import { createEffect } from './effects.js';
 
-// Powerup Schockwelle: Ein Ring laeuft vom Aufnahmepunkt in WELLEN_DAUER Schritten bis zur fernsten Feldecke.
-// Was der Ring erreicht: Feinde explodieren (Abschuss fuer den Sammler), Feind- und Boss-Geschosse verschwinden,
-// Bosse verlieren einmal BOSS_SCHADEN_ANTEIL ihrer Max-HP (sterben aber nicht). Asteroiden bleiben.
-// Der Ring ist ein Effekt (arrays.effekte, Art schockwelle); getroffen merkt sich die erfassten Ziele.
+// Shockwave powerup: a ring runs from the pickup point to the farthest field corner in WAVE_DURATION steps.
+// What the ring reaches: enemies explode (kill for the collector), enemy and boss projectiles vanish,
+// bosses lose BOSS_DAMAGE_SHARE of their max HP once (but do not die). Asteroids stay.
+// The ring is an effect (arrays.effects, kind shockwave); hit remembers the captured targets.
 
 export const WAVE_DURATION = 36;
 
-// Bonus-Drop (Kettenbonus, Eierkapsel): mit SCHOCKWELLE_CHANCE eine Schockwelle, hoechstens eine pro Level und
+// Bonus drop (chain bonus, egg capsule): a shockwave with SHOCKWAVE_CHANCE, at most one per level and
 // nie im Bosskampf; sonst null (zufaelliges Powerup)
 export const SHOCKWAVE_CHANCE = 0.35;
 export function bonusType() {
@@ -38,14 +38,14 @@ function farthestCorner(x, y) {
   return Math.max(Math.hypot(x, y), Math.hypot(b - x, y), Math.hypot(x, h - y), Math.hypot(b - x, h - y));
 }
 
-// Ring, Blitz und Ton (Host und Online-Client)
+// Ring, flash and sound (host and online client)
 function show(x, y, radius) {
   Display.flashPlayfield('#ffffff', 90);
   Audio.playShockwave();
   return createEffect({ kind: 'shockwave', x, y, radius, rest: WAVE_DURATION });
 }
 
-// Host/Solo: Welle mit Trefferlogik ausloesen; owner = Sammler (Abschuesse zaehlen fuer ihn)
+// Host/solo: trigger the wave with hit logic; owner = collector (kills count for them)
 export function trigger(x, y, owner = 'p1') {
   const radius = farthestCorner(x, y);
   const wave = show(x, y, radius);
@@ -55,7 +55,7 @@ export function trigger(x, y, owner = 'p1') {
   return wave;
 }
 
-// Online-Client: nur Darstellung
+// Online client: display only
 export function showShockwave(data) {
   show(data.x, data.y, data.radius);
 }
@@ -67,12 +67,12 @@ function middle(o) {
   return { x: o.x + w / 2, y: o.y + h / 2 };
 }
 
-// Aktueller Ringradius: waechst linear, im ersten Schritt schon ein Stueck
+// Current ring radius: grows linearly, already a bit in the first step
 export function currentRadius(wave) {
   return (wave.radius * (wave.duration - wave.rest + 1)) / wave.duration;
 }
 
-// Jeder Host-Schritt vor aktualisiereEffekte: erfasst, was der Ring neu erreicht
+// Every host step before updateEffects: captures what the ring newly reaches
 export function updateShockwaves() {
   for (const wave of arrays.effects) {
     if (wave.kind !== 'shockwave' || !wave.hit) continue;
@@ -83,7 +83,7 @@ export function updateShockwaves() {
     };
 
     for (const f of arrays.enemies.slice()) {
-      // geschlossene Blueten (istUnzerstoerbar) ueberstehen die Welle
+      // closed blooms (isIndestructible) survive the wave
       if (wave.hit.has(f) || f.chainT < 0 || f.isIndestructible || !inRing(f)) continue;
       wave.hit.add(f);
       Utils.destroyTarget(f, wave.owner);

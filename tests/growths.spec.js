@@ -13,7 +13,7 @@ test.beforeEach(async ({ page }) => {
   await page.goto('/');
   await startGame(page);
   await page.waitForFunction(() => window.__game.state.gameRunning);
-  // Feld leeren, Spieler unten in der Mitte, keine Zufalls-Spawns; Helfer in window.__gw
+  // Clear the field, player bottom center, no random spawns; helpers in window.__gw
   await page.evaluate(async () => {
     const { state, arrays, config } = await import('./js/state.js');
     const Display = await import('./js/display.js');
@@ -30,7 +30,7 @@ test.beforeEach(async ({ page }) => {
     state.y = 560;
     state.godMode = true;
     state.selectedShipModel = 'phantom';
-    // Segment mit festem Profil (oben = unten) auf Hoehe y
+    // Segment with a fixed profile (top = bottom) at height y
     const segment = (y, p) => {
       const s = Display.create({ id: 'fe_t' + y, x: 0, y, top: { ...p }, bottom: { ...p } }, 'rock');
       arrays.rock.push(s);
@@ -50,7 +50,7 @@ test.beforeEach(async ({ page }) => {
   });
 });
 
-test('Gewaechse sitzen an Wand- und Inselkanten und blicken in den Gang', async ({ page }) => {
+test('Growths sit on wall and island edges and face the corridor', async ({ page }) => {
   const r = await page.evaluate(() => {
     const { G, segment, config } = window.__gw;
     const b = config.playfieldWidth;
@@ -70,7 +70,7 @@ test('Gewaechse sitzen an Wand- und Inselkanten und blicken in den Gang', async 
   expect(r.withoutSpot).toBeNull();
 });
 
-test('Gewaechs scrollt mit seinem Felssegment', async ({ page }) => {
+test('Growth scrolls with its rock segment', async ({ page }) => {
   const r = await page.evaluate(() => {
     const { G, Loop, segment } = window.__gw;
     const s = segment(100, { l: 60, r: 60, inner: 200, ib: 0 });
@@ -83,7 +83,9 @@ test('Gewaechs scrollt mit seinem Felssegment', async ({ page }) => {
   expect(r.distance).toBe((40 - 24) / 2);
 });
 
-test('Bluete: zu und gepanzert, dann offen mit drei Sporen quer in den Gang, dann wieder zu', async ({ page }) => {
+test('Bloom: closed and armored, then open with three spores across the corridor, then closed again', async ({
+  page,
+}) => {
   const r = await page.evaluate(() => {
     const { G, Loop, segment, arrays } = window.__gw;
     const s = segment(200, { l: 60, r: 60, inner: 200, ib: 0 });
@@ -91,7 +93,7 @@ test('Bluete: zu und gepanzert, dann offen mit drei Sporen quer in den Gang, dan
     const f = G.createGrowth('bloom', s, 'l');
     const history = [];
     for (let i = 0; i < G.TOO_DURATION + G.OPEN_DURATION + 2; i++) {
-      s.y = 200; // Segment festhalten (Fels wird hier nicht gescrollt)
+      s.y = 200; // Keep the segment fixed (rock does not scroll here)
       Loop.simulationStep();
       history.push({ open: f.open, armor: f.isIndestructible });
     }
@@ -117,7 +119,7 @@ test('Bluete: zu und gepanzert, dann offen mit drei Sporen quer in den Gang, dan
   expect(r.cls).toBe('spore');
 });
 
-test('Laser prallen an der geschlossenen Bluete ab und treffen die offene', async ({ page }) => {
+test('Lasers bounce off the closed bloom and hit the open one', async ({ page }) => {
   const r = await page.evaluate(() => {
     const { G, Loop, segment, arrays, Display } = window.__gw;
     const s = segment(200, { l: 60, r: 60, inner: 200, ib: 0 });
@@ -154,7 +156,7 @@ test('Laser prallen an der geschlossenen Bluete ab und treffen die offene', asyn
   expect(r.open).toBe(16);
 });
 
-test('Trichter schiesst im Takt einzelne Sporen, Kapsel nie', async ({ page }) => {
+test('Funnel shoots single spores on its cadence, capsule never', async ({ page }) => {
   const r = await page.evaluate(() => {
     const { G, Loop, segment, arrays } = window.__gw;
     const s = segment(200, { l: 60, r: 60, inner: 200, ib: 0 });
@@ -173,7 +175,7 @@ test('Trichter schiesst im Takt einzelne Sporen, Kapsel nie', async ({ page }) =
   expect(r.capsuleOpen).toBe(true);
 });
 
-test('Eierkapsel laesst beim Abschuss den Bonus fallen (Schockwelle hoechstens einmal pro Level)', async ({ page }) => {
+test('Egg capsule drops the bonus when shot (shockwave at most once per level)', async ({ page }) => {
   const r = await page.evaluate(() => {
     const { G, Utils, segment, arrays, state } = window.__gw;
     state.level = 4;
@@ -197,7 +199,7 @@ test('Eierkapsel laesst beim Abschuss den Bonus fallen (Schockwelle hoechstens e
   expect(r[1]).not.toBe('shockwave');
 });
 
-test('Schockwelle laesst geschlossene Blueten stehen und erfasst offene Gewaechse', async ({ page }) => {
+test('Shockwave leaves closed blooms standing and captures open growths', async ({ page }) => {
   const r = await page.evaluate(async () => {
     const { G, Loop, segment, arrays } = window.__gw;
     const SW = await import('./js/shockwave.js');
@@ -214,10 +216,10 @@ test('Schockwelle laesst geschlossene Blueten stehen und erfasst offene Gewaechs
   expect(r).toEqual({ bloom: true, funnel: false });
 });
 
-test('Fels-Level laesst Gewaechse wachsen, normale Level nicht', async ({ page }) => {
+test('Rock levels grow growths, normal levels do not', async ({ page }) => {
   const r = await page.evaluate(() => {
     const { Loop, arrays, state, Display, Rock, G } = window.__gw;
-    // Fester Seed (mulberry32): das Ergebnis haengt vom Wuerfeln ab (Flake-Suche 2026-11-21: in CI einmal 0 Gewaechse)
+    // Fixed seed (mulberry32): the result depends on the dice (flake hunt 2026-11-21: 0 growths once in CI)
     let x = 1;
     Math.random = () => {
       x = (x + 0x6d2b79f5) | 0;
@@ -226,7 +228,7 @@ test('Fels-Level laesst Gewaechse wachsen, normale Level nicht', async ({ page }
       return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
     };
     const run = level => {
-      // alle Weltlisten leeren: zwischen beforeEach und Test laufen Echtzeit-Frames (Asteroiden, Powerups)
+      // empty all world lists: real-time frames run between beforeEach and the test (asteroids, powerups)
       for (const name of Object.keys(arrays)) {
         if (name === 'stars') continue;
         arrays[name].forEach(o => o.el && Display.remove(o));
@@ -244,7 +246,7 @@ test('Fels-Level laesst Gewaechse wachsen, normale Level nicht', async ({ page }
   expect(r.level4).toBeGreaterThan(0);
 });
 
-test('Online: Snapshot traegt offen und spore, der Client zeigt Bluete und Spore', async ({ page }) => {
+test('Online: the snapshot carries open and spore, the client shows bloom and spore', async ({ page }) => {
   const r = await page.evaluate(async () => {
     const { G, segment, arrays, state } = window.__gw;
     const Network = await import('./js/network.js');
@@ -281,7 +283,7 @@ test('Online: Snapshot traegt offen und spore, der Client zeigt Bluete und Spore
   });
 });
 
-test('Bot zielt nicht auf geschlossene Blueten', async ({ page }) => {
+test('Bot does not aim at closed blooms', async ({ page }) => {
   const r = await page.evaluate(async () => {
     const { G, segment, config } = window.__gw;
     const Bot = await import('./js/bot.js');

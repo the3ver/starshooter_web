@@ -1,14 +1,14 @@
-// Reine TURN-Logik fuer den Worker (ohne Cloudflare-Laufzeit, daher testbar)
+// Pure TURN logic for the worker (without the Cloudflare runtime, therefore testable)
 
-export const TURN_TTL_SECONDS = 7200; // 2 Stunden: begrenzt Nachlauf nach Erreichen des Monatslimits
+export const TURN_TTL_SECONDS = 7200; // 2 hours: limits the overrun after the monthly limit is reached
 export const TURN_MAX_REQUESTS_PRO_HOUR = 20;
-// Kostenbremse: 1.000 GB Egress pro Monat sind frei; ab diesem Verbrauch keine neuen Zugangsdaten
+// Cost brake: 1,000 GB egress per month are free; no new credentials from this usage on
 export const TURN_MONTHLY_LIMIT_GB_STANDARD = 800;
 export const TURN_USAGE_CACHE_SECONDS = 600;
 const TURN_API_BASIS = 'https://rtc.live.cloudflare.com/v1/turn/keys';
 const CF_GRAPHQL_URL = 'https://api.cloudflare.com/client/v4/graphql';
 
-// Entfernt URLs mit Port 53 (Browser blockieren ihn; Port 5349 bleibt erhalten) und verwirft Eintraege ohne URLs
+// Removes URLs with port 53 (browsers block it; port 5349 stays) and drops entries without URLs
 export function filterIceServers(iceServers) {
   if (!Array.isArray(iceServers)) return [];
   const result = [];
@@ -25,7 +25,7 @@ export function filterIceServers(iceServers) {
   return result;
 }
 
-// Erlaubt GitHub Pages und lokale Entwicklung (beliebiger Port)
+// Allows GitHub Pages and local development (any port)
 export function isAllowedOrigin(origin) {
   if (typeof origin !== 'string' || !origin) return false;
   if (origin === 'https://the3ver.github.io') return true;
@@ -52,8 +52,8 @@ function response(payload, status, origin) {
   });
 }
 
-// Rate-Limit ueber die Cache API (pro Rechenzentrum, ohne Schema-Aenderung).
-// Zaehler pro IP-Hash, TTL 1 Stunde; nicht atomar, aber als Missbrauchsbremse ausreichend.
+// Rate limit via the Cache API (per data center, no schema change).
+// Counter per IP hash, TTL 1 hour; not atomic, but sufficient as an abuse brake.
 async function checkRateLimit(request, cache) {
   if (!cache) return true;
   const ip = request.headers.get('CF-Connecting-IP') || '127.0.0.1';
@@ -71,13 +71,13 @@ async function checkRateLimit(request, cache) {
   return true;
 }
 
-// Monatsgrenzen im Format der GraphQL-API (UTC), z.B. { von: '2026-10-01', bis: '2026-10-02' }
+// Month boundaries in the format of the GraphQL API (UTC), e.g. { from: '2026-10-01', until: '2026-10-02' }
 export function monthPeriod(now = new Date()) {
   const until = now.toISOString().slice(0, 10);
   return { fromEntry: until.slice(0, 8) + '01', until };
 }
 
-// Fragt den TURN-Egress des laufenden Monats (Bytes) ueber die Cloudflare-Analytics-API ab. Wirft bei Fehlern.
+// Queries the TURN egress of the current month (bytes) via the Cloudflare Analytics API. Throws on errors.
 export async function getMonthlyUsageBytes(env, fetchFn = fetch, now = new Date()) {
   const { fromEntry, until } = monthPeriod(now);
   const query = `query TurnVerbrauch($konto: string!, $von: Date!, $bis: Date!, $schluessel: string!) {
@@ -102,15 +102,15 @@ export async function getMonthlyUsageBytes(env, fetchFn = fetch, now = new Date(
   });
   if (!responseApi.ok) throw new Error(`Analytics-API Status ${responseApi.status}`);
   const payload = await responseApi.json();
-  if (payload.errors && payload.errors.length) throw new Error('Analytics-API meldet Fehler');
+  if (payload.errors && payload.errors.length) throw new Error('Analytics API reports an error');
   const accounts = payload.data && payload.data.viewer && payload.data.viewer.accounts;
-  if (!Array.isArray(accounts) || accounts.length === 0) throw new Error('Analytics-API: Konto nicht gefunden');
+  if (!Array.isArray(accounts) || accounts.length === 0) throw new Error('Analytics API: account not found');
   const groups = accounts[0].callsTurnUsageAdaptiveGroups || [];
-  // Keine Gruppen = noch kein Verbrauch in diesem Monat
+  // No groups = no usage in this month yet
   return groups.reduce((sum, g) => sum + ((g.sum && Number(g.sum.egressBytes)) || 0), 0);
 }
 
-// Verbrauch mit Zwischenspeicher (pro Rechenzentrum), damit nicht jede Anfrage die Analytics-API trifft
+// Usage with a cache (per data center), so not every request hits the Analytics API
 async function monthlyUsageWithCache(env, fetchFn, cache, now) {
   const key = new Request(`https://turn-verbrauch.invalid/${monthPeriod(now).fromEntry}`);
   if (cache) {
@@ -137,7 +137,7 @@ export function monthlyLimitBytes(env) {
   return (Number.isFinite(gb) && gb > 0 ? gb : TURN_MONTHLY_LIMIT_GB_STANDARD) * 1e9;
 }
 
-// GET /api/turn: holt kurzlebige TURN-Zugangsdaten bei Cloudflare
+// GET /api/turn: fetches short-lived TURN credentials from Cloudflare
 export async function handleTurnRequest(request, env, fetchFn = fetch, cache = null, now = new Date()) {
   const origin = request.headers.get('Origin');
   if (!isAllowedOrigin(origin)) {
@@ -152,20 +152,20 @@ export async function handleTurnRequest(request, env, fetchFn = fetch, cache = n
       return response({ success: false, error: 'Zu viele Anfragen' }, 429, origin);
     }
 
-    // Kostenbremse. Im Zweifel (keine Analytics-Zugangsdaten, API-Fehler) keine Zugangsdaten ausgeben.
+    // Cost brake. When in doubt (no analytics credentials, API error) hand out no credentials.
     if (!env.CF_ANALYTICS_TOKEN || !env.CF_ACCOUNT_ID) {
-      console.error('TURN-Kostenbremse: CF_ANALYTICS_TOKEN oder CF_ACCOUNT_ID fehlt');
+      console.error('TURN cost brake: CF_ANALYTICS_TOKEN or CF_ACCOUNT_ID missing');
       return response({ success: false, error: 'TURN derzeit nicht verfuegbar' }, 503, origin);
     }
     let usage;
     try {
       usage = await monthlyUsageWithCache(env, fetchFn, cache, now);
     } catch (err) {
-      console.error('TURN-Kostenbremse: Verbrauch nicht abrufbar:', err && err.message);
+      console.error('TURN cost brake: usage not available:', err && err.message);
       return response({ success: false, error: 'TURN derzeit nicht verfuegbar' }, 503, origin);
     }
     if (usage >= monthlyLimitBytes(env)) {
-      console.error('TURN-Kostenbremse: Monatslimit erreicht, Bytes:', usage);
+      console.error('TURN cost brake: monthly limit reached, bytes:', usage);
       return response({ success: false, error: 'TURN-Monatslimit erreicht' }, 503, origin);
     }
 
@@ -178,13 +178,13 @@ export async function handleTurnRequest(request, env, fetchFn = fetch, cache = n
       body: JSON.stringify({ ttl: TURN_TTL_SECONDS }),
     });
     if (!responseCf.ok) {
-      console.error('TURN-API Fehler, Status:', responseCf.status);
+      console.error('TURN API error, status:', responseCf.status);
       return response({ success: false, error: 'TURN-Dienst nicht erreichbar' }, 502, origin);
     }
     const payload = await responseCf.json();
     return response({ success: true, iceServers: filterIceServers(payload.iceServers) }, 200, origin);
   } catch (err) {
-    console.error('TURN-Anfrage fehlgeschlagen:', err && err.message);
+    console.error('TURN request failed:', err && err.message);
     return response({ success: false, error: 'TURN-Dienst nicht erreichbar' }, 502, origin);
   }
 }

@@ -25,7 +25,7 @@ let onEventCallbacks = [];
 
 let trysteroJoinRoom = null;
 
-// Netzkodierung: Host kodiert Snapshots als Deltas, Client dekodiert sie, Client sendet Eingaben nur bei Aenderung
+// Net encoding: the host encodes snapshots as deltas, the client decodes them, the client sends inputs only on change
 const encoder = new SnapshotEncoder();
 const decoder = new SnapshotDecoder();
 const inputSender = new InputSender();
@@ -42,7 +42,7 @@ function resetNetEncoding() {
   keyframeWaitCounter = 0;
 }
 
-// Gehaltene Tasten des Clients auf dem Host vergessen (Spielstart, Verbindungsende)
+// Forget the client's held keys on the host (game start, end of connection)
 function resetNetworkInputs() {
   if (!state.p2) return;
   state.p2.laserInputRequested = false;
@@ -56,9 +56,9 @@ function resetNetworkInputs() {
   state.p2.networkDirection = null;
 }
 
-// Beide Peers schicken nach dem Verbinden ihre Protokollversion. Alte Versionen schicken kein
-// 'hallo'; kommt keins rechtzeitig, gilt das ebenfalls als unterschiedliche Version.
-// protokollOk wird nur beim Raumaufbau und Trennen zurueckgesetzt, falls das hallo des Peers vor dem eigenen Join-Ereignis ankommt.
+// Both peers send their protocol version after connecting. Old versions send no
+// 'hallo'; if none arrives in time, that also counts as a different version.
+// protocolOk is reset only on room setup and disconnect, in case the peer's hallo arrives before the own join event.
 function startHandshake() {
   resetNetEncoding();
   sendNetworkEvent({ type: 'hallo', protocol: PROTOCOL_VERSION, version: GAME_VERSION });
@@ -82,7 +82,7 @@ function checkHello(data) {
   }
 }
 
-// Online-Sitzung wegen unterschiedlicher Protokollversion sauber beenden
+// End the online session cleanly because of a different protocol version
 export function abortOnVersionMismatch() {
   clearTimeout(helloTimer);
   helloTimer = null;
@@ -95,7 +95,7 @@ export function abortOnVersionMismatch() {
   updateOnlineStatus(VERSIONS_MESSAGE, true);
 }
 
-// Dynamischer Import von modernem Trystero (@trystero-p2p/torrent oder nostr)
+// Dynamic import of modern Trystero (@trystero-p2p/torrent or nostr)
 async function loadTrystero() {
   if (trysteroJoinRoom) return trysteroJoinRoom;
   try {
@@ -108,8 +108,8 @@ async function loadTrystero() {
       trysteroJoinRoom = trystero.joinRoom;
       return trysteroJoinRoom;
     } catch (e2) {
-      console.warn('Trystero konnte nicht per CDN geladen werden (z.B. Offline-Modus):', e2);
-      // Fallback / Mock für lokale Tests
+      console.warn('Trystero could not be loaded from the CDN (e.g. offline mode):', e2);
+      // Fallback / mock for local tests
       trysteroJoinRoom = (config, roomId) => ({
         makeAction: name => [
           data => {}, // send
@@ -126,7 +126,7 @@ async function loadTrystero() {
 
 let turnWarningIssued = false;
 
-// Holt TURN-Zugangsdaten vom Worker. Gibt bei jedem Fehler null zurueck (Verbindung laeuft dann nur mit STUN).
+// Fetches TURN credentials from the worker. Returns null on any error (the connection then runs with STUN only).
 export async function getTurnConfig(timeoutMs = 3000) {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), timeoutMs);
@@ -137,11 +137,11 @@ export async function getTurnConfig(timeoutMs = 3000) {
     if (payload && Array.isArray(payload.iceServers) && payload.iceServers.length > 0) {
       return payload.iceServers;
     }
-    throw new Error('Keine iceServers in der Antwort');
+    throw new Error('No iceServers in the response');
   } catch (e) {
     if (!turnWarningIssued) {
       turnWarningIssued = true;
-      console.warn('TURN nicht verfuegbar, nutze nur STUN:', e && e.message);
+      console.warn('TURN not available, using STUN only:', e && e.message);
     }
     return null;
   } finally {
@@ -167,15 +167,15 @@ export function updateOnlineStatus(text, isError = false) {
   statusEl.style.borderColor = isError ? 'rgba(231, 76, 60, 0.4)' : 'rgba(241, 196, 15, 0.3)';
 }
 
-// Verbindungsfortschritt (Schritt 1/5 bis 5/5). Angezeigt werden nur Phasen, die das Spiel wirklich erkennt:
-// Tracker-Signalisierung, Schluesseltausch und ICE sind in Trystero nicht beobachtbar.
+// Connection progress (step 1/5 to 5/5). Only phases the game can really detect are shown:
+// tracker signaling, key exchange and ICE are not observable in Trystero.
 export const CONNECTION_STEPS = 5;
 export const HINT_ROOM_CODE_AFTER_S = 20;
 export const HINT_NETWORK_AFTER_S = 45;
 export const HINT_ROOM_CODE = 'Raum-Code prüfen, der Host muss den Raum geöffnet haben';
 export const HINT_NETWORK = 'Manche Netzwerke blockieren direkte Verbindungen. Ggf. anderes Netz versuchen';
 let connectionTimer = null;
-let connectionStart = 0; // Beginn von Schritt 3 (Date.now())
+let connectionStart = 0; // Start of step 3 (Date.now())
 let connectionText = '';
 
 function stopConnectionTimer() {
@@ -219,7 +219,7 @@ function drawConnection() {
   }
 }
 
-// Setzt Schritt nummer (1-5) mit Text; detail (z. B. TURN-Status) bleibt bis zum naechsten Detail sichtbar.
+// Sets step number (1-5) with a text; detail (e.g. TURN status) stays visible until the next detail.
 export function setConnectionPhase(number, text, detail) {
   const net = state.network;
   if (number === 1) {
@@ -239,8 +239,8 @@ export function setConnectionPhase(number, text, detail) {
   drawConnection();
 }
 
-// Verbindungsaufbau endet (Fehler, Abbruch, Trennen). Liefert den Zusatz fuer Fehlermeldungen,
-// falls der Aufbau in Schritt 1-4 steckte.
+// The connection setup ends (error, abort, disconnect). Returns the suffix for error messages
+// if the setup was stuck in step 1-4.
 function endConnectionPhase() {
   const number = state.network.connectionPhase;
   stopConnectionTimer();
@@ -452,11 +452,11 @@ export function startOnlineGame() {
 
   state.invulnerableTimer = 0;
   if (state.p2) state.p2.invulnerableTimer = 0;
-  // Nach (Neu-)Start beginnt der Host mit einem Keyframe, der Client mit frischen Eingaben
+  // After a (re)start the host begins with a keyframe, the client with fresh inputs
   encoder.forceKeyframe();
   inputSender.reset();
   if (state.network.isHost) resetNetworkInputs();
-  // HUD-Beschriftungen (Gleve: SWEEP/DASH) fuer beide Schiffe, Mobile-Button fuer den lokalen Spieler
+  // HUD labels (Gleve: SWEEP/DASH) for both ships, mobile button for the local player
   Utils.updateShipHudLabels();
 
   Cutscene.startCutscene();
@@ -527,7 +527,7 @@ export async function joinOnlineRoom(code) {
       updateOnlineLobbyUI();
       startHandshake();
 
-      // Client meldet sein im Hangar gewähltes Schiff an den Host
+      // The client reports the ship chosen in its hangar to the host
       const myModel = state.selectedShipModel || (state.p2 && state.p2.selectedShipModel) || 'phantom';
       const myColor = state.selectedShipColor || (state.p2 && state.p2.selectedShipColor) || 'blue';
       if (state.p2) {
@@ -554,7 +554,7 @@ export async function joinOnlineRoom(code) {
 export function handleNetworkEvent(data, peerId = null) {
   if (!data) return;
 
-  if (data.type === 'pause_start' || data.type === 'pauseEnd') {
+  if (data.type === 'pause_start' || data.type === 'pause_end') {
     processPauseEvent(data);
     return;
   }
@@ -564,7 +564,7 @@ export function handleNetworkEvent(data, peerId = null) {
     return;
   }
 
-  if (data.type === 'keyframe_anfordern') {
+  if (data.type === 'keyframe_request') {
     if (state.network.isHost) encoder.forceKeyframe();
     return;
   }
@@ -598,7 +598,7 @@ export function handleNetworkEvent(data, peerId = null) {
       state.network.peerId = peerId;
       updateOnlineLobbyUI();
 
-      // Client meldet sein Schiff an den Host zurück
+      // The client reports its ship back to the host
       const myModel = state.selectedShipModel || (state.p2 && state.p2.selectedShipModel) || 'phantom';
       const myColor = state.selectedShipColor || (state.p2 && state.p2.selectedShipColor) || 'blue';
       if (state.p2) {
@@ -618,17 +618,17 @@ export function handleNetworkEvent(data, peerId = null) {
       updateOnlineLobbyUI();
     }
     if (data.type === 'game_start') {
-      // Eigene Schiffs- und Farbwahl des Clients aus dem Hangar vor dem Überschreiben sichern
+      // Save the client's own ship and color choice from the hangar before it gets overwritten
       const clientChosenModel =
         state.selectedShipModel || (state.p2 && state.p2.selectedShipModel) || data.clientShipModel || 'viper';
       const clientChosenColor =
         state.selectedShipColor || (state.p2 && state.p2.selectedShipColor) || data.clientShipColor || 'red';
 
-      // Host ist P1
+      // The host is P1
       if (data.hostShipModel) state.selectedShipModel = data.hostShipModel;
       if (data.hostShipColor) state.selectedShipColor = data.hostShipColor;
 
-      // Client selbst ist P2
+      // The client itself is P2
       if (state.p2) {
         state.p2.selectedShipModel = clientChosenModel;
         state.p2.selectedShipColor = clientChosenColor;
@@ -644,7 +644,7 @@ export function handleNetworkEvent(data, peerId = null) {
     }
     if (data.type === 'player_hit' && data.target === 'p2') {
       Audio.playHit('player');
-      // I-Frames wie auf dem Host setzen, damit clientSchritt() das Blinken wieder beendet
+      // Set i-frames as on the host so clientStep() ends the blinking again
       if (state.p2)
         state.p2.invulnerableTimer =
           Number.isFinite(data.invulnerable) && data.invulnerable > 0 ? data.invulnerable : 45;
@@ -671,13 +671,13 @@ export function handleNetworkEvent(data, peerId = null) {
     if (data.type === 'missile_detonated') {
       Utils.createMissileDetonation(data.x, data.y, data.radius);
     }
-    if (data.type === 'emp_ausgeloest') {
+    if (data.type === 'emp_triggered') {
       Sniper.showEmp(data);
     }
-    if (data.type === 'granate_detonated') {
+    if (data.type === 'grenade_detonated') {
       Sniper.showDetonation(data);
     }
-    if (data.type === 'mine_explodiert') {
+    if (data.type === 'mine_exploded') {
       Sniper.showMineExplosion(data);
     }
     if (data.type === 'shockwave') {
@@ -692,7 +692,7 @@ export function handleNetworkEvent(data, peerId = null) {
   onEventCallbacks.forEach(cb => cb(data, peerId));
 }
 
-// Host: vollen Snapshot als Delta-Paket senden (weltSchritt: bewegte Simulationsschritte, fuer Dead Reckoning)
+// Host: send the full snapshot as a delta packet (worldStep: moving simulation steps, for dead reckoning)
 export function sendNetworkState(stateSnapshot, worldStep) {
   if (!state.network.connected) return;
   state.network.snapshotPackets = (state.network.snapshotPackets || 0) + 1;
@@ -702,8 +702,8 @@ export function sendNetworkState(stateSnapshot, worldStep) {
   }
 }
 
-// Client: Snapshot-Paket dekodieren und anwenden. Ohne Keyframe (Start, Luecke) wird gewartet
-// und ein Keyframe angefordert; Pakete einer anderen Protokollversion beenden die Sitzung.
+// Client: decode and apply the snapshot packet. Without a keyframe (start, gap) it waits
+// and requests a keyframe; packets of another protocol version end the session.
 export function receiveSnapshotPacket(packet) {
   if (!packet || packet.v !== PROTOCOL_VERSION) {
     abortOnVersionMismatch();
@@ -711,7 +711,7 @@ export function receiveSnapshotPacket(packet) {
   }
   const snapshot = decoder.decode(packet);
   if (!snapshot) {
-    if (keyframeWaitCounter % KEYFRAME_INTERVAL === 0) sendNetworkEvent({ type: 'keyframe_anfordern' });
+    if (keyframeWaitCounter % KEYFRAME_INTERVAL === 0) sendNetworkEvent({ type: 'keyframe_request' });
     keyframeWaitCounter++;
     return;
   }
@@ -727,13 +727,13 @@ export function sendNetworkInput(inputData) {
   }
 }
 
-// Client: einmal pro Schritt aufrufen, sendet nur bei Aenderung oder als Heartbeat
+// Client: call once per step, sends only on change or as a heartbeat
 export function sendInput() {
   const packet = inputSender.next(serializePlayerInput());
   if (packet) sendNetworkInput(packet);
 }
 
-// Host: Eingabe-Paket des Clients pruefen und anwenden
+// Host: check and apply the client's input packet
 export function receiveInputPacket(packet) {
   if (!packet || packet.v !== PROTOCOL_VERSION) {
     abortOnVersionMismatch();
@@ -785,7 +785,7 @@ export function disconnectNetwork() {
   if (statusEl) statusEl.style.display = 'none';
 }
 
-// Dash-/Sweep-Zustand der Gleve fuer die Darstellung beim Client (nur fuer Gleve-Schiffe)
+// Dash/sweep state of the Gleve for rendering on the client (Gleve ships only)
 function gleveStatus(s) {
   if (!Gleve.isGleve(s)) return {};
   return {
@@ -799,7 +799,7 @@ function gleveStatus(s) {
   };
 }
 
-// Rollen-Zustand der Viper (Timer, Richtung, Cooldown) fuer Anzeige und Cooldown-Abgleich beim Client
+// Roll state of the Viper (timer, direction, cooldown) for display and cooldown sync on the client
 function viperStatus(s) {
   if (!Viper.isViper(s)) return {};
   return {
@@ -813,7 +813,7 @@ function viperStatus(s) {
   };
 }
 
-// Von der Gleve weggeschleuderte Geschosse (fehlend = false)
+// Projectiles flung away by the Gleve (missing = false)
 function harmlessFlag(o) {
   return o.harmless ? { harmless: true } : {};
 }
@@ -831,14 +831,14 @@ export function serializeGameState() {
       laserTier: state.laserTier,
       missileTier: state.missileTier,
       bombTier: state.bombTier,
-      // HUD-Flags nur senden, wenn aktiv (spart Bandbreite, fehlend = false)
+      // Send HUD flags only when active (saves bandwidth, missing = false)
       ...(state.laserPierce ? { laserPierce: true } : {}),
       ...(state.autolaserActive ? { autolaserActive: true } : {}),
       missileCooldown: state.missileCooldown,
       bombCooldown: state.bombCooldown,
       laserShoots: state.laserShoots,
       isDead: state.isDead,
-      // Viper-Splitter und Phantom-Schildladung fuer das HUD des Clients
+      // Viper splitters and Phantom shield charge for the client's HUD
       splitterRed: state.splitterRed || 0,
       splitterWhite: state.splitterWhite || 0,
       phantomShieldRegenTimer: state.phantomShieldRegenTimer || 0,
@@ -860,14 +860,14 @@ export function serializeGameState() {
           laserTier: state.p2.laserTier,
           missileTier: state.p2.missileTier,
           bombTier: state.p2.bombTier,
-          // HUD-Flags nur senden, wenn aktiv (spart Bandbreite, fehlend = false)
+          // Send HUD flags only when active (saves bandwidth, missing = false)
           ...(state.p2.laserPierce ? { laserPierce: true } : {}),
           ...(state.p2.autolaserActive ? { autolaserActive: true } : {}),
           missileCooldown: state.p2.missileCooldown,
           bombCooldown: state.p2.bombCooldown,
           laserShoots: state.p2.laserShoots,
           isDead: state.p2.isDead,
-          // Viper-Splitter und Phantom-Schildladung fuer das HUD des Clients
+          // Viper splitters and Phantom shield charge for the client's HUD
           splitterRed: state.p2.splitterRed || 0,
           splitterWhite: state.p2.splitterWhite || 0,
           phantomShieldRegenTimer: state.p2.phantomShieldRegenTimer || 0,
@@ -889,7 +889,7 @@ export function serializeGameState() {
       hp: f.hp,
       maxHp: f.maxHp,
       size: f.size || 30,
-      typ: f.typ || 1,
+      type: f.type || 1,
       pattern: f.pattern || 'normal',
       hasShield: (f.shieldHp || 0) > 0,
       shieldHp: f.shieldHp || 0,
@@ -920,7 +920,7 @@ export function serializeGameState() {
       hp: b.hp,
       maxHp: b.maxHp,
       size: b.size || 100,
-      typ: b.bossTyp || b.typ || 1,
+      type: b.bossType || b.type || 1,
       enrage: b.enragePhaseActive || false,
       ...(b.open !== undefined ? { open: !!b.open } : {}),
       ...(b.stunned > 0 ? { stunned: b.stunned } : {}),
@@ -954,11 +954,11 @@ export function serializeGameState() {
       tier: b.tier || 1,
       isMini: b.isMini || false,
     })),
-    // Sniper-Granaten im Flug (ohne Sniper leer, wie gleveWellen)
+    // Sniper grenades in flight (empty without a sniper, like gleveWaves)
     sniperGrenades: Sniper.networkGrenadeList(),
-    // Sniper-Haftminen (ohne Sniper leer)
+    // Sniper sticky mines (empty without a sniper)
     sniperMines: Sniper.networkMineList(),
-    // Felssegmente (Fels-Level): Hoehe und Profil als Text
+    // Rock segments (rock levels): height and profile as text
     rock: Rock.networkList(),
     gleveWaves: arrays.gleveWaves.map(w => ({
       id: w.id,
@@ -1010,15 +1010,15 @@ export function serializeGameState() {
       id: p.id,
       x: p.x,
       y: p.y,
-      type: p.type || p.typ,
+      type: p.type || p.type,
       owner: p.owner,
       towedBy: p.towedBy,
     })),
   };
 }
 
-// Gleicht eine Client-Liste per id mit den Snapshot-Daten ab: bestehende Elemente werden
-// wiederverwendet und aktualisiert, neue erzeugt, verschwundene entfernt.
+// Matches a client list by id against the snapshot data: existing elements are
+// reused and updated, new ones created, vanished ones removed.
 function syncList(list, payloadList, create, update) {
   if (!payloadList) return;
   const present = new Map();
@@ -1045,19 +1045,19 @@ function syncList(list, payloadList, create, update) {
   newList.forEach(obj => list.push(obj));
 }
 
-// Betaeubung (Sniper-Granate) aus dem Snapshot uebernehmen (die Anzeige zeigt betaeubt > 0)
+// Apply the stun (sniper grenade) from the snapshot (the display shows stunned > 0)
 function showStun(obj, payload) {
   obj.stunned = payload.stunned > 0 ? payload.stunned : 0;
 }
 
-// Von der Gleve weggeschleudert: orange einfaerben und in Flugrichtung drehen (einmalig)
+// Flung away by the Gleve: tint orange and rotate in the flight direction (once)
 function applyHarmless(obj, payload) {
   if (!payload.harmless || obj.harmless) return;
   obj.harmless = true;
   Gleve.showParried(obj, payload.vx, payload.vy);
 }
 
-// Max-Cooldown fuer den Raketen-HUD-Balken (Gleve: Dash-Cooldown)
+// Max cooldown for the missile HUD bar (Gleve: dash cooldown)
 function maxMissileCooldown(s) {
   if (Gleve.isGleve(s)) return Gleve.dashCooldown(s);
   if (Sniper.isSniper(s)) return Sniper.grenadeCooldown(s);
@@ -1066,27 +1066,27 @@ function maxMissileCooldown(s) {
   return 180;
 }
 
-// Ab welcher Energie die Primaerwaffe bereit ist (Gleve: Sweep-Kosten), fuer die Balkenfarbe
+// From which energy level the primary weapon is ready (Gleve: sweep cost), for the bar color
 function fuseThreshold(s) {
   return Gleve.isGleve(s) ? Gleve.sweepCost(s) : s.minFuseEnergy || 15;
 }
 
-// Waffenstufen und HUD-Flags eines Spielers aus dem Snapshot uebernehmen (fehlende Stufen bleiben)
+// Apply a player's weapon tiers and HUD flags from the snapshot (missing tiers stay)
 function applyWeaponTiers(target, payload) {
   if (payload.laserTier !== undefined) target.laserTier = payload.laserTier;
   if (payload.missileTier !== undefined) target.missileTier = payload.missileTier;
   if (payload.bombTier !== undefined) target.bombTier = payload.bombTier;
   target.laserPierce = Boolean(payload.laserPierce);
   target.autolaserActive = Boolean(payload.autolaserActive);
-  // Viper-Splitter und Phantom-Schildladung (fehlende Werte bleiben)
+  // Viper splitters and Phantom shield charge (missing values stay)
   if (payload.splitterRed !== undefined) target.splitterRed = payload.splitterRed;
   if (payload.splitterWhite !== undefined) target.splitterWhite = payload.splitterWhite;
   if (payload.phantomShieldRegenTimer !== undefined) target.phantomShieldRegenTimer = payload.phantomShieldRegenTimer;
   if (payload.phantomShieldRegenMax !== undefined) target.phantomShieldRegenMax = payload.phantomShieldRegenMax;
 }
 
-// Alles, was das Powerup-HUD anzeigt; nur bei Aenderung neu zeichnen.
-// Die Phantom-Schildladung zeichnet der Host alle 6 Schritte neu, der Client ebenso grob.
+// Everything the powerup HUD shows; redraw only on change.
+// The host redraws the Phantom shield charge every 6 steps, the client just as coarsely.
 function hudSignature(s) {
   const charge = Math.floor((s.phantomShieldRegenTimer || 0) / 6);
   return [s.laserTier, s.missileTier, s.bombTier, s.laserPierce, s.shieldTier, s.autolaserActive, charge].join('|');
@@ -1107,7 +1107,7 @@ export function applyGameStateSnapshot(snapshot) {
 
   snapshotReceived();
 
-  // 0. Boss-Warnung des Hosts anzeigen (Alarm nur beim Einblenden)
+  // 0. Show the host's boss warning (alarm only when it appears)
   if (dom.warningOverlay) {
     const warningShown = dom.warningOverlay.style.display === 'flex';
     if (snapshot.bossWarningActive && !warningShown) {
@@ -1129,7 +1129,7 @@ export function applyGameStateSnapshot(snapshot) {
     applyWeaponTiers(state, snapshot.p1);
     state.isDead = snapshot.p1.isDead || false;
     state.hacks = snapshot.p1.hacks || [];
-    // Gleve des Hosts: Dash/Abprall/Sweep nur darstellen (clientSchritt zeichnet)
+    // The host's Gleve: only render dash/bounce/sweep (clientStep draws)
     Gleve.applySnapshot(state, snapshot.p1, false);
     Viper.applySnapshot(state, snapshot.p1, false);
     Sniper.applySnapshot(state, snapshot.p1, 'p1', false);
@@ -1197,7 +1197,7 @@ export function applyGameStateSnapshot(snapshot) {
     state.p2.shieldTier = snapshot.p2.shieldTier || 0;
     applyWeaponTiers(state.p2, snapshot.p2);
     state.p2.isDead = snapshot.p2.isDead || false;
-    // Eigene Gleve: Dash sagt client.js voraus, Abprall und Sweep kommen vom Host
+    // Own Gleve: client.js predicts the dash, bounce and sweep come from the host
     Gleve.applySnapshot(state.p2, snapshot.p2, true);
     Viper.applySnapshot(state.p2, snapshot.p2, true);
     Sniper.applySnapshot(state.p2, snapshot.p2, 'p2', true);
@@ -1270,7 +1270,7 @@ export function applyGameStateSnapshot(snapshot) {
   // 4. Boss HP
   if (snapshot.bosses && snapshot.bosses.length > 0) {
     state.bossActive = true;
-    // Summe ueber alle Bossteile (ein Boss: dessen HP)
+    // Sum over all boss parts (one boss: its HP)
     const b = snapshot.bosses[0];
     const hp = snapshot.bosses.reduce((s, t) => s + t.hp, 0);
     const maxHp = snapshot.bosses.reduce((s, t) => s + (t.maxHp || 400), 0);
@@ -1301,7 +1301,7 @@ export function applyGameStateSnapshot(snapshot) {
             hp: fData.hp,
             maxHp: fData.maxHp,
             size: fData.size || 30,
-            typ: fData.typ || 1,
+            type: fData.type || 1,
             pattern,
             hasShield: fData.hasShield || false,
             shieldHp: fData.shieldHp || 0,
@@ -1339,7 +1339,7 @@ export function applyGameStateSnapshot(snapshot) {
       currentIds.add(aData.id);
       let existing = arrays.asteroids.find(a => a.id === aData.id);
       if (!existing) {
-        // Fehlende Optikdaten (aeltere Snapshots in Tests) mit den Grundfarben auffuellen
+        // Fill missing look data (older snapshots in tests) with the base colors
         const reason = aData.isMagma ? config.magmaBasisColors[0] : { a: config.asteroidsBasisColors[0], b: '#2c3e50' };
         existing = Display.create(
           {
@@ -1396,8 +1396,8 @@ export function applyGameStateSnapshot(snapshot) {
             hp: bData.hp,
             maxHp: bData.maxHp,
             size: bData.size || 100,
-            typ: bData.typ || 1,
-            bossTyp: bData.typ || 1,
+            type: bData.type || 1,
+            bossType: bData.type || 1,
             glowColor: Entities.getBossColor(state.level),
             ...(bData.open !== undefined ? { open: !!bData.open } : {}),
           },
@@ -1508,7 +1508,7 @@ export function applyGameStateSnapshot(snapshot) {
     },
   );
 
-  // Klingenwellen der Gleve (keine Extrapolation, kommen mit jedem Snapshot)
+  // Blade waves of the Gleve (no extrapolation, they come with every snapshot)
   syncList(
     arrays.gleveWaves,
     snapshot.gleveWaves,
@@ -1533,7 +1533,7 @@ export function applyGameStateSnapshot(snapshot) {
     },
   );
 
-  // Granaten des Sniper-Hosts/-Clients im Flug
+  // Grenades of the sniper host/client in flight
   Sniper.syncGrenades(snapshot.sniperGrenades);
   Sniper.syncMines(snapshot.sniperMines);
   Rock.sync(snapshot.rock);
@@ -1568,7 +1568,7 @@ export function applyGameStateSnapshot(snapshot) {
     },
   );
 
-  // 11b. Replicate Hack-Projektile
+  // 11b. Replicate hack projectiles
   syncList(
     arrays.hackProjectileArray,
     snapshot.hackProjectiles,
@@ -1704,7 +1704,7 @@ export function applyGameStateSnapshot(snapshot) {
         existing.y = pData.y;
         setInterpolationTarget(existing, pData.x, pData.y);
       }
-      // Schlepp-Zustand des Hosts uebernehmen; Strahl-Start setzt clientSchritt, zeichnen tut die Anzeige
+      // Apply the host's tow state; clientStep sets the beam start, the display draws
       existing.towedBy = pData.towedBy || null;
     });
     for (let i = arrays.powerups.length - 1; i >= 0; i--) {
@@ -1715,13 +1715,13 @@ export function applyGameStateSnapshot(snapshot) {
     }
   }
 
-  // Uebernommene Positionen sofort zeigen (zwischen den Snapshots zeichnet simulationsSchritt)
+  // Show applied positions immediately (between snapshots simulationStep draws)
   Display.drawWorld();
 }
 
 export function serializePlayerInput() {
   const keys = state.keysPressed;
-  // Sniper: Lade-Knopf (Handy) zaehlt wie die Laser-Taste; der Joystick feuert dagegen Normalschuesse ohne Laden (auto)
+  // Sniper: the charge button (phone) counts like the laser key; the joystick fires normal shots without charging instead (auto)
   const sniper = state.p2 && Sniper.isSniper(state.p2);
   const isLaser = Boolean(keys.l || keys.b || (sniper && state.sniperChargingButton));
   const sniperAuto = Boolean(
@@ -1729,11 +1729,11 @@ export function serializePlayerInput() {
   );
   const isMissile = Boolean(keys.k || keys.v);
   const isBomb = Boolean(keys[' '] || keys.c || keys.enter);
-  // Gleve: Steuerrichtung fuer den Dash; waehrend des vorhergesagten Dashs Startposition und Dash-Richtung
+  // Gleve: steering direction for the dash; during the predicted dash start position and dash direction
   const gleve =
     state.p2 && Gleve.isGleve(state.p2) ? Gleve.networkInput(state.p2, state.p2.clientControlDirection) : null;
 
-  // Viper: im Startschritt der Rolle Startposition und Richtung (ro), der Host rollt von dort aus
+  // Viper: in the roll's start step start position and direction (ro), the host rolls from there
   const viper = state.p2 && Viper.isViper(state.p2) ? Viper.networkInput(state.p2) : null;
   const start = gleve || viper;
 
@@ -1753,9 +1753,9 @@ export function serializePlayerInput() {
 export function applyPlayerInput(input) {
   if (!input || !state.p2) return;
 
-  // Client-Werte nicht vertrauen: nur endliche Zahlen, begrenzt auf das Spielfeld.
-  // Waehrend Gleve-Dash/-Abprall bewegt der Host das Schiff selbst (Treffer und Abprall sind Host-Sache).
-  // Dasselbe gilt fuer die Viper-Rolle (laeuft oder ist angefragt, aber noch nicht gestartet).
+  // Do not trust client values: only finite numbers, clamped to the playfield.
+  // During a Gleve dash/bounce the host moves the ship itself (hits and bounce are the host's business).
+  // The same applies to the Viper roll (running, or requested but not started yet).
   const dashActive =
     (Gleve.isGleve(state.p2) && Gleve.isDashActive(state.p2)) ||
     (Viper.isViper(state.p2) && (Viper.isRollActive(state.p2) || Boolean(state.p2.networkRollRequest)));
@@ -1767,30 +1767,30 @@ export function applyPlayerInput(input) {
   }
   state.p2.rotate = input.rotate || 0;
 
-  // Gleve: Dash-Richtung des Clients (Betrag hoechstens 1)
+  // Gleve: the client's dash direction (magnitude at most 1)
   if (Number.isFinite(input.rx) && Number.isFinite(input.ry)) {
     const length = Math.hypot(input.rx, input.ry);
     const f = length > 1 ? 1 / length : 1;
     state.p2.networkDirection = { dx: input.rx * f, dy: input.ry * f };
   }
 
-  // Viper: Client meldet den Start seiner Rolle (Richtung -1/+1); der Host prueft den Cooldown selbst
+  // Viper: the client reports the start of its roll (direction -1/+1); the host checks the cooldown itself
   if ((input.ro === 1 || input.ro === -1) && Viper.isViper(state.p2)) state.p2.networkRollRequest = input.ro;
 
   if (input.laser !== undefined) {
-    // Sniper: neuer Druck bleibt gemerkt, auch wenn das Loslassen im selben Host-Schritt ankommt (kurzer Tipp = ein Schuss)
+    // Sniper: a new press stays remembered even if the release arrives in the same host step (short tap = one shot)
     if (input.laser && !state.p2.laserInputRequested && Sniper.isSniper(state.p2)) state.p2.networkLaserRequest = true;
     state.p2.laserInputRequested = Boolean(input.laser);
   }
   state.p2.sniperAutoInput = Boolean(input.auto);
 
-  // Gehaltene Tasten gelten bis zum naechsten Paket (weapons.js feuert damit wie bei
-  // einem true in jedem Schritt); ein kurzer Druck bleibt wie bisher bis zum Schuss gemerkt
+  // Held keys apply until the next packet (weapons.js fires with them as with
+  // a true in every step); a short press stays remembered until the shot as before
   if (input.missile !== undefined) {
-    // Neuer Druck bleibt fuer den Gleve-Dash gemerkt, auch wenn das Loslassen im selben Host-Schritt ankommt
+    // A new press stays remembered for the Gleve dash even if the release arrives in the same host step
     if (input.missile && !state.p2.missileHeld) {
       state.p2.networkDashRequest = true;
-      state.p2.networkGrenadeRequest = true; // Sniper: kurzer Tipp geht nicht verloren
+      state.p2.networkGrenadeRequest = true; // Sniper: a short tap is not lost
     }
     state.p2.missileHeld = Boolean(input.missile);
   }

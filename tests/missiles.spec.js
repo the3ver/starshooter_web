@@ -13,13 +13,13 @@ test.beforeEach(async ({ page }) => {
   await page.goto('/');
 });
 
-test('Raketen-Schockwelle erscheint an der Detonationsstelle', async ({ page }) => {
+test('Missile shockwave appears at the detonation point', async ({ page }) => {
   const r = await page.evaluate(async () => {
     const Utils = await import('./js/utils.js');
     const { dom } = await import('./js/state.js');
     Utils.createMissileDetonation(300, 200, 70);
     const sw = dom.playfield.querySelector('.schockwelle');
-    // Layout-Koordinaten relativ zum Spielfeld (unabhaengig von CSS-Skalierung)
+    // Layout coordinates relative to the playfield (independent of CSS scaling)
     return {
       parent: sw.offsetParent === dom.playfield,
       cx: sw.offsetLeft + sw.offsetWidth / 2,

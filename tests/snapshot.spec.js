@@ -13,7 +13,7 @@ test.beforeEach(async ({ page }) => {
   await page.goto('/');
 });
 
-// Gemeinsamer Aufbau: Host erzeugt Objekte in allen Listen, Client wird simuliert
+// Shared setup: the host creates objects in all lists, the client is simulated
 const LISTEN = {
   enemies: 'enemies',
   asteroids: 'asteroids',
@@ -35,7 +35,7 @@ async function prepareHostAndClient(page) {
     const { state, arrays, dom } = g;
     state.paused = true;
 
-    // Spielfeld und Listen leeren
+    // Clear the playfield and lists
     Object.values(LISTEN).forEach(name => {
       arrays[name].forEach(o => {
         if (o.el) o.el.remove();
@@ -43,7 +43,7 @@ async function prepareHostAndClient(page) {
       arrays[name].length = 0;
     });
 
-    // Host-Objekte erzeugen
+    // Create host objects
     g.Entities.createEnemy(100, 50, 'normal');
     g.Entities.createAsteroid(200, 60, 40, 0, 1);
     g.Entities.createBoss();
@@ -54,7 +54,7 @@ async function prepareHostAndClient(page) {
     g.Entities.createBossMissile(160, 230, 1);
     g.Entities.createBossBomb(170, 240);
 
-    // Spielerwaffen direkt anlegen (wie loop.js, mit Id)
+    // Create player weapons directly (as in loop.js, with id)
     const mkEl = cls => {
       const el = document.createElement('div');
       el.className = cls;
@@ -92,7 +92,7 @@ async function prepareHostAndClient(page) {
       tier: 1,
     });
 
-    // Host-Schnappschuss 1, danach alles ein Stück bewegen, Schnappschuss 2
+    // Host snapshot 1, then move everything a bit, snapshot 2
     const snap1 = JSON.parse(JSON.stringify(g.Network.serializeGameState()));
     Object.values(LISTEN).forEach(name =>
       arrays[name].forEach(o => {
@@ -102,7 +102,7 @@ async function prepareHostAndClient(page) {
     );
     const snap2 = JSON.parse(JSON.stringify(g.Network.serializeGameState()));
 
-    // Host-Welt entfernen, Client simulieren
+    // Remove the host world, simulate the client
     Object.values(LISTEN).forEach(name => {
       arrays[name].forEach(o => {
         if (o.el) o.el.remove();
@@ -121,20 +121,20 @@ async function prepareHostAndClient(page) {
   }, LISTEN);
 }
 
-test('Host vergibt stabile Ids: Ids bleiben zwischen Snapshots gleich und sind eindeutig', async ({ page }) => {
+test('Host assigns stable ids: ids stay the same between snapshots and are unique', async ({ page }) => {
   const r = await prepareHostAndClient(page);
   for (const k of Object.keys(LISTEN)) {
-    expect(r.count[k], `Liste ${k} hat Objekte`).toBeGreaterThan(0);
+    expect(r.count[k], `list ${k} has objects`).toBeGreaterThan(0);
     expect(
       r.ids1[k].every(id => typeof id === 'string' && id.length > 0),
       `Ids ${k}`,
     ).toBe(true);
-    expect(r.ids2[k], `Ids ${k} stabil trotz Bewegung`).toEqual(r.ids1[k]);
+    expect(r.ids2[k], `ids ${k} stable despite movement`).toEqual(r.ids1[k]);
     expect(new Set(r.ids1[k]).size).toBe(r.ids1[k].length);
   }
 });
 
-test('Client verwendet DOM-Elemente wieder, erzeugt beim zweiten Snapshot keine neuen Knoten und aktualisiert Positionen', async ({
+test('Client reuses DOM elements, creates no new nodes on the second snapshot and updates positions', async ({
   page,
 }) => {
   await prepareHostAndClient(page);
@@ -169,7 +169,7 @@ test('Client verwendet DOM-Elemente wieder, erzeugt beim zweiten Snapshot keine 
         sameElements:
           afterwards.length === beforehand[k].length && afterwards.every((o, i) => o.el === beforehand[k][i]),
         inDom: afterwards.every(o => o.el.isConnected),
-        // Position im Objekt und im DOM entspricht Snapshot 2
+        // Position in the object and in the DOM matches snapshot 2
         positions: afterwards.every(
           (o, i) =>
             o.x === snap2[k][i].x &&
@@ -186,15 +186,15 @@ test('Client verwendet DOM-Elemente wieder, erzeugt beim zweiten Snapshot keine 
   expect(r.added).toEqual([]);
   for (const k of Object.keys(LISTEN)) {
     const l = r.listen[k];
-    expect(l.count, `${k} Anzahl`).toBe(l.expected);
-    expect(l.sameElements, `${k} Elemente wiederverwendet`).toBe(true);
+    expect(l.count, `${k} count`).toBe(l.expected);
+    expect(l.sameElements, `${k} elements reused`).toBe(true);
     expect(l.inDom, `${k} im DOM`).toBe(true);
-    expect(l.positions, `${k} Positionen`).toBe(true);
+    expect(l.positions, `${k} positions`).toBe(true);
     expect(l.idsReceived, `${k} Ids`).toBe(true);
   }
 });
 
-test('Client aktualisiert Rotation von Raketen und Boss-Raketen sowie Winkel schraeger Laser', async ({ page }) => {
+test('Client updates the rotation of missiles and boss missiles and the angle of slanted lasers', async ({ page }) => {
   await prepareHostAndClient(page);
   const r = await page.evaluate(() => {
     const g = window.__game;
@@ -229,7 +229,7 @@ test('Client aktualisiert Rotation von Raketen und Boss-Raketen sowie Winkel sch
   expect(angle(r.laser)).toBeCloseTo(l, 3);
 });
 
-test('Client entfernt verschwundene Objekte aus DOM und Array und legt neue an', async ({ page }) => {
+test('Client removes vanished objects from DOM and array and creates new ones', async ({ page }) => {
   await prepareHostAndClient(page);
   const r = await page.evaluate(LISTEN => {
     const g = window.__game;
@@ -253,9 +253,9 @@ test('Client entfernt verschwundene Objekte aus DOM und Array und legt neue an',
     projectileListen.forEach(k => {
       const oldEl = arrays[LISTEN[k]][0].el;
       removed[k] = { id: s3[k][0].id, el: oldEl };
-      const copy = Object.assign({}, s3[k][0], { id: 'neu_' + k, x: 11, y: 22 });
+      const copy = Object.assign({}, s3[k][0], { id: 'new_' + k, x: 11, y: 22 });
       s3[k] = [copy];
-      fresh[k] = 'neu_' + k;
+      fresh[k] = 'new_' + k;
     });
     g.Network.applyGameStateSnapshot(s3);
 

@@ -1,6 +1,6 @@
-// PostToolUse-Hook (Edit, Write): ESLint mit --fix auf die geaenderte JS-Datei, danach Prettier
-// auf jede Datei, die Prettier kennt (.prettierignore gilt). Verbleibende ESLint-Fehler gehen
-// per Exit 2 an Claude; Dateien ausserhalb des Repos werden uebersprungen.
+// PostToolUse hook (Edit, Write): ESLint with --fix on the changed JS file, then Prettier
+// on every file Prettier knows (.prettierignore applies). Remaining ESLint errors go
+// to Claude via exit 2; files outside the repo are skipped.
 import { spawnSync } from 'node:child_process';
 import { join, relative } from 'node:path';
 

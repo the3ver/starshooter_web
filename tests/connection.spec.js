@@ -7,7 +7,7 @@ const ICE_SERVERS = [
   { urls: ['turn:turn.cloudflare.com:3478?transport=udp'], username: 'u', credential: 'c' },
 ];
 
-// Fake-Modul statt echtem Trystero: legt Hooks auf window, mit denen der Test Peer-Beitritt und -Abgang ausloest
+// Fake module instead of real Trystero: puts hooks on window that the test uses to trigger peer join and leave
 const FAKE_TRYSTERO = `
 export function joinRoom(config, id) {
   window.__joinConfigs = (window.__joinConfigs || []).concat([config]);
@@ -21,7 +21,7 @@ export function joinRoom(config, id) {
 
 const HELLO_OK = "window.__game.Network.handleNetworkEvent({ type: 'hallo', protocol: window.__protocol }, 'peer')";
 
-// Ein Tor, das ein Test von Node aus oeffnet (haelt Antworten an, bis die Phase geprueft ist)
+// A gate the test opens from Node (holds responses until the phase has been checked)
 function gate() {
   let openUp;
   const open = new Promise(r => {
@@ -55,9 +55,9 @@ async function routes(page, { turnStatus = 503, turnGate = null, moduleGate = nu
   });
 }
 
-// mitClock: Fake-Uhr angehalten, Seitenzeit vergeht nur per page.clock.fastForward.
-// Die Wartezeit-Anzeige rechnet mit Date.now() und einem 1-s-Intervall; fastForward springt die Uhr
-// und feuert das faellige Intervall einmal, ohne jeden Frame des Spiel-Loops einzeln zu simulieren.
+// withClock: fake clock paused, page time only passes via page.clock.fastForward.
+// The wait time display uses Date.now() and a 1 s interval; fastForward jumps the clock
+// and fires the due interval once, without simulating every frame of the game loop.
 async function start(page, { withClock = false } = {}) {
   if (withClock) await installClock(page);
   await page.goto('/');
@@ -87,7 +87,7 @@ test.beforeEach(async ({ page }) => {
   await setGameState(page);
 });
 
-test('Host: Phasen 1 bis 5 erscheinen der Reihe nach, Raum-Code bleibt in Schritt 3 sichtbar', async ({ page }) => {
+test('Host: phases 1 to 5 appear in order, room code stays visible in step 3', async ({ page }) => {
   const turnGate = gate();
   const moduleGate = gate();
   await routes(page, { turnGate, moduleGate });
@@ -118,12 +118,12 @@ test('Host: Phasen 1 bis 5 erscheinen der Reihe nach, Raum-Code bleibt in Schrit
   expect(await phase(page)).toBe(5);
   expect(await statusText(page)).toContain('5/5 BEREIT, SPIEL STARTET');
   expect(await history(page)).toEqual([1, 2, 3, 4, 5]);
-  // Fortschrittsbalken: 5 Segmente, alle gefuellt
+  // Progress bar: 5 segments, all filled
   expect(await page.locator('#online-status .vp-balken span').count()).toBe(5);
   expect(await page.locator('#online-status .vp-balken span.aktiv').count()).toBe(5);
 });
 
-test('Client: Phasen 1 bis 5 mit "Suche Host" in Schritt 3', async ({ page }) => {
+test('Client: phases 1 to 5 with "Suche Host" in step 3', async ({ page }) => {
   const turnGate = gate();
   const moduleGate = gate();
   await routes(page, { turnGate, moduleGate });
@@ -152,7 +152,7 @@ test('Client: Phasen 1 bis 5 mit "Suche Host" in Schritt 3', async ({ page }) =>
   expect(await history(page)).toEqual([1, 2, 3, 4, 5]);
 });
 
-test('Host: Wartezeit zaehlt hoch, nur der Netzwerk-Hinweis erscheint nach 45 s', async ({ page }) => {
+test('Host: wait time counts up, only the network hint appears after 45 s', async ({ page }) => {
   await routes(page);
   await start(page, { withClock: true });
   await page.evaluate(() => {
@@ -175,7 +175,7 @@ test('Host: Wartezeit zaehlt hoch, nur der Netzwerk-Hinweis erscheint nach 45 s'
   expect(after47).not.toContain('Raum-Code prüfen');
 });
 
-test('Client: Hinweis zum Raum-Code nach 20 s, Netzwerk-Hinweis nach 45 s', async ({ page }) => {
+test('Client: room code hint after 20 s, network hint after 45 s', async ({ page }) => {
   await routes(page);
   await start(page, { withClock: true });
   await page.evaluate(() => {
@@ -201,7 +201,7 @@ test('Client: Hinweis zum Raum-Code nach 20 s, Netzwerk-Hinweis nach 45 s', asyn
   expect(text).toContain('Raum-Code prüfen');
 });
 
-test('TURN-Detail: "ohne TURN" bei 503, "TURN verfügbar" bei 200', async ({ page }) => {
+test('TURN detail: "ohne TURN" on 503, "TURN verfügbar" on 200', async ({ page }) => {
   await routes(page, { turnStatus: 503 });
   await start(page);
   await page.evaluate(() => window.__game.Network.hostRoom('ABCDE'));
@@ -226,20 +226,20 @@ test('TURN-Detail: "ohne TURN" bei 503, "TURN verfügbar" bei 200', async ({ pag
   expect(await side2.evaluate(() => window.__joinConfigs[0].turnConfig.length)).toBe(2);
 });
 
-test('Fehler in Schritt 4 nennt den Schritt, Versionsabweichung behaelt ihre Meldung', async ({ page }) => {
+test('An error in step 4 names the step, a version mismatch keeps its message', async ({ page }) => {
   await routes(page);
   await start(page);
   await page.evaluate(() => window.__game.Network.hostRoom('ABCDE'));
   await page.evaluate(() => window.__peerJoin('peer1'));
   expect(await phase(page)).toBe(4);
 
-  // Mitspieler geht vor dem Versionsabgleich
+  // Teammate leaves before the version check
   await page.evaluate(() => window.__peerLeave('peer1'));
   expect(await statusText(page)).toBe('MITSPIELER HAT DAS SPIEL VERLASSEN! (BEI SCHRITT 4/5)');
   expect(await page.evaluate(() => document.getElementById('online-status').style.color)).toBe('rgb(231, 76, 60)');
   expect(await phase(page)).toBe(0);
 
-  // Client: Host verlaesst den Raum waehrend Schritt 4
+  // Client: host leaves the room during step 4
   const client = await page.context().newPage();
   await routes(client);
   await setGameState(client);
@@ -256,7 +256,7 @@ test('Fehler in Schritt 4 nennt den Schritt, Versionsabweichung behaelt ihre Mel
   await client.evaluate(() => window.__peerLeave('host1'));
   expect(await statusText(client)).toBe('VERBINDUNG ZUM HOST VERLOREN! (BEI SCHRITT 4/5)');
 
-  // Versionsabweichung: Meldung bleibt unveraendert, Phase ist beendet
+  // Version mismatch: message stays unchanged, phase has ended
   await page.evaluate(() => window.__game.Network.hostRoom('ABCDE'));
   await page.evaluate(() => window.__peerJoin('peer2'));
   await page.evaluate(() =>
@@ -266,7 +266,7 @@ test('Fehler in Schritt 4 nennt den Schritt, Versionsabweichung behaelt ihre Mel
   expect(await phase(page)).toBe(0);
 });
 
-test('Schritt 3 bis 5: Timer laufen nach Raum verlassen und nach Schritt 5 nicht weiter', async ({ page }) => {
+test('Steps 3 to 5: timers stop after leaving the room and after step 5', async ({ page }) => {
   await routes(page);
   await start(page, { withClock: true });
   await page.evaluate(() => {
@@ -279,10 +279,10 @@ test('Schritt 3 bis 5: Timer laufen nach Raum verlassen und nach Schritt 5 nicht
   await page.evaluate(() => window.__game.Network.leaveOnlineRoom());
   expect(await phase(page)).toBe(0);
   await page.clock.fastForward(5000);
-  // Ein noch laufender Ticker wuerde den Status wieder einblenden
+  // A ticker still running would show the status again
   expect(await page.evaluate(() => document.getElementById('online-status').textContent)).toBe('RAUM VERLASSEN');
 
-  // Nach Schritt 5 bleibt der Text stehen
+  // After step 5 the text stays
   await page.evaluate(() => {
     window.__game.Network.hostRoom('ABCDE');
   });
@@ -295,7 +295,7 @@ test('Schritt 3 bis 5: Timer laufen nach Raum verlassen und nach Schritt 5 nicht
   expect(await statusText(page)).toBe(text5);
 });
 
-test('Raum verlassen waehrend Schritt 1 bricht den Aufbau ab, es wird kein Raum betreten', async ({ page }) => {
+test('Leaving the room during step 1 aborts the setup, no room is entered', async ({ page }) => {
   const turnGate = gate();
   await routes(page, { turnGate });
   await start(page);

@@ -13,7 +13,7 @@ test.beforeEach(async ({ page }) => {
   await page.goto('/');
 });
 
-test('Coop: Magma-Abpraller trifft nur den eigenen Schuetzen, nie den Mitspieler', async ({ page }) => {
+test('Co-op: a magma bouncer only hits its own shooter, never the teammate', async ({ page }) => {
   await page.evaluate(() => window.__game.Utils.setGameMode('coop'));
   await page.keyboard.down('KeyW');
   await page.waitForFunction(() => window.__game.state.gameRunning && !window.__game.state.cutsceneActive);
@@ -54,7 +54,7 @@ test('Coop: Magma-Abpraller trifft nur den eigenen Schuetzen, nie den Mitspieler
       state.p2.x = 400;
       state.p2.y = 400;
     };
-    // Stehender, bereits abgeprallter Laser mitten im Schiff des Ziels
+    // Stationary, already bounced laser in the middle of the target's ship
     const bouncer = (owner, target) => {
       const el = document.createElement('div');
       el.classList.add('laser-projektil');
@@ -77,22 +77,22 @@ test('Coop: Magma-Abpraller trifft nur den eigenen Schuetzen, nie den Mitspieler
     const out = {};
 
     empty();
-    bouncer('p2', state); // Abpraller von P2 im Schiff von P1
+    bouncer('p2', state); // P2's bouncer inside P1's ship
     Loop.simulationStep();
     out.p2ShotOnP1 = { ...lives(), left: arrays.laserArray.length };
 
     empty();
-    bouncer('p2', state.p2); // eigener Abpraller von P2
+    bouncer('p2', state.p2); // P2's own bouncer
     Loop.simulationStep();
     out.p2ShotOnP2 = { ...lives(), left: arrays.laserArray.length };
 
     empty();
-    bouncer('p1', state); // eigener Abpraller von P1
+    bouncer('p1', state); // P1's own bouncer
     Loop.simulationStep();
     out.p1ShotOnP1 = { ...lives(), left: arrays.laserArray.length };
 
     empty();
-    bouncer('p1', state.p2); // Abpraller von P1 im Schiff von P2
+    bouncer('p1', state.p2); // P1's bouncer inside P2's ship
     Loop.simulationStep();
     out.p1ShotOnP2 = { ...lives(), left: arrays.laserArray.length };
     return out;

@@ -1,8 +1,8 @@
 const { test, expect } = require('@playwright/test');
 const { setGameState } = require('./helpers');
 
-// Viper-X Ausweichrolle: Doppeltipp links/rechts (mobil: Wisch auf dem Joystick) rollt 70 px in 12 Schritten,
-// unverwundbar, Cooldown 90 Schritte ab Rollenstart. Alles deterministisch ueber simulationsSchritt().
+// Viper-X evasive roll: double tap left/right (mobile: swipe on the joystick) rolls 70 px in 12 steps,
+// invulnerable, cooldown 90 steps from the roll start. All deterministic via simulationStep().
 
 test.beforeEach(async ({ page }) => {
   await page.route('**/api/highscores*', route =>
@@ -17,8 +17,8 @@ test.beforeEach(async ({ page }) => {
   await page.goto('/');
 });
 
-// Spiel mit gewaehlten Schiffen starten und Feld leeren. window.__viperTest.leeren() stellt einen
-// deterministischen Ausgangszustand her, tippe() fuehrt einen Doppeltipp aus (3 Schritte, Taste am Ende gehalten).
+// Start a game with the chosen ships and clear the field. window.__viperTest.empty() sets up a
+// deterministic initial state, tap() performs a double tap (3 steps, key held at the end).
 async function startGame(page, { coop = false, p1 = 'viper', p2 = 'viper' } = {}) {
   if (coop) {
     await page.evaluate(() => window.__game.Utils.setGameMode('coop'));
@@ -53,7 +53,7 @@ async function startGame(page, { coop = false, p1 = 'viper', p2 = 'viper' } = {}
         Object.keys(state.keysPressed).forEach(k => {
           state.keysPressed[k] = false;
         });
-        state.frameCounter = 1; // keine Spawns in den naechsten 100 Schritten
+        state.frameCounter = 1; // no spawns in the next 100 steps
         state.level = 1;
         state.bossActive = false;
         state.hacks = [];
@@ -72,7 +72,7 @@ async function startGame(page, { coop = false, p1 = 'viper', p2 = 'viper' } = {}
           s.viperLeftHeld = false;
           s.viperRightHeld = false;
           s.viperTapDirection = 0;
-          s.viperTapAlter = 999;
+          s.viperTapAge = 999;
           s.viperJoyRest = 0;
           s.viperJoyBeforehand = 0;
           s.viperCombo = 0;
@@ -93,7 +93,7 @@ async function startGame(page, { coop = false, p1 = 'viper', p2 = 'viper' } = {}
       steps(n) {
         for (let i = 0; i < n; i++) window.__game.Loop.simulationStep();
       },
-      // Zwei Druck-Flanken im Abstand abstand Schritten; Rueckgabe nach dem zweiten Druck-Schritt (Taste gehalten)
+      // Two press edges distance steps apart; returns after the second press step (key held)
       tap(key, distance = 2) {
         const t = window.__game.state.keysPressed;
         t[key] = true;
@@ -111,7 +111,7 @@ async function startGame(page, { coop = false, p1 = 'viper', p2 = 'viper' } = {}
 }
 
 test.describe('Viper-X Ausweichrolle', () => {
-  test('Doppeltipp rechts: 70 px gleichmaessig in 12 Schritten, Klasse, Sound, danach wieder normale Steuerung', async ({
+  test('Double tap right: 70 px evenly in 12 steps, class, sound, normal controls again afterwards', async ({
     page,
   }) => {
     await startGame(page);
@@ -128,7 +128,7 @@ test.describe('Viper-X Ausweichrolle', () => {
       T.steps(1);
       const x0 = state.x;
       t.d = true;
-      T.steps(1); // Start der Rolle (zweite Druck-Flanke)
+      T.steps(1); // Start of the roll (second press edge)
       t.d = false;
       const xs = [state.x - x0];
       const afterStart = {
@@ -148,7 +148,7 @@ test.describe('Viper-X Ausweichrolle', () => {
       };
       T.steps(1);
       const thereafter = { x: state.x - x0, cls: el.classList.contains('viper-rolle'), timer: state.viperRollTimer };
-      // Normale Steuerung wieder aktiv
+      // Normal controls active again
       t.a = true;
       T.steps(3);
       t.a = false;
@@ -167,7 +167,7 @@ test.describe('Viper-X Ausweichrolle', () => {
     expect(r.left).toBeLessThan(70);
   });
 
-  test('Doppeltipp links (A und Pfeil links): 70 px nach links', async ({ page }) => {
+  test('Double tap left (A and arrow left): 70 px to the left', async ({ page }) => {
     await startGame(page);
     const r = await page.evaluate(() => {
       const { state } = window.__game;
@@ -193,7 +193,7 @@ test.describe('Viper-X Ausweichrolle', () => {
     r.forEach(d => expect(d).toBeCloseTo(-70, 3));
   });
 
-  test('Einzeltipp und zu langsamer Doppeltipp (mehr als 15 Schritte) rollen nicht', async ({ page }) => {
+  test('A single tap and a too slow double tap (more than 15 steps) do not roll', async ({ page }) => {
     await startGame(page);
     const r = await page.evaluate(() => {
       const { state } = window.__game;
@@ -208,17 +208,17 @@ test.describe('Viper-X Ausweichrolle', () => {
       T.steps(40);
       timer.push(state.viperRollTimer);
       const single = { timer: [...timer], sounds: T.roll() };
-      // Zwei Tipps mit 16 Schritten Abstand
+      // Two taps 16 steps apart
       T.empty();
       T.tap('d', 16);
       const tooSlow = { timer: state.viperRollTimer, sounds: T.roll() };
       t.d = false;
       T.steps(3);
-      // Genau 15 Schritte Abstand zaehlt noch
+      // Exactly 15 steps apart still counts
       T.empty();
       T.tap('d', 15);
       const limit = { timer: state.viperRollTimer, sounds: T.roll() };
-      // Links und rechts im Wechsel ist kein Doppeltipp
+      // Alternating left and right is not a double tap
       t.d = false;
       T.steps(14);
       T.empty();
@@ -239,7 +239,7 @@ test.describe('Viper-X Ausweichrolle', () => {
     expect(r.mixed).toEqual({ timer: 0, sounds: 0 });
   });
 
-  test('Cooldown: zweiter Doppeltipp waehrend der 90 Schritte rollt nicht, danach wieder', async ({ page }) => {
+  test('Cooldown: a second double tap during the 90 steps does not roll, afterwards it does', async ({ page }) => {
     await startGame(page);
     const r = await page.evaluate(() => {
       const { state } = window.__game;
@@ -247,18 +247,18 @@ test.describe('Viper-X Ausweichrolle', () => {
       const t = state.keysPressed;
       T.empty();
       state.x = 100;
-      T.tap('d'); // Rollenstart in diesem Schritt (Schritt 0 des Cooldowns)
+      T.tap('d'); // Roll start in this step (step 0 of the cooldown)
       t.d = false;
-      T.steps(11); // Rolle vorbei bei Schritt 12
+      T.steps(11); // Roll over at step 12
       T.steps(1);
       const afterRoll = { timer: state.viperRollTimer, cd: state.viperRollCooldown };
-      // Doppeltipp links mitten im Cooldown (um Schritt 30)
+      // Double tap left in the middle of the cooldown (around step 30)
       T.steps(15);
       T.tap('a');
       t.a = false;
       T.steps(2);
       const inCooldown = { timer: state.viperRollTimer, sounds: T.roll(), cd: state.viperRollCooldown };
-      // Cooldown laeuft ab: der letzte Tipp liegt kurz vor Ende, zaehlt also nicht; neuer Doppeltipp rollt
+      // The cooldown expires: the last tap lies shortly before the end, so it does not count; a new double tap rolls
       T.steps(100);
       const free = state.viperRollCooldown;
       const x0 = state.x;
@@ -277,7 +277,7 @@ test.describe('Viper-X Ausweichrolle', () => {
     expect(r.afterSecondaryRoll.dx).toBeLessThan(-60);
   });
 
-  test('Cooldown endet genau 90 Schritte nach dem Rollenstart', async ({ page }) => {
+  test('Cooldown ends exactly 90 steps after the roll start', async ({ page }) => {
     await startGame(page);
     const r = await page.evaluate(() => {
       const { state } = window.__game;
@@ -296,7 +296,7 @@ test.describe('Viper-X Ausweichrolle', () => {
     expect(r).toEqual([90, 1, 0]);
   });
 
-  test('Unverwundbar waehrend der Rolle (stehender Feindlaser trifft nicht), danach trifft er', async ({ page }) => {
+  test('Invulnerable during the roll (a stationary enemy laser does not hit), hits afterwards', async ({ page }) => {
     await startGame(page);
     const r = await page.evaluate(() => {
       const { state, arrays, Entities } = window.__game;
@@ -308,7 +308,7 @@ test.describe('Viper-X Ausweichrolle', () => {
       T.steps(1);
       t.d = false;
       T.steps(1);
-      // Stehender Laser mitten im Schiff (die Rolle beginnt im naechsten Schritt)
+      // Stationary laser in the middle of the ship (the roll starts in the next step)
       Entities.createEnemyLaser(state.x + 14, state.y + 10);
       Object.assign(arrays.enemyLaserArray[0], { vx: 0, vy: 0 });
       t.d = true;
@@ -321,7 +321,7 @@ test.describe('Viper-X Ausweichrolle', () => {
       };
       T.steps(11);
       const duringRoll = { lives: state.lives, laser: arrays.enemyLaserArray.length };
-      // Rolle ist vorbei: ein neuer stehender Laser am Schiff trifft
+      // The roll is over: a new stationary laser at the ship hits
       T.steps(1);
       const afterRoll = window.__game.Utils.isDashInvulnerable(state);
       Entities.createEnemyLaser(state.x + 14, state.y + 10);
@@ -335,7 +335,7 @@ test.describe('Viper-X Ausweichrolle', () => {
     expect(r.thereafter.lives).toBe(2);
   });
 
-  test('Am Spielfeldrand begrenzt, auch links', async ({ page }) => {
+  test('Clamped at the playfield edge, also on the left', async ({ page }) => {
     await startGame(page);
     const r = await page.evaluate(() => {
       const { state, config } = window.__game;
@@ -361,7 +361,7 @@ test.describe('Viper-X Ausweichrolle', () => {
     expect(r.left).toBe(0);
   });
 
-  test('Nur die Viper rollt: Phantom (P1) und Gleve ignorieren den Doppeltipp', async ({ page }) => {
+  test('Only the Viper rolls: Phantom (P1) and Gleve ignore the double tap', async ({ page }) => {
     await startGame(page, { p1: 'phantom' });
     const r = await page.evaluate(() => {
       const { state } = window.__game;
@@ -386,7 +386,7 @@ test.describe('Viper-X Ausweichrolle', () => {
         hud: document.getElementById('viper-rolle-hud').style.display,
       };
     });
-    // Normale Fahrt: hoechstens ein Schritt Geschwindigkeit, nie 70 px
+    // Normal travel: at most one step of speed, never 70 px
     expect(Math.abs(r.dx)).toBeLessThan(20);
     expect(r.timer).toBe(0);
     expect(r.sounds).toBe(0);
@@ -394,7 +394,7 @@ test.describe('Viper-X Ausweichrolle', () => {
     expect(r.hud).toBe('none');
   });
 
-  test('Steuerungs-Hack (invertiert) lenkt die Rolle um, waffenOffline blockiert sie nicht', async ({ page }) => {
+  test('Control hack (inverted) redirects the roll, weaponsOffline does not block it', async ({ page }) => {
     await startGame(page);
     const r = await page.evaluate(() => {
       const { state } = window.__game;
@@ -402,7 +402,7 @@ test.describe('Viper-X Ausweichrolle', () => {
       const out = {};
       T.empty();
       state.x = 200;
-      state.hacks = [{ typ: 'inverted', timer: 999 }];
+      state.hacks = [{ type: 'inverted', timer: 999 }];
       const x0 = state.x;
       T.tap('d');
       state.keysPressed.d = false;
@@ -410,20 +410,20 @@ test.describe('Viper-X Ausweichrolle', () => {
       out.inverted = state.x - x0;
       T.empty();
       state.x = 200;
-      state.hacks = [{ typ: 'weaponOffline', timer: 999 }];
+      state.hacks = [{ type: 'weaponsOffline', timer: 999 }];
       const x1 = state.x;
       T.tap('d');
       state.keysPressed.d = false;
       T.steps(11);
-      out.weaponOffline = state.x - x1;
+      out.weaponsOffline = state.x - x1;
       return out;
     });
-    // Der Tipp-Schritt selbst bewegt noch (invertiert: nach links) und zaehlt zur Differenz
+    // The tap step itself still moves (inverted: to the left) and counts towards the difference
     expect(r.inverted).toBeLessThan(-60);
-    expect(r.weaponOffline).toBeGreaterThan(60);
+    expect(r.weaponsOffline).toBeGreaterThan(60);
   });
 
-  test('Mobil: schneller Wisch auf dem Joystick rollt, langsames Hineinziehen nicht', async ({ page }) => {
+  test('Mobile: a fast swipe on the joystick rolls, slowly pulling in does not', async ({ page }) => {
     await startGame(page);
     const r = await page.evaluate(() => {
       const { state } = window.__game;
@@ -445,7 +445,7 @@ test.describe('Viper-X Ausweichrolle', () => {
       j.x = 0;
       T.steps(1);
 
-      // Langsam: 0.05 pro Schritt bis 1.0
+      // Slow: 0.05 per step up to 1.0
       T.empty();
       state.x = 150;
       j.active = true;
@@ -456,7 +456,7 @@ test.describe('Viper-X Ausweichrolle', () => {
       out.slow = { sounds: T.roll(), timer: state.viperRollTimer };
       j.active = false;
       j.x = 0;
-      // Nach links
+      // To the left
       T.empty();
       state.x = 250;
       j.active = true;
@@ -471,13 +471,13 @@ test.describe('Viper-X Ausweichrolle', () => {
       return out;
     });
     expect(r.swipe).toEqual({ timer: 12, sounds: 1 });
-    // Der Joystick steht in diesem Schritt voll rechts; die Rolle ersetzt die Fahrt, es bleiben genau 70 px
+    // The joystick is fully right in this step; the roll replaces the travel, exactly 70 px remain
     expect(r.swipeDx).toBeCloseTo(70, 3);
     expect(r.slow).toEqual({ sounds: 0, timer: 0 });
     expect(r.leftDx).toBeCloseTo(-70, 3);
   });
 
-  test('Lokaler Coop: P2 rollt mit den Pfeiltasten, P1 mit A/D, unabhaengig voneinander', async ({ page }) => {
+  test('Local co-op: P2 rolls with the arrow keys, P1 with A/D, independently of each other', async ({ page }) => {
     await startGame(page, { coop: true });
     const r = await page.evaluate(() => {
       const { state } = window.__game;
@@ -487,7 +487,7 @@ test.describe('Viper-X Ausweichrolle', () => {
       state.p2IsBot = false;
       state.x = 100;
       state.p2.x = 200;
-      // P2: Pfeil rechts doppelt
+      // P2: arrow right twice
       t.arrowright = true;
       T.steps(1);
       t.arrowright = false;
@@ -539,7 +539,9 @@ test.describe('Viper-X Ausweichrolle', () => {
     expect(r.hud2).toBe('block');
   });
 
-  test('HUD: Bereitschaftsanzeige nur bei Viper, gruen wenn bereit, fuellt sich im Cooldown', async ({ page }) => {
+  test('HUD: readiness display only for the Viper, green when ready, fills up during the cooldown', async ({
+    page,
+  }) => {
     await startGame(page);
     const r = await page.evaluate(() => {
       const { state } = window.__game;
@@ -570,7 +572,7 @@ test.describe('Viper-X Ausweichrolle', () => {
 });
 
 test.describe('Viper-X Ausweichrolle: Bot', () => {
-  test('Bot-Viper rollt bei sehr nahem Geschoss zur freieren Seite und nicht im Cooldown', async ({ page }) => {
+  test('Bot Viper rolls to the freer side on a very near projectile, and not during the cooldown', async ({ page }) => {
     await startGame(page, { coop: true });
     const r = await page.evaluate(() => {
       const { state, arrays, Entities } = window.__game;
@@ -589,7 +591,7 @@ test.describe('Viper-X Ausweichrolle: Bot', () => {
         state.p2.y = 500;
       };
 
-      // Nahe am linken Rand: die rechte Seite ist freier
+      // Near the left edge: the right side is freer
       prepare(30);
       standingProjectile(state.p2);
       T.steps(3);
@@ -597,19 +599,19 @@ test.describe('Viper-X Ausweichrolle: Bot', () => {
       T.steps(12);
       out.leftX = state.p2.x;
 
-      // Nahe am rechten Rand: die linke Seite ist freier
+      // Near the right edge: the left side is freer
       prepare(window.__game.config.playfieldWidth - 60);
       state.x = 20;
       standingProjectile(state.p2);
       T.steps(3);
       out.right = { direction: state.p2.viperRollDirection, sounds: T.roll() };
 
-      // Cooldown frei, aber keine Gefahr: keine Rolle
+      // Cooldown free but no danger: no roll
       prepare(200);
       T.steps(20);
       out.withoutDanger = T.roll();
 
-      // Im Cooldown rollt der Bot nicht, auch bei Gefahr
+      // During the cooldown the bot does not roll, even in danger
       prepare(200);
       state.p2.viperRollCooldown = 50;
       standingProjectile(state.p2);
@@ -626,7 +628,7 @@ test.describe('Viper-X Ausweichrolle: Bot', () => {
     expect(r.inCooldown).toBe(0);
   });
 
-  test('Bot-Phantom rollt nie', async ({ page }) => {
+  test('Bot Phantom never rolls', async ({ page }) => {
     await startGame(page, { coop: true, p2: 'phantom' });
     const r = await page.evaluate(() => {
       const { state, arrays, Entities } = window.__game;
@@ -646,7 +648,7 @@ test.describe('Viper-X Ausweichrolle: Bot', () => {
 });
 
 test.describe('Viper-X Ausweichrolle: Online', () => {
-  // Online-Zustand ohne echte Verbindung: host = true Host, sonst Client (P2)
+  // Online state without a real connection: host = true host, otherwise client (P2)
   async function asOnline(page, host) {
     await page.evaluate(host => {
       const { state, arrays, Utils } = window.__game;
@@ -688,7 +690,7 @@ test.describe('Viper-X Ausweichrolle: Online', () => {
     }, host);
   }
 
-  test('Host serialisiert den Rollen-Zustand beider Schiffe, er ueberlebt die Netzkodierung und der Client zeigt die Klasse', async ({
+  test('Host serializes the roll state of both ships, it survives the net encoding and the client shows the class', async ({
     page,
   }) => {
     await page.waitForFunction(() => window.__game && window.__game.state);
@@ -707,12 +709,12 @@ test.describe('Viper-X Ausweichrolle: Online', () => {
       out.p1 = [full.p1.viperRollTimer, full.p1.viperRollDirection, full.p1.viperRollCooldown];
       out.p2 = [full.p2.viperRollTimer, full.p2.viperRollCooldown];
 
-      // Nicht-Viper traegt keine Rollenfelder
+      // A non-Viper carries no roll fields
       state.p2.selectedShipModel = 'phantom';
       out.phantomFields = 'viperRollTimer' in g.Network.serializeGameState().p2;
       state.p2.selectedShipModel = 'viper';
 
-      // Kodieren und dekodieren wie auf dem Draht (Rundung ganzzahlig)
+      // Encode and decode as on the wire (integer rounding)
       const encoder = new NK.SnapshotEncoder();
       const decoder = new NK.SnapshotDecoder();
       const recon = decoder.decode(JSON.parse(JSON.stringify(encoder.encode(full, 0))));
@@ -723,7 +725,7 @@ test.describe('Viper-X Ausweichrolle: Online', () => {
         recon.p2.viperRollCooldown,
       ];
 
-      // Client uebernimmt: Host-P1 rollt noch 7 Schritte
+      // The client applies: host P1 still rolls for 7 steps
       state.network.isHost = false;
       state.network.isClient = true;
       state.viperRollTimer = 0;
@@ -741,22 +743,20 @@ test.describe('Viper-X Ausweichrolle: Online', () => {
       out.cooldownAfterSteps = state.p2.viperRollCooldown;
       return out;
     });
-    // Serialisiert wird der Rohwert, gerundet wird erst beim Kodieren
+    // The raw value is serialized, rounding happens only when encoding
     expect(r.p1).toEqual([7, -1, 61.4]);
     expect(r.p2).toEqual([0, 33]);
     expect(r.phantomFields).toBe(false);
     expect(r.wire).toEqual([7, -1, 61, 33]);
-    // 7 Restschritte aus dem Snapshot: gezeichnet wird nach jedem Schritt (nach dem Herunterzaehlen, wie beim Host),
-    // die Klasse steht daher 6 Client-Schritte, dann weg
+    // 7 remaining steps from the snapshot: drawing happens after every step (after counting down, as on the host),
+    // so the class stays for 6 client steps, then gone
     expect(r.classes).toEqual([true, true, true, true, true, true, false, false, false]);
     expect(r.cooldownClient).toBe(33);
-    // Der Client zaehlt den uebernommenen Cooldown selbst weiter herunter
+    // The client keeps counting the applied cooldown down itself
     expect(r.cooldownAfterSteps).toBe(24);
   });
 
-  test('Client sagt die eigene Rolle voraus und meldet Start und Richtung; der Host rollt von dort aus', async ({
-    page,
-  }) => {
+  test('Client predicts its own roll and reports start and direction; the host rolls from there', async ({ page }) => {
     await page.waitForFunction(() => window.__game && window.__game.state);
     await asOnline(page, false);
     const packet = await page.evaluate(() => {
@@ -784,13 +784,13 @@ test.describe('Viper-X Ausweichrolle: Online', () => {
       for (let i = 0; i < 11; i++) step();
       return { packets: packets.map(p => ({ x: p.x, ro: p.ro })), x0, xEnd: state.p2.x, classAfterStart };
     });
-    // Start-Paket traegt die Position vor der Rolle und die Richtung, nur dieses
+    // The start packet carries the position before the roll and the direction, only this one
     expect(packet.packets[2]).toEqual({ x: packet.x0, ro: 1 });
     expect(packet.packets.filter(p => p.ro !== undefined)).toHaveLength(1);
     expect(packet.classAfterStart).toBe(true);
     expect(packet.xEnd - packet.x0).toBeCloseTo(70, 3);
 
-    // Host: Start-Paket empfangen, danach rollt P2 dort 12 Schritte, ignoriert Client-Positionen und ist unverwundbar
+    // Host: receive the start packet, then P2 rolls there for 12 steps, ignores client positions and is invulnerable
     await asOnline(page, true);
     const host = await page.evaluate(async p => {
       const g = window.__game;
@@ -802,16 +802,16 @@ test.describe('Viper-X Ausweichrolle: Online', () => {
       state.p2.isDead = false;
       state.p2.lives = 3;
       state.p2.y = 400;
-      // Der Sender schickt das Start-Paket sofort
+      // The sender sends the start packet immediately
       const sender = new NK.InputSender();
       const input = { x: p.x0, y: 400, rotate: 0, laser: false, missile: false, bomb: false };
       sender.next(input);
       const startPacket = sender.next({ ...input, ro: 1 });
       out.senderPacket = startPacket ? startPacket.ro : null;
       g.Network.applyPlayerInput({ ...input, ro: 1 });
-      // Falsche Richtungswerte werden ignoriert
+      // Wrong direction values are ignored
       out.withRo = state.p2.networkRollRequest;
-      // Nachfolgendes Client-Paket mit weiterer Position darf den Startpunkt nicht verschieben
+      // A following client packet with a further position must not shift the start point
       g.Network.applyPlayerInput({ ...input, x: p.x0 + 12 });
       out.xBeforeStart = state.p2.x;
       Entities.createEnemyLaser(p.x0 + 14, 410);
@@ -823,7 +823,7 @@ test.describe('Viper-X Ausweichrolle: Online', () => {
         lives: state.p2.lives,
         cd: state.p2.viperRollCooldown,
       };
-      // Client-Positionen waehrend der Rolle werden ignoriert
+      // Client positions during the roll are ignored
       g.Network.applyPlayerInput({ ...input, x: 5 });
       for (let i = 0; i < 11; i++) g.Loop.simulationStep();
       out.dx = state.p2.x - p.x0;
@@ -834,7 +834,7 @@ test.describe('Viper-X Ausweichrolle: Online', () => {
       ];
       g.Loop.simulationStep();
       out.thereafter = state.p2.viperRollTimer;
-      // Eine zweite Anfrage im Cooldown wird abgelehnt
+      // A second request during the cooldown is rejected
       g.Network.applyPlayerInput({ ...input, x: state.p2.x, ro: -1 });
       g.Loop.simulationStep();
       out.second = state.p2.viperRollTimer;
@@ -857,10 +857,10 @@ test.describe('Viper-X Ausweichrolle: Online', () => {
 });
 
 // --- Near-Miss + Overdrive ---
-// Ein feindliches Geschoss, das dem Schiff auf <= 18 px nahe kommt, ohne zu treffen, und sich dann entfernt,
-// laedt die Overdrive-Leiste um 10. Bei 100 startet der Overdrive fuer 300 Schritte (doppelte Feuerrate, Durchschlag).
+// An enemy projectile that comes within <= 18 px of the ship without hitting and then moves away
+// charges the overdrive strip by 10. At 100 the overdrive starts for 300 steps (double fire rate, pierce).
 
-// Feindlichen Laser (kein Zielen, gerade nach unten) mit linker Kante x ueber dem Schiff erzeugen
+// Create an enemy laser (no aiming, straight down) with left edge x above the ship
 async function nearMissLane(page, { x, list = 'enemyLaserArray', harmless = false, ys = [300], steps = 60 }) {
   return page.evaluate(
     ({ x, list, harmless, ys, steps }) => {
@@ -902,44 +902,42 @@ async function nearMissLane(page, { x, list = 'enemyLaserArray', harmless = fals
   );
 }
 
-test.describe('Viper-X Near-Miss und Overdrive', () => {
-  test('Geschoss 10 px neben dem Schiff: +10, nur einmal; 30 px daneben: 0; Treffer: 0; harmlos: 0', async ({
-    page,
-  }) => {
+test.describe('Viper-X near miss and overdrive', () => {
+  test('Projectile 10 px beside the ship: +10, only once; 30 px beside: 0; hit: 0; harmless: 0', async ({ page }) => {
     await startGame(page);
-    // Schiff x 150..180; Laser-Kante bei 190 = 10 px Abstand
+    // Ship x 150..180; laser edge at 190 = 10 px distance
     const near = await nearMissLane(page, { x: 190 });
     expect(near.strip).toBe(10);
     expect(near.ticks).toBe(1);
     expect(near.lost).toBe(0);
-    // weitere Schritte zaehlen dasselbe Geschoss nicht noch einmal (ist laengst aus dem Feld, Leiste bleibt)
+    // further steps do not count the same projectile again (it is long out of the field, the strip stays)
     const overlaps = await page.evaluate(() => {
       window.__viperTest.steps(30);
       return window.__game.state.viperOverdriveStrip;
     });
     expect(overlaps).toBe(10);
-    // Linke Seite: Laser rechts der Kante 150: Mitte 142 -> Abstand 150 - (142 + 4) = 4
+    // Left side: laser right of the edge 150: center 142 -> distance 150 - (142 + 4) = 4
     expect((await nearMissLane(page, { x: 142 })).strip).toBe(10);
     // 30 px daneben
     const remote = await nearMissLane(page, { x: 210 });
     expect(remote.strip).toBe(0);
     expect(remote.ticks).toBe(0);
-    // genau 18 px zaehlt, 19 px nicht
+    // exactly 18 px counts, 19 px does not
     expect((await nearMissLane(page, { x: 198 })).strip).toBe(10);
     expect((await nearMissLane(page, { x: 199 })).strip).toBe(0);
-    // Treffer zaehlt nicht
+    // A hit does not count
     const hit = await nearMissLane(page, { x: 165 });
     expect(hit.strip).toBe(0);
     expect(hit.lost).toBe(1);
-    // harmlos (von der Gleve weggeschleudert) zaehlt nicht
+    // harmless (flung away by the Gleve) does not count
     expect((await nearMissLane(page, { x: 190, harmless: true })).strip).toBe(0);
-    // Boss-Laser zaehlt wie Feind-Laser
+    // A boss laser counts like an enemy laser
     expect((await nearMissLane(page, { x: 190, list: 'bossLaserArray' })).strip).toBe(10);
-    // Zwei Geschosse nacheinander: +20
+    // Two projectiles one after another: +20
     expect((await nearMissLane(page, { x: 190, ys: [300, 330] })).strip).toBe(20);
   });
 
-  test('waehrend der Ausweichrolle zaehlt ein Near-Miss ebenfalls; mehrere Geschosse mit Hack-Projektil und Rakete', async ({
+  test('a near miss also counts during the evasive roll; several projectiles with a hack projectile and a missile', async ({
     page,
   }) => {
     await startGame(page);
@@ -949,7 +947,7 @@ test.describe('Viper-X Near-Miss und Overdrive', () => {
       T.empty();
       state.viperOverdriveStrip = 0;
       state.viperOverdriveTimer = 0;
-      // Rolle laeuft (Richtung 0: das Schiff bleibt stehen), unverwundbar
+      // The roll runs (direction 0: the ship stands still), invulnerable
       state.viperRollTimer = 200;
       state.viperRollDirection = 0;
       const fresh = (list, extra) => {
@@ -966,9 +964,7 @@ test.describe('Viper-X Near-Miss und Overdrive', () => {
     expect(r).toBe(30);
   });
 
-  test('10 Near-Misses starten den Overdrive fuer 300 Schritte, die Leiste leert sich, danach aus', async ({
-    page,
-  }) => {
+  test('10 near misses start the overdrive for 300 steps, the strip empties, off afterwards', async ({ page }) => {
     await startGame(page);
     const r = await page.evaluate(() => {
       const { state, arrays } = window.__game;
@@ -990,7 +986,7 @@ test.describe('Viper-X Near-Miss und Overdrive', () => {
         window.__game.Audio.audioHistory.filter(a => a.name === 'nearMiss').length,
       ];
       const timerAfterStart = state.viperOverdriveTimer;
-      // weitere Near-Misses laden waehrend des Overdrives nicht nach
+      // further near misses do not recharge during the overdrive
       const el = document.createElement('div');
       document.getElementById('spielfeld').appendChild(el);
       arrays.enemyLaserArray.push({ id: 'extra', el, x: 190, y: 300, vx: 0, vy: 5, width: 4, height: 15 });
@@ -1018,7 +1014,7 @@ test.describe('Viper-X Near-Miss und Overdrive', () => {
     expect(r.hudOff).toBe(false);
   });
 
-  test('Overdrive dauert genau 300 Schritte ab Start', async ({ page }) => {
+  test('Overdrive lasts exactly 300 steps from the start', async ({ page }) => {
     await startGame(page);
     const r = await page.evaluate(() => {
       const { state, arrays } = window.__game;
@@ -1047,7 +1043,7 @@ test.describe('Viper-X Near-Miss und Overdrive', () => {
     expect(r.strip).toBe(0);
   });
 
-  test('im Overdrive halbe Schussabstaende und Durchschlag, ausserhalb nicht', async ({ page }) => {
+  test('in the overdrive half the shot intervals and pierce, outside of it not', async ({ page }) => {
     await startGame(page);
     const measure = overdrive =>
       page.evaluate(overdrive => {
@@ -1062,7 +1058,7 @@ test.describe('Viper-X Near-Miss und Overdrive', () => {
         state.playerShotCooldown = 0;
         state.viperOverdriveStrip = overdrive ? 100 : 0;
         state.viperOverdriveTimer = overdrive ? 300 : 0;
-        // zwei hintereinander stehende, ruhende Ziele ueber dem Schiff
+        // two stationary targets above the ship, one behind the other
         const targets = [300, 200].map((y, i) => {
           const el = document.createElement('div');
           el.classList.add('asteroid');
@@ -1108,7 +1104,7 @@ test.describe('Viper-X Near-Miss und Overdrive', () => {
     expect(od.shots).toBe(10);
   });
 
-  test('Phantom bekommt keinen Overdrive und keine Leiste im HUD', async ({ page }) => {
+  test('Phantom gets no overdrive and no strip in the HUD', async ({ page }) => {
     await startGame(page, { p1: 'phantom' });
     const r = await page.evaluate(() => {
       const { state, arrays } = window.__game;
@@ -1132,7 +1128,7 @@ test.describe('Viper-X Near-Miss und Overdrive', () => {
     expect(r).toEqual({ strip: 0, timer: 0, hud: 'none', cls: false });
   });
 
-  test('Neustart setzt Leiste und Overdrive zurueck', async ({ page }) => {
+  test('Restart resets the strip and the overdrive', async ({ page }) => {
     await startGame(page);
     const r = await page.evaluate(() => {
       const { state, Utils } = window.__game;
@@ -1145,7 +1141,7 @@ test.describe('Viper-X Near-Miss und Overdrive', () => {
     expect(r).toEqual([0, 0, 0]);
   });
 
-  test('Bot-Viper sammelt Near-Misses ohne Fehler', async ({ page }) => {
+  test('Bot Viper collects near misses without errors', async ({ page }) => {
     await startGame(page, { coop: true });
     const r = await page.evaluate(() => {
       const { state, arrays } = window.__game;
@@ -1177,7 +1173,7 @@ test.describe('Viper-X Near-Miss und Overdrive', () => {
   });
 });
 
-test.describe('Viper-X Near-Miss und Overdrive: Online', () => {
+test.describe('Viper-X near miss and overdrive: online', () => {
   async function asOnline(page, host) {
     await page.evaluate(host => {
       const { state, arrays, Utils } = window.__game;
@@ -1219,7 +1215,7 @@ test.describe('Viper-X Near-Miss und Overdrive: Online', () => {
     }, host);
   }
 
-  test('Snapshot enthaelt Leiste und Overdrive-Timer (ganzzahlig), der Client zeigt die Klasse und spielt die Sounds fuer das eigene Schiff', async ({
+  test('Snapshot contains the strip and the overdrive timer (integers), the client shows the class and plays the sounds for the own ship', async ({
     page,
   }) => {
     await page.waitForFunction(() => window.__game && window.__game.state);
@@ -1253,7 +1249,7 @@ test.describe('Viper-X Near-Miss und Overdrive: Online', () => {
         recon.p2.viperOverdriveTimer,
       ];
 
-      // Client: Host-P1 im Overdrive, eigenes Schiff (P2) lernt einen Near-Miss kennen
+      // Client: host P1 in overdrive, own ship (P2) learns about a near miss
       state.network.isHost = false;
       state.network.isClient = true;
       state.viperOverdriveStrip = 0;
@@ -1290,7 +1286,7 @@ test.describe('Viper-X Near-Miss und Overdrive: Online', () => {
     expect(r.overdriveAudio).toBe(1);
   });
 
-  test('Host erkennt Near-Miss des Client-Schiffs (P2) und serialisiert die Leiste', async ({ page }) => {
+  test('Host detects a near miss of the client ship (P2) and serializes the strip', async ({ page }) => {
     await page.waitForFunction(() => window.__game && window.__game.state);
     await asOnline(page, true);
     const r = await page.evaluate(() => {
@@ -1311,10 +1307,10 @@ test.describe('Viper-X Near-Miss und Overdrive: Online', () => {
   });
 });
 
-// Kill-Kombo (V3): Kills binnen 120 Schritten steigern viperKombo (Punkte x(1+0.1*Kombo), max x3; Feuerrate ab 5/10),
-// ein Treffer setzt sie auf 0 und die Viper verliert keine Waffen-Upgrades mehr.
-test.describe('Viper-X Kill-Kombo', () => {
-  // Hilfen im Seitenkontext: killFeind(killer) zerstoert einen Dummy-Feind ueber Utils.zerstoereZiel
+// Kill combo (V3): kills within 120 steps raise viperCombo (points x(1+0.1*combo), max x3; fire rate from 5/10),
+// a hit sets it to 0 and the Viper no longer loses weapon upgrades.
+test.describe('Viper-X kill combo', () => {
+  // Helpers in the page context: killEnemy(killer) destroys a dummy enemy via Utils.destroyTarget
   async function ready(page, opts) {
     await startGame(page, opts);
     await page.evaluate(() => {
@@ -1331,14 +1327,14 @@ test.describe('Viper-X Kill-Kombo', () => {
     });
   }
 
-  test('3 Kills im Fenster -> Kombo 3; Fenster laeuft ab -> 0; der erste Kill zaehlt als 1', async ({ page }) => {
+  test('3 kills in the window -> combo 3; window expires -> 0; the first kill counts as 1', async ({ page }) => {
     await ready(page);
     const r = await page.evaluate(() => {
       const T = window.__viperTest;
       const { state } = window.__game;
       const out = {};
-      // Asteroiden spawnen bei frameZaehler % 120 === 0 und koennten das Schiff treffen (Kombo -> 0):
-      // Zaehler vor jedem Block zuruecksetzen, damit kein Block die 120 erreicht
+      // Asteroids spawn at frameCounter % 120 === 0 and could hit the ship (combo -> 0):
+      // reset the counter before every block so no block reaches 120
       const steps = n => {
         state.frameCounter = 1;
         T.steps(n);
@@ -1362,9 +1358,7 @@ test.describe('Viper-X Kill-Kombo', () => {
     expect(r.expired).toEqual([0, 0]);
   });
 
-  test('Treffer setzt die Kombo auf 0 (auch ein vom Schild abgefangener), Waffenstufen bleiben unveraendert', async ({
-    page,
-  }) => {
+  test('A hit sets the combo to 0 (also one caught by the shield), weapon tiers stay unchanged', async ({ page }) => {
     await ready(page);
     const r = await page.evaluate(() => {
       const { state, Utils } = window.__game;
@@ -1382,14 +1376,14 @@ test.describe('Viper-X Kill-Kombo', () => {
         lives: state.lives,
         tiers: [state.laserTier, state.missileTier, state.bombTier],
       };
-      // Schild faengt den Treffer ab, die Kombo faellt trotzdem
+      // The shield catches the hit, the combo drops anyway
       state.invulnerableTimer = 0;
       state.shieldTier = 1;
       state.viperCombo = 6;
       state.viperComboTimer = 50;
       Utils.playerHit(dummy, false, 'p1');
       out.shield = { combo: state.viperCombo, lives: state.lives, shield: state.shieldTier };
-      // Unverwundbar (kein Treffer) laesst die Kombo stehen
+      // Invulnerable (no hit) leaves the combo standing
       state.viperCombo = 4;
       Utils.playerHit(dummy, false, 'p1');
       out.withoutHit = state.viperCombo;
@@ -1400,7 +1394,7 @@ test.describe('Viper-X Kill-Kombo', () => {
     expect(r.withoutHit).toBe(4);
   });
 
-  test('Viper hat loseUpgradesOnHit aus; Perk-Liste nennt Kombo statt Upgrade-Verlust', async ({ page }) => {
+  test('Viper has loseUpgradesOnHit off; the perk list names combo instead of upgrade loss', async ({ page }) => {
     await page.waitForFunction(() => window.__game && window.__game.shipModels);
     const r = await page.evaluate(() => {
       const v = window.__game.shipModels.viper;
@@ -1412,7 +1406,7 @@ test.describe('Viper-X Kill-Kombo', () => {
     expect(r.labels).not.toContain('TREFFER: -1 UPGRADE');
   });
 
-  test('Punkte eines Kills bei Kombo 10 = Grundpunkte x 2.0, ab Kombo 20 bei x3 gedeckelt', async ({ page }) => {
+  test('Points of a kill at combo 10 = base points x 2.0, capped at x3 from combo 20', async ({ page }) => {
     await ready(page);
     const r = await page.evaluate(() => {
       const T = window.__viperTest;
@@ -1441,7 +1435,7 @@ test.describe('Viper-X Kill-Kombo', () => {
     expect(r.thereafter).toBe(51);
   });
 
-  test('Feuerrate: Kombo 5 -> Cooldown 5, Kombo 10 -> 4, Overdrive bleibt bei 3, ohne Kombo 6', async ({ page }) => {
+  test('Fire rate: combo 5 -> cooldown 5, combo 10 -> 4, overdrive stays at 3, without combo 6', async ({ page }) => {
     await ready(page);
     const r = await page.evaluate(() => {
       const T = window.__viperTest;
@@ -1458,7 +1452,7 @@ test.describe('Viper-X Kill-Kombo', () => {
         T.steps(1);
         return state.playerShotCooldown;
       };
-      // nach dem Schuss-Schritt zaehlt der Folgeschritt 1 herunter: Wert = Cooldown - 1
+      // after the shot step the following step counts down 1: value = cooldown - 1
       return { k0: cd(0), k4: cd(4), k5: cd(5), k9: cd(9), k10: cd(10), k25: cd(25), od: cd(10, 100) };
     });
     expect(r.k0).toBe(5);
@@ -1470,7 +1464,7 @@ test.describe('Viper-X Kill-Kombo', () => {
     expect(r.od).toBe(2);
   });
 
-  test('Sound bei Kombo 5, 10 und 20 (genau dort), sonst keiner', async ({ page }) => {
+  test('Sound at combo 5, 10 and 20 (exactly there), otherwise none', async ({ page }) => {
     await ready(page);
     const r = await page.evaluate(() => {
       const T = window.__viperTest;
@@ -1491,13 +1485,13 @@ test.describe('Viper-X Kill-Kombo', () => {
     ]);
   });
 
-  test('Phantom hat keine Kombo: Kills aendern nichts, Punkte ohne Faktor, Cooldown 6', async ({ page }) => {
+  test('Phantom has no combo: kills change nothing, points without a factor, cooldown 6', async ({ page }) => {
     await ready(page, { p1: 'phantom' });
     const r = await page.evaluate(() => {
       const T = window.__viperTest;
       const { state } = window.__game;
       const s0 = state.score;
-      state.viperCombo = 10; // kuenstlich gesetzt: ohne Viper wirkungslos
+      state.viperCombo = 10; // set artificially: without a Viper it has no effect
       T.killEnemy();
       const points = state.score - s0;
       state.keysPressed.l = true;
@@ -1515,7 +1509,7 @@ test.describe('Viper-X Kill-Kombo', () => {
     expect(r.hud).toBe('none');
   });
 
-  test('Coop: Kills von P2 erhoehen nur die Kombo von P2, Treffer an P1 laesst P2 unberuehrt', async ({ page }) => {
+  test('Co-op: kills of P2 raise only the combo of P2, a hit on P1 leaves P2 untouched', async ({ page }) => {
     await ready(page, { coop: true });
     const r = await page.evaluate(() => {
       const T = window.__viperTest;
@@ -1524,7 +1518,7 @@ test.describe('Viper-X Kill-Kombo', () => {
       T.killEnemy('p2');
       T.killEnemy('p1');
       const afterKills = { p1: state.viperCombo, p2: state.p2.viperCombo };
-      // P2-Kill mit Kombo 10 zaehlt x2, P1-Kill (Kombo 1) x1.1
+      // P2 kill with combo 10 counts x2, P1 kill (combo 1) x1.1
       state.p2.viperCombo = 10;
       const s0 = state.score;
       T.killEnemy('p2');
@@ -1541,7 +1535,7 @@ test.describe('Viper-X Kill-Kombo', () => {
     expect(r.afterHit).toEqual({ p1: 0, p2: 11 });
   });
 
-  test('HUD: "KOMBO 7 · x1.7" nur bei Kombo > 0, Puls bei Erhoehung, P2 analog, x3.0 gedeckelt', async ({ page }) => {
+  test('HUD: "KOMBO 7 · x1.7" only at combo > 0, pulse on increase, P2 likewise, capped at x3.0', async ({ page }) => {
     await ready(page, { coop: true });
     const r = await page.evaluate(() => {
       const T = window.__viperTest;
@@ -1576,7 +1570,7 @@ test.describe('Viper-X Kill-Kombo', () => {
     expect(r.p1Gone.display).toBe('none');
   });
 
-  test('Online: Snapshot traegt Kombo und Timer beider Viper (ganzzahlig, nur Viper), der Client zeigt sie und tickt nicht selbst', async ({
+  test('Online: the snapshot carries combo and timer of both Vipers (integers, Viper only), the client shows them and does not tick itself', async ({
     page,
   }) => {
     await page.waitForFunction(() => window.__game && window.__game.state);
@@ -1637,7 +1631,7 @@ test.describe('Viper-X Kill-Kombo', () => {
       const recon = decoder.decode(JSON.parse(JSON.stringify(encoder.encode(full, 0))));
       out.wire = [recon.p1.viperCombo, recon.p1.viperComboTimer, recon.p2.viperCombo, recon.p2.viperComboTimer];
 
-      // Client: Host-P1 Kombo 7, eigenes Schiff (P2) springt von 4 auf 5 -> Sound
+      // Client: host P1 combo 7, own ship (P2) jumps from 4 to 5 -> sound
       state.network.isHost = false;
       state.network.isClient = true;
       state.viperCombo = 0;
@@ -1654,7 +1648,7 @@ test.describe('Viper-X Kill-Kombo', () => {
         document.getElementById('viper-kombo-hud-p2').style.display,
       ];
       out.sounds = g.Audio.audioHistory.filter(a => a.name === 'combo').length;
-      // Der Client zaehlt das Fenster nicht selbst herunter und verwirft die Kombo nicht
+      // The client does not count the window down itself and does not discard the combo
       state.p2.viperComboTimer = 1;
       for (let i = 0; i < 5; i++) g.Loop.simulationStep();
       out.noTick = [state.p2.viperCombo, state.p2.viperComboTimer];

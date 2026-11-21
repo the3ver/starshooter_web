@@ -125,9 +125,9 @@ export const shipModels = {
     energyRegen: 0.4,
     startShield: 0,
     loseUpgradesOnHit: false,
-    // Kill-Kette: Frames, um die jeder durch einen Dash zerstörte Gegner den Dash-Cooldown verkürzt
+    // Kill chain: frames by which every opponent destroyed by a dash shortens the dash cooldown
     dashKillCooldown: 30,
-    // Energie, die jedes durch einen Sweep zerstörte Feindschiff zurückgibt (Bosse ausgenommen)
+    // Energy returned by every enemy ship destroyed by a sweep (bosses excluded)
     sweepKillEnergy: 4,
     perks: [
       {
@@ -214,7 +214,7 @@ export const state = {
   viperKillCount: 0,
   isDead: false,
   hacks: [],
-  // Gleve-Dash (gleve.js): Restframes, Schritt pro Frame, Abprall, Unverwundbarkeit, Flanke, getroffene Ziele
+  // Gleve dash (gleve.js): remaining frames, step per frame, bounce, invulnerability, key edge, targets hit
   gleveDashTimer: 0,
   gleveDashVx: 0,
   gleveDashVy: 0,
@@ -222,31 +222,31 @@ export const state = {
   gleveInvulnerable: 0,
   gleveDashKeyHeld: false,
   gleveDashHit: [],
-  // Gleve-Sweep: Restframes, Strahlwinkel (Grad), Richtung (+1/-1, 0 = noch kein Sweep), getroffene Ziele,
-  // Frames bis zum naechsten moeglichen Start (Takt)
+  // Gleve sweep: remaining frames, beam angle (degrees), direction (+1/-1, 0 = no sweep yet), targets hit,
+  // frames until the next possible start (cadence)
   gleveSweepTimer: 0,
   gleveSweepAngle: 0,
   gleveSweepDirection: 0,
   gleveSweepHit: [],
   gleveSweepCadence: 0,
-  // Viper-Ausweichrolle (viper.js): Rest-Schritte, Richtung (+1/-1), Cooldown, Tipp-/Wisch-Erkennung
+  // Viper evasive roll (viper.js): remaining steps, direction (+1/-1), cooldown, tap/swipe detection
   viperRollTimer: 0,
   viperRollDirection: 0,
   viperRollCooldown: 0,
   viperLeftHeld: false,
   viperRightHeld: false,
   viperTapDirection: 0,
-  viperTapAlter: 999,
+  viperTapAge: 999,
   viperJoyRest: 0,
   viperJoyBeforehand: 0,
-  // Viper-Overdrive: Leiste 0..100 (je Near-Miss +10), Rest-Schritte des Overdrives
+  // Viper overdrive: strip 0..100 (+10 per near miss), remaining steps of the overdrive
   viperOverdriveStrip: 0,
   viperOverdriveTimer: 0,
-  // Viper-Kill-Kombo: Kills in Folge und Restschritte des Kombo-Fensters
+  // Viper kill combo: kills in a row and remaining steps of the combo window
   viperCombo: 0,
   viperComboTimer: 0,
-  // Sniper-Fadenkreuz (sniper.js): Mitte im Spielfeld (null = noch nicht gesetzt), Schussabstand, Ladevorgang laeuft (Taste
-  // im Vorschritt gehalten), Ladeschritte 0-90, Voll-Ton schon gespielt
+  // Sniper crosshair (sniper.js): center on the playfield (null = not set yet), shot distance, charging in progress (key
+  // held in the previous step), charge steps 0-90, full tone already played
   sniperTargetX: null,
   sniperTargetY: null,
   sniperCooldown: 0,
@@ -370,7 +370,7 @@ export const state = {
     viperLeftHeld: false,
     viperRightHeld: false,
     viperTapDirection: 0,
-    viperTapAlter: 999,
+    viperTapAge: 999,
     viperJoyRest: 0,
     viperJoyBeforehand: 0,
     viperOverdriveStrip: 0,

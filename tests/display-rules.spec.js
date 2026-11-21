@@ -1,10 +1,10 @@
-// Statische Waechter der Anzeige-Schicht: lesen nur Quelltext, brauchen keine Seite.
-// Getrennt von display.spec.js, damit sie nicht dessen beforeEach (page.goto) bezahlen.
+// Static guards of the display layer: read source only, need no page.
+// Separate from display.spec.js so they do not pay for its beforeEach (page.goto).
 const fs = require('fs');
 const path = require('path');
 const { test, expect } = require('@playwright/test');
 
-test('Spielerschiffe: Logik schreibt nicht in #spieler / #spieler-2', () => {
+test('Player ships: logic does not write into #spieler / #spieler-2', () => {
   const module = [
     'player.js',
     'client.js',
@@ -32,9 +32,9 @@ test('Spielerschiffe: Logik schreibt nicht in #spieler / #spieler-2', () => {
   expect(findings).toEqual([]);
 });
 
-// Waechter: Diese Module laufen ueber die Anzeige-Schnittstelle. Positionen und Entfernen von Weltobjekten
-// gehoeren ins Backend (display-dom.js), nicht in die Spiellogik.
-test('Spiellogik fasst die Elemente der Weltobjekte nicht an (Position, Zustand, Entfernen)', () => {
+// Guard: these modules go through the display interface. Positions and removal of world objects
+// belong in the backend (display-dom.js), not in the game logic.
+test('Game logic does not touch the elements of world objects (position, state, removal)', () => {
   const module = [
     'loop.js',
     'level.js',
@@ -67,12 +67,12 @@ test('Spiellogik fasst die Elemente der Weltobjekte nicht an (Position, Zustand,
   expect(findings).toEqual([]);
 });
 
-test('entities.js baut keine DOM-Elemente (Erzeugen nur ueber Anzeige.erzeuge)', () => {
+test('entities.js builds no DOM elements (creation only via Display.create)', () => {
   const source = fs.readFileSync(path.join(__dirname, '..', 'src', 'js', 'entities.js'), 'utf8');
   expect(source.match(/document\.\w+|\.el\.(style|innerHTML|classList|appendChild)/g)).toBeNull();
 });
 
-test('Partikel entstehen nur ueber erzeugePartikel (particles.js)', () => {
+test('Particles are created only via createParticles (particles.js)', () => {
   const folder = path.join(__dirname, '..', 'src', 'js');
   const findings = fs
     .readdirSync(folder)
@@ -81,43 +81,43 @@ test('Partikel entstehen nur ueber erzeugePartikel (particles.js)', () => {
   expect(findings).toEqual([]);
 });
 
-test('sniper.js baut keine Granaten-Elemente (Erzeugen ueber Anzeige.erzeuge)', () => {
+test('sniper.js builds no grenade elements (creation via Display.create)', () => {
   const text = fs.readFileSync(path.join(__dirname, '..', 'src', 'js', 'sniper.js'), 'utf8');
   expect(text).not.toMatch(/sniper-granate/);
   expect(text).not.toMatch(/netzGranaten\b|const grenades\b/);
 });
 
-test('sniper.js baut keine Minen-Elemente (Erzeugen ueber Anzeige.erzeuge)', () => {
+test('sniper.js builds no mine elements (creation via Display.create)', () => {
   const text = fs.readFileSync(path.join(__dirname, '..', 'src', 'js', 'sniper.js'), 'utf8');
   expect(text).not.toMatch(/sniper-mine'|netzMinen\b|zeigeMine\b/);
 });
 
-test('sniper.js fasst das DOM nicht an (kein createElement, kein dom.spielfeld, kein isConnected, kein el.remove)', () => {
+test('sniper.js does not touch the DOM (no createElement, no dom.playfield, no isConnected, no el.remove)', () => {
   const text = fs.readFileSync(path.join(__dirname, '..', 'src', 'js', 'sniper.js'), 'utf8');
   expect(text).not.toMatch(
     /createElement|dom.playfield|isConnected|.el.remove|fadenkreuze\b|holeFadenkreuz|zeigeFadenkreuz|entferneFadenkreuz/,
   );
 });
 
-test('gleve.js legt keine Klinge im DOM an (kein gleve-klinge, kein dom.spielfeld, kein isConnected, kein el.remove)', () => {
+test('gleve.js creates no blade in the DOM (no gleve-klinge, no dom.playfield, no isConnected, no el.remove)', () => {
   const text = fs.readFileSync(path.join(__dirname, '..', 'src', 'js', 'gleve.js'), 'utf8');
-  // createElement bleibt nur fuer die HUD-Punkte der Dash-Ladungen (zeigeLadungenHud) erlaubt
+  // createElement stays allowed only for the HUD dots of the dash charges (showChargesHud)
   expect((text.match(/createElement/g) || []).length).toBe(1);
   expect(text).toMatch(/const point = document\.createElement/);
   expect(text).not.toMatch(/gleve-klinge|dom\.playfield|isConnected|\.el\.remove|zeigeKlinge|entferneKlinge|blades\[/);
 });
 
-test('Logik setzt den Spielfeld-Hintergrund nicht selbst (utils, powerups, network: kein spielfeld.style.backgroundColor)', () => {
+test('Logic does not set the playfield background itself (utils, powerups, network: no playfield.style.backgroundColor)', () => {
   for (const file of ['utils', 'powerups', 'network']) {
     const text = fs.readFileSync(path.join(__dirname, '..', 'src', 'js', file + '.js'), 'utf8');
     expect(text, file).not.toMatch(/playfield\.style\.backgroundColor/);
   }
 });
 
-// Globaler Waechter: Diese Module bauen nichts im Spielfeld und fragen das DOM nicht nach ihren Elementen.
-// Einzige Ausnahme: gleve.js baut in zeigeLadungenHud die HUD-Punkte (.dash-ladung) per createElement in den
-// HUD-Container #dash-ladungen. Der liegt ausserhalb von #spielfeld und bleibt bewusst HTML.
-test('Spiellogik-Module enthalten kein document.createElement, kein dom.spielfeld und kein isConnected', () => {
+// Global guard: these modules build nothing in the playfield and do not query the DOM for their elements.
+// Only exception: gleve.js builds the HUD dots (.dash-ladung) via createElement in showChargesHud inside the
+// HUD container #dash-ladungen. It lies outside #spielfeld and deliberately stays HTML.
+test('Game logic modules contain no document.createElement, no dom.playfield and no isConnected', () => {
   const module = [
     'opponents',
     'boss',

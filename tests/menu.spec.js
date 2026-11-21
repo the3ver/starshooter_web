@@ -1,7 +1,7 @@
 const { test, expect } = require('@playwright/test');
 const { setGameState, startGame } = require('./helpers');
 
-// Hauptmenue: Layout darf beim Moduswechsel nicht springen (feste Breite, feste Hoehe der Optionen)
+// Main menu: the layout must not jump on a mode switch (fixed width, fixed height of the options)
 const MODES = ['single', 'coop', 'online'];
 const VIEWS = [
   { name: 'Desktop 800x600', viewport: { width: 800, height: 600 } },
@@ -32,10 +32,10 @@ async function openUpMenu(page, viewport) {
   await page.waitForFunction(() => window.__game && window.__game.state);
 }
 
-// Messwerte des Menues im aktuellen Modus (Rects im Seitenkoordinatensystem)
+// Menu measurements in the current mode (rects in page coordinates)
 async function miss(page) {
-  // Endliche Transitions abwarten: Spielfeldbreite (0,25 s) und Menue-Inhalt (z. B. Schriftgroesse des Start-Texts);
-  // Endlos-Animationen (Blinken) zaehlen nicht. Ohne das misst der Test je nach Rechnerlast mitten in der Transition.
+  // Wait for finite transitions: playfield width (0.25 s) and menu content (e.g. font size of the start text);
+  // infinite animations (blinking) do not count. Without this the test measures mid-transition depending on machine load.
   await page.waitForFunction(() =>
     ['spielfeld', 'start-screen'].every(id =>
       document
@@ -66,8 +66,8 @@ async function miss(page) {
 }
 
 for (const view of VIEWS) {
-  test.describe(`Hauptmenue ${view.name}`, () => {
-    test('Titel, Hangar und Start-Text liegen in allen Modi an derselben Stelle', async ({ page }) => {
+  test.describe(`main menu ${view.name}`, () => {
+    test('Title, hangar and start text sit at the same place in all modes', async ({ page }) => {
       await openUpMenu(page, view.viewport);
       const values = {};
       for (const mode of MODES) {
@@ -87,7 +87,7 @@ for (const view of VIEWS) {
       }
     });
 
-    test('Menue scrollt nicht, passt in die Spielfeldhoehe und Titel bleibt sichtbar', async ({ page }) => {
+    test('Menu does not scroll, fits the playfield height and the title stays visible', async ({ page }) => {
       await openUpMenu(page, view.viewport);
       for (const mode of MODES) {
         await page.click(`#gamemode-btn-${mode}`);
@@ -95,14 +95,14 @@ for (const view of VIEWS) {
         expect(w.scrollHeight, `scrollHeight ${mode}`).toBeLessThanOrEqual(w.clientHeight);
         const field = await page.evaluate(() => document.getElementById('spielfeld').getBoundingClientRect().toJSON());
         expect(w.menu.height, `Menuehoehe ${mode}`).toBeLessThanOrEqual(field.height);
-        expect(w.title.top, `Titel oben ${mode}`).toBeGreaterThanOrEqual(field.top);
-        expect(w.startText.top + w.startText.height, `Start-Text unten ${mode}`).toBeLessThanOrEqual(
+        expect(w.title.top, `title top ${mode}`).toBeGreaterThanOrEqual(field.top);
+        expect(w.startText.top + w.startText.height, `start text bottom ${mode}`).toBeLessThanOrEqual(
           field.top + field.height,
         );
       }
     });
 
-    test('Spielfeldbreite im Menue ist in allen Modi gleich (Einzelspieler-Breite)', async ({ page }) => {
+    test('Playfield width in the menu is the same in all modes (single player width)', async ({ page }) => {
       await openUpMenu(page, view.viewport);
       for (const mode of MODES) {
         await page.click(`#gamemode-btn-${mode}`);
@@ -115,7 +115,7 @@ for (const view of VIEWS) {
   });
 }
 
-test('Online-Lobby ist so breit wie der Hangar und zentriert; Lobby-Zustaende sprengen die feste Hoehe nicht', async ({
+test('Online lobby is as wide as the hangar and centered; lobby states do not exceed the fixed height', async ({
   page,
 }) => {
   await openUpMenu(page, { width: 800, height: 600 });
@@ -142,7 +142,7 @@ test('Online-Lobby ist so breit wie der Hangar und zentriert; Lobby-Zustaende sp
   expect(m.lobbyHeight).toBeLessThanOrEqual(m.optionsHeight);
   expect(m.lobbyScrolls).toBe(false);
 
-  // Verbindungsaufbau (Raum-Code, Schritt, Fortschrittsbalken), Beitreten/Erstellen weiterhin sichtbar
+  // Connection setup (room code, step, progress bar), join/create still visible
   await page.evaluate(() => {
     const s = document.getElementById('online-status');
     s.style.display = 'block';
@@ -156,7 +156,7 @@ test('Online-Lobby ist so breit wie der Hangar und zentriert; Lobby-Zustaende sp
   await expect(page.locator('#btn-online-host')).toBeVisible();
   await expect(page.locator('#btn-online-join')).toBeVisible();
 
-  // Verbunden als Host (Start-Knopf, Verlassen-Knopf, Statuszeile)
+  // Connected as host (start button, leave button, status line)
   await page.evaluate(() => {
     document.getElementById('online-lobby-actions').style.display = 'none';
     document.getElementById('online-connected-controls').style.display = 'flex';
@@ -170,7 +170,7 @@ test('Online-Lobby ist so breit wie der Hangar und zentriert; Lobby-Zustaende sp
   expect(m.lobbyScrolls).toBe(false);
 });
 
-test('Menue passt fuer jedes Schiff und jeden Modus in die Spielfeldhoehe', async ({ page }) => {
+test('Menu fits the playfield height for every ship and every mode', async ({ page }) => {
   await openUpMenu(page, { width: 800, height: 600 });
   for (const model of ['viper', 'phantom', 'gleve', 'sniper']) {
     await page.click(`.hangar-model-btn[data-model="${model}"]`);
@@ -183,7 +183,7 @@ test('Menue passt fuer jedes Schiff und jeden Modus in die Spielfeldhoehe', asyn
   }
 });
 
-test('Co-op: Bot-Steuerung (Spieler-2-Reiter, Schwierigkeit) sprengt die feste Hoehe nicht', async ({ page }) => {
+test('Co-op: bot controls (player 2 tab, difficulty) do not exceed the fixed height', async ({ page }) => {
   await openUpMenu(page, { width: 800, height: 600 });
   await page.click('#gamemode-btn-coop');
   await page.click('.hangar-player-tab[data-player="p2"]');
@@ -198,7 +198,7 @@ test('Co-op: Bot-Steuerung (Spieler-2-Reiter, Schwierigkeit) sprengt die feste H
   expect(w.scrollHeight).toBeLessThanOrEqual(w.clientHeight);
 });
 
-test('Co-op-Steuerung: zwei Spalten mit je vier Zeilen "Taste -> Aktion", ohne Umbruch', async ({ page }) => {
+test('Co-op controls: two columns with four rows "key -> action" each, without wrapping', async ({ page }) => {
   await openUpMenu(page, { width: 800, height: 600 });
   await page.click('#gamemode-btn-coop');
   await page.click('#btn-open-steuerung');
@@ -229,7 +229,7 @@ test('Co-op-Steuerung: zwei Spalten mit je vier Zeilen "Taste -> Aktion", ohne U
   expect(columns[1][0].text).toContain('Bewegen');
 });
 
-test('Co-op: Spielfeld wird erst beim Spielstart 600 px breit, nach Pause -> Hauptmenue wieder Menuebreite', async ({
+test('Co-op: playfield becomes 600 px wide only at game start, after pause -> main menu menu width again', async ({
   page,
 }) => {
   await openUpMenu(page, { width: 800, height: 600 });
@@ -256,7 +256,7 @@ test('Co-op: Spielfeld wird erst beim Spielstart 600 px breit, nach Pause -> Hau
   expect(inMenu.scrollHeight).toBeLessThanOrEqual(inMenu.clientHeight);
 });
 
-test('Co-op: Neustart (Game Over) stellt die Menuebreite wieder her', async ({ page }) => {
+test('Co-op: restart (game over) restores the menu width', async ({ page }) => {
   await openUpMenu(page, { width: 800, height: 600 });
   await page.click('#gamemode-btn-coop');
   await startGame(page);
@@ -268,7 +268,7 @@ test('Co-op: Neustart (Game Over) stellt die Menuebreite wieder her', async ({ p
   expect(w.fieldWidth).toBe(400);
 });
 
-test('Einzelspieler bleibt beim Spielstart bei 400 px', async ({ page }) => {
+test('Single player stays at 400 px at game start', async ({ page }) => {
   await openUpMenu(page, { width: 800, height: 600 });
   await startGame(page);
   await page.waitForFunction(() => window.__game.state.gameRunning);
@@ -277,8 +277,8 @@ test('Einzelspieler bleibt beim Spielstart bei 400 px', async ({ page }) => {
   expect(w.fieldWidth).toBe(400);
 });
 
-test.describe('Menue aufgeraeumt: Steuerung-Overlay und Perk-Chips', () => {
-  test('Steuerungsknopf oeffnet das Overlay, SCHLIESSEN und ESC schliessen es', async ({ page }) => {
+test.describe('Menu tidied up: controls overlay and perk chips', () => {
+  test('Controls button opens the overlay, CLOSE and ESC close it', async ({ page }) => {
     await openUpMenu(page, { width: 800, height: 600 });
     const overlay = page.locator('#steuerung-overlay');
     await expect(overlay).toBeHidden();
@@ -293,7 +293,7 @@ test.describe('Menue aufgeraeumt: Steuerung-Overlay und Perk-Chips', () => {
     expect(await page.evaluate(() => window.__game.state.gameRunning)).toBe(false);
   });
 
-  test('Overlay zeigt die Steuerung des aktuellen Modus (Single vs Co-op)', async ({ page }) => {
+  test('Overlay shows the controls of the current mode (single vs co-op)', async ({ page }) => {
     await openUpMenu(page, { width: 800, height: 600 });
     await page.click('#btn-open-steuerung');
     await expect(page.locator('#steuerung-info-single')).toBeVisible();
@@ -306,7 +306,7 @@ test.describe('Menue aufgeraeumt: Steuerung-Overlay und Perk-Chips', () => {
     await expect(page.locator('#steuerung-info-coop')).toContainText('SPIELER 2');
   });
 
-  test('Tastendruck bei offenem Overlay startet kein Spiel, danach schon', async ({ page }) => {
+  test('A key press with the overlay open does not start a game, afterwards it does', async ({ page }) => {
     await openUpMenu(page, { width: 800, height: 600 });
     await page.click('#btn-open-steuerung');
     await page.keyboard.down('KeyW');
@@ -324,7 +324,7 @@ test.describe('Menue aufgeraeumt: Steuerung-Overlay und Perk-Chips', () => {
     await page.keyboard.up('KeyW');
   });
 
-  test('Kurzzeile mit den wichtigsten Tasten je Modus', async ({ page }) => {
+  test('Short line with the most important keys per mode', async ({ page }) => {
     await openUpMenu(page, { width: 800, height: 600 });
     const short = page.locator('#steuerung-kurz');
     await expect(short).toContainText('L Laser');
@@ -336,7 +336,7 @@ test.describe('Menue aufgeraeumt: Steuerung-Overlay und Perk-Chips', () => {
     await expect(short).toBeVisible();
   });
 
-  test('Perk-Chips: Anzahl passt zum Schiff, Antippen zeigt Label und Beschreibung', async ({ page }) => {
+  test('Perk chips: count matches the ship, tapping shows label and description', async ({ page }) => {
     await openUpMenu(page, { width: 800, height: 600 });
     for (const model of ['viper', 'phantom', 'gleve', 'sniper']) {
       await page.click(`.hangar-model-btn[data-model="${model}"]`);
@@ -355,7 +355,7 @@ test.describe('Menue aufgeraeumt: Steuerung-Overlay und Perk-Chips', () => {
     }
   });
 
-  test('Hangar-Hoehe und Perk-Zeile sind fuer alle Schiffe gleich (eine Zeile)', async ({ page }) => {
+  test('Hangar height and perk row are the same for all ships (one row)', async ({ page }) => {
     await openUpMenu(page, { width: 800, height: 600 });
     const heights = [];
     for (const model of ['viper', 'phantom', 'gleve', 'sniper']) {

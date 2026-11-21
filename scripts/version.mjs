@@ -1,19 +1,19 @@
-// Setzt die Spielversion an allen Stellen: node scripts/version.mjs 1.15.6
-// package.json und package-lock.json (npm version), src/index.html, README-Badge, GAME_VERSION
-// und ein Geruest fuer den changelogData-Eintrag. tests/version.spec.js prueft, dass alle Stellen gleich sind.
+// Sets the game version everywhere: node scripts/version.mjs 1.15.6
+// package.json and package-lock.json (npm version), src/index.html, README badge, GAME_VERSION
+// and a skeleton for the changelogData entry. tests/version.spec.js checks that all locations agree.
 import { execSync } from 'node:child_process';
 import { readFileSync, writeFileSync } from 'node:fs';
 
 const version = process.argv[2];
 if (!/^\d+\.\d+\.\d+$/.test(version || '')) {
-  console.error('Aufruf: node scripts/version.mjs X.Y.Z');
+  console.error('Usage: node scripts/version.mjs X.Y.Z');
   process.exit(1);
 }
 
 function replace(file, pattern, replacement) {
   const old = readFileSync(file, 'utf8');
   const fresh = old.replace(pattern, replacement);
-  if (fresh === old && !old.includes(version)) throw new Error(`Versionsstelle in ${file} nicht gefunden`);
+  if (fresh === old && !old.includes(version)) throw new Error(`version location not found in ${file}`);
   writeFileSync(file, fresh);
 }
 
@@ -41,7 +41,7 @@ if (!changelog.includes(`'${version}': {`)) {
       `export const changelogData = {${lineEnd}${entry}${lineEnd}`,
     ),
   );
-  console.log(`Version ${version} gesetzt, Highlights in src/js/changelog.js eintragen (TODO)`);
+  console.log(`Version ${version} set, add highlights in src/js/changelog.js (TODO)`);
 } else {
-  console.log(`Version ${version} gesetzt`);
+  console.log(`Version ${version} set`);
 }

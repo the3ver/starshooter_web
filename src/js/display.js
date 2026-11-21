@@ -1,37 +1,37 @@
-// Anzeige-Schnittstelle: einzige Stelle, ueber die die Spiellogik die Darstellung der Welt anspricht.
-// Die Logik aendert nur Modellfelder (x, y, rot, ...); das eingesetzte Backend zeichnet daraus.
-// Standard ist das DOM-Backend (display-dom.js). Eine andere Engine (Canvas, WebGL, PixiJS ...)
-// implementiert dieselben Funktionen und wird per setzeBackend() eingesetzt.
+// Display interface: the only place through which the game logic addresses the rendering of the world.
+// The logic only changes model fields (x, y, rot, ...); the backend in use draws from them.
+// The default is the DOM backend (display-dom.js). Another engine (Canvas, WebGL, PixiJS ...)
+// implements the same functions and is plugged in via setBackend().
 //
-// Modellfelder, die ein Backend auswertet (Einheiten wie im Spielfeld, px und Grad):
-// - x, y            Position der linken oberen Ecke
-// - anzeigeX/Y      optionale Anzeigeposition (Online-Client: Interpolation zwischen Snapshots), sonst x/y
-// - rot             optionale Drehung in Grad (fehlt = keine Drehung schreiben)
-// - Partikel: leben (0..1) fuer Deckkraft und Skalierung
-// - Effekte (arrays.effekte, Art + Felder): bombenWelle (x/y Mitte, radius, farbe), bombenWelle2, raketenWelle,
-//   bossWelle (x/y Mitte, radius); gemeinsam rest/dauer (Schritte; t = 1 - rest/dauer) und optional verzoegerung
-//   (Schritte, in denen der Effekt noch unsichtbar ist und zur Lebensdauer zaehlt)
-//   Sniper: sniperStrahl (x/y Nase, laenge, winkel, breite, glow, farbe), sniperDruckwelle, sniperMinenExplosion, sniperEmp (x/y Mitte, radius); alle mit pKey
-// - stern (arrays.sterne): x/y, groesse (px, quadratisch), speed
-// - sniperGranate (arrays.sniperGranaten): x/y Mitte (14 px gross), rot (Grad), rest (Flugschritte)
-// - sniperMine (arrays.sniperMinen): x/y Mitte (12 px gross), pKey, haftet, blinkt (Booleans)
-// - Zustand: schildHp (Schild sichtbar > 0), hp/maxHp/traegtPowerup (Risse), istUnzerstoerbar (Magma),
-//   betaeubt (> 0), phase (Cling-on-Flammen), repulsorAktiv (Boss), towedBy + strahlX/strahlY (Schlepp-Strahl),
-//   harmlos (pariertes Geschoss), farbe (Laser), fortschritt (Bombenpuls, 1 -> 0)
+// Model fields a backend evaluates (units as on the playfield, px and degrees):
+// - x, y            position of the top left corner
+// - displayX/Y      optional display position (online client: interpolation between snapshots), otherwise x/y
+// - rot             optional rotation in degrees (missing = do not write a rotation)
+// - particles: lives (0..1) for opacity and scaling
+// - effects (arrays.effects, kind + fields): bombWave (x/y center, radius, color), bombWave2, missileWave,
+//   bossWave (x/y center, radius); shared rest/duration (steps; t = 1 - rest/duration) and optional delay
+//   (steps during which the effect is still invisible; they count towards the lifetime)
+//   Sniper: sniperBeam (x/y nose, length, angle, width, glow, color), sniperBlastWave, sniperMineExplosion, sniperEmp (x/y center, radius); all with pKey
+// - star (arrays.stars): x/y, size (px, square), speed
+// - sniperGrenade (arrays.sniperGrenades): x/y center (14 px), rot (degrees), rest (flight steps)
+// - sniperMine (arrays.sniperMines): x/y center (12 px), pKey, sticks, blinks (booleans)
+// - state: shieldHp (shield visible > 0), hp/maxHp/carriesPowerup (cracks), isIndestructible (magma),
+//   stunned (> 0), phase (cling-on flames), repulsorActive (boss), towedBy + beamX/beamY (tow beam),
+//   harmless (parried projectile), color (laser), progress (bomb pulse, 1 -> 0)
 import * as DomDisplay from './display-dom.js';
 
 let backend = DomDisplay;
 
-// Backend tauschen. Pflichtfunktionen: erzeuge(obj, art), zeichneWelt(), zeichneSpieler(), entferne(obj),
-// blitze(obj, staerke), blitzeSpielfeld(farbe, ms).
+// Swap the backend. Required functions: create(obj, kind), drawWorld(), drawPlayer(), remove(obj),
+// flash(obj, strength), flashPlayfield(color, ms).
 export function setBackend(newBackend) {
   for (const name of ['create', 'drawWorld', 'drawPlayer', 'remove', 'flash', 'flashPlayfield']) {
-    if (typeof newBackend?.[name] !== 'function') throw new Error(`Anzeige-Backend ohne ${name}()`);
+    if (typeof newBackend?.[name] !== 'function') throw new Error(`display backend without ${name}()`);
   }
   backend = newBackend;
 }
 
-// Optisches Thema des Spielfelds (Hintergrund, Stimmung): 'standard' oder 'biozone'. Optional fuer Backends.
+// Visual theme of the playfield (background, mood): 'standard' or 'biozone'. Optional for backends.
 export function setTheme(name) {
   if (typeof backend.setTheme === 'function') backend.setTheme(name);
 }
@@ -40,39 +40,39 @@ export function getBackend() {
   return backend;
 }
 
-// Legt die Darstellung eines neuen Weltobjekts an und zeigt es an seiner Position. art bestimmt das
-// Aussehen: feind, asteroid, boss, powerup, laser, rakete, bombe, feindLaser, bossLaser, bossRakete,
-// bossBombe, hackProjektil, gleveWelle, partikel, effekt, stern, sniperGranate, sniperMine. Die noetigen Modellfelder je Art stehen in AGENTS.md (Anzeige-Schicht).
+// Creates the rendering of a new world object and shows it at its position. kind determines the
+// look: enemy, asteroid, boss, powerup, laser, missile, bomb, enemyLaser, bossLaser, bossMissile,
+// bossBomb, hackProjectile, gleveWave, particles, effect, star, sniperGrenade, sniperMine. The required model fields per kind are in AGENTS.md (display layer).
 export function create(obj, kind) {
   backend.create(obj, kind);
   return obj;
 }
 
-// Zeichnet alle Weltobjekte (Listen in arrays) aus ihren Modellfeldern. Laeuft einmal am Ende jedes
-// Simulationsschritts (Host, Solo, Online-Client) und nach einem uebernommenen Snapshot.
+// Draws all world objects (lists in arrays) from their model fields. Runs once at the end of every
+// simulation step (host, solo, online client) and after an applied snapshot.
 export function drawWorld() {
   backend.drawWorld();
 }
 
-// Zeichnet nur die beiden Spielerschiffe aus state / state.p2 (zeichneWelt tut das ebenfalls). Fuer Stellen
-// ausserhalb des Simulationsschritts, die ein Schiff sofort zeigen oder verstecken (Menue, Cutszene, Neustart).
-// Felder: x, y, anzeigeX/Y (Online-Client: P1 interpoliert), drehung, flammenSkala, schiffSichtbar,
-// invulnerableTimer (Blinken), schildStufe (Schild-Ring)
+// Draws only the two player ships from state / state.p2 (drawWorld does that as well). For places
+// outside the simulation step that show or hide a ship immediately (menu, cutscene, restart).
+// Fields: x, y, displayX/Y (online client: P1 interpolated), rotation, flameScale, shipVisible,
+// invulnerableTimer (blinking), shieldTier (shield ring)
 export function drawPlayer() {
   backend.drawPlayer();
 }
 
-// Entfernt die Darstellung eines Weltobjekts. Das Modell (Eintrag in arrays) entfernt der Aufrufer.
+// Removes the rendering of a world object. The caller removes the model (entry in arrays).
 export function remove(obj) {
   if (obj) backend.remove(obj);
 }
 
-// Treffer-Ereignis: Objekt kurz aufhellen (staerke ~2-3). Reine Anzeige, aendert kein Modellfeld.
+// Hit event: brighten the object briefly (strength ~2-3). Display only, changes no model field.
 export function flash(obj, strength) {
   if (obj) backend.flash(obj, strength);
 }
 
-// Bildschirm-Blitz: Spielfeldhintergrund kurz in farbe (CSS-Farbe), nach ms Millisekunden zurueck zur Grundfarbe.
+// Screen flash: playfield background briefly in color (CSS color), back to the base color after ms milliseconds.
 export function flashPlayfield(color, ms) {
   backend.flashPlayfield(color, ms);
 }

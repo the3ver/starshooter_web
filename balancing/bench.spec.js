@@ -1,6 +1,6 @@
-// Balancing-Messstand (nicht Teil von npm test/CI): npm run balancing
-// Misst je Schiff (Bot als P2, hard) und Szenario, wie schnell und verlustreich Gegner besiegt werden.
-// Vollstaendig deterministisch: geseedetes Math.random, Simulation synchron ueber simulationsSchritt().
+// Balancing bench (not part of npm test/CI): npm run balancing
+// Measures per ship (bot as P2, hard) and scenario how fast and at what cost enemies are defeated.
+// Fully deterministic: seeded Math.random, simulation runs synchronously via simulationStep().
 const { test } = require('@playwright/test');
 const fs = require('fs');
 const path = require('path');
@@ -9,7 +9,7 @@ const { measure, prepareMeasurement } = require('./measurement');
 const SHIPS = ['viper', 'phantom', 'gleve', 'sniper'];
 const SEEDS = [1, 2, 3, 4, 5];
 const SCENARIOS = [
-  { id: 'A_welle', name: 'Welle (8 Feinde, Lvl 1)', maxSteps: 3600 },
+  { id: 'A_wave', name: 'Wave (8 enemies, lvl 1)', maxSteps: 3600 },
   { id: 'B_boss1', name: 'Boss Level 1', maxSteps: 5400 },
   { id: 'C_boss2', name: 'Boss Level 2', maxSteps: 5400 },
 ];

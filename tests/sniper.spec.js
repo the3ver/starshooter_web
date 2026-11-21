@@ -1,7 +1,7 @@
 const { test, expect } = require('@playwright/test');
 const { setGameState } = require('./helpers');
 
-// Spectre-SR (sniper): Grundlage (Auswahl, Anzeige, HUD) und Fadenkreuz-Schuss (S2).
+// Spectre-SR (sniper): basics (selection, display, HUD) and the crosshair shot (S2).
 
 test.beforeEach(async ({ page }) => {
   await page.route('**/api/highscores*', route =>
@@ -22,7 +22,7 @@ async function startPerKey(page) {
   await page.keyboard.up('KeyW');
 }
 
-test('Spectre-SR: im Hangar waehlbar, Name und Perks aus shipModels, Railgun-SVG, Werfer-Pods aus, HUD GRANATE', async ({
+test('Spectre-SR: selectable in the hangar, name and perks from shipModels, railgun SVG, launcher pods off, HUD GRANATE', async ({
   page,
 }) => {
   const btn = page.locator('.hangar-model-btn[data-model="sniper"]');
@@ -60,7 +60,7 @@ test('Spectre-SR: im Hangar waehlbar, Name und Perks aus shipModels, Railgun-SVG
   await expect(page.locator('#raketen-cd-container .cooldown-letter')).toHaveText('GRANATE');
   await expect(page.locator('#btn-rakete span')).toHaveText('G');
 
-  // Pods bleiben auch bei hoher Raketenstufe aus, ohne Abwurf-Effekt
+  // Pods stay off even at a high missile tier, without a drop effect
   const drop = await page.evaluate(() => {
     const { state, Utils } = window.__game;
     state.missileTier = 5;
@@ -74,7 +74,7 @@ test('Spectre-SR: im Hangar waehlbar, Name und Perks aus shipModels, Railgun-SVG
     await expect(page.locator('#spieler .werfer-' + pod)).toBeHidden();
   }
 
-  // Zurueck zur Viper: Originaltexte und Werfer
+  // Back to the Viper: original texts and launchers
   await page.evaluate(() => {
     window.__game.state.selectedShipModel = 'viper';
     window.__game.Utils.updatePlayerShipVisuals();
@@ -84,7 +84,7 @@ test('Spectre-SR: im Hangar waehlbar, Name und Perks aus shipModels, Railgun-SVG
   await expect(page.locator('#spieler .werfer-links')).toBeVisible();
 });
 
-test('Spectre-SR: im Coop fuer Spieler 2 waehlbar, P2-HUD, Highscore-Badge', async ({ page }) => {
+test('Spectre-SR: selectable for player 2 in co-op, P2 HUD, highscore badge', async ({ page }) => {
   await page.evaluate(() => window.__game.Utils.setGameMode('coop'));
   await page.locator('.hangar-player-tab[data-player="p2"]').click();
   await page.locator('.hangar-model-btn[data-model="sniper"]').click();
@@ -110,7 +110,7 @@ test('Spectre-SR: im Coop fuer Spieler 2 waehlbar, P2-HUD, Highscore-Badge', asy
   expect(badge.cls).not.toContain('hs-ship-viper');
 });
 
-test('Spectre-SR: Coop mit Bot und Dauerfeuer laeuft ohne Fehler und ohne normale Laserprojektile', async ({
+test('Spectre-SR: co-op with bot and continuous fire runs without errors and without normal laser projectiles', async ({
   page,
 }) => {
   const error = [];
@@ -142,7 +142,7 @@ test('Spectre-SR: Coop mit Bot und Dauerfeuer laeuft ohne Fehler und ohne normal
   expect(error).toEqual([]);
 });
 
-test('Spectre-SR: Menue bleibt mit vier Hangar-Knoepfen einzeilig und ohne Scrollen', async ({ page }) => {
+test('Spectre-SR: the menu stays on one line with four hangar buttons and without scrolling', async ({ page }) => {
   await page.setViewportSize({ width: 800, height: 600 });
   const m = await page.evaluate(() => {
     const start = document.getElementById('start-screen');
@@ -164,8 +164,8 @@ test('Spectre-SR: Menue bleibt mit vier Hangar-Knoepfen einzeilig und ohne Scrol
 });
 
 // ---------------------------------------------------------------------------------------------
-// Fadenkreuz + Schuss (S2). Aufbau, simulationsSchritt()-Aufrufe und Auswertung laufen je Test in
-// einem synchronen page.evaluate-Block, damit nichts zwischendurch dazwischenfunkt.
+// Crosshair + shot (S2). Setup, simulationStep() calls and evaluation run per test in
+// one synchronous page.evaluate block so nothing interferes in between.
 
 async function startSniper(page, { coop = false } = {}) {
   if (coop) {
@@ -179,7 +179,7 @@ async function startSniper(page, { coop = false } = {}) {
   await page.evaluate(() => {
     const { Entities, arrays, state } = window.__game;
     window.__sn = {
-      // Ausgangslage: leeres Feld, Schiff bei (185|400) -> Fadenkreuz-Mitte (200|180); P2 bei (385|400) -> (400|180)
+      // Initial state: empty field, ship at (185|400) -> crosshair center (200|180); P2 at (385|400) -> (400|180)
       empty() {
         [
           'enemies',
@@ -234,7 +234,7 @@ async function startSniper(page, { coop = false } = {}) {
         state.p2.x = 385;
         state.p2.y = 400;
       },
-      // Feind mit Mitte (cx|cy), ruhend, schiesst nicht, viel Leben
+      // Enemy with center (cx|cy), at rest, does not shoot, lots of life
       enemy(cx, cy, hp = 1000) {
         Entities.createEnemy(cx - 15, cy - 15, 'normal', 0, false);
         const f = arrays.enemies[arrays.enemies.length - 1];
@@ -254,8 +254,8 @@ async function startSniper(page, { coop = false } = {}) {
         }
         return a;
       },
-      // Feinde und Asteroiden werden nach jedem Schritt an ihren Platz zurueckgesetzt (Pendeln/Fallen stoert die Messung)
-      // Taste n Schritte halten, loslassen und einen Schritt weiter (der Schuss faellt beim Loslassen)
+      // Enemies and asteroids are reset to their place after every step (swinging/falling disturbs the measurement)
+      // Hold the key for n steps, release and one step further (the shot fires on release)
       tap(n = 1, key = 'l') {
         state.keysPressed[key] = true;
         this.steps(n);
@@ -278,8 +278,8 @@ async function startSniper(page, { coop = false } = {}) {
   });
 }
 
-test.describe('Spectre-SR Fadenkreuz', () => {
-  test('Fadenkreuz steht 220 px ueber dem Schiff, folgt ihm und ist am oberen Rand begrenzt', async ({ page }) => {
+test.describe('Spectre-SR crosshair', () => {
+  test('The crosshair is 220 px above the ship, follows it and is clamped at the top edge', async ({ page }) => {
     await startSniper(page);
     const r = await page.evaluate(() => {
       const { state } = window.__game;
@@ -319,12 +319,12 @@ test.describe('Spectre-SR Fadenkreuz', () => {
     expect(r.c.y).toBe(0);
     expect(r.middleX).toBe(200);
     expect(r.middleY).toBe(180);
-    expect(r.rad).toBe(6); // Stufe 1
+    expect(r.rad).toBe(6); // Tier 1
     expect(r.color).not.toBe('');
     expect(r.strokes).toBe(4);
   });
 
-  test('Radius waechst mit der Laser-Stufe (6/14/22/22/30)', async ({ page }) => {
+  test('The radius grows with the laser tier (6/14/22/22/30)', async ({ page }) => {
     await startSniper(page);
     const radii = await page.evaluate(() => {
       const { state } = window.__game;
@@ -341,7 +341,7 @@ test.describe('Spectre-SR Fadenkreuz', () => {
     expect(radii).toEqual([6, 14, 22, 22, 30]);
   });
 
-  test('Fadenkreuz verschwindet bei Tod, Game Over und Neustart; Nicht-Sniper hat keins', async ({ page }) => {
+  test('The crosshair disappears on death, game over and restart; a non-sniper has none', async ({ page }) => {
     await startSniper(page);
     const r = await page.evaluate(() => {
       const { state, Utils } = window.__game;
@@ -367,24 +367,24 @@ test.describe('Spectre-SR Fadenkreuz', () => {
   });
 });
 
-test.describe('Spectre-SR Schuss', () => {
-  test('trifft den Feind im Kreis, NICHT den zwischen Schiff und Fadenkreuz, NICHT einen knapp ausserhalb des Radius', async ({
+test.describe('Spectre-SR shot', () => {
+  test('hits the enemy in the circle, NOT the one between ship and crosshair, NOT one just outside the radius', async ({
     page,
   }) => {
     await startSniper(page);
     const r = await page.evaluate(() => {
       const T = window.__sn;
       T.empty();
-      // Jeder Fall einzeln (Stufe 1 trifft sonst nur das naechste Ziel und verdeckt die anderen)
+      // Every case separately (otherwise tier 1 hits only the nearest target and hides the others)
       const hits = (cx, cy) => {
         T.empty();
         const f = T.enemy(cx, cy);
         T.tap();
         return f.hp;
       };
-      const between = hits(200, 300); // direkt auf der Schusslinie, aber nicht im Kreis
-      const outside = hits(200 + 15 + 6 + 2, 180); // Box beginnt 8 px neben der Mitte (Radius 6)
-      const inside = hits(200 - 15 - 6 + 2, 180); // Box endet 4 px neben der Mitte
+      const between = hits(200, 300); // directly on the line of fire, but not in the circle
+      const outside = hits(200 + 15 + 6 + 2, 180); // The box starts 8 px beside the center (radius 6)
+      const inside = hits(200 - 15 - 6 + 2, 180); // The box ends 4 px beside the center
       return { between, outside, inside, laser: window.__game.arrays.laserArray.length };
     });
     expect(r.between).toBe(1000);
@@ -393,7 +393,7 @@ test.describe('Spectre-SR Schuss', () => {
     expect(r.laser).toBe(0);
   });
 
-  test('Schuss erzeugt einen Strahl zum Fadenkreuz, der in wenigen Schritten verblasst', async ({ page }) => {
+  test('A shot creates a beam to the crosshair that fades within a few steps', async ({ page }) => {
     await startSniper(page);
     const r = await page.evaluate(() => {
       const T = window.__sn;
@@ -413,7 +413,7 @@ test.describe('Spectre-SR Schuss', () => {
     expect(r.steps).toBeLessThanOrEqual(12);
   });
 
-  test('Stufe 1-2 treffen nur das Ziel mit der Mitte am naechsten am Fadenkreuz, Stufe 3 beide', async ({ page }) => {
+  test('Tiers 1-2 hit only the target with its center nearest to the crosshair, tier 3 both', async ({ page }) => {
     await startSniper(page);
     const r = await page.evaluate(() => {
       const { state } = window.__game;
@@ -434,7 +434,7 @@ test.describe('Spectre-SR Schuss', () => {
     expect(r[3]).toEqual({ nearer: 960, farther: 960 });
   });
 
-  test('Schaden je Stufe 30/35/40/45/50', async ({ page }) => {
+  test('Damage per tier 30/35/40/45/50', async ({ page }) => {
     await startSniper(page);
     const damage = await page.evaluate(() => {
       const { state } = window.__game;
@@ -452,7 +452,7 @@ test.describe('Spectre-SR Schuss', () => {
     expect(damage).toEqual([30, 35, 40, 45, 50]);
   });
 
-  test('Schussabstand je Stufe 24/21/21/18/18 Schritte (Sperre zwischen den Schuessen)', async ({ page }) => {
+  test('Shot interval per tier 24/21/21/18/18 steps (lock between the shots)', async ({ page }) => {
     await startSniper(page);
     const distances = await page.evaluate(() => {
       const { state } = window.__game;
@@ -466,7 +466,7 @@ test.describe('Spectre-SR Schuss', () => {
         const times = [];
         let hp = f.hp;
         for (let i = 1; i <= 90; i++) {
-          // Halten (laden), im ersten Schritt ohne Sperre loslassen, im naechsten gleich wieder druecken
+          // Hold (charge), release in the first step without the lock, press again right in the next one
           state.keysPressed.l = !(state.sniperHeld && state.sniperCooldown <= 1);
           T.steps(1);
           if (f.hp < hp) {
@@ -485,7 +485,7 @@ test.describe('Spectre-SR Schuss', () => {
     });
   });
 
-  test('Energie: 6 pro Schuss, ohne genug Energie kein Schuss', async ({ page }) => {
+  test('Energy: 6 per shot, no shot without enough energy', async ({ page }) => {
     await startSniper(page);
     const r = await page.evaluate(() => {
       const { state } = window.__game;
@@ -493,8 +493,8 @@ test.describe('Spectre-SR Schuss', () => {
       T.empty();
       const f = T.enemy(200, 180);
       T.tap();
-      const afterShot = state.energy; // 50 - 6 + Regeneration 0,45 (nur im Loslass-Schritt, waehrend des Haltens keine)
-      // zu wenig Energie
+      const afterShot = state.energy; // 50 - 6 + regeneration 0.45 (only in the release step, none while holding)
+      // too little energy
       T.empty();
       const g = T.enemy(200, 180);
       state.energy = 5.3;
@@ -510,11 +510,11 @@ test.describe('Spectre-SR Schuss', () => {
     expect(r.hp).toBe(970);
     expect(r.afterShot).toBeCloseTo(44.45, 5);
     expect(r.tooFew.hp).toBe(1000);
-    expect(r.tooFew.energy).toBeCloseTo(5.75, 5); // nur normale Regeneration (im Loslass-Schritt)
-    expect(r.tapper).toBe(3); // 5,3 -> 5,75 -> 6,2 -> Schuss beim 3. Tippen
+    expect(r.tooFew.energy).toBeCloseTo(5.75, 5); // only normal regeneration (in the release step)
+    expect(r.tapper).toBe(3); // 5.3 -> 5.75 -> 6.2 -> shot on the 3rd tap
   });
 
-  test('Schild zuerst, Magma unversehrt (und zieht den Schuss nicht an), Kill gibt Punkte', async ({ page }) => {
+  test('Shield first, magma intact (and does not attract the shot), a kill gives points', async ({ page }) => {
     await startSniper(page);
     const r = await page.evaluate(() => {
       const { state, arrays } = window.__game;
@@ -525,7 +525,7 @@ test.describe('Spectre-SR Schuss', () => {
       T.tap();
       const shield = { shield: f.shieldHp, hp: f.hp };
 
-      // Magma genau im Fadenkreuz, Feind am Rand des Kreises (Stufe 3): beide Ziele zaehlen, nur der Feind wird getroffen
+      // Magma exactly in the crosshair, enemy at the edge of the circle (tier 3): both targets count, only the enemy is hit
       T.empty();
       state.laserTier = 3;
       const magma = T.asteroid(200, 180, 30, true);
@@ -533,7 +533,7 @@ test.describe('Spectre-SR Schuss', () => {
       T.tap();
       const mag = { magma: magma.hp, target: target.hp };
 
-      // Stufe 1 mit Magma genau im Fadenkreuz und Feind am Rand: Feind wird trotzdem getroffen
+      // Tier 1 with magma exactly in the crosshair and an enemy at the edge: the enemy is hit anyway
       T.empty();
       const magma1 = T.asteroid(200, 180, 30, true);
       const target1 = T.enemy(200 + 15 + 5, 180);
@@ -554,7 +554,7 @@ test.describe('Spectre-SR Schuss', () => {
     expect(r.points).toBeGreaterThan(0);
   });
 
-  test('Asteroiden im Kreis werden getroffen', async ({ page }) => {
+  test('Asteroids in the circle are hit', async ({ page }) => {
     await startSniper(page);
     const hp = await page.evaluate(() => {
       const T = window.__sn;
@@ -566,7 +566,7 @@ test.describe('Spectre-SR Schuss', () => {
     expect(hp).toBe(970);
   });
 
-  test('keine normalen Laserprojektile und kein Hitscan, auch auf Stufe 5', async ({ page }) => {
+  test('no normal laser projectiles and no hitscan, also at tier 5', async ({ page }) => {
     await startSniper(page);
     const r = await page.evaluate(() => {
       const { state, arrays } = window.__game;
@@ -587,7 +587,7 @@ test.describe('Spectre-SR Schuss', () => {
 });
 
 test.describe('Spectre-SR Auto-Zielen', () => {
-  test('Stufe 4 gleitet zum naechsten Feind (nicht zum naeheren Asteroiden), ohne Ziel zurueck', async ({ page }) => {
+  test('Tier 4 glides to the nearest enemy (not to the nearer asteroid), back without a target', async ({ page }) => {
     await startSniper(page);
     const r = await page.evaluate(() => {
       const { state } = window.__game;
@@ -596,13 +596,13 @@ test.describe('Spectre-SR Auto-Zielen', () => {
       state.laserTier = 4;
       T.steps(1);
       const start = { x: state.sniperTargetX, y: state.sniperTargetY };
-      T.asteroid(200, 175); // nah am Fadenkreuz, aber ein Asteroid
+      T.asteroid(200, 175); // close to the crosshair, but an asteroid
       const f = T.enemy(110, 160);
       T.steps(1);
       const step1 = Math.hypot(state.sniperTargetX - start.x, state.sniperTargetY - start.y);
       T.steps(30);
       const reached = { x: state.sniperTargetX, y: state.sniperTargetY };
-      // Feind weg: zurueck zur Grundposition
+      // Enemy gone: back to the base position
       f.el.remove();
       window.__game.arrays.enemies.length = 0;
       T.steps(60);
@@ -617,7 +617,7 @@ test.describe('Spectre-SR Auto-Zielen', () => {
     expect(r.back.y).toBeCloseTo(180, 5);
   });
 
-  test('Stufe 5 gleitet mit 10 px/Schritt; Stufe 3 nicht; Ziele ausser Reichweite oder unter dem Schiff zaehlen nicht', async ({
+  test('Tier 5 glides at 10 px/step; tier 3 does not; targets out of range or below the ship do not count', async ({
     page,
   }) => {
     await startSniper(page);
@@ -642,8 +642,8 @@ test.describe('Spectre-SR Auto-Zielen', () => {
       T.empty();
       state.laserTier = 4;
       T.steps(1);
-      T.enemy(185, 60); // 340 px entfernt: ausser Reichweite
-      T.enemy(100, 450); // unter dem Schiff
+      T.enemy(185, 60); // 340 px away: out of range
+      T.enemy(100, 450); // below the ship
       T.steps(10);
       out.noTarget = { x: state.sniperTargetX, y: state.sniperTargetY };
       return out;
@@ -653,7 +653,7 @@ test.describe('Spectre-SR Auto-Zielen', () => {
     expect(r.noTarget).toEqual({ x: 200, y: 180 });
   });
 
-  test('Stufe 4 nimmt den seitlich versetzten Feind unter Feuer', async ({ page }) => {
+  test('Tier 4 takes the laterally offset enemy under fire', async ({ page }) => {
     await startSniper(page);
     const hp = await page.evaluate(() => {
       const { state } = window.__game;
@@ -671,7 +671,7 @@ test.describe('Spectre-SR Auto-Zielen', () => {
 });
 
 test.describe('Spectre-SR Coop', () => {
-  test('P2 hat eigenes Fadenkreuz, schiesst mit seiner Taste; P1 (Viper) bleibt ohne Fadenkreuz', async ({ page }) => {
+  test('P2 has its own crosshair and shoots with its key; P1 (Viper) stays without a crosshair', async ({ page }) => {
     await startSniper(page, { coop: true });
     const r = await page.evaluate(() => {
       const { state, arrays } = window.__game;
@@ -680,7 +680,7 @@ test.describe('Spectre-SR Coop', () => {
       state.selectedShipModel = 'viper';
       window.__game.Utils.updatePlayerShipVisuals();
       state.p2.selectedShipModel = 'sniper';
-      document.querySelectorAll('.sniper-fadenkreuz').forEach(el => el.remove()); // Rest von P1 vor dem Modellwechsel
+      document.querySelectorAll('.sniper-fadenkreuz').forEach(el => el.remove()); // Rest of P1 before the model change
       const f = T.enemy(400, 180);
       const g = T.enemy(200, 180);
       T.steps(1);
@@ -706,7 +706,7 @@ test.describe('Spectre-SR Coop', () => {
     expect(r.p1Target).toBeNull();
   });
 
-  test('beide Sniper: zwei Fadenkreuze, P1 mit B, P2 mit Punkt; P2-Tod entfernt nur sein Fadenkreuz', async ({
+  test('both snipers: two crosshairs, P1 with B, P2 with period; P2 death removes only its crosshair', async ({
     page,
   }) => {
     await startSniper(page, { coop: true });
@@ -731,13 +731,11 @@ test.describe('Spectre-SR Coop', () => {
 });
 
 // ---------------------------------------------------------------------------------------------
-// Aufladen (S3): Druck startet Laden, Loslassen feuert. Haltedauer unter 10 Schritten = Normalschuss, sonst Ladeschuss
-// (Schaden x1..x4, Radius x1..x1,5 bei 90 Schritten; voll: alle Ziele im Kreis, Schild ignoriert).
+// Charging (S3): a press starts charging, the release fires. Hold time under 10 steps = normal shot, otherwise a charged shot
+// (damage x1..x4, radius x1..x1.5 at 90 steps; full: all targets in the circle, shield ignored).
 
-test.describe('Spectre-SR Aufladen', () => {
-  test('Tippen (5 Schritte) ist ein Normalschuss; ein gehaltener Schuss faellt erst beim Loslassen', async ({
-    page,
-  }) => {
+test.describe('Spectre-SR charging', () => {
+  test('A tap (5 steps) is a normal shot; a held shot fires only on release', async ({ page }) => {
     await startSniper(page);
     const r = await page.evaluate(() => {
       const { state } = window.__game;
@@ -752,7 +750,7 @@ test.describe('Spectre-SR Aufladen', () => {
       const normal = 1000 - f.hp;
       const beamWidth = parseFloat(document.querySelector('.sniper-strahl').style.width);
 
-      // Genau 9 Schritte gehalten = noch Normalschuss, 10 Schritte = schon geladen
+      // Exactly 9 steps held = still a normal shot, 10 steps = already charged
       T.empty();
       const g = T.enemy(200, 180);
       T.tap(9);
@@ -770,7 +768,7 @@ test.describe('Spectre-SR Aufladen', () => {
     expect(r.ten).toBeGreaterThan(30);
   });
 
-  test('Halten 45 Schritte: Schaden Faktor 2,5, Radius noch kaum groesser', async ({ page }) => {
+  test('Hold for 45 steps: damage factor 2.5, radius barely larger yet', async ({ page }) => {
     await startSniper(page);
     const r = await page.evaluate(() => {
       const { state } = window.__game;
@@ -779,13 +777,13 @@ test.describe('Spectre-SR Aufladen', () => {
       const f = T.enemy(200, 180);
       T.tap(45);
       const damage = 1000 - f.hp;
-      // Stufe 3 (Schaden 40): ebenfalls Faktor 2,5
+      // Tier 3 (damage 40): factor 2.5 as well
       T.empty();
       state.laserTier = 3;
       const g = T.enemy(200, 180);
       T.tap(45);
       const tier3 = 1000 - g.hp;
-      // Radius bei 45 Schritten: 6 x 1,25 = 7,5 -> Feind mit Kante 8 px neben der Mitte wird (noch) nicht getroffen
+      // Radius at 45 steps: 6 x 1.25 = 7.5 -> an enemy with its edge 8 px beside the center is not hit (yet)
       T.empty();
       const h = T.enemy(200 + 15 + 8, 180);
       T.tap(45);
@@ -803,7 +801,7 @@ test.describe('Spectre-SR Aufladen', () => {
     expect(r.width).toBeLessThan(12);
   });
 
-  test('Halten 90 Schritte: Faktor 4, Radius 1,5x, Schild wird ignoriert, alle Ziele im Kreis auch auf Stufe 1', async ({
+  test('Hold for 90 steps: factor 4, radius 1.5x, the shield is ignored, all targets in the circle even at tier 1', async ({
     page,
   }) => {
     await startSniper(page);
@@ -816,7 +814,7 @@ test.describe('Spectre-SR Aufladen', () => {
       out.damage = 1000 - f.hp;
       out.width = parseFloat(document.querySelector('.sniper-strahl').style.width);
 
-      // Ziel knapp ausserhalb des normalen Radius 6 (Kante 8 px neben der Mitte), innerhalb von 9
+      // Target just outside the normal radius 6 (edge 8 px beside the center), within 9
       T.empty();
       const close = T.enemy(200 + 15 + 8, 180);
       T.tap(90);
@@ -825,26 +823,26 @@ test.describe('Spectre-SR Aufladen', () => {
       const close2 = T.enemy(200 + 15 + 8, 180);
       T.tap(1);
       out.closeNormal = 1000 - close2.hp;
-      // ausserhalb von 9: nicht getroffen
+      // outside of 9: not hit
       T.empty();
       const far = T.enemy(200 + 15 + 11, 180);
       T.tap(90);
       out.far = 1000 - far.hp;
 
-      // Schild ignorieren: Schild weg, volle Schadenswirkung auf hp
+      // Ignore the shield: shield gone, full damage effect on hp
       T.empty();
       const g = T.enemy(200, 180);
       g.shieldHp = g.maxShieldHp = 100;
       T.tap(90);
       out.shieldFull = { shield: g.shieldHp, hp: 1000 - g.hp, el: g.shieldEl };
-      // fast voll (89 Schritte): Schild zuerst
+      // almost full (89 steps): shield first
       T.empty();
       const g2 = T.enemy(200, 180);
       g2.shieldHp = g2.maxShieldHp = 300;
       T.tap(89);
       out.shieldFast = { shield: g2.shieldHp, hp: g2.hp };
 
-      // Stufe 1: alle Ziele im Kreis; 89 Schritte nur das naechste
+      // Tier 1: all targets in the circle; 89 steps only the nearest
       T.empty();
       const a = T.enemy(200 - 6, 180);
       const b = T.enemy(200 + 6, 180);
@@ -870,19 +868,19 @@ test.describe('Spectre-SR Aufladen', () => {
     expect(r.shieldFast.shield).toBeGreaterThan(0);
     expect(r.all[0]).toBeCloseTo(120, 5);
     expect(r.all[1]).toBeCloseTo(120, 5);
-    expect(r.all[2]).toBe(0); // Mitte 30 px darunter: Box beginnt 15 px unter dem Fadenkreuz, ausserhalb von 9
+    expect(r.all[2]).toBe(0); // Center 30 px below: the box starts 15 px below the crosshair, outside of 9
     expect(r.fast[0]).toBeGreaterThan(30);
     expect(r.fast[1]).toBe(0);
   });
 
-  test('Energie: Tippen kostet 6, voll geladen 25; waehrend des Ladens keine Regeneration', async ({ page }) => {
+  test('Energy: a tap costs 6, fully charged 25; no regeneration while charging', async ({ page }) => {
     await startSniper(page);
     const r = await page.evaluate(() => {
       const { state, shipModels } = window.__game;
       const T = window.__sn;
       T.empty();
       const regen = shipModels.sniper.energyRegen;
-      shipModels.sniper.energyRegen = 1e-9; // 0 wuerde auf den Standard 0,4 zurueckfallen
+      shipModels.sniper.energyRegen = 1e-9; // 0 would fall back to the default 0.4
       const out = {};
       T.enemy(200, 180);
       T.tap();
@@ -906,7 +904,7 @@ test.describe('Spectre-SR Aufladen', () => {
       T.steps(1);
       out.full = 50 - state.energy;
 
-      // Regeneration: waehrend des Haltens keine, im Loslass-Schritt wieder
+      // Regeneration: none while holding, again in the release step
       shipModels.sniper.energyRegen = 0.45;
       T.empty();
       state.energy = 30;
@@ -930,14 +928,12 @@ test.describe('Spectre-SR Aufladen', () => {
     expect(r.regenRelease).toBeGreaterThan(r.regenHold - 6 + 0.4);
   });
 
-  test('bei wenig Energie bleibt die Ladung stehen; unter 6 Energie beim Loslassen faellt kein Schuss', async ({
-    page,
-  }) => {
+  test('with little energy the charge stops; below 6 energy no shot fires on release', async ({ page }) => {
     await startSniper(page);
     const r = await page.evaluate(() => {
       const { state, shipModels } = window.__game;
       const T = window.__sn;
-      shipModels.sniper.energyRegen = 1e-9; // 0 wuerde auf den Standard 0,4 zurueckfallen
+      shipModels.sniper.energyRegen = 1e-9; // 0 would fall back to the default 0.4
       const out = {};
       T.empty();
       const f = T.enemy(200, 180);
@@ -954,7 +950,7 @@ test.describe('Spectre-SR Aufladen', () => {
       out.energyAfterShot = state.energy;
       out.factor = out.damage / 30;
 
-      // Knapp unter 6 Energie: Ladung ueber 10 Schritte geht nicht, Loslassen = kein Schuss
+      // Just below 6 energy: charging beyond 10 steps does not work, release = no shot
       T.empty();
       const g = T.enemy(200, 180);
       state.energy = 5;
@@ -976,18 +972,18 @@ test.describe('Spectre-SR Aufladen', () => {
     expect(r.tooFew.charge).toBe(0);
   });
 
-  test('Tippen in der Schussabstand-Sperre wird vorgemerkt und feuert, sobald die Sperre abläuft', async ({ page }) => {
+  test('A tap during the shot interval lock is queued and fires as soon as the lock expires', async ({ page }) => {
     await startSniper(page);
     const r = await page.evaluate(() => {
       const { state, shipModels } = window.__game;
       const T = window.__sn;
-      shipModels.sniper.energyRegen = 1e-9; // 0 wuerde auf den Standard 0,4 zurueckfallen
+      shipModels.sniper.energyRegen = 1e-9; // 0 would fall back to the default 0.4
       T.empty();
       const f = T.enemy(200, 180);
       T.tap();
       const afterFirst = { hp: f.hp, energy: state.energy };
       T.tap();
-      // Zweiter Tipp in der Sperre: noch kein Schuss, keine Energie verbraucht
+      // Second tap during the lock: no shot yet, no energy used
       const second = { hp: f.hp, energy: state.energy, lock: state.sniperCooldown };
       T.steps(second.lock);
       const afterLock = { hp: f.hp, energy: state.energy };
@@ -998,12 +994,12 @@ test.describe('Spectre-SR Aufladen', () => {
     expect(r.second.lock).toBeGreaterThan(0);
     expect(r.second.hp).toBe(970);
     expect(r.second.energy).toBeCloseTo(r.afterFirst.energy, 5);
-    // Mit Ablauf der Sperre faellt der vorgemerkte Schuss und kostet dann Energie
+    // When the lock expires the queued shot fires and then costs energy
     expect(r.afterLock.hp).toBe(940);
     expect(r.afterLock.energy).toBeCloseTo(r.afterFirst.energy - 6, 5);
   });
 
-  test('Ladering waechst mit der Ladung und wird bei voller Ladung hervorgehoben; Ton genau einmal', async ({
+  test('The charge ring grows with the charge and is highlighted at full charge; tone exactly once', async ({
     page,
   }) => {
     await startSniper(page);
@@ -1035,19 +1031,19 @@ test.describe('Spectre-SR Aufladen', () => {
       state.keysPressed.l = false;
       T.steps(1);
       out.afterShot = payload();
-      const shot = Audio.audioHistory.filter(e => e.name === 'sniperSchuss');
+      const shot = Audio.audioHistory.filter(e => e.name === 'sniperShot');
       out.shotCharge = shot.length ? shot[shot.length - 1].details.charge : null;
-      // zweiter Ladevorgang: wieder ein Ton
+      // second charge: a tone again
       T.steps(30);
       state.unlimitedEnergy = true;
       T.tap(100);
       out.toneSecondary = Audio.audioHistory.filter(e => e.name === 'sniperFull').length;
-      // Normalschuss ohne Ton
+      // Normal shot without a tone
       Audio.clearAudioHistory();
       T.steps(30);
       T.tap(5);
       out.toneTapping = Audio.audioHistory.filter(e => e.name === 'sniperFull').length;
-      out.tappingCharge = Audio.audioHistory.filter(e => e.name === 'sniperSchuss').map(e => e.details.charge);
+      out.tappingCharge = Audio.audioHistory.filter(e => e.name === 'sniperShot').map(e => e.details.charge);
       return out;
     });
     expect(r.five.an).toBe(false);
@@ -1065,7 +1061,7 @@ test.describe('Spectre-SR Aufladen', () => {
     expect(r.tappingCharge).toEqual([0]);
   });
 
-  test('Tod und Neustart setzen die Ladung zurueck', async ({ page }) => {
+  test('Death and restart reset the charge', async ({ page }) => {
     await startSniper(page);
     const r = await page.evaluate(() => {
       const { state, Utils } = window.__game;
@@ -1079,7 +1075,7 @@ test.describe('Spectre-SR Aufladen', () => {
       const afterDeath = { charge: state.sniperCharge, held: state.sniperHeld };
       state.isDead = false;
       T.steps(1);
-      const fresh = state.sniperCharge; // Taste noch gehalten: Ladevorgang beginnt von vorn
+      const fresh = state.sniperCharge; // Key still held: the charge starts over
       Utils.restartGame();
       return {
         loaded,
@@ -1094,7 +1090,7 @@ test.describe('Spectre-SR Aufladen', () => {
     expect(r.afterRestart).toEqual({ charge: 0, full: false, p2: 0 });
   });
 
-  test('Coop: P2 laedt unabhaengig mit eigener Taste', async ({ page }) => {
+  test('Co-op: P2 charges independently with its own key', async ({ page }) => {
     await startSniper(page, { coop: true });
     const r = await page.evaluate(() => {
       const { state } = window.__game;
@@ -1109,7 +1105,7 @@ test.describe('Spectre-SR Aufladen', () => {
   });
 });
 
-test.describe('Spectre-SR Aufladen mobil', () => {
+test.describe('Spectre-SR charging on mobile', () => {
   test.use({ hasTouch: true, isMobile: true, viewport: { width: 412, height: 915 } });
 
   async function startMobile(page, model) {
@@ -1118,7 +1114,7 @@ test.describe('Spectre-SR Aufladen mobil', () => {
     await page.waitForFunction(() => window.__game.state.gameRunning && !window.__game.state.cutsceneActive);
   }
 
-  test('Joystick-Feuer laedt nicht: Dauerfeuer aus Normalschuessen im Schussabstand', async ({ page }) => {
+  test('Joystick fire does not charge: continuous fire of normal shots at the shot interval', async ({ page }) => {
     await startMobile(page, 'sniper');
     await expect(page.locator('#mobile-controls')).toBeVisible();
     const r = await page.evaluate(() => {
@@ -1186,7 +1182,7 @@ test.describe('Spectre-SR Aufladen mobil', () => {
     expect(r.fires).toBe(false);
   });
 
-  test('#btn-laden ist nur beim Sniper sichtbar; Halten laedt, Loslassen feuert', async ({ page }) => {
+  test('#btn-laden is visible only for the sniper; holding charges, releasing fires', async ({ page }) => {
     await expect(page.locator('#btn-laden')).toBeHidden();
     await startMobile(page, 'sniper');
     await expect(page.locator('#btn-laden')).toBeVisible();
@@ -1228,7 +1224,7 @@ test.describe('Spectre-SR Aufladen mobil', () => {
         fixedY = f.y;
       Audio.clearAudioHistory();
       const btn = document.getElementById('btn-laden');
-      const touch = typ => {
+      const touch = type => {
         const t = new Touch({
           identifier: 3,
           target: btn,
@@ -1236,8 +1232,8 @@ test.describe('Spectre-SR Aufladen mobil', () => {
           clientY: btn.getBoundingClientRect().top + 20,
         });
         btn.dispatchEvent(
-          new TouchEvent(typ, {
-            touches: typ === 'touchstart' ? [t] : [],
+          new TouchEvent(type, {
+            touches: type === 'touchstart' ? [t] : [],
             changedTouches: [t],
             bubbles: true,
             cancelable: true,
@@ -1260,7 +1256,7 @@ test.describe('Spectre-SR Aufladen mobil', () => {
       steps(1);
       const damage = 1000 - f.hp;
 
-      // touchcancel feuert ebenfalls
+      // touchcancel fires as well
       state.sniperCooldown = 0;
       touch('touchstart');
       steps(30);
@@ -1284,7 +1280,7 @@ test.describe('Spectre-SR Aufladen mobil', () => {
     expect(r.cancel).toBeGreaterThan(30);
     expect(r.full).toBe(1);
 
-    // Viper: Knopf wieder weg
+    // Viper: button gone again
     await page.evaluate(() => {
       window.__game.state.selectedShipModel = 'viper';
       window.__game.Utils.updatePlayerShipVisuals();
@@ -1294,8 +1290,8 @@ test.describe('Spectre-SR Aufladen mobil', () => {
 });
 
 // ---------------------------------------------------------------------------------------------
-// Granate + Betaeubung (S4). Raketen-Taste (V bei P1, Oe bei P2 im Coop) wirft eine Granate zum Fadenkreuz.
-// Testfeinde sind 'swoop' mit vx = vy = 0 (stehen still, kein Pendeln); die Schritte laufen frei (ohne Zuruecksetzen).
+// Grenade + stun (S4). The missile key (V for P1, Oe for P2 in co-op) throws a grenade to the crosshair.
+// Test enemies are 'swoop' with vx = vy = 0 (they stand still, no swinging); the steps run freely (without resetting).
 
 async function prepareGrenade(page, options = {}) {
   await startSniper(page, options);
@@ -1306,7 +1302,7 @@ async function prepareGrenade(page, options = {}) {
       free(n) {
         for (let i = 0; i < n; i++) Loop.simulationStep();
       },
-      // Stehender Feind mit Mitte (cx|cy), ohne Pendeln und ohne Schuesse
+      // Stationary enemy with center (cx|cy), without swinging and without shots
       enemy(cx, cy) {
         const f = T.enemy(cx, cy);
         delete f.fixedX;
@@ -1324,14 +1320,14 @@ async function prepareGrenade(page, options = {}) {
         const m = this.middle(z);
         return Math.hypot(m.x - cx, m.y - cy);
       },
-      // Raketen-Taste antippen: einen Schritt gedrueckt, Loslassen im Folgeschritt loest Granate + EMP aus
+      // Tap the missile key: pressed for one step, the release in the following step triggers grenade + EMP
       thrown(key = 'v') {
         state.keysPressed[key] = true;
         Loop.simulationStep();
         state.keysPressed[key] = false;
         Loop.simulationStep();
       },
-      // Raketen-Taste n Schritte halten (ohne Loslassen)
+      // Hold the missile key for n steps (without releasing)
       hold(n, key = 'v') {
         state.keysPressed[key] = true;
         for (let i = 0; i < n; i++) Loop.simulationStep();
@@ -1350,8 +1346,8 @@ async function prepareGrenade(page, options = {}) {
   });
 }
 
-test.describe('Spectre-SR Granate', () => {
-  test('fliegt zum Fadenkreuz beim Wurf (nicht dorthin, wohin es sich danach bewegt) und explodiert nach ca. 30 Schritten mit Druckwelle und Ton', async ({
+test.describe('Spectre-SR grenade', () => {
+  test('flies to the crosshair at the time of the throw (not to where it moves afterwards) and explodes after about 30 steps with a blast wave and a sound', async ({
     page,
   }) => {
     await prepareGrenade(page);
@@ -1360,7 +1356,7 @@ test.describe('Spectre-SR Granate', () => {
       const T = window.__sn;
       const G = window.__gr;
       const target = G.enemy(240, 180); // im Radius um (200|180)
-      const adjacent = G.enemy(100, 130); // liegt am Fadenkreuz NACH dem Verschieben des Schiffs (100|130), aber ausserhalb des Radius um (200|180)
+      const adjacent = G.enemy(100, 130); // lies at the crosshair AFTER the ship moved (100|130), but outside the radius around (200|180)
       T.steps(1);
       G.thrown();
       const afterThrow = {
@@ -1368,7 +1364,7 @@ test.describe('Spectre-SR Granate', () => {
         cd: state.missileCooldown,
         missiles: window.__game.arrays.missileArray.length,
       };
-      state.x = 85; // Fadenkreuz wandert nach (100|130)
+      state.x = 85; // The crosshair moves to (100|130)
       let steps = 1;
       const middle = [];
       while (document.querySelector('.sniper-granate') && steps < 60) {
@@ -1401,7 +1397,7 @@ test.describe('Spectre-SR Granate', () => {
     expect(r.afterThrow).toEqual({ grenades: 1, cd: 240, missiles: 0 });
     expect(r.steps).toBeGreaterThanOrEqual(30);
     expect(r.steps).toBeLessThanOrEqual(32);
-    // Mitte des Flugs: Bogen (Linie waere y = 290), x wie beim Wurf (Fadenkreuz stand bei x = 200)
+    // Middle of the flight: arc (a line would be y = 290), x as at the throw (the crosshair was at x = 200)
     expect(r.middle[0]).toBeGreaterThan(190);
     expect(r.middle[0]).toBeLessThan(215);
     expect(r.middle[1]).toBeLessThan(260);
@@ -1411,21 +1407,21 @@ test.describe('Spectre-SR Granate', () => {
     expect(r.width2).toBeGreaterThan(r.width1);
     expect(r.waveGone).toBe(0);
     expect(r.tone).toBe(1);
-    expect(r.target).toBeGreaterThanOrEqual(0); // wurde betaeubt (Zaehler laeuft ab)
+    expect(r.target).toBeGreaterThanOrEqual(0); // was stunned (the counter runs down)
     expect(r.targetX).toBeGreaterThan(280); // weggestossen
     expect(r.adjacent === undefined).toBe(true); // unberuehrt
     expect(r.adjacentX).toBe(100);
   });
 
-  test('Stufe 1: kein Schaden, Wegstossen um ca. 60 px (gleitend), Betaeubung 60 Schritte (steht still, schiesst nicht), danach wieder aktiv; ausserhalb unberuehrt', async ({
+  test('Tier 1: no damage, pushed away by about 60 px (gliding), stunned for 60 steps (stands still, does not shoot), active again afterwards; outside untouched', async ({
     page,
   }) => {
     await prepareGrenade(page);
     const r = await page.evaluate(() => {
       const { arrays } = window.__game;
       const G = window.__gr;
-      const f = G.enemy(240, 180); // 40 px rechts vom Einschlag (200|180)
-      const outside = G.enemy(200 + 70 + 15 + 10, 180); // Box beginnt 80 px neben dem Zentrum (Radius 70)
+      const f = G.enemy(240, 180); // 40 px right of the impact (200|180)
+      const outside = G.enemy(200 + 70 + 15 + 10, 180); // The box starts 80 px beside the center (radius 70)
       G.thrown();
       let n = 1;
       while (!f.stunned && n < 60) {
@@ -1433,8 +1429,8 @@ test.describe('Spectre-SR Granate', () => {
         n++;
       }
       const start = { x: G.middle(f).x, hp: f.hp, cls: f.el.classList.contains('betaeubt'), stunned: f.stunned };
-      f.vx = 2; // wuerde sich bewegen, wenn nicht betaeubt
-      f.shotTimer = 1; // wuerde sofort schiessen
+      f.vx = 2; // would move if not stunned
+      f.shotTimer = 1; // would shoot immediately
       const xs = [];
       const laserDuring = [];
       let stepsStunned = 0;
@@ -1473,14 +1469,14 @@ test.describe('Spectre-SR Granate', () => {
     expect(r.movedDuring).toBe(0);
     expect(r.laserDuring).toBe(0);
     expect(r.classThereafter).toBe(false);
-    expect(r.xAfterwards).toBeGreaterThan(0); // wieder aktiv: bewegt sich
-    expect(r.laserAfterwards).toBeGreaterThan(0); // und schiesst
+    expect(r.xAfterwards).toBeGreaterThan(0); // active again: moves
+    expect(r.laserAfterwards).toBeGreaterThan(0); // and shoots
     expect(r.outsideStunned).toBeUndefined();
     expect(r.outsideX).toBe(295);
     expect(r.outsideHp).toBe(1000);
   });
 
-  test('Schaden je Stufe (1: 0, 3: 25) ueber Schild zuerst; Wegstossen am Feld begrenzt', async ({ page }) => {
+  test('Damage per tier (1: 0, 3: 25) via the shield first; the push is clamped to the field', async ({ page }) => {
     await prepareGrenade(page);
     const r = await page.evaluate(() => {
       const { state } = window.__game;
@@ -1504,7 +1500,7 @@ test.describe('Spectre-SR Granate', () => {
         f.shieldHp = 20;
         f.maxShieldHp = 20;
       });
-      // Am Rand: Feind 5 px vom rechten Feldrand, wird nach rechts gestossen -> bleibt im Feld
+      // At the edge: enemy 5 px from the right field edge, pushed to the right -> stays in the field
       const width = window.__game.config.playfieldWidth;
       const edge = run(1, f => {
         state.x = width - 60;
@@ -1519,14 +1515,12 @@ test.describe('Spectre-SR Granate', () => {
     expect(r.s1).toBe(1000);
     expect(r.s2).toBe(985);
     expect(r.s3).toBe(975);
-    expect(r.shieldHp).toBe(0); // Schild 20 durch 25 weg, kein Durchschlag auf die HP
+    expect(r.shieldHp).toBe(0); // Shield 20 gone through 25, no pierce onto the HP
     expect(r.shieldHpLives).toBe(1000);
-    expect(r.edgeX).toBe(r.width - 30); // wuerde nach rechts hinaus gestossen, bleibt am Feldrand
+    expect(r.edgeX).toBe(r.width - 30); // would be pushed out to the right, stays at the field edge
   });
 
-  test('Boss: kein Wegstossen, halbe Betaeubung, greift waehrend der Betaeubung nicht an (Schuss, Bombe, Rakete)', async ({
-    page,
-  }) => {
+  test('Boss: no push, half the stun, does not attack while stunned (shot, bomb, missile)', async ({ page }) => {
     await prepareGrenade(page);
     const r = await page.evaluate(() => {
       const { state, arrays, Entities } = window.__game;
@@ -1534,11 +1528,11 @@ test.describe('Spectre-SR Granate', () => {
       state.level = 1;
       Entities.createBoss();
       const b = arrays.bosses[0];
-      b.phase = 'kampf';
+      b.phase = 'fight';
       b.x = 150;
-      b.y = 40; // Box ohne Rand (165..235|55..125) schneidet den Kreis um (200|180) (Abstand 55 < 70)
+      b.y = 40; // Box without a margin (165..235|55..125) intersects the circle around (200|180) (distance 55 < 70)
       b.hp = b.maxHp = 100000;
-      b.vx = 0; // schwebt (Bewegung wird getrennt geprueft)
+      b.vx = 0; // hovers (movement is checked separately)
       b.shotTimer = 99999;
       b.bombTimer = 99999;
       b.missileTimer = 99999;
@@ -1580,8 +1574,8 @@ test.describe('Spectre-SR Granate', () => {
       };
     });
     expect(r.stunned).toBeGreaterThanOrEqual(29);
-    expect(r.stunned).toBeLessThanOrEqual(30); // halbe Dauer von 60
-    expect(r.pos).toEqual({ x: 150, y: 40 }); // nicht weggestossen
+    expect(r.stunned).toBeLessThanOrEqual(30); // half the duration of 60
+    expect(r.pos).toEqual({ x: 150, y: 40 }); // not pushed away
     expect(r.movedDuring).toBe(0);
     expect(r.fresh).toBe(0);
     expect(r.cls).toBe(false);
@@ -1589,7 +1583,7 @@ test.describe('Spectre-SR Granate', () => {
     expect(r.thereafterX).toBeGreaterThan(0);
   });
 
-  test('Asteroid wird weggestossen, aber nicht betaeubt; Magma bleibt unversehrt', async ({ page }) => {
+  test('An asteroid is pushed away but not stunned; magma stays intact', async ({ page }) => {
     await prepareGrenade(page);
     const r = await page.evaluate(() => {
       const { state } = window.__game;
@@ -1616,13 +1610,13 @@ test.describe('Spectre-SR Granate', () => {
     });
     expect(r.stunned).toBeUndefined();
     expect(r.cls).toBe(false);
-    expect(r.span).toBeGreaterThan(70); // Stufe 3: 80 px
+    expect(r.span).toBeGreaterThan(70); // Tier 3: 80 px
     expect(r.hp).toBe(975);
     expect(r.magmaHp).toBe(1000);
     expect(r.magmaStunned).toBeUndefined();
   });
 
-  test('Stufe 5 loescht feindliche Geschosse im Radius (Feind-, Boss-, Hack-Projektile); Stufe 4 nicht', async ({
+  test('Tier 5 clears enemy projectiles in the radius (enemy, boss, hack projectiles); tier 4 does not', async ({
     page,
   }) => {
     await prepareGrenade(page);
@@ -1636,7 +1630,7 @@ test.describe('Spectre-SR Granate', () => {
         state.missileCooldown = 0;
         state.sniperGrenadeCharges = 3;
         G.thrown();
-        // Ruhende Geschosse: je eines im Radius um (200|180) und eines weit ausserhalb
+        // Projectiles at rest: one each within the radius around (200|180) and one far outside
         Entities.createEnemyLaser(200, 170);
         Entities.createBossLaser(180, 170);
         Entities.createHackProjectile(210, 170, 210, 400, null);
@@ -1661,7 +1655,7 @@ test.describe('Spectre-SR Granate', () => {
     expect(r.s5).toEqual({ enemy: 1, boss: 1, hack: 1 });
   });
 
-  test('Ladezeit je Stufe (240/210/180/180/150), keine dritte Granate ohne Ladung; waffenOffline blockiert; keine Raketen', async ({
+  test('Charge time per tier (240/210/180/180/150), no third grenade without a charge; weaponsOffline blocks; no missiles', async ({
     page,
   }) => {
     await prepareGrenade(page);
@@ -1693,7 +1687,7 @@ test.describe('Spectre-SR Granate', () => {
       const bar = parseFloat(document.getElementById('raketen-cd-balken').style.width);
       state.missileCooldown = 0;
       state.sniperGrenadeCharges = 3;
-      Hack.hackPlayer(state, 'weaponOffline');
+      Hack.hackPlayer(state, 'weaponsOffline');
       const beforehand = document.querySelectorAll('.sniper-granate').length;
       G.thrown();
       return {
@@ -1706,21 +1700,21 @@ test.describe('Spectre-SR Granate', () => {
       };
     });
     expect(r.cds).toEqual([240, 210, 180, 180, 150]);
-    expect(r.grenades).toBe(2); // zwei Ladungen: zwei Granaten direkt nacheinander, die dritte nicht
+    expect(r.grenades).toBe(2); // two charges: two grenades right after each other, the third not
     expect(r.charges).toBe(0);
-    expect(r.bar).toBeLessThan(10); // HUD-Balken zeigt den Ladefortschritt
+    expect(r.bar).toBeLessThan(10); // The HUD bar shows the charge progress
     expect(r.blocked).toBe(true);
     expect(r.missiles).toBe(0);
   });
 
-  test('Coop: Spieler 2 (Sniper) wirft mit Oe zu seinem Fadenkreuz', async ({ page }) => {
+  test('Co-op: player 2 (sniper) throws with Oe to its crosshair', async ({ page }) => {
     await prepareGrenade(page, { coop: true });
     const r = await page.evaluate(() => {
       const { state } = window.__game;
       const G = window.__gr;
       G.free(1);
-      const cx = state.p2.x + 15; // Fadenkreuz-Mitte von P2
-      const f = G.enemy(cx - 40, 180); // im Radius links davon
+      const cx = state.p2.x + 15; // Crosshair center of P2
+      const f = G.enemy(cx - 40, 180); // within the radius to the left of it
       const x0 = G.middle(f).x;
       G.thrown('ö');
       const grenades = document.querySelectorAll('.sniper-granate').length;
@@ -1738,10 +1732,10 @@ test.describe('Spectre-SR Granate', () => {
     expect(r.cdP2).toBeGreaterThan(190);
     expect(r.cdP1).toBe(0);
     expect(r.stunned).toBeGreaterThanOrEqual(0);
-    expect(r.span).toBeLessThan(-30); // weg vom Fadenkreuz (Wegstossen nach links)
+    expect(r.span).toBeLessThan(-30); // away from the crosshair (pushed to the left)
   });
 
-  test('Neustart und Game Over raeumen Granaten, Druckwellen und Wegstossen ab', async ({ page }) => {
+  test('Restart and game over clear grenades, blast waves and pushes', async ({ page }) => {
     await prepareGrenade(page);
     const r = await page.evaluate(() => {
       const { Utils } = window.__game;
@@ -1765,13 +1759,13 @@ test.describe('Spectre-SR Granate', () => {
     expect(r.restart).toBe(0);
   });
 
-  test('Neustart mitten im Flug und waehrend der Druckwelle laesst nichts zurueck', async ({ page }) => {
+  test('A restart in mid-flight and during the blast wave leaves nothing behind', async ({ page }) => {
     await prepareGrenade(page);
     const r = await page.evaluate(() => {
       const { Utils } = window.__game;
       const G = window.__gr;
       G.thrown();
-      G.free(33); // Explosion ist durch, Druckwelle laeuft
+      G.free(33); // The explosion is through, the blast wave runs
       const wave = document.querySelectorAll('.sniper-druckwelle').length;
       Utils.restartGame();
       return { wave, thereafter: document.querySelectorAll('.sniper-granate, .sniper-druckwelle').length };
@@ -1782,7 +1776,7 @@ test.describe('Spectre-SR Granate', () => {
 });
 
 // ---------------------------------------------------------------------------------------------
-// Online-Host (S5a): Client-Sniper als P2 laedt, feuert und wirft ueber die Eingabe-Pakete.
+// Online host (S5a): a client sniper as P2 charges, fires and throws via the input packets.
 
 async function prepareOnlineHost(page) {
   await prepareGrenade(page, { coop: true });
@@ -1801,7 +1795,7 @@ async function prepareOnlineHost(page) {
     state.p2.networkLaserRequest = false;
     state.p2.sniperAutoInput = false;
     state.p2.networkFireMissile = false;
-    // Client-Eingabe wie aus einem Paket (Position des Clients: P2-Schiff bei (385|400) -> Fadenkreuz (400|180))
+    // Client input as from a packet (client position: P2 ship at (385|400) -> crosshair (400|180))
     window.__input = e =>
       Network.applyPlayerInput(
         Object.assign({ x: 385, y: 400, rotate: 0, laser: false, missile: false, bomb: false }, e),
@@ -1810,7 +1804,7 @@ async function prepareOnlineHost(page) {
 }
 
 test.describe('Spectre-SR online (Host)', () => {
-  test('kurzer Tipp des Clients (Druck und Loslassen vor demselben Host-Schritt) wird zu genau einem Schuss', async ({
+  test('a short tap of the client (press and release before the same host step) becomes exactly one shot', async ({
     page,
   }) => {
     await prepareOnlineHost(page);
@@ -1824,15 +1818,15 @@ test.describe('Spectre-SR online (Host)', () => {
       E({ laser: false });
       T.steps(1);
       T.steps(5);
-      const shots = () => Audio.audioHistory.filter(a => a.name === 'sniperSchuss').length;
+      const shots = () => Audio.audioHistory.filter(a => a.name === 'sniperShot').length;
       const tap = { hp: target.hp, shots: shots(), energy: state.p2.energy, cd: state.p2.sniperCooldown > 0 };
-      // Zweiter Tipp nach der Sperre: wieder genau ein Schuss
+      // Second tap after the lock: exactly one shot again
       T.steps(30);
       E({ laser: true });
       E({ laser: false });
       T.steps(6);
       const secondary = { hp: target.hp, shots: shots() };
-      // Normal gehalten ueber mehrere Pakete: kein Dauerfeuer, ein Schuss beim Loslassen
+      // Held normally over several packets: no continuous fire, one shot on release
       T.steps(30);
       E({ laser: true });
       T.steps(3);
@@ -1850,7 +1844,7 @@ test.describe('Spectre-SR online (Host)', () => {
     expect(r.hpEnd).toBe(910);
   });
 
-  test('gehaltene Laser-Eingabe laedt bis voll (Ton, kein Schuss beim Halten), Loslassen feuert den Ladeschuss', async ({
+  test('a held laser input charges up to full (tone, no shot while holding), the release fires the charged shot', async ({
     page,
   }) => {
     await prepareOnlineHost(page);
@@ -1873,11 +1867,13 @@ test.describe('Spectre-SR online (Host)', () => {
       return { loaded, hp: target.hp, chargeThereafter: state.p2.sniperCharge };
     });
     expect(r.loaded).toEqual({ charge: 90, full: true, tone: 1, hp: 1000 });
-    expect(r.hp).toBe(880); // voll geladen: Schaden x4
+    expect(r.hp).toBe(880); // fully charged: damage x4
     expect(r.chargeThereafter).toBe(0);
   });
 
-  test('Autofeuer des Clients (Joystick) schiesst Normalschuesse im Schussabstand ohne Laden', async ({ page }) => {
+  test('Auto-fire of the client (joystick) shoots normal shots at the shot interval without charging', async ({
+    page,
+  }) => {
     await prepareOnlineHost(page);
     const r = await page.evaluate(() => {
       const { state, Audio } = window.__game;
@@ -1892,14 +1888,14 @@ test.describe('Spectre-SR online (Host)', () => {
       E({ laser: false });
       T.steps(2);
       return {
-        shots: Audio.audioHistory.filter(a => a.name === 'sniperSchuss').length,
+        shots: Audio.audioHistory.filter(a => a.name === 'sniperShot').length,
         hp: target.hp,
         maxCharge,
         held,
         tone: Audio.audioHistory.filter(a => a.name === 'sniperFull').length,
       };
     });
-    // Stufe 1: Schussabstand 24 Schritte -> Schuesse in den Schritten 1, 25, 49
+    // Tier 1: shot interval 24 steps -> shots in steps 1, 25, 49
     expect(r.shots).toBe(3);
     expect(r.hp).toBe(910);
     expect(r.maxCharge).toBe(0);
@@ -1907,7 +1903,7 @@ test.describe('Spectre-SR online (Host)', () => {
     expect(r.tone).toBe(0);
   });
 
-  test('Granate ueber die Raketen-Eingabe (auch kurzer Tipp) fliegt zum Fadenkreuz des Clients und betaeubt dort', async ({
+  test('A grenade via the missile input (also a short tap) flies to the client crosshair and stuns there', async ({
     page,
   }) => {
     await prepareOnlineHost(page);
@@ -1916,17 +1912,17 @@ test.describe('Spectre-SR online (Host)', () => {
       const T = window.__sn;
       const G = window.__gr;
       const E = window.__input;
-      const target = G.enemy(430, 190); // im Radius 70 um das Fadenkreuz des Clients (400|180)
-      const remote = G.enemy(100, 180); // am Fadenkreuz des Hosts (200|180) - darf nichts abbekommen
+      const target = G.enemy(430, 190); // within radius 70 around the client crosshair (400|180)
+      const remote = G.enemy(100, 180); // at the host crosshair (200|180) - must not get anything
       E({ missile: true });
       E({ missile: false });
-      T.steps(2); // Schritt 1 zaehlt den Druck, Schritt 2 das Loslassen (Tippen)
+      T.steps(2); // Step 1 counts the press, step 2 the release (tap)
       const afterThrow = {
         grenades: document.querySelectorAll('.sniper-granate').length,
         cd: state.p2.missileCooldown,
         host: state.missileCooldown,
       };
-      // Das Schiff des Clients zieht weiter: die Granate zielt trotzdem auf die Position beim Wurf
+      // The client ship keeps moving: the grenade still aims at the position at the throw
       E({ x: 285, y: 400 });
       G.free(31);
       return {
@@ -1942,7 +1938,7 @@ test.describe('Spectre-SR online (Host)', () => {
     expect(r.wave).toBe(1);
   });
 
-  test('Host sendet fuer die Druckwelle ein Ereignis und die Granate im Snapshot; Betaeubung steht am Feind im Snapshot', async ({
+  test('The host sends an event for the blast wave and the grenade in the snapshot; the stun sits on the enemy in the snapshot', async ({
     page,
   }) => {
     await prepareOnlineHost(page);
@@ -1963,13 +1959,13 @@ test.describe('Spectre-SR online (Host)', () => {
     });
     expect(r.inFlight).toHaveLength(1);
     expect(r.inFlight[0].owner).toBe('p2');
-    expect(r.event).toMatchObject({ type: 'granate_detonated', x: 400, y: 180, radius: 70, owner: 'p2' });
+    expect(r.event).toMatchObject({ type: 'grenade_detonated', x: 400, y: 180, radius: 70, owner: 'p2' });
     expect(r.stunned).toBe(true);
   });
 });
 
 // ---------------------------------------------------------------------------------------------
-// Bot (S5b): Spieler 2 als KI fliegt die Spectre-SR
+// Bot (S5b): player 2 as AI flies the Spectre-SR
 
 test.describe('Spectre-SR Bot', () => {
   async function prepareBot(page) {
@@ -1990,13 +1986,13 @@ test.describe('Spectre-SR Bot', () => {
           state.p2.missileCooldown = 0;
           state.p2.sniperGrenadeCharges = 3;
           state.x = 40;
-          state.y = 540; // P1 aus dem Weg
+          state.y = 540; // P1 out of the way
         },
       };
     });
   }
 
-  test('bringt das Fadenkreuz auf einen stehenden Feind und zerstoert ihn mit Normalschuessen', async ({ page }) => {
+  test('brings the crosshair onto a stationary enemy and destroys it with normal shots', async ({ page }) => {
     await prepareBot(page);
     const r = await page.evaluate(() => {
       const { state, arrays } = window.__game;
@@ -2017,7 +2013,7 @@ test.describe('Spectre-SR Bot', () => {
     expect(r.maxCharge).toBeLessThan(10);
   });
 
-  test('gegen einen Boss laedt er voll und schiesst mit Faktor 4', async ({ page }) => {
+  test('against a boss it charges fully and shoots with factor 4', async ({ page }) => {
     await prepareBot(page);
     const r = await page.evaluate(() => {
       const { state, arrays, Entities } = window.__game;
@@ -2025,7 +2021,7 @@ test.describe('Spectre-SR Bot', () => {
       Entities.createBoss();
       const b = arrays.bosses[0];
       Object.assign(b, {
-        phase: 'kampf',
+        phase: 'fight',
         x: 250,
         y: 20,
         vx: 0,
@@ -2044,7 +2040,7 @@ test.describe('Spectre-SR Bot', () => {
         beforehand = state.p2.sniperFull ? 1 : 0;
         b.x = 250;
         b.y = 20;
-        b.phase = 'kampf';
+        b.phase = 'fight';
       }
       return { full, bossHp: b.hp };
     });
@@ -2052,7 +2048,7 @@ test.describe('Spectre-SR Bot', () => {
     expect(r.bossHp).toBeLessThan(1e6 - 150);
   });
 
-  test('wirft eine Granate bei einer Feindgruppe', async ({ page }) => {
+  test('throws a grenade at a group of enemies', async ({ page }) => {
     await prepareBot(page);
     const r = await page.evaluate(() => {
       const { state, arrays } = window.__game;
@@ -2078,7 +2074,7 @@ test.describe('Spectre-SR Bot', () => {
     expect(r.cd).toBeGreaterThan(150);
   });
 
-  test('tippt nicht ohne Ziel: Energie bleibt bei leerem Feld voll, kein Schuss', async ({ page }) => {
+  test('does not tap without a target: energy stays full on an empty field, no shot', async ({ page }) => {
     await prepareBot(page);
     const r = await page.evaluate(() => {
       const { state } = window.__game;
@@ -2086,7 +2082,7 @@ test.describe('Spectre-SR Bot', () => {
       let shots = 0;
       let minE = 50;
       for (let i = 0; i < 300; i++) {
-        state.frameCounter = 1; // keine natuerlichen Spawns
+        state.frameCounter = 1; // no natural spawns
         const cd = state.p2.sniperCooldown;
         window.__gr.free(1);
         if (state.p2.sniperCooldown > cd) shots++;
@@ -2101,7 +2097,7 @@ test.describe('Spectre-SR Bot', () => {
 });
 
 // ---------------------------------------------------------------------------------------------
-// E1: Granaten-Taste als Tipp/Halte-Modell, EMP beim Tippen
+// E1: grenade key as a tap/hold model, EMP on tap
 
 async function prepareEmp(page, options = {}) {
   await prepareGrenade(page, options);
@@ -2112,7 +2108,7 @@ async function prepareEmp(page, options = {}) {
     window.__emp = {
       Sn,
       middle: Middle,
-      // Geschoss im Abstand dx/dy von der Schiffsmitte (stehend, damit nichts weiterfliegt)
+      // Projectile at distance dx/dy from the ship center (stationary, so nothing keeps flying)
       projectile(kind, dx, dy) {
         const m = Middle();
         const x = m.x + dx;
@@ -2146,8 +2142,8 @@ async function prepareEmp(page, options = {}) {
   });
 }
 
-test.describe('Spectre-SR Granaten-Taste und EMP', () => {
-  test('Tippen wirft die Granate und loest das EMP aus (Ring, Ton, Cooldown); der Wurf faellt erst beim Loslassen', async ({
+test.describe('Spectre-SR grenade key and EMP', () => {
+  test('A tap throws the grenade and triggers the EMP (ring, sound, cooldown); the throw happens only on release', async ({
     page,
   }) => {
     await prepareEmp(page);
@@ -2186,7 +2182,7 @@ test.describe('Spectre-SR Granaten-Taste und EMP', () => {
     expect(r.tone).toBe(1);
   });
 
-  test('Halten ab 10 Schritten (20 Schritte) wirft nichts und loest kein EMP aus; die erste Mine verbraucht genau eine Ladung und startet das Nachladen', async ({
+  test('Holding from 10 steps (20 steps) throws nothing and triggers no EMP; the first mine uses exactly one charge and starts the recharge', async ({
     page,
   }) => {
     await prepareEmp(page);
@@ -2213,12 +2209,12 @@ test.describe('Spectre-SR Granaten-Taste und EMP', () => {
       };
     });
     expect(r.during).toMatchObject({ grenades: 0, emp: 0, charges: 1 });
-    expect(r.during.cd).toBeGreaterThan(220); // Nachladen laeuft seit der ersten Mine
+    expect(r.during.cd).toBeGreaterThan(220); // The recharge has been running since the first mine
     expect(r.thereafter).toMatchObject({ grenades: 0, emp: 0, charges: 1 });
     expect(r.thereafter.cd).toBeGreaterThan(210);
   });
 
-  test('Grenze: 9 Schritte gehalten ist noch ein Tipp, 10 Schritte ist ein Halten', async ({ page }) => {
+  test('Boundary: held for 9 steps is still a tap, 10 steps is a hold', async ({ page }) => {
     await prepareEmp(page);
     const r = await page.evaluate(() => {
       const { state } = window.__game;
@@ -2235,11 +2231,11 @@ test.describe('Spectre-SR Granaten-Taste und EMP', () => {
       return { nine, ten: state.missileCooldown, charges: state.sniperGrenadeCharges };
     });
     expect(r.nine).toBe(240);
-    expect(r.ten).toBeGreaterThan(230); // Halten legt eine Mine -> Nachladen, aber keine Granate
+    expect(r.ten).toBeGreaterThan(230); // Holding places a mine -> recharge, but no grenade
     expect(r.charges).toBe(1);
   });
 
-  test('Tippen ohne Ladung wirft nichts; waffenOffline blockiert Granate und EMP', async ({ page }) => {
+  test('A tap without a charge throws nothing; weaponsOffline blocks grenade and EMP', async ({ page }) => {
     await prepareEmp(page);
     const r = await page.evaluate(async () => {
       const { state } = window.__game;
@@ -2254,7 +2250,7 @@ test.describe('Spectre-SR Granaten-Taste und EMP', () => {
       };
       state.missileCooldown = 0;
       state.sniperGrenadeCharges = 3;
-      Hack.hackPlayer(state, 'weaponOffline');
+      Hack.hackPlayer(state, 'weaponsOffline');
       G.thrown();
       return {
         inCooldown,
@@ -2268,7 +2264,7 @@ test.describe('Spectre-SR Granaten-Taste und EMP', () => {
     expect(r.offline).toEqual({ grenades: 0, emp: 0 });
   });
 
-  test('EMP zerstoert Feindlaser, Boss-Laser, Hack-Projektil und Boss-Rakete im Radius, nicht ausserhalb', async ({
+  test('The EMP destroys enemy laser, boss laser, hack projectile and boss missile within the radius, not outside', async ({
     page,
   }) => {
     await prepareEmp(page);
@@ -2291,13 +2287,13 @@ test.describe('Spectre-SR Granaten-Taste und EMP', () => {
       };
     });
     expect(r.beforehand).toBe(8);
-    expect(r.afterwards).toBe(4); // nur die entfernten (150 px) bleiben
+    expect(r.afterwards).toBe(4); // only the distant ones (150 px) stay
     expect(r.enemyLaser).toEqual([150]);
     expect(r.bossMissile).toEqual([150]);
     expect(r.els).toBe(1);
   });
 
-  test('EMP entfernt Boss-Bomben im Radius ohne Detonation', async ({ page }) => {
+  test('The EMP removes boss bombs within the radius without a detonation', async ({ page }) => {
     await prepareEmp(page);
     const r = await page.evaluate(() => {
       const { Entities, arrays, state } = window.__game;
@@ -2317,7 +2313,7 @@ test.describe('Spectre-SR Granaten-Taste und EMP', () => {
     expect(r.x).toBe(160);
   });
 
-  test('EMP betaeubt Feinde im Radius 30 Schritte (Maximum, keine Verkuerzung), Boss und Asteroid nicht, kein Schaden', async ({
+  test('The EMP stuns enemies within the radius for 30 steps (maximum, no shortening), not the boss and the asteroid, no damage', async ({
     page,
   }) => {
     await prepareEmp(page);
@@ -2338,7 +2334,7 @@ test.describe('Spectre-SR Granaten-Taste und EMP', () => {
       Object.assign(boss, { x: m.x - 40, y: m.y - 80, hp: 1e6, maxHp: 1e6 });
       const hp = [near.hp, lang.hp, ast.hp, boss.hp];
       E.Sn.triggerEmp(state, 'p1');
-      Display.drawWorld(); // die Klasse 'betaeubt' setzt die Anzeige aus dem Feld betaeubt
+      Display.drawWorld(); // the display sets the class 'betaeubt' from the field stunned
       return {
         near: near.stunned,
         lang: lang.stunned,
@@ -2358,7 +2354,7 @@ test.describe('Spectre-SR Granaten-Taste und EMP', () => {
     expect(r.hpEqual).toBe(true);
   });
 
-  test('EMP-Radius je Raketen-Stufe 70/80/90/100/110: Geschoss knapp innerhalb wird zerstoert, knapp ausserhalb nicht', async ({
+  test('EMP radius per missile tier 70/80/90/100/110: a projectile just inside is destroyed, just outside not', async ({
     page,
   }) => {
     await prepareEmp(page);
@@ -2371,7 +2367,7 @@ test.describe('Spectre-SR Granaten-Taste und EMP', () => {
         state.missileTier = tier;
         radii.push(E.Sn.empRadius(state));
         const should = 60 + tier * 10;
-        // Der Laser misst 4 px Breite ab seiner linken Kante: innen = soll - 6 (rechte Kante weiter innen), aussen = soll + 6
+        // The laser measures 4 px width from its left edge: inside = target - 6 (right edge further in), outside = target + 6
         const inside = E.projectile('enemyLaser', should - 6, 0);
         const outside = E.projectile('enemyLaser', should + 6, 0);
         E.Sn.triggerEmp(state, 'p1');
@@ -2392,7 +2388,7 @@ test.describe('Spectre-SR Granaten-Taste und EMP', () => {
     expect(r.rings).toBe(5);
   });
 
-  test('EMP-Ring waechst in 10 Schritten und verschwindet', async ({ page }) => {
+  test('The EMP ring grows in 10 steps and disappears', async ({ page }) => {
     await prepareEmp(page);
     const r = await page.evaluate(() => {
       const { state } = window.__game;
@@ -2410,7 +2406,7 @@ test.describe('Spectre-SR Granaten-Taste und EMP', () => {
     expect(r.gone).toBe(0);
   });
 
-  test('Neustart raeumt EMP-Ringe ab', async ({ page }) => {
+  test('Restart clears EMP rings', async ({ page }) => {
     await prepareEmp(page);
     const r = await page.evaluate(() => {
       const { state } = window.__game;
@@ -2423,7 +2419,7 @@ test.describe('Spectre-SR Granaten-Taste und EMP', () => {
     expect(r.thereafter).toBe(0);
   });
 
-  test('Coop: Spieler 2 (Sniper) tippt mit Oe und das EMP kommt von seinem Schiff', async ({ page }) => {
+  test('Co-op: player 2 (sniper) taps with Oe and the EMP comes from its ship', async ({ page }) => {
     await prepareEmp(page, { coop: true });
     const r = await page.evaluate(() => {
       const { state, config } = window.__game;
@@ -2446,7 +2442,7 @@ test.describe('Spectre-SR Granaten-Taste und EMP', () => {
 });
 
 test.describe('Spectre-SR EMP online', () => {
-  test('Host: Client-Tipp zwischen zwei Host-Schritten ergibt genau einen Wurf samt EMP-Ereignis; Halten wirft nichts', async ({
+  test('Host: a client tap between two host steps gives exactly one throw with its EMP event; holding throws nothing', async ({
     page,
   }) => {
     await prepareOnlineHost(page);
@@ -2487,13 +2483,13 @@ test.describe('Spectre-SR EMP online', () => {
     expect(r.tap.grenades).toBe(1);
     expect(r.tap.emp).toBe(1);
     expect(r.tap.cd).toBeGreaterThan(200);
-    expect(r.tap.event).toMatchObject({ type: 'emp_ausgeloest', owner: 'p2', radius: 70 });
+    expect(r.tap.event).toMatchObject({ type: 'emp_triggered', owner: 'p2', radius: 70 });
     expect(r.hold).toMatchObject({ grenades: 0, emp: 0, charges: 1 });
     expect(r.afterHold.grenades).toBe(0);
-    expect(r.afterHold.cd).toBeGreaterThan(200); // eine Mine wurde gelegt -> Cooldown nach dem Loslassen
+    expect(r.afterHold.cd).toBeGreaterThan(200); // a mine was placed -> cooldown after the release
   });
 
-  test('Client zeigt den EMP-Ring aus dem Ereignis (Ton, wachsender Ring, danach weg); ungueltige Daten werden ignoriert', async ({
+  test('The client shows the EMP ring from the event (sound, growing ring, gone afterwards); invalid data is ignored', async ({
     page,
   }) => {
     await prepareGrenade(page);
@@ -2529,7 +2525,7 @@ test.describe('Spectre-SR EMP online', () => {
     expect(r.tone).toBe(1);
   });
 
-  test('Protokollversion enthaelt das EMP-Ereignis (ab 11)', async ({ page }) => {
+  test('The protocol version includes the EMP event (from 11 on)', async ({ page }) => {
     await prepareGrenade(page);
     const v = await page.evaluate(async () => (await import('./js/net-encoding.js')).PROTOCOL_VERSION);
     expect(v).toBeGreaterThanOrEqual(11);
@@ -2537,7 +2533,7 @@ test.describe('Spectre-SR EMP online', () => {
 });
 
 test.describe('Spectre-SR Bot: EMP', () => {
-  test('Bot tippt kurz (wenige Schritte true, dann false) bei naher Boss-Rakete; die Rakete verschwindet, Cooldown startet', async ({
+  test('Bot taps briefly (a few steps true, then false) on a near boss missile; the missile vanishes, the cooldown starts', async ({
     page,
   }) => {
     await prepareEmp(page, { coop: true });
@@ -2582,7 +2578,7 @@ test.describe('Spectre-SR Bot: EMP', () => {
     expect(r.cd).toBeGreaterThan(150);
   });
 
-  test('Bot tippt nicht, wenn das Geschoss weit weg ist', async ({ page }) => {
+  test('Bot does not tap when the projectile is far away', async ({ page }) => {
     await prepareEmp(page, { coop: true });
     const r = await page.evaluate(async () => {
       const Bot = await import('./js/bot.js');
@@ -2615,9 +2611,9 @@ test.describe('Spectre-SR Bot: EMP', () => {
 });
 
 // ---------------------------------------------------------------------------------------------
-// Haftminen (E2): Halten der Granaten-Taste legt Minen
+// Sticky mines (E2): holding the grenade key places mines
 
-// Mine legen: Raketen-Taste n Schritte halten und loslassen, Schiff danach aus dem Weg (Mine bleibt bei (200|430))
+// Place a mine: hold the missile key for n steps and release, ship out of the way afterwards (the mine stays at (200|430))
 async function prepareMines(page, options = {}) {
   await prepareGrenade(page, options);
   await page.evaluate(() => {
@@ -2625,7 +2621,7 @@ async function prepareMines(page, options = {}) {
     const G = window.__gr;
     window.__mi = {
       mines: () => arrays.sniperMines,
-      // Eine Mine am Schiff legen und das Schiff wegsetzen
+      // Place one mine at the ship and move the ship away
       oneOfMine() {
         G.hold(12);
         G.release();
@@ -2640,7 +2636,7 @@ async function prepareMines(page, options = {}) {
         f.hp = f.maxHp = hp;
         return f;
       },
-      // Ziel pro Schritt um (dx|dy) bewegen, bis die Mine haftet (max. n Schritte)
+      // Move the target by (dx|dy) per step until the mine sticks (max. n steps)
       untilSticks(z, dx, dy, n = 40) {
         const m = arrays.sniperMines[0];
         for (let i = 0; i < n && !m.target; i++) {
@@ -2657,7 +2653,7 @@ async function prepareMines(page, options = {}) {
 }
 
 test.describe('Spectre-SR Haftminen', () => {
-  test('Halten 70 Schritte legt 5 Minen im 12er-Takt an den jeweiligen Schiffspositionen, ohne Granate und EMP; danach Cooldown', async ({
+  test('Holding for 70 steps places 5 mines on a 12-step cadence at the respective ship positions, without grenade and EMP; cooldown afterwards', async ({
     page,
   }) => {
     await prepareMines(page);
@@ -2667,7 +2663,7 @@ test.describe('Spectre-SR Haftminen', () => {
       state.keysPressed.v = true;
       const count = [];
       for (let i = 0; i < 70; i++) {
-        state.x = 100 + i * 2; // Schiff wandert
+        state.x = 100 + i * 2; // The ship moves
         window.__game.Loop.simulationStep();
         count.push(arrays.sniperMines.length);
       }
@@ -2686,11 +2682,11 @@ test.describe('Spectre-SR Haftminen', () => {
         ys: arrays.sniperMines.map(m => m.y),
         owner: arrays.sniperMines.map(m => m.pKey),
         els: document.querySelectorAll('.sniper-mine').length,
-        tones: Audio.audioHistory.filter(e => e.name === 'mine_legen').length,
+        tones: Audio.audioHistory.filter(e => e.name === 'mine_place').length,
         emp: Audio.audioHistory.filter(e => e.name === 'emp').length,
       };
     });
-    // Mine k (k = 0..4) faellt in Schritt 10 + 12k (Index 9 + 12k): Schiff steht dann bei x = 100 + (9 + 12k) * 2
+    // Mine k (k = 0..4) drops in step 10 + 12k (index 9 + 12k): the ship then stands at x = 100 + (9 + 12k) * 2
     expect(r.count[8]).toBe(0);
     expect(r.count[9]).toBe(1);
     expect(r.count[20]).toBe(1);
@@ -2698,19 +2694,19 @@ test.describe('Spectre-SR Haftminen', () => {
     expect(r.count[69]).toBe(5);
     expect(r.count.filter((n, i) => i > 0 && n > r.count[i - 1])).toHaveLength(5);
     expect(r.xs).toEqual([0, 1, 2, 3, 4].map(k => 100 + (9 + 12 * k) * 2 + 15));
-    // Gelegt unter dem Schiff (y 430), seitdem nach oben gedriftet: aeltere Minen stehen hoeher
+    // Placed below the ship (y 430), drifting upwards since: older mines stand higher
     expect(r.ys.every(y => y <= 430 && y > 430 - 0.6 * 70)).toBe(true);
     expect(r.ys.every((y, i) => i === 0 || y > r.ys[i - 1])).toBe(true);
     expect(r.owner.every(o => o === 'p1')).toBe(true);
     expect(r.els).toBe(5);
     expect(r.tones).toBe(5);
-    expect(r.during).toEqual({ grenades: 0, emp: 0, charges: 1 }); // fuenf Minen kosten zusammen genau eine Ladung
+    expect(r.during).toEqual({ grenades: 0, emp: 0, charges: 1 }); // five mines together cost exactly one charge
     expect(r.emp).toBe(0);
-    expect(r.cd).toBeGreaterThan(150); // Nachladen laeuft seit der ersten Mine
+    expect(r.cd).toBeGreaterThan(150); // The recharge has been running since the first mine
     expect(r.cd).toBeLessThan(240);
   });
 
-  test('Halten nur 12 Schritte legt 1 Mine (1 Ladung); Halten ohne Ladung legt keine', async ({ page }) => {
+  test('Holding for only 12 steps places 1 mine (1 charge); holding without a charge places none', async ({ page }) => {
     await prepareMines(page);
     const r = await page.evaluate(() => {
       const { state, arrays } = window.__game;
@@ -2738,10 +2734,10 @@ test.describe('Spectre-SR Haftminen', () => {
     expect(r.one.cd).toBeGreaterThan(230);
     expect(r.withoutCharge.mines).toBe(1);
     expect(r.withoutCharge.charges).toBe(0);
-    expect(r.withoutCharge.cd).toBeLessThan(r.one.cd); // das laufende Nachladen wird nicht neu gestartet
+    expect(r.withoutCharge.cd).toBeLessThan(r.one.cd); // the running recharge is not restarted
   });
 
-  test('maximal 8 aktive Minen pro Spieler, die aelteste faellt weg', async ({ page }) => {
+  test('at most 8 active mines per player, the oldest drops out', async ({ page }) => {
     await prepareMines(page);
     const r = await page.evaluate(() => {
       const { state, arrays } = window.__game;
@@ -2768,14 +2764,14 @@ test.describe('Spectre-SR Haftminen', () => {
     expect(r.total).toBeGreaterThanOrEqual(10);
   });
 
-  test('Mine driftet langsam nach oben; Lebensdauer 360 Schritte, ab 300 blinkend, danach weg ohne Explosion', async ({
+  test('The mine drifts slowly upwards; lifetime 360 steps, blinking from 300, gone afterwards without an explosion', async ({
     page,
   }) => {
     await prepareMines(page);
     const r = await page.evaluate(() => {
       const { state, Loop } = window.__game;
       const M = window.__mi;
-      // Ohne natuerliche Spawns: die nach oben driftende Mine soll keinen zufaellig erscheinenden Gegner treffen
+      // Without natural spawns: the mine drifting upwards must not hit a randomly appearing opponent
       const free = n => {
         for (let i = 0; i < n; i++) {
           state.frameCounter = 1;
@@ -2787,7 +2783,7 @@ test.describe('Spectre-SR Haftminen', () => {
       const y0 = m.y;
       free(100);
       const drift = { x: m.x - x0, y: m.y - y0 };
-      free(190); // gesamt 290 Schritte nach dem Legen
+      free(190); // 290 steps in total after placing
       const at290 = m.el.classList.contains('blinkt');
       free(15);
       const at305 = m.el.classList.contains('blinkt');
@@ -2804,7 +2800,7 @@ test.describe('Spectre-SR Haftminen', () => {
         explosion: document.querySelectorAll('.sniper-mine-explosion').length,
       };
     });
-    // 100 Schritte zu je 0,6 px nach oben, seitlich keine Bewegung
+    // 100 steps of 0.6 px upwards each, no sideways movement
     expect(r.drift.x).toBe(0);
     expect(r.drift.y).toBeCloseTo(-60, 5);
     expect(r.at290).toBe(false);
@@ -2815,7 +2811,7 @@ test.describe('Spectre-SR Haftminen', () => {
     expect(r.explosion).toBe(0);
   });
 
-  test('Boss-Rakete beruehrt die Mine: Mine explodiert sofort und zerstoert Rakete und Boss-Bombe im Radius', async ({
+  test('A boss missile touches the mine: the mine explodes immediately and destroys the missile and a boss bomb within the radius', async ({
     page,
   }) => {
     await prepareMines(page);
@@ -2824,13 +2820,13 @@ test.describe('Spectre-SR Haftminen', () => {
       const G = window.__gr;
       const M = window.__mi;
       const m = M.oneOfMine();
-      // Boss-Bombe neben der Mine (im Radius 30, aber ohne Kontakt) – loest allein nicht aus
+      // Boss bomb beside the mine (within radius 30, but without contact) - does not trigger on its own
       Entities.createBossBomb(m.x + 12, m.y - 40);
       const bomb = arrays.bossBombArray[arrays.bossBombArray.length - 1];
       Object.assign(bomb, { x: m.x + 12, y: m.y - 30, vx: 0, vy: 0, timer: 9999 });
       G.free(1);
       const afterBomb = { mineThere: M.mines().includes(m), bombThere: arrays.bossBombArray.includes(bomb) };
-      // Boss-Rakete direkt auf der Mine
+      // Boss missile directly on the mine
       Entities.createBossMissile(m.x - 5, m.y - 8, 1);
       const missile = arrays.bossMissileArray[arrays.bossMissileArray.length - 1];
       Object.assign(missile, { x: m.x - 5, y: m.y - 8, vx: 0, vy: 0 });
@@ -2850,14 +2846,14 @@ test.describe('Spectre-SR Haftminen', () => {
     expect(r.explosion).toBeGreaterThanOrEqual(1);
   });
 
-  test('Feind beruehrt die Mine: haftet, folgt dem Feind, piept; Magma loest nicht aus', async ({ page }) => {
+  test('An enemy touches the mine: it sticks, follows the enemy, beeps; magma does not trigger', async ({ page }) => {
     await prepareMines(page);
     const r = await page.evaluate(() => {
       const { Audio } = window.__game;
       const G = window.__gr;
       const M = window.__mi;
       const m = M.oneOfMine();
-      // Magma-Asteroid direkt auf der Mine: keine Reaktion
+      // Magma asteroid directly on the mine: no reaction
       const magma = window.__sn.asteroid(m.x, m.y, 30, true);
       delete magma.fixedX;
       delete magma.fixedY;
@@ -2872,8 +2868,8 @@ test.describe('Spectre-SR Haftminen', () => {
       const offX = m.x - (f.x + 15);
       const offY = m.y - (f.y + 15);
       const cls = m.el.classList.contains('haftet');
-      const beeps = Audio.audioHistory.filter(e => e.name === 'mine_piep').length;
-      // Feind wandert: Mine folgt
+      const beeps = Audio.audioHistory.filter(e => e.name === 'mine_beep').length;
+      // The enemy moves: the mine follows
       for (let i = 0; i < 5; i++) {
         f.x += 2;
         f.y -= 1;
@@ -2900,7 +2896,7 @@ test.describe('Spectre-SR Haftminen', () => {
     expect(r.fuse).toBeLessThan(30);
   });
 
-  test('haftet am Ziel und explodiert nach 30 Schritten: Schaden der Stufe im Radius 30, Nachbar im Radius auch, Ziel ausserhalb nicht', async ({
+  test('sticks to the target and explodes after 30 steps: tier damage within radius 30, a neighbor in the radius too, a target outside not', async ({
     page,
   }) => {
     await prepareMines(page);
@@ -2908,16 +2904,16 @@ test.describe('Spectre-SR Haftminen', () => {
       const { state, arrays, Audio } = window.__game;
       const G = window.__gr;
       const M = window.__mi;
-      state.missileTier = 3; // 30 Schaden
+      state.missileTier = 3; // 30 damage
       const m = M.oneOfMine();
       const a = M.setEnemy(200, 480);
-      const near = M.setEnemy(240, 430); // Mitte 40 px entfernt, Box-Kante bei 25 px -> im Radius
+      const near = M.setEnemy(240, 430); // Center 40 px away, box edge at 25 px -> within the radius
       const remote = M.setEnemy(320, 430);
       M.untilSticks(a, 0, -3);
       Audio.clearAudioHistory();
       G.free(28);
       const beforeEntry = { hp: a.hp, near: near.hp, there: arrays.sniperMines.includes(m) };
-      G.free(1); // 29. Schritt nach dem Haften
+      G.free(1); // 29th step after sticking
       const before30 = arrays.sniperMines.includes(m);
       G.free(1); // 30.
       return {
@@ -2941,7 +2937,7 @@ test.describe('Spectre-SR Haftminen', () => {
     expect(r.tone).toBe(1);
   });
 
-  test('Schaden je Raketen-Stufe 20/25/30/35/40; Schild nimmt den Schaden zuerst', async ({ page }) => {
+  test('Damage per missile tier 20/25/30/35/40; the shield takes the damage first', async ({ page }) => {
     await prepareMines(page);
     const r = await page.evaluate(() => {
       const { state } = window.__game;
@@ -2974,7 +2970,7 @@ test.describe('Spectre-SR Haftminen', () => {
     expect(r.hpShield).toBe(1000);
   });
 
-  test('Ziel stirbt vorher: Explosion an der letzten Position, Nachbar dort bekommt Schaden', async ({ page }) => {
+  test('The target dies before: explosion at the last position, a neighbor there takes damage', async ({ page }) => {
     await prepareMines(page);
     const r = await page.evaluate(() => {
       const { arrays, Utils } = window.__game;
@@ -3003,7 +2999,9 @@ test.describe('Spectre-SR Haftminen', () => {
     expect(r.waveX).not.toBeNull();
   });
 
-  test('Coop-P2 legt eigene Minen an der Position von P2; Reset und Game Over raeumen alles ab', async ({ page }) => {
+  test('Co-op P2 places its own mines at the position of P2; reset and game over clear everything', async ({
+    page,
+  }) => {
     await prepareMines(page, { coop: true });
     const r = await page.evaluate(() => {
       const { state, arrays } = window.__game;
@@ -3018,13 +3016,13 @@ test.describe('Spectre-SR Haftminen', () => {
       const el = document.querySelectorAll('.sniper-mine-p2').length;
       return { p2, el };
     });
-    // An der Position von P2 gelegt (x 400, y 430), seitdem leicht nach oben gedriftet
+    // Placed at the position of P2 (x 400, y 430), drifting slightly upwards since
     expect(r.p2.mines.map(m => [m[0], m[1]])).toEqual([
       ['p2', 400],
       ['p2', 400],
     ]);
     expect(r.p2.mines.every(m => m[2] <= 430 && m[2] > 430 - 0.6 * 30)).toBe(true);
-    expect(r.p2.cd).toBeGreaterThan(200); // Nachladen seit der ersten Mine
+    expect(r.p2.cd).toBeGreaterThan(200); // Recharge since the first mine
     expect(r.p2.cdP1).toBe(0);
     expect(r.el).toBe(2);
     const reset = await page.evaluate(async () => {
@@ -3042,7 +3040,7 @@ test.describe('Spectre-SR Haftminen', () => {
   });
 });
 
-test.describe('Spectre-SR Bot: Minen', () => {
+test.describe('Spectre-SR bot: mines', () => {
   async function prepareBotMines(page) {
     await prepareEmp(page, { coop: true });
     await page.evaluate(async () => {
@@ -3061,7 +3059,7 @@ test.describe('Spectre-SR Bot: Minen', () => {
     });
   }
 
-  test('Bot haelt die Raketen-Taste und legt Minen, wenn ein Feind heranfliegt (max. 5), dann loslassen und Cooldown', async ({
+  test('The bot holds the missile key and places mines when an enemy approaches (max. 5), then releases, cooldown', async ({
     page,
   }) => {
     await prepareBotMines(page);
@@ -3069,12 +3067,12 @@ test.describe('Spectre-SR Bot: Minen', () => {
       const { state, arrays } = window.__game;
       const G = window.__gr;
       const f = G.enemy(300, 480 + 15 - 148 - 15);
-      state.p2.sniperGrenadeCharges = 1; // eine Ladung: ein Halten (max. 5 Minen), danach ohne Ladung kein weiteres
+      state.p2.sniperGrenadeCharges = 1; // one charge: one hold (max. 5 mines), no further one without a charge afterwards
       let maxMines = 0;
       let held = 0;
       let grenades = 0;
       for (let i = 0; i < 80; i++) {
-        // Schiff fest, Feind naehert sich jeden Schritt um 1,2 px von 148 auf etwa 60 px Abstand
+        // Ship fixed, the enemy approaches by 1.2 px every step from 148 to about 60 px distance
         state.p2.x = 285;
         state.p2.y = 480;
         f.x = 285;
@@ -3102,12 +3100,12 @@ test.describe('Spectre-SR Bot: Minen', () => {
     expect(r.other).toBe(0);
   });
 
-  test('Bot legt keine Minen ohne heranfliegenden Feind (stehender Feind, weit weg)', async ({ page }) => {
+  test('The bot places no mines without an approaching enemy (stationary enemy, far away)', async ({ page }) => {
     await prepareBotMines(page);
     const r = await page.evaluate(() => {
       const { state, arrays } = window.__game;
       const G = window.__gr;
-      G.enemy(300, 480 + 15 - 100); // nah, aber ruhend: naehert sich nicht
+      G.enemy(300, 480 + 15 - 100); // near, but at rest: does not approach
       G.enemy(100, 100);
       let held = 0;
       for (let i = 0; i < 40; i++) {
@@ -3122,7 +3120,7 @@ test.describe('Spectre-SR Bot: Minen', () => {
 });
 
 test.describe('Spectre-SR Haftminen online (Host)', () => {
-  test('Host: Snapshot enthaelt die Minen (id, x, y, owner, haftet, Timer, blinkt) und ein Ereignis bei der Explosion', async ({
+  test('Host: the snapshot contains the mines (id, x, y, owner, sticks, timer, blinks) and an event on the explosion', async ({
     page,
   }) => {
     await prepareOnlineHost(page);
@@ -3147,7 +3145,7 @@ test.describe('Spectre-SR Haftminen online (Host)', () => {
       }));
       const k = new NK.SnapshotEncoder();
       const dek = new NK.SnapshotDecoder().decode(JSON.parse(JSON.stringify(k.encode(snap, 0))));
-      // Schiff zur Seite, damit der Feind es nicht rammt; Feind mittig auf die erste Mine (Minen driften) -> haftet
+      // Ship to the side so the enemy does not ram it; enemy centered on the first mine (mines drift) -> sticks
       E({ x: 100, y: 400 });
       const m0 = arrays.sniperMines[0];
       const f = G.enemy(m0.x, m0.y);
@@ -3164,7 +3162,7 @@ test.describe('Spectre-SR Haftminen online (Host)', () => {
       };
     });
     expect(r.list).toHaveLength(2);
-    // y: unter P2 gelegt (430) und seitdem nach oben gedriftet
+    // y: placed below P2 (430) and drifting upwards since
     expect({ ...r.list[0], y: undefined }).toEqual({
       id: 'string',
       x: 400,
@@ -3178,16 +3176,16 @@ test.describe('Spectre-SR Haftminen online (Host)', () => {
     expect(r.list[0].y).toBeGreaterThan(430 - 0.6 * 30);
     expect(r.decoded).toBe(2);
     expect(r.sticks).toEqual([true, true]);
-    expect(r.event).toMatchObject({ type: 'mine_explodiert', owner: 'p2', radius: 30 });
-    expect(r.hp).toBe(960); // beide Minen (an derselben Stelle) haften und explodieren
+    expect(r.event).toMatchObject({ type: 'mine_exploded', owner: 'p2', radius: 30 });
+    expect(r.hp).toBe(960); // both mines (at the same place) stick and explode
   });
 });
 
 // ---------------------------------------------------------------------------------------------
-// Granaten-Ladungen: 2 (Raketen-Stufe 1-3) bzw. 3 (Stufe 4-5), raketenCooldown = Ladezeit der naechsten Ladung
+// Grenade charges: 2 (missile tier 1-3) or 3 (tier 4-5), missileCooldown = charge time of the next charge
 
-test.describe('Spectre-SR Granaten-Ladungen', () => {
-  test('Start/Reset: voll (2); zwei Granaten direkt nacheinander, die dritte nicht', async ({ page }) => {
+test.describe('Spectre-SR grenade charges', () => {
+  test('Start/reset: full (2); two grenades right after each other, the third not', async ({ page }) => {
     await prepareGrenade(page);
     const r = await page.evaluate(async () => {
       const { state } = window.__game;
@@ -3229,7 +3227,7 @@ test.describe('Spectre-SR Granaten-Ladungen', () => {
     expect(r.afterThree).toEqual({ grenades: 2, charges: 0 });
   });
 
-  test('Nachladen nacheinander: je Ladezeit der Stufe (240 auf Stufe 1, 210 auf Stufe 2), nur eine Ladezeit laeuft', async ({
+  test('Recharge one after another: one charge time of the tier each (240 at tier 1, 210 at tier 2), only one charge time runs', async ({
     page,
   }) => {
     await prepareGrenade(page);
@@ -3271,7 +3269,7 @@ test.describe('Spectre-SR Granaten-Ladungen', () => {
     }
   });
 
-  test('Stufe 4 hat Max 3: nach dem Upgrade laedt die dritte Ladung von selbst', async ({ page }) => {
+  test('Tier 4 has max 3: after the upgrade the third charge recharges by itself', async ({ page }) => {
     await prepareGrenade(page);
     const r = await page.evaluate(async () => {
       const { state } = window.__game;
@@ -3299,7 +3297,7 @@ test.describe('Spectre-SR Granaten-Ladungen', () => {
     expect(r.cd).toBe(0);
   });
 
-  test('Halten verbraucht genau 1 Ladung (weitere Minen kosten nichts); ohne Ladung keine Minen', async ({ page }) => {
+  test('Holding uses exactly 1 charge (further mines cost nothing); no mines without a charge', async ({ page }) => {
     await prepareMines(page);
     const r = await page.evaluate(() => {
       const { state, arrays } = window.__game;
@@ -3322,7 +3320,7 @@ test.describe('Spectre-SR Granaten-Ladungen', () => {
     expect(r.without).toEqual({ mines: 0, charges: 0 });
   });
 
-  test('HUD: Punkte neben dem GRANATE-Balken (P1 und P2), Balken zeigt den Ladefortschritt, Mobil-Knopf zeigt die Anzahl', async ({
+  test('HUD: dots next to the GRANATE bar (P1 and P2), the bar shows the charge progress, the mobile button shows the count', async ({
     page,
   }) => {
     await prepareGrenade(page, { coop: true });
@@ -3368,7 +3366,7 @@ test.describe('Spectre-SR Granaten-Ladungen', () => {
     expect(r.p2OneOf.p1.full).toBe(0);
   });
 
-  test('Host: Snapshot traegt sniperGranatenLadungen (nur Sniper, ganzzahlig, gerundet)', async ({ page }) => {
+  test('Host: the snapshot carries sniperGrenadeCharges (sniper only, integers, rounded)', async ({ page }) => {
     await prepareOnlineHost(page);
     const r = await page.evaluate(async () => {
       const { state, Network } = window.__game;
@@ -3391,8 +3389,8 @@ test.describe('Spectre-SR Granaten-Ladungen', () => {
   });
 });
 
-test.describe('Spectre-SR Bot: Granaten-Ladungen', () => {
-  test('Bot tippt EMP bei naher Boss-Rakete nur mit Ladung', async ({ page }) => {
+test.describe('Spectre-SR bot: grenade charges', () => {
+  test('Bot taps the EMP on a near boss missile only with a charge', async ({ page }) => {
     await prepareEmp(page, { coop: true });
     const r = await page.evaluate(async () => {
       const Bot = await import('./js/bot.js');

@@ -1,4 +1,4 @@
-// Nur fuer 'npm run screenshot': erzeugt docs/gameplay.png fuer die README (kein Test, laeuft nicht in 'npm test'/CI)
+// Only for 'npm run screenshot': creates docs/gameplay.png for the README (not a test, does not run in 'npm test'/CI)
 const { defineConfig } = require('@playwright/test');
 const basis = require('./playwright.config');
 

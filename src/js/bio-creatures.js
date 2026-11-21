@@ -6,27 +6,27 @@ import * as Growths from './growths.js';
 import { newId, getEnemyColor } from './entities.js';
 import { nextPlayerMiddle } from './opponents.js';
 
-// Organische Einzelwesen und Gegnermix der Fels-Level (Biozone). Statt klassischer Jaeger kommen hier Ketten
-// (Kopfschuetze, Stachelkette als Hindernis, Kugelkette) und Einzelwesen:
-// - krabbe: Stielaugen und Scheren. Gibt es eine Felswand, krabbelt sie zuerst an deren Kante entlang (Blick in
-//   den Gang, Phase 'wand') und springt dann in den Gang ('sprung'); sonst fliegt sie von oben an ('anflug').
-//   Danach krabbelt sie seitlich im freien Gang hin und her, schiesst gezielte Kugelpaare und zieht nach
-//   KRABBE_DAUER nach unten ab
-// - tentakler: Quallenschirm mit Tentakeln, schwebt pendelnd herab und stoesst Kugelringe aus
-// Kugeln sind Sporen (Feindgeschosse mit spore = true).
+// Organic single creatures and the opponent mix of the rock levels (biozone). Instead of classic fighters there are chains
+// (head shooter, spike chain as an obstacle, ball chain) and single creatures:
+// - crab: eye stalks and claws. If there is a rock wall, it first crawls along its edge (facing
+//   the corridor, phase 'wall') and then jumps into the corridor ('jump'); otherwise it flies in from above ('approach').
+//   Then it crawls sideways back and forth in the free corridor, shoots aimed ball pairs and retreats
+//   downwards after CRAB_DURATION
+// - tentacler: jellyfish bell with tentacles, swings down and emits ball rings
+// Balls are spores (enemy projectiles with spore = true).
 
 export const CREATURE = ['crab', 'tentacler'];
 export const SIZE = { crab: 34, tentacler: 30 };
 export const CRAB_SHOT = 100;
 export const CRAB_DURATION = 600;
-export const WALL_MIN = 22; // Wandbreite, an der eine Krabbe entlanglaufen kann
-export const WALL_SPEED = 0.8; // Laufen an der Kante, zusaetzlich zum Felstempo
+export const WALL_MIN = 22; // Wall width along which a crab can walk
+export const WALL_SPEED = 0.8; // Walking along the edge, in addition to the rock speed
 export const JUMP_DURATION = 24;
 export const TENTACLER_SHOT = 140;
 export const TENTACLER_RING = 6;
 export const BALL_SPEED = 2.4;
 
-// Gewichte des Bio-Spawners (Summe 1)
+// Weights of the bio spawner (sum 1)
 /** @type {Array<[string, number]>} */
 export const BIO_MIX = [
   ['chain', 0.2],
@@ -67,7 +67,7 @@ function baseValues(pattern, x, y, hp) {
   };
 }
 
-// Freier Bereich auf Hoehe y (ohne Fels: ganzes Feld)
+// Free range at height y (without rock: the whole field)
 function freeAt(y, x) {
   return Rock.freeRange(y, x);
 }
@@ -79,7 +79,7 @@ function startX(g) {
   return Math.max(free.left + 4, Math.min(free.right - g - 4, x));
 }
 
-// Wand mit Platz an der Oberkante: 'l', 'r' oder null (breitere Seite zuerst)
+// Wall with room at the top edge: 'l', 'r' or null (wider side first)
 function wallTop() {
   const p = Rock.profileAt(10);
   if (!p) return null;
@@ -92,7 +92,7 @@ function wallTop() {
   return sides[0][0];
 }
 
-// Lage an der Wandkante auf Hoehe der Krabbenmitte; ein Viertel steckt im Fels, Blick in den Gang
+// Position at the wall edge at the height of the crab center; a quarter sits inside the rock, facing the corridor
 function setAnWall(f) {
   const g = f.size;
   const p = Rock.profileAt(f.y + g / 2);
@@ -108,7 +108,7 @@ export function createCrab(x = null) {
   const wall = x === null ? wallTop() : null;
   const f = {
     ...baseValues('crab', x ?? startX(g), wall ? 0 : -g, 40),
-    phase: wall ? 'wall' : 'anflug',
+    phase: wall ? 'wall' : 'approach',
     wall,
     wallTime: 90 + Math.floor(Math.random() * 120),
     targetY: 60 + Math.random() * 110,
@@ -154,7 +154,7 @@ function updateCrab(f) {
   if (f.phase === 'wall') {
     f.y += Rock.getSpeed() + WALL_SPEED;
     f.wallTime--;
-    // Ende der Wand oder Zeit um: abspringen in den Gang
+    // End of the wall or time up: jump off into the corridor
     if (f.wallTime <= 0 || !setAnWall(f) || !wallOnHeight(f)) {
       f.phase = 'jump';
       f.jumpTime = JUMP_DURATION;
@@ -163,24 +163,24 @@ function updateCrab(f) {
     return;
   }
   if (f.phase === 'jump') {
-    // Satz in den Gang: schnell zur Seite, Drehung zurueck in Blickrichtung unten
+    // Leap into the corridor: fast to the side, rotation back to facing down
     f.x += f.vx * 2.2;
     f.y += Rock.getSpeed() * 0.5;
     f.jumpTime--;
     f.rot = (f.rot || 0) * (f.jumpTime / JUMP_DURATION);
     if (f.jumpTime <= 0) {
       f.rot = 0;
-      f.phase = 'krabbeln';
+      f.phase = 'crawl';
     }
     return;
   }
-  if (f.phase === 'anflug') {
+  if (f.phase === 'approach') {
     f.y += f.vy;
-    if (f.y >= f.targetY) f.phase = 'krabbeln';
+    if (f.y >= f.targetY) f.phase = 'crawl';
     return;
   }
-  if (f.phase === 'krabbeln') {
-    f.y += Rock.getSpeed() * 0.5; // bleibt ungefaehr auf Hoehe, waehrend der Fels vorbeizieht
+  if (f.phase === 'crawl') {
+    f.y += Rock.getSpeed() * 0.5; // stays roughly at height while the rock passes by
     const free = freeAt(f.y + f.size / 2, f.x + f.size / 2);
     f.x += f.vx;
     if (f.x < free.left + 4) {
@@ -195,10 +195,10 @@ function updateCrab(f) {
       shootAimed(f, [-0.15, 0.15]);
       f.shotCadence = CRAB_SHOT;
     }
-    if (f.lifeTime > CRAB_DURATION) f.phase = 'abzug';
+    if (f.lifeTime > CRAB_DURATION) f.phase = 'retreat';
     return;
   }
-  f.y += 2; // abzug
+  f.y += 2; // retreat
 }
 
 function wallOnHeight(f) {
@@ -222,14 +222,14 @@ function updateTentacler(f) {
   }
 }
 
-// Jeder Schritt aus aktualisiereFeinde
+// Every step from updateEnemies
 export function update(f) {
-  f.shotTimer = 9999; // kein Standard-Schuss nach unten
+  f.shotTimer = 9999; // no standard shot downwards
   if (f.pattern === 'crab') updateCrab(f);
   else updateTentacler(f);
 }
 
-// Gegner-Spawner der Fels-Level (levelPlan.spawner = 'bio')
+// Opponent spawner of the rock levels (levelPlan.spawner = 'bio')
 export function manageBioSpawns() {
   let r = Math.random();
   let choice = BIO_MIX[BIO_MIX.length - 1][0];

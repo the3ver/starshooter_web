@@ -8,7 +8,7 @@ import * as Growths from './growths.js';
 import * as BioCreature from './bio-creatures.js';
 
 export function manageEnemySpawns() {
-  // Hacker: Spezialeinheit ab Level 2, höchstens einer gleichzeitig
+  // Hacker: special unit from level 2 on, at most one at a time
   const hackerActive = arrays.enemies.some(f => f.pattern === 'hacker');
   if (state.level >= 2 && !hackerActive && Math.random() < 0.1) {
     Entities.createEnemy(30 + Math.random() * (config.playfieldWidth - 90), -30, 'hacker', 0);
@@ -24,7 +24,7 @@ export function manageEnemySpawns() {
   let r = Math.random();
 
   if (r < pV) {
-    // V-Formation (3 oder 5 Jäger)
+    // V formation (3 or 5 fighters)
     let count = Math.random() < 0.5 ? 3 : 5;
     let spacingX = 40;
     let spacingY = 30;
@@ -39,11 +39,11 @@ export function manageEnemySpawns() {
       Entities.createEnemy(centerX + offset * spacingX * side, -30 - offset * spacingY, 'normal', 0);
     }
   } else if (r < pV + pCross) {
-    // Crossfire (2 Jäger überkreuz)
+    // Crossfire (2 fighters crossing)
     Entities.createEnemy(10, -30, 'crossfire', 2.5);
     Entities.createEnemy(config.playfieldWidth - 40, -30, 'crossfire', -2.5);
   } else if (r < pV + pCross + pSwoop) {
-    // Swoop (1 Jäger von der Seite)
+    // Swoop (1 fighter from the side)
     let spawnLeft = Math.random() < 0.5;
     Entities.createEnemy(
       spawnLeft ? -30 : config.playfieldWidth,
@@ -52,20 +52,20 @@ export function manageEnemySpawns() {
       spawnLeft ? 3.5 : -3.5,
     );
   } else if (r < pV + pCross + pSwoop + pClingOn) {
-    // Cling-on Feind an neuem Asteroid
+    // Cling-on enemy on a new asteroid
     Entities.createClingOnEnemy();
   } else if (r < pV + pCross + pSwoop + pClingOn + pChain) {
-    // Organische Kette (6-10 Glieder auf gemeinsamer Bahn)
+    // Organic chain (6-10 links on a shared lane)
     Chain.createRandomChain();
   } else {
-    // Einzelner Jäger (Normal oder Stop&Go)
+    // Single fighter (normal or stop&go)
     Entities.createEnemy();
   }
 }
 
-// Nächster lebender Spieler (state oder state.p2). Abstand von der Spieler-Ecke
-// (x/y) zum Referenzpunkt; P2 nur im Coop, wenn er lebt. Toter P1 oder
-// kleinerer Abstand wählt P2, bei Gleichstand bleibt es P1.
+// Nearest living player (state or state.p2). Distance from the player corner
+// (x/y) to the reference point; P2 only in co-op while alive. A dead P1 or
+// a smaller distance picks P2, on a tie it stays P1.
 export function nextPlayer(refX, refY) {
   if (isCoopMode() && state.p2 && !state.p2.isDead) {
     let distP1 = Math.hypot(state.x - refX, state.y - refY);
@@ -75,26 +75,26 @@ export function nextPlayer(refX, refY) {
   return state;
 }
 
-// Position (Mitte) des nächsten lebenden Spielers, gemessen ab der Ecke von f
+// Position (center) of the nearest living player, measured from the corner of f
 export function nextPlayerMiddle(f) {
   const s = nextPlayer(f.x, f.y);
   return { x: s.x + config.playerSize / 2, y: s.y + config.playerSize / 2 };
 }
 
 const HACKER_LURK_TIME = 600; // 10 s
-const HACK_MAX_ROTATION = 0.025; // rad pro Frame (~1,5°), damit man ausweichen kann
+const HACK_MAX_ROTATION = 0.025; // rad per frame (~1.5°), so the player can dodge
 const HACKER_SHOT_INTERVAL = 120; // 2 s
 
 function updateHacker(f) {
-  if (f.phase === 'anflug') {
+  if (f.phase === 'approach') {
     f.y += f.vy * 2;
     if (f.y >= f.stopY) {
       f.y = f.stopY;
-      f.phase = 'lauern';
+      f.phase = 'lurk';
       f.lurkTimer = HACKER_LURK_TIME;
       f.hackTimer = 30;
     }
-  } else if (f.phase === 'lauern') {
+  } else if (f.phase === 'lurk') {
     f.hackTimer--;
     if (f.hackTimer <= 0) {
       const target = nextPlayerMiddle(f);
@@ -103,8 +103,8 @@ function updateHacker(f) {
       f.hackTimer = HACKER_SHOT_INTERVAL;
     }
     f.lurkTimer--;
-    if (f.lurkTimer <= 0 || f.hackLanded) f.phase = 'flucht';
-  } else if (f.phase === 'flucht') {
+    if (f.lurkTimer <= 0 || f.hackLanded) f.phase = 'escape';
+  } else if (f.phase === 'escape') {
     f.y -= 5;
   }
 }
@@ -147,8 +147,8 @@ export function updateAsteroids() {
   }
 }
 
-// Betaeubung (Sniper-Granate): zaehlt pro Schritt herunter; true = das Ziel ist in diesem Schritt noch betaeubt
-// (keine Bewegung, kein Schiessen, keine Hacks, keine Boss-Angriffe). Die Anzeige zeigt betaeubt > 0 an.
+// Stun (sniper grenade): counts down per step; true = the target is still stunned in this step
+// (no movement, no shooting, no hacks, no boss attacks). The display shows stunned > 0.
 export function tickStun(z) {
   if (!(z.stunned > 0)) return false;
   z.stunned--;
@@ -163,8 +163,8 @@ export function updateEnemies() {
     if (stunned) {
       // betaeubt: steht still (Position, Muster-Zeit und Timer bleiben stehen)
     } else if (f.pattern === 'stopAndGo') {
-      if (f.phase === 'anflug') {
-        f.y += f.vy * 2.5; // Schneller Anflug
+      if (f.phase === 'approach') {
+        f.y += f.vy * 2.5; // Fast approach
         if (f.y >= f.stopY) {
           f.phase = 'stop';
           f.stopTimer = 40;
@@ -172,16 +172,16 @@ export function updateEnemies() {
       } else if (f.phase === 'stop') {
         f.stopTimer--;
         if (f.stopTimer === 10) {
-          // Gezielter Schuss auf den näheren Spieler
+          // Aimed shot at the nearer player
           const target = nextPlayerMiddle(f);
           Entities.createEnemyLaser(f.x + f.size / 2 - 2, f.y + f.size, target.x, target.y);
         }
         if (f.stopTimer <= 0) {
-          f.phase = 'abflug';
+          f.phase = 'departure';
           f.shotTimer = 9999;
         }
-      } else if (f.phase === 'abflug') {
-        f.y += f.vy * 3.5; // Sehr schneller Abflug
+      } else if (f.phase === 'departure') {
+        f.y += f.vy * 3.5; // Very fast departure
       }
       f.time += 0.05;
       f.x = f.basisX + Math.sin(f.time) * 20;
@@ -237,7 +237,7 @@ export function updateEnemies() {
       (f.y > config.playfieldHeight ||
         f.x < -f.size - 50 ||
         f.x > config.playfieldWidth + 50 ||
-        (f.phase === 'flucht' && f.y < -f.size - 10))
+        (f.phase === 'escape' && f.y < -f.size - 10))
     ) {
       Display.remove(f);
       arrays.enemies.splice(i, 1);
@@ -298,7 +298,7 @@ export function updateEnemyLaser() {
       arrays.enemyLaserArray.splice(i, 1);
       continue;
     }
-    // Von der Gleve seitlich weggeschleudert: trifft keine Spieler mehr
+    // Flung sideways by the Gleve: no longer hits players
     if (fl.harmless) continue;
     if (
       !state.isDead &&
@@ -337,7 +337,7 @@ export function updateHackProjectiles() {
     if (hp.steerTime > 0) {
       hp.steerTime--;
       const target = nextPlayerMiddle(hp);
-      // Nach dem Vorbeiflug nicht mehr nachlenken
+      // Do not steer after the flyby
       if (hp.y + hp.height / 2 > target.y) hp.steerTime = 0;
       const is = Math.atan2(hp.vy, hp.vx);
       const should = Math.atan2(target.y - (hp.y + hp.height / 2), target.x - (hp.x + hp.width / 2));
@@ -354,7 +354,7 @@ export function updateHackProjectiles() {
       arrays.hackProjectileArray.splice(i, 1);
       continue;
     }
-    // Von der Gleve seitlich weggeschleudert: trifft keine Spieler mehr
+    // Flung sideways by the Gleve: no longer hits players
     if (hp.harmless) continue;
     let hit = null;
     if (
@@ -379,7 +379,7 @@ export function updateHackProjectiles() {
       hit = state.p2;
     }
     if (hit) {
-      // Ein Hacker kann nur einen Treffer landen
+      // A hacker can land only one hit
       if (!hp.source || !hp.source.hackLanded) {
         Hack.hackPlayer(hit);
         if (hp.source) hp.source.hackLanded = true;

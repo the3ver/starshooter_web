@@ -15,7 +15,7 @@ test.beforeEach(async ({ page }) => {
   await page.waitForFunction(() => window.__game.state.gameRunning);
 });
 
-test('Levelplan: Fels-Level haben das Thema biozone, die anderen standard', async ({ page }) => {
+test('Level plan: rock levels have the biozone theme, the others standard', async ({ page }) => {
   const r = await page.evaluate(async () => {
     const L = await import('./js/level.js');
     return [3, 4, 5, 6].map(l => L.levelPlan(l).theme);
@@ -23,14 +23,12 @@ test('Levelplan: Fels-Level haben das Thema biozone, die anderen standard', asyn
   expect(r).toEqual(['standard', 'biozone', 'standard', 'biozone']);
 });
 
-test('Spielfeld bekommt im Fels-Level die Klasse thema-biozone und verliert sie im naechsten Level', async ({
-  page,
-}) => {
+test('Playfield gets the class thema-biozone in a rock level and loses it in the next level', async ({ page }) => {
   const r = await page.evaluate(async () => {
     const { state } = await import('./js/state.js');
     const { simulationStep } = await import('./js/loop.js');
     const field = document.getElementById('spielfeld');
-    field.style.transition = 'none'; // Farbe ohne Ueberblendung messen
+    field.style.transition = 'none'; // Measure the color without the transition
     state.godMode = true;
     state.frameCounter = 1;
     const classes = () => [...field.classList].filter(k => k.startsWith('thema-'));
@@ -49,7 +47,7 @@ test('Spielfeld bekommt im Fels-Level die Klasse thema-biozone und verliert sie 
   expect(r.level5).toEqual([]);
 });
 
-test('Bildschirm-Blitz kehrt zur Themenfarbe zurueck statt zur festen Standardfarbe', async ({ page }) => {
+test('Screen flash returns to the theme color instead of the fixed default color', async ({ page }) => {
   await page.evaluate(async () => {
     const { state } = await import('./js/state.js');
     const { simulationStep } = await import('./js/loop.js');
@@ -65,7 +63,7 @@ test('Bildschirm-Blitz kehrt zur Themenfarbe zurueck statt zur festen Standardfa
   expect(color).toBe('rgb(13, 9, 6)');
 });
 
-test('Online-Client uebernimmt das Thema aus dem Level im Snapshot', async ({ page }) => {
+test('Online client takes the theme from the level in the snapshot', async ({ page }) => {
   const r = await page.evaluate(async () => {
     const { state } = await import('./js/state.js');
     const { clientStep } = await import('./js/client.js');
@@ -80,7 +78,7 @@ test('Online-Client uebernimmt das Thema aus dem Level im Snapshot', async ({ pa
   expect(r).toEqual({ six: true, seven: false });
 });
 
-test('Fels zeigt Steinplatten (globales Muster) mit dunkler Kante, ohne Knoten', async ({ page }) => {
+test('Rock shows stone plates (global pattern) with a dark edge, without nodes', async ({ page }) => {
   const r = await page.evaluate(async () => {
     const { arrays } = await import('./js/state.js');
     const Display = await import('./js/display.js');
@@ -99,7 +97,7 @@ test('Fels zeigt Steinplatten (globales Muster) mit dunkler Kante, ohne Knoten',
   expect(r).toEqual({ pattern: true, patternOnce: 1, fill: true, seam: 2, node: 0 });
 });
 
-test('Neustart entfernt das Biozonen-Thema (Cutszene und Level 1 ohne Geflecht)', async ({ page }) => {
+test('Restart removes the biozone theme (cutscene and level 1 without the mesh)', async ({ page }) => {
   const r = await page.evaluate(async () => {
     const { state } = await import('./js/state.js');
     const { simulationStep } = await import('./js/loop.js');
@@ -111,7 +109,7 @@ test('Neustart entfernt das Biozonen-Thema (Cutszene und Level 1 ohne Geflecht)'
     const beforehand = field.classList.contains('thema-biozone');
     Utils.restartGame();
     const afterRestart = field.classList.contains('thema-biozone');
-    // erneut ein Fels-Level: das Thema kommt wieder (nach dem Neustart laeuft erst die Cutszene)
+    // a rock level again: the theme comes back (after the restart the cutscene runs first)
     state.level = 4;
     (await import('./js/level.js')).checkTheme();
     return { beforehand, afterRestart, again: field.classList.contains('thema-biozone') };
@@ -119,7 +117,7 @@ test('Neustart entfernt das Biozonen-Thema (Cutszene und Level 1 ohne Geflecht)'
   expect(r).toEqual({ beforehand: true, afterRestart: false, again: true });
 });
 
-test('Felsoptik: gleiche Segment-Id ergibt dieselbe Zeichnung, Wurmloecher nur auf breitem Fels, Kante gestuft', async ({
+test('Rock look: same segment id gives the same drawing, wormholes only on wide rock, stepped edge', async ({
   page,
 }) => {
   const r = await page.evaluate(async () => {
@@ -143,5 +141,5 @@ test('Felsoptik: gleiche Segment-Id ergibt dieselbe Zeichnung, Wurmloecher nur a
   expect(r.equal).toBe(true);
   expect(r.holesWide).toBeGreaterThan(20);
   expect(r.holesNarrow).toBe(0);
-  expect(r.edge).toBe(4); // zwei Plattenreihen, je zwei Punkte
+  expect(r.edge).toBe(4); // two plate rows, two points each
 });

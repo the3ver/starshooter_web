@@ -1,7 +1,7 @@
 const { test, expect } = require('@playwright/test');
 const { setGameState } = require('./helpers');
 
-// Online-Client (Spieler 2): Snapshot-Anwendung und clientSchritt in einer Seite simulieren
+// Online client (player 2): simulate snapshot application and clientStep in one page
 
 test.beforeEach(async ({ page }) => {
   await page.route('**/api/highscores*', route =>
@@ -15,7 +15,7 @@ test.beforeEach(async ({ page }) => {
   await setGameState(page);
   await page.goto('/');
   await page.waitForFunction(() => window.__game && window.__game.state);
-  // Client-Modus herstellen, ohne echte Verbindung (sendNetworkInput ist dann ein No-Op)
+  // Set up client mode without a real connection (sendNetworkInput is a no-op then)
   await page.evaluate(() => {
     const { state, arrays } = window.__game;
     state.gameMode = 'online';
@@ -74,7 +74,7 @@ test.beforeEach(async ({ page }) => {
   });
 });
 
-test('Online-Client: Boss-Warnung aus dem Snapshot wird angezeigt, ausgeblendet und der Alarm nur beim Wechsel gespielt', async ({
+test('Online client: the boss warning from the snapshot is shown, hidden, and the alarm plays only on change', async ({
   page,
 }) => {
   const r = await page.evaluate(async () => {
@@ -84,7 +84,7 @@ test('Online-Client: Boss-Warnung aus dem Snapshot wird angezeigt, ausgeblendet 
     const alarms = () => g.Audio.audioHistory.filter(e => e.name === 'bossAlert').length;
     const out = {};
 
-    // Host serialisiert die Warnung
+    // The host serializes the warning
     g.state.bossWarningActive = true;
     out.serialized = g.Network.serializeGameState().bossWarningActive;
     g.state.bossWarningActive = false;
@@ -95,7 +95,7 @@ test('Online-Client: Boss-Warnung aus dem Snapshot wird angezeigt, ausgeblendet 
     g.Network.applyGameStateSnapshot(window.__snapshot({ bossWarningActive: true }));
     for (let i = 0; i < 150; i++) simulationStep();
     out.alarmsAfterSecond = alarms();
-    // Der Client erzeugt keinen eigenen Boss, das macht nur der Host
+    // The client creates no boss of its own, only the host does
     out.bossesOnClient = g.arrays.bosses.length;
     out.displayAfterSteps = overlay.style.display;
 
@@ -116,14 +116,14 @@ test('Online-Client: Boss-Warnung aus dem Snapshot wird angezeigt, ausgeblendet 
   });
 });
 
-test('Online-Client: Waffenstufen beider Spieler aus dem Snapshot erscheinen im HUD', async ({ page }) => {
+test('Online client: weapon tiers of both players from the snapshot appear in the HUD', async ({ page }) => {
   const r = await page.evaluate(() => {
     const g = window.__game;
     const p1Hud = document.getElementById('aktive-powerups');
     const p2Hud = document.getElementById('aktive-powerups-p2');
     const out = {};
 
-    // Host serialisiert die angezeigten Felder
+    // The host serializes the displayed fields
     g.state.laserPierce = true;
     g.state.p2.autolaserActive = true;
     const s = g.Network.serializeGameState();
@@ -161,7 +161,7 @@ test('Online-Client: Waffenstufen beider Spieler aus dem Snapshot erscheinen im 
       g.state.p2.bombTier,
     ];
 
-    // Unveraenderter Snapshot baut das HUD nicht neu auf
+    // An unchanged snapshot does not rebuild the HUD
     const obs = new MutationObserver(() => {});
     obs.observe(p1Hud, { childList: true, subtree: true });
     obs.observe(p2Hud, { childList: true, subtree: true });
@@ -177,7 +177,7 @@ test('Online-Client: Waffenstufen beider Spieler aus dem Snapshot erscheinen im 
   expect(r.mutations).toBe(0);
 });
 
-test('Online-Client: Traktorstrahl wird fuer geschleppte Powerups gezeichnet und wieder entfernt', async ({ page }) => {
+test('Online client: the tractor beam is drawn for towed powerups and removed again', async ({ page }) => {
   const r = await page.evaluate(async () => {
     const g = window.__game;
     const { simulationStep } = await import('./js/loop.js');
@@ -217,7 +217,7 @@ test('Online-Client: Traktorstrahl wird fuer geschleppte Powerups gezeichnet und
   expect(r.countGone).toBe(0);
 });
 
-test('Online-Client: Projektile fliegen zwischen Snapshots mit ihrer Geschwindigkeit weiter', async ({ page }) => {
+test('Online client: projectiles keep flying with their velocity between snapshots', async ({ page }) => {
   const r = await page.evaluate(async () => {
     const g = window.__game;
     const { arrays } = g;
@@ -231,7 +231,7 @@ test('Online-Client: Projektile fliegen zwischen Snapshots mit ihrer Geschwindig
       missiles: [{ id: 'r1', x: 60, y: 310, rot: 0, owner: 'p1', tier: 1 }],
     });
     g.Network.applyGameStateSnapshot(snap1);
-    // Zweiter Snapshot zwei Host-Schritte spaeter: Hack-Projektil hat sich um (6, 4) bewegt
+    // Second snapshot two host steps later: the hack projectile moved by (6, 4)
     const snap2 = JSON.parse(JSON.stringify(snap1));
     snap2.laser[0].x = 52;
     snap2.laser[0].y = 270;
@@ -269,7 +269,7 @@ test('Online-Client: Projektile fliegen zwischen Snapshots mit ihrer Geschwindig
   expect(r.missile).toEqual([60, 295, '60px', '295px']);
 });
 
-test('Online: Gleve-Zustand und harmlos-Flag gehen in den Snapshot, Client zeigt Dash, Klinge und parierte Geschosse', async ({
+test('Online: Gleve state and harmless flag go into the snapshot, the client shows dash, blade and parried projectiles', async ({
   page,
 }) => {
   const r = await page.evaluate(async () => {
@@ -279,7 +279,7 @@ test('Online: Gleve-Zustand und harmlos-Flag gehen in den Snapshot, Client zeigt
     const { simulationStep } = await import('./js/loop.js');
     const out = {};
 
-    // Host-Seite: Gleve-Felder nur fuer Gleve-Schiffe, harmlos nur bei weggeschleuderten Geschossen
+    // Host side: Gleve fields only for Gleve ships, harmless only for flung projectiles
     state.selectedShipModel = 'gleve';
     state.p2.selectedShipModel = 'viper';
     Object.assign(state, {
@@ -303,7 +303,7 @@ test('Online: Gleve-Zustand und harmlos-Flag gehen in den Snapshot, Client zeigt
     ];
     out.p2WithoutGleve = full.p2.gleveSweepTimer === undefined;
     out.harmless = full.enemyLaser.map(f => f.harmless === true);
-    // Ueber Kodierer/Dekodierer (Rundung) kommt alles an
+    // Everything arrives through encoder/decoder (rounding)
     const packet = new NK.SnapshotEncoder().encode(full, 0);
     const dek = new NK.SnapshotDecoder().decode(JSON.parse(JSON.stringify(packet)));
     out.decoded = [
@@ -322,7 +322,7 @@ test('Online: Gleve-Zustand und harmlos-Flag gehen in den Snapshot, Client zeigt
       gleveSweepDirection: 0,
     });
 
-    // Client-Seite: beide Schiffe sind Gleves
+    // Client side: both ships are Gleves
     state.p2.selectedShipModel = 'gleve';
     g.Audio.clearAudioHistory();
     const gleve = {
@@ -361,11 +361,11 @@ test('Online: Gleve-Zustand und harmlos-Flag gehen in den Snapshot, Client zeigt
       ],
       color: arrays.enemyLaserArray[0].el.style.backgroundColor,
     };
-    // Gleicher Zustand noch einmal: keine neuen Sounds
+    // The same state once more: no new sounds
     g.Network.applyGameStateSnapshot(JSON.parse(JSON.stringify(snap)));
     out.soundsAfterSecond = g.Audio.audioHistory.filter(a => a.name === 'dash' || a.name === 'sweep').length;
 
-    // Dash und Sweep vorbei: Klasse und Klinge weg
+    // Dash and sweep over: class and blade gone
     const end = window.__snapshot();
     Object.assign(end.p1, gleve, { gleveDashTimer: 0, gleveSweepTimer: 0, gleveSweepAngle: 22.5 });
     g.Network.applyGameStateSnapshot(end);
@@ -381,9 +381,9 @@ test('Online: Gleve-Zustand und harmlos-Flag gehen in den Snapshot, Client zeigt
   expect(r.harmless).toEqual([true, false]);
   expect(r.decoded).toEqual([5, -9, 1, true]);
   expect(r.client.dashClass).toBe(true);
-  // Die Anzeige zeichnet am Ende des Schritts (nach dem Weiterdrehen des Winkels), die Klinge steht also schon beim Winkel danach
+  // The display draws at the end of the step (after the angle has turned further), so the blade already stands at the next angle
   expect(r.client.blade).toBe('rotate(-9deg)');
-  // Stufe 1: 90-Grad-Bogen in 10 Frames, 9 Grad pro Schritt
+  // Tier 1: 90 degree arc in 10 frames, 9 degrees per step
   expect(r.client.angleThereafter).toBeCloseTo(-9, 5);
   expect(r.client.sounds).toEqual(['dash', 'sweep']);
   expect(r.client.parried).toEqual([true, false, true, true]);
@@ -392,7 +392,7 @@ test('Online: Gleve-Zustand und harmlos-Flag gehen in den Snapshot, Client zeigt
   expect(r.end).toEqual({ dashClass: false, blades: 0 });
 });
 
-test('Online: Klingenwellen gehen in den Snapshot, Client zeigt .gleve-welle und entfernt sie wieder', async ({
+test('Online: blade waves go into the snapshot, the client shows .gleve-welle and removes it again', async ({
   page,
 }) => {
   const r = await page.evaluate(async () => {
@@ -442,7 +442,7 @@ test('Online: Klingenwellen gehen in den Snapshot, Client zeigt .gleve-welle und
   expect(r.gone).toEqual([0, 0]);
 });
 
-test('Online: Dash-Ladungen gehen in den Snapshot (nur Gleve), Client zeigt Punkte und sagt ohne Ladung keinen Dash voraus', async ({
+test('Online: dash charges go into the snapshot (Gleve only), the client shows dots and predicts no dash without a charge', async ({
   page,
 }) => {
   const r = await page.evaluate(async () => {
@@ -453,7 +453,7 @@ test('Online: Dash-Ladungen gehen in den Snapshot (nur Gleve), Client zeigt Punk
     const { simulationStep } = await import('./js/loop.js');
     const out = {};
 
-    // Host-Seite: nur Gleve-Schiffe senden gleveDashLadungen, ganzzahlig
+    // Host side: only Gleve ships send gleveDashCharges, as integers
     state.selectedShipModel = 'gleve';
     state.p2.selectedShipModel = 'viper';
     state.gleveDashCharges = 1;
@@ -464,7 +464,7 @@ test('Online: Dash-Ladungen gehen in den Snapshot (nur Gleve), Client zeigt Punk
     const dek = new NK.SnapshotDecoder().decode(JSON.parse(JSON.stringify(packet)));
     out.decoded = dek.p1.gleveDashCharges;
 
-    // Client-Seite: eigenes Schiff (P2) ist eine Gleve
+    // Client side: own ship (P2) is a Gleve
     state.selectedShipModel = 'viper';
     g.config.playfieldWidth = 600;
     Object.assign(state.p2, {
@@ -531,13 +531,13 @@ test('Online: Dash-Ladungen gehen in den Snapshot (nur Gleve), Client zeigt Punk
   expect(r.withoutCharge.points).toEqual([r.max, 0]);
   expect(r.withoutCharge.pct).toBeCloseTo(100 - (100 / 180) * 100, 3);
   expect(r.withoutCharge.number).toBe('0');
-  // Ohne Ladung kein vorhergesagter Dash
+  // No predicted dash without a charge
   expect(r.noDash.timer).toBe(0);
   expect(r.oneOfCharge).toEqual({ points: [2, 1], number: '1' });
   expect(r.dash).toBeGreaterThan(0);
 });
 
-test('Online-Client: eigener Gleve-Dash (Raketen-Taste) wird lokal vorhergesagt, Abprall kommt vom Host', async ({
+test('Online client: the own Gleve dash (missile key) is predicted locally, the bounce comes from the host', async ({
   page,
 }) => {
   const r = await page.evaluate(async () => {
@@ -545,7 +545,7 @@ test('Online-Client: eigener Gleve-Dash (Raketen-Taste) wird lokal vorhergesagt,
     const { state, dom } = g;
     const { simulationStep } = await import('./js/loop.js');
     const out = {};
-    g.config.playfieldWidth = 600; // wie in startOnlineGame
+    g.config.playfieldWidth = 600; // as in startOnlineGame
     state.selectedShipModel = 'viper';
     Object.assign(state.p2, {
       selectedShipModel: 'gleve',
@@ -566,7 +566,7 @@ test('Online-Client: eigener Gleve-Dash (Raketen-Taste) wird lokal vorhergesagt,
     });
     g.Audio.clearAudioHistory();
 
-    // Druck mit Richtung rechts: im ersten Schritt steht das Schiff, Paket traegt Start und Richtung
+    // Press with direction right: in the first step the ship stands, the packet carries start and direction
     state.keysPressed.k = true;
     state.keysPressed.d = true;
     simulationStep();
@@ -592,7 +592,7 @@ test('Online-Client: eigener Gleve-Dash (Raketen-Taste) wird lokal vorhergesagt,
     simulationStep();
     out.thereafter = { x: state.p2.x, packetX: state.network.lastSentInput.x };
 
-    // Host meldet Abprall: Client gleitet zur Host-Position und uebernimmt am Ende den Landepunkt
+    // Host reports a bounce: the client glides to the host position and takes over the landing point at the end
     const bounce = window.__snapshot();
     Object.assign(bounce.p2, {
       x: 360,
@@ -626,17 +626,17 @@ test('Online-Client: eigener Gleve-Dash (Raketen-Taste) wird lokal vorhergesagt,
   });
   expect(r.start.x).toBe(300);
   expect(r.start.packet).toEqual([300, 400, true, false, 1, 0]);
-  // Dash kostet keine Energie, sondern startet den Cooldown (Stufe 1: 180)
+  // The dash costs no energy but starts the cooldown (tier 1: 180)
   expect(r.start.energy).toBeCloseTo(50, 5);
   expect(r.start.cd).toBe(180);
-  // Waehrend des Dashs bleibt die gemeldete Position der Startpunkt
+  // During the dash the reported position stays the start point
   expect(r.releasePacket).toEqual([300, false]);
   expect(r.classDuring).toBe(true);
   expect(r.end.x).toBeCloseTo(400, 5);
   expect(r.end.y).toBeCloseTo(400, 5);
   expect(r.end.cls).toBe(false);
   expect(r.end.dashSounds).toBe(1);
-  // Nach dem Dash steuert und meldet der Client wieder seine echte Position
+  // After the dash the client steers and reports its real position again
   expect(r.thereafter.x).toBeCloseTo(400, 5);
   expect(r.thereafter.packetX).toBe(400);
   expect(r.glide.x).toBeCloseTo(380, 5);
@@ -646,14 +646,14 @@ test('Online-Client: eigener Gleve-Dash (Raketen-Taste) wird lokal vorhergesagt,
   expect(r.againFree).toBe(false);
 });
 
-test('Online-Client: Gegner und Host-Schiff gleiten zur neuen Snapshot-Position statt zu springen', async ({
+test('Online client: opponents and the host ship glide to the new snapshot position instead of jumping', async ({
   page,
 }) => {
   const r = await page.evaluate(async () => {
     const g = window.__game;
     const { arrays, dom } = g;
     const { simulationStep } = await import('./js/loop.js');
-    const enemy = y => [{ id: 'f1', x: 100, y, hp: 3, maxHp: 3, size: 30, typ: 1, pattern: 'normal' }];
+    const enemy = y => [{ id: 'f1', x: 100, y, hp: 3, maxHp: 3, size: 30, type: 1, pattern: 'normal' }];
     const p1 = x => ({ x, y: 400, rotate: 0, lives: 3, energy: 50, maxEnergy: 50, isDead: false });
     const out = {};
 
@@ -667,10 +667,10 @@ test('Online-Client: Gegner und Host-Schiff gleiten zur neuen Snapshot-Position 
     out.step2 = [arrays.enemies[0].el.style.top, dom.player.style.left];
     simulationStep();
     out.step3 = [arrays.enemies[0].el.style.top, dom.player.style.left];
-    // Logische Position folgt sofort dem Snapshot
+    // The logical position follows the snapshot immediately
     out.logical = [arrays.enemies[0].y, g.state.x];
 
-    // Grosser Sprung (Respawn/Teleport): sofort uebernehmen
+    // Big jump (respawn/teleport): take over immediately
     g.Network.applyGameStateSnapshot(window.__snapshot({ p1: p1(500), enemies: enemy(400) }));
     out.jump = [arrays.enemies[0].el.style.top, dom.player.style.left];
     return out;
@@ -685,9 +685,9 @@ test('Online-Client: Gegner und Host-Schiff gleiten zur neuen Snapshot-Position 
 });
 
 // ---------------------------------------------------------------------------------------------
-// Spectre-SR online (S5a): Snapshot-Felder, Darstellung beim Client, Eingaben
+// Spectre-SR online (S5a): snapshot fields, rendering on the client, inputs
 
-test('Online: Sniper-Felder gehen nur fuer Sniper in den Snapshot (Granatenliste sonst leer) und ueberstehen Kodierer/Dekodierer (gerundet)', async ({
+test('Online: sniper fields go into the snapshot only for snipers (grenade list empty otherwise) and survive encoder/decoder (rounded)', async ({
   page,
 }) => {
   const r = await page.evaluate(async () => {
@@ -716,7 +716,7 @@ test('Online: Sniper-Felder gehen nur fuer Sniper in den Snapshot (Granatenliste
     out.p2Without = Object.keys(full.p2).filter(k => k.startsWith('sniper')).length;
     out.list = Array.isArray(full.sniperGrenades);
     out.stunnedOnlyWhen = [full.enemies[0].stunned, 'stunned' in full.enemies[1]];
-    // Ohne Sniper keine Sniper-Felder und keine Granatenliste
+    // Without a sniper no sniper fields and no grenade list
     state.selectedShipModel = 'viper';
     const without = g.Network.serializeGameState();
     out.withoutSniper = [
@@ -724,7 +724,7 @@ test('Online: Sniper-Felder gehen nur fuer Sniper in den Snapshot (Granatenliste
       without.sniperGrenades.length,
     ];
     state.selectedShipModel = 'sniper';
-    // Granate im Flug: Eintrag mit Id, Position, Besitzer, Flugfortschritt
+    // Grenade in flight: entry with id, position, owner, flight progress
     Sniper.throwGrenade(state, 'p1');
     const withGrenade = g.Network.serializeGameState();
     out.grenade = withGrenade.sniperGrenades.map(x => ({
@@ -733,7 +733,7 @@ test('Online: Sniper-Felder gehen nur fuer Sniper in den Snapshot (Granatenliste
       rest: x.rest,
       hasPos: Number.isFinite(x.x) && Number.isFinite(x.y),
     }));
-    // Kodierer -> Dekodierer
+    // Encoder -> decoder
     const k = new NK.SnapshotEncoder();
     const dek = new NK.SnapshotDecoder().decode(JSON.parse(JSON.stringify(k.encode(withGrenade, 0))));
     out.decoded = [
@@ -755,10 +755,10 @@ test('Online: Sniper-Felder gehen nur fuer Sniper in den Snapshot (Granatenliste
   expect(r.withoutSniper).toEqual([0, 0]);
   expect(r.grenade).toEqual([{ id: 'string', owner: 'p1', rest: 30, hasPos: true }]);
   expect(r.decoded).toEqual([123.5, 99, 45, 18, 33, 1]);
-  expect(r.protocol).toBeGreaterThanOrEqual(14); // Sniper-Felder seit Protokoll 14
+  expect(r.protocol).toBeGreaterThanOrEqual(14); // Sniper fields since protocol 14
 });
 
-test('Online-Client: Fadenkreuz an der Host-Position, Ladering bei Ladung, Strahl beim Schuss, Sounds nur fuers eigene Schiff', async ({
+test('Online client: crosshair at the host position, charge ring while charging, beam on the shot, sounds only for the own ship', async ({
   page,
 }) => {
   const r = await page.evaluate(() => {
@@ -796,28 +796,28 @@ test('Online-Client: Fadenkreuz an der Host-Position, Ladering bei Ladung, Strah
     out.ringOff =
       !k1.querySelector('.sniper-ladering') || k1.querySelector('.sniper-ladering').style.display === 'none';
 
-    // Ladung 50: Ring sichtbar und groesser als der Trefferkreis, noch nicht voll
+    // Charge 50: ring visible and larger than the hit circle, not full yet
     g.Network.applyGameStateSnapshot(snap(z(123.4, 99.2, 50, 0), z(350, 180, 50, 0)));
     const ring = k1.querySelector('.sniper-ladering');
     out.ring = { an: ring.style.display, width: parseFloat(ring.style.width), full: ring.classList.contains('voll') };
-    // Voll: Klasse voll, Ton nur fuer das eigene Schiff (P2) und nur einmal
+    // Full: class voll, sound only for the own ship (P2) and only once
     g.Network.applyGameStateSnapshot(snap(z(123.4, 99.2, 90, 0), z(350, 180, 90, 0)));
     g.Network.applyGameStateSnapshot(snap(z(123.4, 99.2, 90, 0), z(350, 180, 90, 0)));
     out.full = k1.querySelector('.sniper-ladering').classList.contains('voll');
     out.fullTone = g.Audio.audioHistory.filter(a => a.name === 'sniperFull').length;
 
-    // Schuss: Cooldown springt hoch, Ladung ist zurueck auf 0 -> ein Strahl pro Schiff, breit wegen der Ladung
+    // Shot: cooldown jumps up, charge back to 0 -> one beam per ship, wide because of the charge
     g.Network.applyGameStateSnapshot(snap(z(123.4, 99.2, 0, 24), z(350, 180, 0, 24)));
     const beams = [...document.querySelectorAll('.sniper-strahl')];
     out.beams = beams.length;
     out.wide = beams.every(s => parseFloat(s.style.width) > 8);
-    out.shotTone = g.Audio.audioHistory.filter(a => a.name === 'sniperSchuss').length;
+    out.shotTone = g.Audio.audioHistory.filter(a => a.name === 'sniperShot').length;
     out.ringGone = k1.querySelector('.sniper-ladering').style.display;
-    // Sinkender Cooldown: kein weiterer Strahl
+    // Falling cooldown: no further beam
     g.Network.applyGameStateSnapshot(snap(z(123.4, 99.2, 0, 22), z(350, 180, 0, 22)));
     out.beamsThereafter = document.querySelectorAll('.sniper-strahl').length;
 
-    // Tod des Hosts und Schiffswechsel: Fadenkreuz weg
+    // Host death and ship change: crosshair gone
     g.Network.applyGameStateSnapshot(snap(Object.assign(z(123.4, 99.2, 0, 0), { isDead: true }), z(350, 180, 0, 0)));
     out.afterDeath = document.querySelectorAll('.sniper-fadenkreuz-p1').length;
     state.p2.selectedShipModel = 'viper';
@@ -843,7 +843,7 @@ test('Online-Client: Fadenkreuz an der Host-Position, Ladering bei Ladung, Strah
   expect(r.afterSwitch).toBe(0);
 });
 
-test('Online-Client: Granate im Flug, Druckwelle per Ereignis, betaeubte Gegner mit Klasse, Granaten-HUD', async ({
+test('Online client: grenade in flight, blast wave via event, stunned opponents with a class, grenade HUD', async ({
   page,
 }) => {
   const r = await page.evaluate(async () => {
@@ -860,7 +860,7 @@ test('Online-Client: Granate im Flug, Druckwelle per Ereignis, betaeubte Gegner 
       hp: 30,
       maxHp: 30,
       size: 30,
-      typ: 1,
+      type: 1,
       pattern: 'normal',
       hasShield: false,
       shieldHp: 0,
@@ -873,12 +873,12 @@ test('Online-Client: Granate im Flug, Druckwelle per Ereignis, betaeubte Gegner 
       hp: 400,
       maxHp: 400,
       size: 100,
-      typ: 1,
+      type: 1,
       enrage: false,
       ...(bet ? { stunned: bet } : {}),
     });
 
-    // Granate: erscheint, bewegt sich mit dem Snapshot, verschwindet wieder
+    // Grenade: appears, moves with the snapshot, disappears again
     g.Network.applyGameStateSnapshot(
       window.__snapshot({ sniperGrenades: [{ id: 'sg_1', x: 150, y: 250, owner: 'p2', rest: 20 }] }),
     );
@@ -900,9 +900,9 @@ test('Online-Client: Granate im Flug, Druckwelle per Ereignis, betaeubte Gegner 
     g.Network.applyGameStateSnapshot(window.__snapshot({ sniperGrenades: [] }));
     out.gone = document.querySelectorAll('.sniper-granate').length;
 
-    // Druckwelle ueber Ereignis, waechst mit den Client-Schritten und verschwindet
+    // Blast wave via event, grows with the client steps and disappears
     g.Audio.clearAudioHistory();
-    g.Network.handleNetworkEvent({ type: 'granate_detonated', x: 160, y: 200, radius: 90, owner: 'p1' }, 'host');
+    g.Network.handleNetworkEvent({ type: 'grenade_detonated', x: 160, y: 200, radius: 90, owner: 'p1' }, 'host');
     out.waveThere = document.querySelectorAll('.sniper-druckwelle').length;
     out.grenadeTone = g.Audio.audioHistory.filter(a => a.name === 'grenade').length;
     simulationStep();
@@ -912,11 +912,11 @@ test('Online-Client: Granate im Flug, Druckwelle per Ereignis, betaeubte Gegner 
     out.waveWide = parseFloat(wave.style.width);
     for (let i = 0; i < 20; i++) simulationStep();
     out.waveGone = document.querySelectorAll('.sniper-druckwelle').length;
-    // Unsinnige Ereignisse werden ignoriert
-    g.Network.handleNetworkEvent({ type: 'granate_detonated', x: 'a', y: null, radius: -3 }, 'host');
+    // Nonsensical events are ignored
+    g.Network.handleNetworkEvent({ type: 'grenade_detonated', x: 'a', y: null, radius: -3 }, 'host');
     out.nonsense = document.querySelectorAll('.sniper-druckwelle').length;
 
-    // Betaeubung: Klasse an Feind und Boss, nach dem Snapshot ohne Feld wieder weg
+    // Stun: class on enemy and boss, gone again after the snapshot without the field
     g.Network.applyGameStateSnapshot(window.__snapshot({ enemies: [enemy(40)], bosses: [boss(30)] }));
     out.stunned = [
       arrays.enemies[0].el.classList.contains('betaeubt'),
@@ -928,7 +928,7 @@ test('Online-Client: Granate im Flug, Druckwelle per Ereignis, betaeubte Gegner 
       arrays.bosses[0].el.classList.contains('betaeubt'),
     ];
 
-    // Granaten-HUD: Cooldown-Balken des eigenen Schiffs nutzt den Granaten-Cooldown (Stufe 1: 240)
+    // Grenade HUD: the cooldown bar of the own ship uses the grenade cooldown (tier 1: 240)
     const s = window.__snapshot();
     Object.assign(s.p2, {
       laserTier: 1,
@@ -957,7 +957,7 @@ test('Online-Client: Granate im Flug, Druckwelle per Ereignis, betaeubte Gegner 
   expect(r.hud).toBe('50%');
 });
 
-test('Online-Client: Eingabe-Paket traegt Lade-Knopf als Laser, Joystick-Autofeuer als auto, Taste L ohne auto', async ({
+test('Online client: the input packet carries the charge button as laser, joystick auto-fire as auto, key L without auto', async ({
   page,
 }) => {
   const r = await page.evaluate(async () => {
@@ -983,7 +983,7 @@ test('Online-Client: Eingabe-Paket traegt Lade-Knopf als Laser, Joystick-Autofeu
     state.sniperChargingButton = false;
     state.joystick.active = true;
     state.joystick.fires = true;
-    keys.l = true; // wie input.js beim Joystick-touchstart
+    keys.l = true; // like input.js on joystick touchstart
     out.joystick = read();
     state.sniperChargingButton = true;
     out.joystickAndButton = read();
@@ -991,14 +991,14 @@ test('Online-Client: Eingabe-Paket traegt Lade-Knopf als Laser, Joystick-Autofeu
     state.joystick.active = false;
     state.joystick.fires = false;
     keys.l = false;
-    // Anderes Schiff: nie auto, Knopf zaehlt nicht
+    // Other ship: never auto, the button does not count
     state.p2.selectedShipModel = 'viper';
     state.joystick.fires = true;
     keys.l = true;
     out.viper = read();
     state.joystick.fires = false;
     keys.l = false;
-    // Der Sender schickt auto nur wenn gesetzt, eine Aenderung geht sofort raus
+    // The sender sends auto only when set, a change goes out immediately
     const s = new NK.InputSender();
     const basis = { x: 1, y: 2, rotate: 0, laser: true, missile: false, bomb: false };
     const a = s.next(basis);
@@ -1017,7 +1017,7 @@ test('Online-Client: Eingabe-Paket traegt Lade-Knopf als Laser, Joystick-Autofeu
   expect(r.sender).toEqual([false, null, true, null]);
 });
 
-test('Online-Client: eigenes Fadenkreuz folgt dem vorhergesagten Schiff (ohne Auto-Zielen), mit Auto-Zielen gilt der Host-Wert', async ({
+test('Online client: own crosshair follows the predicted ship (without auto aim), with auto aim the host value applies', async ({
   page,
 }) => {
   const r = await page.evaluate(async () => {
@@ -1047,7 +1047,7 @@ test('Online-Client: eigenes Fadenkreuz folgt dem vorhergesagten Schiff (ohne Au
     keys.a = false;
     out.run = state.p2.x < stand;
     out.follows = [state.p2.sniperTargetX, state.p2.x + 15];
-    // Stufe 4: Host-Wert bleibt stehen
+    // Tier 4: the host value stays
     const s4 = window.__snapshot();
     Object.assign(s4.p2, {
       laserTier: 4,
@@ -1067,7 +1067,7 @@ test('Online-Client: eigenes Fadenkreuz folgt dem vorhergesagten Schiff (ohne Au
   expect(r.auto).toEqual([300, 150]);
 });
 
-test('Online-Client: Haftminen aus dem Snapshot (Legen, Blinken, Haften, Ton), Explosion per Ereignis, Entfernen', async ({
+test('Online client: sticky mines from the snapshot (placing, blinking, sticking, sound), explosion via event, removal', async ({
   page,
 }) => {
   const r = await page.evaluate(() => {
@@ -1087,7 +1087,7 @@ test('Online-Client: Haftminen aus dem Snapshot (Legen, Blinken, Haften, Ton), E
       parseFloat(el.style.left) + 6,
       parseFloat(el.style.top) + 6,
     ];
-    out.putTone = g.Audio.audioHistory.filter(a => a.name === 'mine_legen').length;
+    out.putTone = g.Audio.audioHistory.filter(a => a.name === 'mine_place').length;
     g.Network.applyGameStateSnapshot(window.__snapshot({ sniperMines: [mine({ rest: 40, blinks: true })] }));
     out.blinks = [
       el.classList.contains('blinkt'),
@@ -1098,12 +1098,12 @@ test('Online-Client: Haftminen aus dem Snapshot (Legen, Blinken, Haften, Ton), E
       window.__snapshot({ sniperMines: [mine({ x: 170, y: 260, sticks: true, fuse: 20 })] }),
     );
     out.sticks = [el.classList.contains('haftet'), el.classList.contains('blinkt'), parseFloat(el.style.left) + 6];
-    out.beep = g.Audio.audioHistory.filter(a => a.name === 'mine_piep').length;
+    out.beep = g.Audio.audioHistory.filter(a => a.name === 'mine_beep').length;
     g.Audio.clearAudioHistory();
-    g.Network.handleNetworkEvent({ type: 'mine_explodiert', x: 170, y: 260, radius: 30, owner: 'p2' }, 'host');
+    g.Network.handleNetworkEvent({ type: 'mine_exploded', x: 170, y: 260, radius: 30, owner: 'p2' }, 'host');
     out.wave = document.querySelectorAll('.sniper-mine-explosion').length;
     out.bang = g.Audio.audioHistory.filter(a => a.name === 'mine_explosion').length;
-    g.Network.handleNetworkEvent({ type: 'mine_explodiert', x: 'a', y: null }, 'host');
+    g.Network.handleNetworkEvent({ type: 'mine_exploded', x: 'a', y: null }, 'host');
     out.nonsense = document.querySelectorAll('.sniper-mine-explosion').length;
     g.Network.applyGameStateSnapshot(window.__snapshot({ sniperMines: [] }));
     out.gone = document.querySelectorAll('.sniper-mine').length;
@@ -1120,7 +1120,7 @@ test('Online-Client: Haftminen aus dem Snapshot (Legen, Blinken, Haften, Ton), E
   expect(r.gone).toBe(0);
 });
 
-test('Online: Granaten-Ladungen des Sniper im Client: Punkte und Mobil-Zahl aus dem Snapshot', async ({ page }) => {
+test('Online: the sniper grenade charges on the client: dots and mobile number from the snapshot', async ({ page }) => {
   const r = await page.evaluate(() => {
     const g = window.__game;
     const { state } = g;

@@ -131,7 +131,7 @@ function applyPowerup(p, targetKey = 'p1') {
   }
 }
 
-// Startpunkt des Traktorstrahls (Unterkante Schiffsmitte); die Anzeige zeichnet den Strahl, solange towedBy gesetzt ist
+// Start point of the tractor beam (bottom edge, ship center); the display draws the beam while towedBy is set
 function updateTractorBeam(p, sx, sy) {
   p.beamX = sx;
   p.beamY = sy;
@@ -141,7 +141,7 @@ export function updatePowerups() {
   for (let i = arrays.powerups.length - 1; i >= 0; i--) {
     let p = arrays.powerups[i];
 
-    // --- CASE A: Von Spieler 1 geschleppt ---
+    // --- CASE A: towed by player 1 ---
     if (p.towedBy === 'p1') {
       if (state.isDead) {
         p.towedBy = null;
@@ -164,7 +164,7 @@ export function updatePowerups() {
 
         updateTractorBeam(p, state.x + config.playerSize / 2, state.y + config.playerSize);
 
-        // Übergabe an Spieler 2 prüfen
+        // Check handoff to player 2
         if (
           isCoopMode() &&
           state.p2 &&
@@ -183,7 +183,7 @@ export function updatePowerups() {
       continue;
     }
 
-    // --- CASE B: Von Spieler 2 geschleppt ---
+    // --- CASE B: towed by player 2 ---
     if (p.towedBy === 'p2') {
       if (state.p2 && state.p2.isDead) {
         p.towedBy = null;
@@ -206,7 +206,7 @@ export function updatePowerups() {
 
         updateTractorBeam(p, state.p2.x + config.playerSize / 2, state.p2.y + config.playerSize);
 
-        // Übergabe an Spieler 1 prüfen
+        // Check handoff to player 1
         if (
           !state.isDead &&
           state.x < p.x + p.size &&
@@ -223,7 +223,7 @@ export function updatePowerups() {
       continue;
     }
 
-    // --- CASE C: Freies Powerup (im Fels-Level gleitet es in den freien Gang) ---
+    // --- CASE C: free powerup (in rock levels it glides into the free corridor) ---
     p.y += p.vy;
     if (arrays.rock.length) Rock.hoverInCorridor(p, p.size || 24);
     if (p.y > config.playfieldHeight) {
@@ -232,7 +232,7 @@ export function updatePowerups() {
       continue;
     }
 
-    // Prüfe Einsammeln durch Spieler 1
+    // Check pickup by player 1
     const p1Col =
       !state.isDead &&
       state.x < p.x + p.size &&
@@ -240,7 +240,7 @@ export function updatePowerups() {
       state.y < p.y + p.size &&
       state.y + config.playerSize > p.y;
 
-    // Prüfe Einsammeln durch Spieler 2 (Co-op)
+    // Check pickup by player 2 (co-op)
     const p2Col =
       isCoopMode() &&
       state.p2 &&

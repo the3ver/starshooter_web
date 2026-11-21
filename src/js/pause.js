@@ -2,9 +2,9 @@ import { state, dom } from './state.js';
 import * as Network from './network.js';
 import * as Utils from './utils.js';
 
-// Gemeinsame Pause im Online-Modus: Wer pausiert, ist Besitzer und kann allein fortsetzen.
-// Die Pause endet nach spaetestens PAUSE_MAX_MS automatisch. Ausserhalb des Online-Modus
-// bleibt die Pause ein einfacher Schalter ohne Zeitlimit und ohne Events.
+// Shared pause in online mode: whoever pauses owns it and alone can resume.
+// The pause ends automatically after PAUSE_MAX_MS at the latest. Outside online mode
+// the pause stays a simple toggle without a time limit and without events.
 
 export const PAUSE_MAX_MS = 60000;
 const HINT_MS = 2500;
@@ -16,7 +16,7 @@ function showEl(id, visible) {
   if (el) el.style.display = visible ? (id === 'pause-knoepfe' || id === 'pause-abfrage' ? 'flex' : 'block') : 'none';
 }
 
-// Knoepfe nur bei lokaler Pause (Single, Coop, Bot); online bleibt es beim Text
+// Buttons only for a local pause (single, co-op, bot); online it stays with the text
 function updateMenu() {
   const local = state.paused && !state.pauseFrom && !isOnlineMode();
   if (!local) queryOpen = false;
@@ -41,12 +41,12 @@ export function closeQuery() {
   updateMenu();
 }
 
-// Pause beenden (WEITER bzw. Taste P)
+// End the pause (RESUME button or key P)
 export function resume() {
   togglePause();
 }
 
-// Laufendes Spiel verwerfen und zurueck zum Startbildschirm (kein Highscore, kein Game-Over)
+// Discard the running game and return to the start screen (no highscore, no game over)
 export function endGameToMainMenu() {
   if (!state.paused || state.pauseFrom || isOnlineMode()) return;
   queryOpen = false;
@@ -54,7 +54,7 @@ export function endGameToMainMenu() {
   updateMenu();
 }
 
-// ESC waehrend der Pause: Abfrage oeffnen bzw. abbrechen. true = Taste verbraucht.
+// ESC during the pause: open or cancel the query. true = key consumed.
 export function handleEscape() {
   if (!state.paused || state.pauseFrom || isOnlineMode()) return false;
   if (queryOpen) closeQuery();
@@ -113,7 +113,7 @@ export function updatePauseDisplay() {
   const info = document.getElementById('pause-info');
   const hint = document.getElementById('pause-hinweis');
   if (!state.pauseFrom) {
-    // Lokale Pause (Single, Coop, Bot) wie bisher
+    // Local pause (single, co-op, bot) as before
     if (title) title.textContent = 'PAUSED';
     if (info) info.textContent = '';
     if (hint) hint.textContent = '';
@@ -138,7 +138,7 @@ export function startPause(fromEntry, durationMs = PAUSE_MAX_MS) {
   updatePauseDisplay();
 }
 
-// Mehrfaches Beenden ist unkritisch
+// Ending more than once is harmless
 export function endPause() {
   state.paused = false;
   state.pauseFrom = null;
@@ -149,19 +149,19 @@ export function endPause() {
   updateMenu();
 }
 
-// Pro Simulationsschritt waehrend der Pause: Anzeige aktualisieren, bei Ablauf beenden.
-// Der Host meldet das Ende dem Client, der Client beendet bei Ablauf als Fallback lokal.
+// Per simulation step during the pause: update the display, end on expiry.
+// The host reports the end to the client, the client ends locally on expiry as a fallback.
 export function checkPause() {
   if (!state.paused || !state.pauseFrom) return;
   if (Date.now() >= state.pauseEndTime) {
     endPause();
-    if (state.network && state.network.isHost) Network.sendNetworkEvent({ type: 'pauseEnd' });
+    if (state.network && state.network.isHost) Network.sendNetworkEvent({ type: 'pause_end' });
     return;
   }
   updatePauseDisplay();
 }
 
-// Taste P bzw. Pause-Button
+// Key P or pause button
 export function togglePause(repeated = false) {
   if (!state.gameRunning || state.gameOverActive) return;
   if (!isOnlineMode()) {
@@ -177,21 +177,21 @@ export function togglePause(repeated = false) {
     Network.sendNetworkEvent({ type: 'pause_start', fromEntry, durationMs: PAUSE_MAX_MS });
   } else if (isOwnPause()) {
     endPause();
-    Network.sendNetworkEvent({ type: 'pauseEnd' });
+    Network.sendNetworkEvent({ type: 'pause_end' });
   } else {
     hintUntil = Date.now() + HINT_MS;
     updatePauseDisplay();
   }
 }
 
-// Netzwerk-Events beider Seiten
+// Network events of both sides
 export function processPauseEvent(data) {
   if (data.type === 'pause_start') {
     if (!state.gameRunning || state.gameOverActive) return;
-    // Pausieren beide gleichzeitig, gewinnt der Host
+    // If both pause at the same time, the host wins
     if (state.paused && state.pauseFrom && state.network && state.network.isHost) return;
     startPause(data.fromEntry, data.durationMs);
-  } else if (data.type === 'pauseEnd') {
+  } else if (data.type === 'pause_end') {
     endPause();
   }
 }

@@ -1,10 +1,10 @@
 import { arrays } from './state.js';
 import * as Display from './display.js';
 
-// Neues Partikel (Modell): x, y, vx, vy, leben (1 = voll), zerfall pro Schritt; Aussehen ueber
-// sorte ('funke' Standard, 'gleveBlitz', 'gleveNachbild', 'gleveFaecher' mit laenge/bogen, 'viperNachbild',
-// 'nearMissPlus', 'werfer'),
-// farbe, optional groesse (px) und glow (Leuchten in farbe), rot/vRot fuer drehende Teile
+// New particle (model): x, y, vx, vy, lives (1 = full), decay per step; look via
+// sort ('spark' default, 'gleveFlash', 'gleveAfterimage', 'gleveFan' with length/arc, 'viperAfterimage',
+// 'nearMissPlus', 'launcher'),
+// color, optional size (px) and glow (glow in color), rot/vRot for rotating parts
 export function createParticles(p) {
   arrays.particleArray.push(Display.create(p, 'particles'));
 }

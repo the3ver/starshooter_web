@@ -1,7 +1,7 @@
-// Messlogik des Balancing-Messstands, gemeinsam fuer npm run balancing und den Rauchtest in tests/
+// Measurement logic of the balancing bench, shared by npm run balancing and the smoke test in tests/
 const { setGameState } = require('../tests/helpers');
 
-// Laeuft im Browser vor jedem Seitenskript: Math.random durch mulberry32 ersetzen
+// Runs in the browser before every page script: replace Math.random with mulberry32
 function installSeed() {
   window.__setSeed = seed => {
     let a = seed >>> 0;
@@ -16,7 +16,7 @@ function installSeed() {
   window.__setSeed(1);
 }
 
-// Aufbau und Lauf passieren synchron nach den Imports, damit die echte rAF-Schleife nicht dazwischenfunkt
+// Setup and run happen synchronously after the imports, so the real rAF loop cannot interfere
 async function measure(page, { ship, scenario, seed, maxSteps }) {
   return page.evaluate(
     async ({ ship, scenario, seed, maxSteps }) => {
@@ -26,21 +26,21 @@ async function measure(page, { ship, scenario, seed, maxSteps }) {
       const { state, arrays, Entities, Loop, shipModels, config } = window.__game;
       window.__setSeed(seed);
 
-      // Sauberer Ausgangszustand wie beim Spielstart (die echte Schleife hat vorher beliebig viele Schritte gemacht)
+      // Clean initial state as at game start (the real loop has already made any number of steps)
       window.__game.Utils.restartGame();
-      // restartGame setzt das Spielfeld auf Menuebreite zurueck; gespielt wird im Co-op-Feld wie beim echten Start
+      // restartGame resets the playfield to menu width; the game is played in the co-op field as on a real start
       window.__game.Utils.applyPlayfieldWidth('coop');
       state.gameRunning = true;
       window.__game.dom.player.style.display = 'block';
       window.__game.dom.player2.style.display = 'block';
       state.frameCounter = 1;
-      // Sterne verbrauchen beim Umbruch Zufallswerte; ihre Lage haengt von den echten Schritten davor ab
+      // Stars consume random values when wrapping; their position depends on the real steps before
       arrays.stars.forEach((star, i) => {
         star.y = (i * 47) % config.playfieldHeight;
         star.x = (i * 83) % config.playfieldWidth;
       });
 
-      // Feld leeren
+      // Clear the field
       [
         'enemies',
         'asteroids',
@@ -65,12 +65,12 @@ async function measure(page, { ship, scenario, seed, maxSteps }) {
       state.bossWarningActive = false;
       state.hacks = [];
 
-      // P1: nur Zuschauer
-      // godMode schuetzt auch P2, deshalb P1 ueber Dauer-I-Frames unverwundbar halten
+      // P1: spectator only
+      // godMode also protects P2, so keep P1 invulnerable via permanent i-frames
       state.godMode = false;
       state.autolaserActive = false;
 
-      // P2-Bot mit dem Schiff wie beim echten Start (Werte analog restartGame)
+      // P2 bot with the ship as on a real start (values as in restartGame)
       const p2 = state.p2;
       state.p2IsBot = true;
       state.p2BotDifficulty = 'hard';
@@ -103,10 +103,10 @@ async function measure(page, { ship, scenario, seed, maxSteps }) {
       Bot.resetBot();
       const shieldStart = p2.shieldTier;
 
-      // Szenario aufbauen
+      // Build the scenario
       state.level = scenario === 'C_boss2' ? 2 : 1;
       state.frameCounter = 1;
-      const isBoss = scenario !== 'A_welle';
+      const isBoss = scenario !== 'A_wave';
       if (isBoss) {
         Entities.createBoss();
       } else {
@@ -125,7 +125,7 @@ async function measure(page, { ship, scenario, seed, maxSteps }) {
       let escaped = 0;
       let bossHpRest = null;
       while (steps < maxSteps) {
-        state.frameCounter = 1; // keine natuerlichen Spawns
+        state.frameCounter = 1; // no natural spawns
         state.x = 560;
         state.y = 560;
         state.invulnerableTimer = 1e9;
@@ -136,7 +136,7 @@ async function measure(page, { ship, scenario, seed, maxSteps }) {
         Loop.simulationStep();
         steps++;
         if (state.gameOverActive) throw new Error('Game Over im Messlauf');
-        // Feind-Abgaenge: im Feld = besiegt (oder Rammstoss), ausserhalb = entkommen
+        // Enemy exits: inside the field = defeated (or rammed), outside = escaped
         for (const f of beforehandEnemies) {
           if (!arrays.enemies.includes(f)) {
             if (
@@ -165,7 +165,7 @@ async function measure(page, { ship, scenario, seed, maxSteps }) {
   );
 }
 
-// Seite laden, Seed-Hook installieren und ein Co-op-Spiel mit dem Bot-Schiff als P2 starten
+// Load the page, install the seed hook and start a co-op game with the bot ship as P2
 async function prepareMeasurement(page, ship) {
   await page.route('**/api/highscores*', route =>
     route.fulfill({
