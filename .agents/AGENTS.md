@@ -15,7 +15,7 @@ Browser-Space-Shooter ohne HTML5-Canvas: Weltobjekte sind DOM-Elemente (`positio
 - **README-Screenshot** nur ueber `npm run screenshot`. **Balancing-Messstand** `npm run balancing` (Bot-P2 je Schiff, geseedet, Ergebnisse git-ignoriert; Messlogik in `balancing/messung.js`, Rauchtest in `tests/messstand.spec.js`).
 
 ## Architektur
-- **Game-Loop** (`loop.js`): feste 60-Hz-Schritte; `simulationsSchritt()` = `simuliere()` + `Anzeige.zeichneWelt()`, plant keinen Frame ein (Tests rufen ihn direkt). Weltlisten in `arrays` (`state.js`); `restartGame()` (`utils.js`) leert jede Liste, `tests/neustart.spec.js` prueft das fuer neue Listen.
+- **Game-Loop** (`loop.js`): feste 60-Hz-Schritte; `simulationsSchritt()` = `simuliere()` + `Anzeige.zeichneWelt()`, plant keinen Frame ein (Tests rufen ihn direkt). Weltlisten in `arrays` (`state.js`); `restartGame()` (`utils.js`) leert jede Liste und stellt die Klassen von `body`/`#spielfeld` her, `tests/neustart.spec.js` prueft beides. Jede neue Modulvariable (`let` auf oberster Ebene in `src/js`) braucht einen Reset in `restartGame` oder einen Grund in `MODUL_ZUSTAND` (`tests/regeln.spec.js`).
 - **Spielmodi:** `single` (400 px Feld, 1 Schiff), `coop` (600 px, 2 Schiffe, lokal oder Bot `state.p2IsBot`), `online` (600 px, WebRTC, Host simuliert).
 - Modulliste, Kollisionen, Spielmodi im Detail: [docs/architektur.md](../docs/architektur.md).
 

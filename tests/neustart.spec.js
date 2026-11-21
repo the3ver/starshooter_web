@@ -47,3 +47,27 @@ test('restartGame leert jede Liste in arrays (neue Liste ohne Aufraeumen = rot)'
   expect(r.listen.length).toBeGreaterThan(10);
   expect(r.uebrig, 'restartGame (utils.js) muss diese Listen leeren').toEqual([]);
 });
+
+// Klassen auf body und #spielfeld (Thema, Modus-Effekte) muessen nach dem Neustart wie beim Laden sein
+// (642b082: thema-biozone blieb nach dem Neustart sichtbar)
+test('restartGame stellt die Klassen von body und #spielfeld wie beim Laden her', async ({ page }) => {
+  const r = await page.evaluate(async () => {
+    const { state } = await import('./js/state.js');
+    const { simulationsSchritt } = await import('./js/loop.js');
+    const Utils = await import('./js/utils.js');
+    const klassen = () => ({
+      body: [...document.body.classList].sort(),
+      spielfeld: [...document.getElementById('spielfeld').classList].sort(),
+    });
+    const geladen = klassen();
+    state.godMode = true;
+    state.spielLaeuft = true;
+    state.level = 4; // Fels-Level: setzt das Biozonen-Thema
+    simulationsSchritt();
+    const imSpiel = klassen();
+    Utils.restartGame();
+    return { geladen, imSpiel, nachNeustart: klassen() };
+  });
+  expect(r.imSpiel, 'Testaufbau: das Fels-Level muss eine Klasse setzen').not.toEqual(r.geladen);
+  expect(r.nachNeustart, 'restartGame (utils.js) muss diese Klassen zuruecksetzen').toEqual(r.geladen);
+});
