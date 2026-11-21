@@ -42,3 +42,38 @@ test('Koerperkollision: diagonal Ecke an Ecke ist kein Treffer mehr, mittig uebe
   expect(r.feindMitte).toBe(true);
   expect(r.weitWeg).toBe(false);
 });
+
+// Grenzfaelle: Trefferradius in Pixeln festgehalten (Schiff 30 px, Asteroid 45 px: 10,8 + 18,9 = 29,7 px;
+// Feind 30 px: 10,8 + 12 = 22,8 px). 0,5 px innerhalb = Treffer, 0,5 px ausserhalb = keiner, auch diagonal.
+test('Koerperkollision: Trefferradius stimmt auf 0,5 px (gerade und diagonal)', async ({ page }) => {
+  const r = await page.evaluate(async () => {
+    const { config } = await import('./js/state.js');
+    const Utils = await import('./js/utils.js');
+    const s = config.spielerGroesse;
+    const spieler = { x: 100, y: 300 };
+    const mitte = { x: spieler.x + s / 2, y: spieler.y + s / 2 };
+    // Objekt der Groesse g mit Mittelpunktabstand d in Richtung winkel
+    const trifft = (g, anteil, d, winkel) =>
+      Utils.koerperTrifftSpieler(
+        spieler,
+        { x: mitte.x + d * Math.cos(winkel) - g / 2, y: mitte.y + d * Math.sin(winkel) - g / 2, groesse: g },
+        anteil,
+      );
+    const faelle = {};
+    for (const [name, g, anteil, radius] of [
+      ['asteroid', 45, Utils.ASTEROID_TREFFER_RADIUS, 29.7],
+      ['feind', 30, Utils.FEIND_TREFFER_RADIUS, 22.8],
+    ]) {
+      for (const [richtung, winkel] of [
+        ['gerade', 0],
+        ['diagonal', Math.PI / 4],
+      ]) {
+        faelle[`${name} ${richtung} innen`] = trifft(g, anteil, radius - 0.5, winkel);
+        faelle[`${name} ${richtung} aussen`] = trifft(g, anteil, radius + 0.5, winkel);
+      }
+    }
+    return { spielerGroesse: s, faelle };
+  });
+  expect(r.spielerGroesse).toBe(30);
+  for (const [fall, treffer] of Object.entries(r.faelle)) expect(treffer, fall).toBe(fall.endsWith('innen'));
+});
