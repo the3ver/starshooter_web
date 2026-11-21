@@ -11,6 +11,7 @@ Browser-Space-Shooter ohne HTML5-Canvas: Weltobjekte sind DOM-Elemente (`positio
 - **Version:** bei Aenderungen an Spiel-Logik/UI `npm run release -- X.Y.Z` (setzt alle Versionsstellen und ein Changelog-Geruest), danach die Highlights statt `TODO` in `src/js/changelog.js` eintragen. `tests/version.spec.js` prueft alle Stellen.
 - **Tests sind deterministisch:** Zeit vergeht ueber `simulationsSchritt()` in einem `page.evaluate` oder ueber die Fake-Uhr aus `tests/helfer.js` (`installiereUhr`, `spuleVor`). `tests/regeln.spec.js` laesst die Zahl der Echtzeit-Wartezeiten je Datei nur sinken.
 - **Testhelfer:** `setzeSpielstand(page)` aus `tests/helfer.js` vor `page.goto`; Versions-, Changelog- und Protokollwerte im Test aus dem Spielcode lesen (`GAME_VERSION`, `changelogData`, `PROTOKOLL_VERSION`).
+- **Testserver:** Port je Arbeitsbaum aus `webserver.config.js` (8100-8999, `PORT` ueberschreibt); `npm run dev` bleibt auf 8080.
 - **README-Screenshot** nur ueber `npm run screenshot`. **Balancing-Messstand** `npm run balancing` (Bot-P2 je Schiff, geseedet, Ergebnisse git-ignoriert; Messlogik in `balancing/messung.js`, Rauchtest in `tests/messstand.spec.js`).
 
 ## Architektur
