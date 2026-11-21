@@ -217,9 +217,19 @@ test('Schockwelle laesst geschlossene Blueten stehen und erfasst offene Gewaechs
 test('Fels-Level laesst Gewaechse wachsen, normale Level nicht', async ({ page }) => {
   const r = await page.evaluate(() => {
     const { Loop, arrays, state, Anzeige, Fels, G } = window.__gw;
+    // Fester Seed (mulberry32): das Ergebnis haengt vom Wuerfeln ab (Flake-Suche 2026-11-21: in CI einmal 0 Gewaechse)
+    let x = 1;
+    Math.random = () => {
+      x = (x + 0x6d2b79f5) | 0;
+      let t = Math.imul(x ^ (x >>> 15), 1 | x);
+      t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+      return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+    };
     const lauf = level => {
-      for (const name of ['feinde', 'fels', 'feindLaserArray']) {
-        arrays[name].forEach(Anzeige.entferne);
+      // alle Weltlisten leeren: zwischen beforeEach und Test laufen Echtzeit-Frames (Asteroiden, Powerups)
+      for (const name of Object.keys(arrays)) {
+        if (name === 'sterne') continue;
+        arrays[name].forEach(o => o.el && Anzeige.entferne(o));
         arrays[name].length = 0;
       }
       Fels.setzeZurueck();
