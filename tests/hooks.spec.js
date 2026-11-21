@@ -36,3 +36,23 @@ test('Stop-Hook: rot = Exit 2 mit Ausgabe, nach drei roten Laeufen Exit 0', () =
   }
   expect(starteHook('stop-check.mjs', { check, stand }).status).toBe(0);
 });
+
+test('Commit-Hook: git commit bei rotem Check = Exit 2, andere Befehle laufen ohne Check durch', () => {
+  const stand = neueStandDatei();
+  const check = 'echo CHECK ROT: Tests; exit 1';
+  const commit = { tool_input: { command: 'npm run fmt && git commit -m "feat: x"' } };
+  const rot = starteHook('commit-check.mjs', { check, stand, eingabe: commit });
+  expect(rot.status).toBe(2);
+  expect(rot.stderr).toContain('CHECK ROT: Tests');
+  expect(rot.stderr).toContain('BLOCKIERT');
+  // kein Commit: Check laeuft nicht (der Befehl wuerde sonst rot melden)
+  const status = starteHook('commit-check.mjs', { check, stand, eingabe: { tool_input: { command: 'git status' } } });
+  expect(status.status).toBe(0);
+});
+
+test('Commit-Hook: git commit bei gruenem Check = Exit 0, Stop-Hook danach ohne neuen Lauf', () => {
+  const stand = neueStandDatei();
+  const commit = { tool_input: { command: 'git -C . commit -qF - <<EOF\nfix: y\nEOF' } };
+  expect(starteHook('commit-check.mjs', { check: 'echo CHECK OK', stand, eingabe: commit }).status).toBe(0);
+  expect(starteHook('stop-check.mjs', { check: 'exit 1', stand }).status).toBe(0);
+});
