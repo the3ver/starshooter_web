@@ -29,7 +29,7 @@ fi
 if ! npx playwright test --reporter=line --max-failures=1 > "$log" 2>&1; then
   echo "CHECK ROT: Tests"
   # Nur den ersten Fehlerblock ausgeben (abgebrochene Parallel-Tests sind kein Befund)
-  awk '/^  1\) /{p=1} /^  2\) |^Testing stopped early/{p=0} p' "$log" | grep -v '^\[[0-9]*/[0-9]*\]' | head -60
+  bash scripts/failure-block.sh "$log"
   exit 1
 fi
 
