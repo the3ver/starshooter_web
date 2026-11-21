@@ -31,6 +31,12 @@ jobs:
         run: npm ci
       - name: Audit dependencies (high and above)
         run: npm audit --audit-level=high
+      # Browser-Download nur bei neuer Playwright-Version (Schluessel: package-lock.json); Systempakete installiert --with-deps immer
+      - name: Cache Playwright Browsers
+        uses: actions/cache@v6
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ hashFiles('package-lock.json') }}
       - name: Install Playwright Browsers
         run: npx playwright install --with-deps chromium
       # Dieselbe Pruefung wie lokal und im Stop-Hook: ESLint, tsc, alle Tests

@@ -9,7 +9,8 @@ module.exports = defineConfig({
   fullyParallel: true,
   forbidOnly: !!process.env.CI,
   retries: process.env.CI ? 2 : 0,
-  workers: process.env.CI ? 1 : undefined,
+  // CI: 2 Worker (Runner mit 4 vCPU); die woechentliche Flake-Suche laeuft mit derselben Zahl
+  workers: process.env.CI ? 2 : undefined,
   reporter: [['html', { open: 'never' }]],
   use: {
     baseURL: server.baseURL,
