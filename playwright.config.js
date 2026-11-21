@@ -1,4 +1,5 @@
 const { defineConfig, devices } = require('@playwright/test');
+const server = require('./webserver.config');
 
 module.exports = defineConfig({
   testDir: './tests',
@@ -11,7 +12,7 @@ module.exports = defineConfig({
   workers: process.env.CI ? 1 : undefined,
   reporter: [['html', { open: 'never' }]],
   use: {
-    baseURL: 'http://localhost:8080',
+    baseURL: server.baseURL,
     trace: 'on-first-retry',
   },
   projects: [
@@ -20,9 +21,5 @@ module.exports = defineConfig({
       use: { ...devices['Desktop Chrome'] },
     },
   ],
-  webServer: {
-    command: 'npx http-server src -p 8080 -c-1',
-    url: 'http://localhost:8080',
-    reuseExistingServer: true,
-  },
+  webServer: server.webServer,
 });

@@ -16,6 +16,7 @@ const PFADE = [
   'types',
   'jsconfig.json',
   'playwright.config.js',
+  'webserver.config.js',
   'package.json',
   'package-lock.json',
 ];
