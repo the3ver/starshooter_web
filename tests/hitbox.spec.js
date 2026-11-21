@@ -1,5 +1,5 @@
 const { test, expect } = require('@playwright/test');
-const { setzeSpielstand } = require('./helfer');
+const { setGameState } = require('./helfer');
 
 test.beforeEach(async ({ page }) => {
   await page.route('**/api/highscores*', route =>
@@ -9,7 +9,7 @@ test.beforeEach(async ({ page }) => {
       body: JSON.stringify({ success: true, mode: 'single', highscores: [] }),
     }),
   );
-  await setzeSpielstand(page);
+  await setGameState(page);
   await page.goto('/');
 });
 
@@ -18,29 +18,29 @@ test('Koerperkollision: diagonal Ecke an Ecke ist kein Treffer mehr, mittig uebe
   const r = await page.evaluate(async () => {
     const { config } = await import('./js/state.js');
     const Utils = await import('./js/utils.js');
-    const s = config.spielerGroesse;
-    const spieler = { x: 100, y: 300 };
-    const pruefe = (obj, anteil) => Utils.koerperTrifftSpieler(spieler, obj, anteil);
-    const A = Utils.ASTEROID_TREFFER_RADIUS;
-    const F = Utils.FEIND_TREFFER_RADIUS;
+    const s = config.playerSize;
+    const player = { x: 100, y: 300 };
+    const check = (obj, share) => Utils.bodyHitsPlayer(player, obj, share);
+    const A = Utils.ASTEROID_HIT_RADIUS;
+    const F = Utils.ENEMY_HIT_RADIUS;
     return {
       // 45er-Asteroid oben links, Boxen ueberlappen um 8 px je Achse (frueher Treffer)
-      asteroidEcke: pruefe({ x: spieler.x - 45 + 8, y: spieler.y - 45 + 8, groesse: 45 }, A),
+      asteroidCorner: check({ x: player.x - 45 + 8, y: player.y - 45 + 8, size: 45 }, A),
       // Feind schraeg oben rechts, Boxen ueberlappen um 6 px je Achse (frueher Treffer)
-      feindEcke: pruefe({ x: spieler.x + s - 6, y: spieler.y - 30 + 6, groesse: 30 }, F),
+      enemyCorner: check({ x: player.x + s - 6, y: player.y - 30 + 6, size: 30 }, F),
       // Frontal: Asteroid direkt ueber dem Schiff, 10 px Ueberlappung
-      asteroidFrontal: pruefe({ x: spieler.x - 7, y: spieler.y - 45 + 10, groesse: 45 }, A),
+      asteroidFrontal: check({ x: player.x - 7, y: player.y - 45 + 10, size: 45 }, A),
       // Deckungsgleich
-      feindMitte: pruefe({ x: spieler.x, y: spieler.y, groesse: 30 }, F),
+      enemyMiddle: check({ x: player.x, y: player.y, size: 30 }, F),
       // Klar getrennt
-      weitWeg: pruefe({ x: spieler.x + 80, y: spieler.y, groesse: 45 }, A),
+      farGone: check({ x: player.x + 80, y: player.y, size: 45 }, A),
     };
   });
-  expect(r.asteroidEcke).toBe(false);
-  expect(r.feindEcke).toBe(false);
+  expect(r.asteroidCorner).toBe(false);
+  expect(r.enemyCorner).toBe(false);
   expect(r.asteroidFrontal).toBe(true);
-  expect(r.feindMitte).toBe(true);
-  expect(r.weitWeg).toBe(false);
+  expect(r.enemyMiddle).toBe(true);
+  expect(r.farGone).toBe(false);
 });
 
 // Grenzfaelle: Trefferradius in Pixeln festgehalten (Schiff 30 px, Asteroid 45 px: 10,8 + 18,9 = 29,7 px;
@@ -49,31 +49,31 @@ test('Koerperkollision: Trefferradius stimmt auf 0,5 px (gerade und diagonal)', 
   const r = await page.evaluate(async () => {
     const { config } = await import('./js/state.js');
     const Utils = await import('./js/utils.js');
-    const s = config.spielerGroesse;
-    const spieler = { x: 100, y: 300 };
-    const mitte = { x: spieler.x + s / 2, y: spieler.y + s / 2 };
+    const s = config.playerSize;
+    const player = { x: 100, y: 300 };
+    const middle = { x: player.x + s / 2, y: player.y + s / 2 };
     // Objekt der Groesse g mit Mittelpunktabstand d in Richtung winkel
-    const trifft = (g, anteil, d, winkel) =>
-      Utils.koerperTrifftSpieler(
-        spieler,
-        { x: mitte.x + d * Math.cos(winkel) - g / 2, y: mitte.y + d * Math.sin(winkel) - g / 2, groesse: g },
-        anteil,
+    const hits = (g, share, d, angle) =>
+      Utils.bodyHitsPlayer(
+        player,
+        { x: middle.x + d * Math.cos(angle) - g / 2, y: middle.y + d * Math.sin(angle) - g / 2, size: g },
+        share,
       );
-    const faelle = {};
-    for (const [name, g, anteil, radius] of [
-      ['asteroid', 45, Utils.ASTEROID_TREFFER_RADIUS, 29.7],
-      ['feind', 30, Utils.FEIND_TREFFER_RADIUS, 22.8],
+    const cases = {};
+    for (const [name, g, share, radius] of [
+      ['asteroid', 45, Utils.ASTEROID_HIT_RADIUS, 29.7],
+      ['enemy', 30, Utils.ENEMY_HIT_RADIUS, 22.8],
     ]) {
-      for (const [richtung, winkel] of [
+      for (const [direction, angle] of [
         ['gerade', 0],
         ['diagonal', Math.PI / 4],
       ]) {
-        faelle[`${name} ${richtung} innen`] = trifft(g, anteil, radius - 0.5, winkel);
-        faelle[`${name} ${richtung} aussen`] = trifft(g, anteil, radius + 0.5, winkel);
+        cases[`${name} ${direction} innen`] = hits(g, share, radius - 0.5, angle);
+        cases[`${name} ${direction} aussen`] = hits(g, share, radius + 0.5, angle);
       }
     }
-    return { spielerGroesse: s, faelle };
+    return { playerSize: s, cases };
   });
-  expect(r.spielerGroesse).toBe(30);
-  for (const [fall, treffer] of Object.entries(r.faelle)) expect(treffer, fall).toBe(fall.endsWith('innen'));
+  expect(r.playerSize).toBe(30);
+  for (const [fall, hit] of Object.entries(r.cases)) expect(hit, fall).toBe(fall.endsWith('innen'));
 });

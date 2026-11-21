@@ -1,5 +1,5 @@
 const { test, expect } = require('@playwright/test');
-const { setzeSpielstand } = require('./helfer');
+const { setGameState } = require('./helfer');
 
 test.beforeEach(async ({ page }) => {
   await page.route('**/api/highscores*', route =>
@@ -9,42 +9,42 @@ test.beforeEach(async ({ page }) => {
       body: JSON.stringify({ success: true, mode: 'single', highscores: [] }),
     }),
   );
-  await setzeSpielstand(page);
+  await setGameState(page);
   await page.goto('/');
 });
 
 // Coop-Spiel mit Bot-Partner (Phantom) starten und das Feld leeren
-async function starteBotSpiel(page) {
+async function startBotGame(page) {
   await page.evaluate(() => window.__game.Utils.setGameMode('coop'));
   await page.keyboard.down('KeyW');
-  await page.waitForFunction(() => window.__game.state.spielLaeuft && !window.__game.state.cutsceneAktiv);
+  await page.waitForFunction(() => window.__game.state.gameRunning && !window.__game.state.cutsceneActive);
   await page.keyboard.up('KeyW');
   await page.evaluate(async () => {
     const Bot = await import('./js/bot.js');
     window.__botTest = {
       Bot,
-      leeren() {
+      empty() {
         const { state, arrays } = window.__game;
         [
-          'feinde',
-          'asteroiden',
-          'feindLaserArray',
-          'hackProjektilArray',
+          'enemies',
+          'asteroids',
+          'enemyLaserArray',
+          'hackProjectileArray',
           'bossLaserArray',
-          'bossBombenArray',
-          'bossRaketenArray',
+          'bossBombArray',
+          'bossMissileArray',
           'bosses',
           'powerups',
           'laserArray',
-          'raketenArray',
+          'missileArray',
         ].forEach(name => {
           arrays[name].forEach(o => o.el && o.el.remove());
           arrays[name].length = 0;
         });
-        Object.keys(state.tastenGedrueckt).forEach(k => {
-          state.tastenGedrueckt[k] = false;
+        Object.keys(state.keysPressed).forEach(k => {
+          state.keysPressed[k] = false;
         });
-        state.frameZaehler = 1;
+        state.frameCounter = 1;
         state.hacks = [];
         state.p2IsBot = true;
         state.p2BotDifficulty = 'normal';
@@ -55,96 +55,96 @@ async function starteBotSpiel(page) {
 }
 
 test('Bot bevorzugt Gegnerschiffe vor Asteroiden und ignoriert unzerstoerbare Asteroiden', async ({ page }) => {
-  await starteBotSpiel(page);
+  await startBotGame(page);
   const r = await page.evaluate(() => {
     const { state, arrays, Entities } = window.__game;
     const T = window.__botTest;
-    const ziel = () => T.Bot.findBestTarget(state.p2, { aimCorridor: 30 });
-    T.leeren();
+    const target = () => T.Bot.findBestTarget(state.p2, { aimCorridor: 30 });
+    T.empty();
     state.p2.x = 300;
     state.p2.y = 500;
 
     const asteroid = (x, y, g) => {
-      Entities.erzeugeAsteroid(x, y, g, 0, 0, 0, true);
-      return arrays.asteroiden[arrays.asteroiden.length - 1];
+      Entities.createAsteroid(x, y, g, 0, 0, 0, true);
+      return arrays.asteroids[arrays.asteroids.length - 1];
     };
 
     // Asteroid nah, Feind weiter weg: Feind gewinnt
     asteroid(290, 420, 20);
-    Entities.erzeugeFeind(80, 100, 'normal', 0, false);
-    const mitFeind = ziel();
+    Entities.createEnemy(80, 100, 'normal', 0, false);
+    const withEnemy = target();
 
     // Nur ein Magma-Asteroid: kein Ziel
-    T.leeren();
+    T.empty();
     const magma = asteroid(290, 400, 40);
-    Object.assign(magma, { istMagma: true, istUnzerstoerbar: true, traegtPowerup: false });
-    const nurMagma = { ziel: ziel(), unzerstoerbar: !!magma.istUnzerstoerbar };
+    Object.assign(magma, { isMagma: true, isIndestructible: true, carriesPowerup: false });
+    const onlyMagma = { target: target(), indestructible: !!magma.isIndestructible };
 
     // Magma plus normaler Asteroid: der normale wird gewaehlt
     asteroid(100, 200, 20);
-    const mitNormal = ziel();
-    return { mitFeind, nurMagma, mitNormal };
+    const withNormal = target();
+    return { withEnemy, onlyMagma, withNormal };
   });
-  expect(r.mitFeind).toBeTruthy();
-  expect(r.mitFeind.x).toBe(95);
-  expect(r.nurMagma.unzerstoerbar).toBe(true);
-  expect(r.nurMagma.ziel).toBeNull();
-  expect(r.mitNormal.x).toBeLessThan(150);
+  expect(r.withEnemy).toBeTruthy();
+  expect(r.withEnemy.x).toBe(95);
+  expect(r.onlyMagma.indestructible).toBe(true);
+  expect(r.onlyMagma.target).toBeNull();
+  expect(r.withNormal.x).toBeLessThan(150);
 });
 
 test('Bot laesst sich vom Jaeger-Boss (Typ 2) nicht an den Rand draengen und weicht seinen Schuessen aus', async ({
   page,
 }) => {
-  await starteBotSpiel(page);
+  await startBotGame(page);
   const r = await page.evaluate(() => {
     const { state, arrays, Entities, Loop } = window.__game;
     const T = window.__botTest;
-    T.leeren();
+    T.empty();
     state.level = 2;
     state.godMode = true; // P1 steht nur als Zuschauer in der Ecke
     state.x = 560;
     state.y = 560;
     state.p2.x = 285;
     state.p2.y = 500;
-    state.p2.schildStufe = 0;
-    state.p2.leben = 3;
-    Entities.erzeugeBoss();
+    state.p2.shieldTier = 0;
+    state.p2.lives = 3;
+    Entities.createBoss();
     const b = arrays.bosses[0];
-    Object.assign(b, { phase: 'kampf', y: 20, bombenTimer: 1e9, raketenTimer: 1e9, hackTimer: 1e9 });
+    Object.assign(b, { phase: 'kampf', y: 20, bombTimer: 1e9, missileTimer: 1e9, hackTimer: 1e9 });
 
     let minX = Infinity;
-    let treffer = 0;
-    let vorher = state.p2.leben * 10 + state.p2.schildStufe;
+    let hit = 0;
+    let beforehand = state.p2.lives * 10 + state.p2.shieldTier;
     for (let i = 0; i < 900; i++) {
-      state.frameZaehler = 1; // keine Spawns
+      state.frameCounter = 1; // keine Spawns
       state.x = 560;
       state.y = 560;
-      Loop.simulationsSchritt();
+      Loop.simulationStep();
       minX = Math.min(minX, state.p2.x);
-      const jetzt = state.p2.leben * 10 + state.p2.schildStufe;
-      if (jetzt < vorher) treffer++;
+      const now = state.p2.lives * 10 + state.p2.shieldTier;
+      if (now < beforehand) hit++;
       // Zustand fuer die naechste Messung wiederherstellen
-      state.p2.leben = 3;
-      state.p2.schildStufe = 0;
+      state.p2.lives = 3;
+      state.p2.shieldTier = 0;
       state.p2.invulnerableTimer = 0;
       state.p2.isDead = false;
-      vorher = 30;
+      beforehand = 30;
     }
-    return { minX, treffer, typ: b.bossTyp };
+    return { minX, hit, typ: b.bossTyp };
   });
   expect(r.typ).toBe(2);
   expect(r.minX).toBeGreaterThan(30);
-  expect(r.treffer).toBeLessThanOrEqual(2);
+  expect(r.hit).toBeLessThanOrEqual(2);
 });
 
 test('Bot-Gleve fliegt in Sweep-Reichweite unter den Boss und dasht gegen ihn: Boss verliert deutlich HP', async ({
   page,
 }) => {
-  await starteBotSpiel(page);
+  await startBotGame(page);
   const r = await page.evaluate(() => {
     const { state, arrays, Entities, Loop } = window.__game;
     const T = window.__botTest;
-    T.leeren();
+    T.empty();
     state.level = 1;
     state.invulnerableTimer = 1e9; // P1 steht nur als Zuschauer weit weg
     state.x = 560;
@@ -153,30 +153,30 @@ test('Bot-Gleve fliegt in Sweep-Reichweite unter den Boss und dasht gegen ihn: B
     p2.selectedShipModel = 'gleve';
     p2.x = 285;
     p2.y = 500;
-    p2.schildStufe = 0;
-    p2.leben = 3;
-    Entities.erzeugeBoss();
+    p2.shieldTier = 0;
+    p2.lives = 3;
+    Entities.createBoss();
     const b = arrays.bosses[0];
-    Object.assign(b, { phase: 'kampf', y: 20, schussTimer: 1e9, bombenTimer: 1e9, raketenTimer: 1e9, hackTimer: 1e9 });
+    Object.assign(b, { phase: 'kampf', y: 20, shotTimer: 1e9, bombTimer: 1e9, missileTimer: 1e9, hackTimer: 1e9 });
 
-    let dashs = 0;
-    let vorherDash = false;
+    let dashes = 0;
+    let beforehandDash = false;
     for (let i = 0; i < 600; i++) {
-      state.frameZaehler = 1; // keine Spawns
+      state.frameCounter = 1; // keine Spawns
       state.x = 560;
       state.y = 560;
-      b.schussTimer = 1e9;
-      Loop.simulationsSchritt();
+      b.shotTimer = 1e9;
+      Loop.simulationStep();
       const dash = (p2.gleveDashTimer || 0) > 0;
-      if (dash && !vorherDash && b.hp > 0) dashs++;
-      vorherDash = dash;
-      p2.leben = 3;
-      p2.schildStufe = 0;
+      if (dash && !beforehandDash && b.hp > 0) dashes++;
+      beforehandDash = dash;
+      p2.lives = 3;
+      p2.shieldTier = 0;
       p2.isDead = false;
       if (b.hp <= 0) break;
     }
-    return { hpAnteil: arrays.bosses.length ? b.hp / b.maxHp : 0, dashs };
+    return { hpShare: arrays.bosses.length ? b.hp / b.maxHp : 0, dashes };
   });
-  expect(r.hpAnteil).toBeLessThan(0.8);
-  expect(r.dashs).toBeGreaterThanOrEqual(1);
+  expect(r.hpShare).toBeLessThan(0.8);
+  expect(r.dashes).toBeGreaterThanOrEqual(1);
 });

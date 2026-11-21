@@ -1,5 +1,5 @@
 const { test, expect } = require('@playwright/test');
-const { setzeSpielstand, starteSpiel } = require('./helfer');
+const { setGameState, startGame } = require('./helfer');
 
 test.beforeEach(async ({ page }) => {
   await page.route('**/api/highscores*', route =>
@@ -9,16 +9,16 @@ test.beforeEach(async ({ page }) => {
       body: JSON.stringify({ success: true, mode: 'single', highscores: [] }),
     }),
   );
-  await setzeSpielstand(page);
+  await setGameState(page);
   await page.goto('/');
-  await starteSpiel(page);
-  await page.waitForFunction(() => window.__game.state.spielLaeuft);
+  await startGame(page);
+  await page.waitForFunction(() => window.__game.state.gameRunning);
 });
 
 test('Levelplan: Fels-Level haben das Thema biozone, die anderen standard', async ({ page }) => {
   const r = await page.evaluate(async () => {
     const L = await import('./js/level.js');
-    return [3, 4, 5, 6].map(l => L.levelPlan(l).thema);
+    return [3, 4, 5, 6].map(l => L.levelPlan(l).theme);
   });
   expect(r).toEqual(['standard', 'biozone', 'standard', 'biozone']);
 });
@@ -28,120 +28,120 @@ test('Spielfeld bekommt im Fels-Level die Klasse thema-biozone und verliert sie 
 }) => {
   const r = await page.evaluate(async () => {
     const { state } = await import('./js/state.js');
-    const { simulationsSchritt } = await import('./js/loop.js');
-    const feld = document.getElementById('spielfeld');
-    feld.style.transition = 'none'; // Farbe ohne Ueberblendung messen
+    const { simulationStep } = await import('./js/loop.js');
+    const field = document.getElementById('spielfeld');
+    field.style.transition = 'none'; // Farbe ohne Ueberblendung messen
     state.godMode = true;
-    state.frameZaehler = 1;
-    const klassen = () => [...feld.classList].filter(k => k.startsWith('thema-'));
+    state.frameCounter = 1;
+    const classes = () => [...field.classList].filter(k => k.startsWith('thema-'));
     state.level = 4;
-    simulationsSchritt();
-    const level4 = klassen();
-    const hintergrund = getComputedStyle(feld).backgroundColor;
-    const netz = getComputedStyle(feld, '::before').backgroundImage.startsWith('url(');
+    simulationStep();
+    const level4 = classes();
+    const background = getComputedStyle(field).backgroundColor;
+    const network = getComputedStyle(field, '::before').backgroundImage.startsWith('url(');
     state.level = 5;
-    simulationsSchritt();
-    return { level4, hintergrund, netz, level5: klassen() };
+    simulationStep();
+    return { level4, background, network, level5: classes() };
   });
   expect(r.level4).toEqual(['thema-biozone']);
-  expect(r.hintergrund).toBe('rgb(13, 9, 6)');
-  expect(r.netz).toBe(true);
+  expect(r.background).toBe('rgb(13, 9, 6)');
+  expect(r.network).toBe(true);
   expect(r.level5).toEqual([]);
 });
 
 test('Bildschirm-Blitz kehrt zur Themenfarbe zurueck statt zur festen Standardfarbe', async ({ page }) => {
   await page.evaluate(async () => {
     const { state } = await import('./js/state.js');
-    const { simulationsSchritt } = await import('./js/loop.js');
-    const Anzeige = await import('./js/anzeige.js');
+    const { simulationStep } = await import('./js/loop.js');
+    const Display = await import('./js/anzeige.js');
     document.getElementById('spielfeld').style.transition = 'none';
     state.godMode = true;
     state.level = 4;
-    simulationsSchritt();
-    Anzeige.blitzeSpielfeld('#ff0000', 20);
+    simulationStep();
+    Display.flashPlayfield('#ff0000', 20);
   });
   await page.waitForFunction(() => document.getElementById('spielfeld').style.backgroundColor === '');
-  const farbe = await page.evaluate(() => getComputedStyle(document.getElementById('spielfeld')).backgroundColor);
-  expect(farbe).toBe('rgb(13, 9, 6)');
+  const color = await page.evaluate(() => getComputedStyle(document.getElementById('spielfeld')).backgroundColor);
+  expect(color).toBe('rgb(13, 9, 6)');
 });
 
 test('Online-Client uebernimmt das Thema aus dem Level im Snapshot', async ({ page }) => {
   const r = await page.evaluate(async () => {
     const { state } = await import('./js/state.js');
-    const { clientSchritt } = await import('./js/client.js');
-    const feld = document.getElementById('spielfeld');
+    const { clientStep } = await import('./js/client.js');
+    const field = document.getElementById('spielfeld');
     state.level = 6;
-    clientSchritt();
-    const sechs = feld.classList.contains('thema-biozone');
+    clientStep();
+    const six = field.classList.contains('thema-biozone');
     state.level = 7;
-    clientSchritt();
-    return { sechs, sieben: feld.classList.contains('thema-biozone') };
+    clientStep();
+    return { six, seven: field.classList.contains('thema-biozone') };
   });
-  expect(r).toEqual({ sechs: true, sieben: false });
+  expect(r).toEqual({ six: true, seven: false });
 });
 
 test('Fels zeigt Steinplatten (globales Muster) mit dunkler Kante, ohne Knoten', async ({ page }) => {
   const r = await page.evaluate(async () => {
     const { arrays } = await import('./js/state.js');
-    const Anzeige = await import('./js/anzeige.js');
-    const p = { l: 50, r: 50, im: 200, ib: 0 };
-    const s = Anzeige.erzeuge({ id: 'fe_t', x: 0, y: 100, oben: p, unten: p }, 'fels');
-    arrays.fels.push(s);
-    const wand = s.el.querySelector('polygon.fels-wand');
+    const Display = await import('./js/anzeige.js');
+    const p = { l: 50, r: 50, inner: 200, ib: 0 };
+    const s = Display.create({ id: 'fe_t', x: 0, y: 100, top: p, bottom: p }, 'rock');
+    arrays.rock.push(s);
+    const wall = s.el.querySelector('polygon.fels-wand');
     return {
-      muster: !!document.querySelector('#fels-defs pattern#fels-steine'),
-      musterEinmal: document.querySelectorAll('#fels-defs').length,
-      fuellung: getComputedStyle(wand).fill.includes('fels-steine'),
-      saum: s.el.querySelectorAll('polyline.fels-kante').length,
-      knoten: s.el.querySelectorAll('polyline.fels-knoten').length,
+      pattern: !!document.querySelector('#fels-defs pattern#fels-steine'),
+      patternOnce: document.querySelectorAll('#fels-defs').length,
+      fill: getComputedStyle(wall).fill.includes('fels-steine'),
+      seam: s.el.querySelectorAll('polyline.fels-kante').length,
+      node: s.el.querySelectorAll('polyline.fels-knoten').length,
     };
   });
-  expect(r).toEqual({ muster: true, musterEinmal: 1, fuellung: true, saum: 2, knoten: 0 });
+  expect(r).toEqual({ pattern: true, patternOnce: 1, fill: true, seam: 2, node: 0 });
 });
 
 test('Neustart entfernt das Biozonen-Thema (Cutszene und Level 1 ohne Geflecht)', async ({ page }) => {
   const r = await page.evaluate(async () => {
     const { state } = await import('./js/state.js');
-    const { simulationsSchritt } = await import('./js/loop.js');
+    const { simulationStep } = await import('./js/loop.js');
     const Utils = await import('./js/utils.js');
-    const feld = document.getElementById('spielfeld');
+    const field = document.getElementById('spielfeld');
     state.godMode = true;
     state.level = 4;
-    simulationsSchritt();
-    const vorher = feld.classList.contains('thema-biozone');
+    simulationStep();
+    const beforehand = field.classList.contains('thema-biozone');
     Utils.restartGame();
-    const nachNeustart = feld.classList.contains('thema-biozone');
+    const afterRestart = field.classList.contains('thema-biozone');
     // erneut ein Fels-Level: das Thema kommt wieder (nach dem Neustart laeuft erst die Cutszene)
     state.level = 4;
-    (await import('./js/level.js')).pruefeThema();
-    return { vorher, nachNeustart, wieder: feld.classList.contains('thema-biozone') };
+    (await import('./js/level.js')).checkTheme();
+    return { beforehand, afterRestart, again: field.classList.contains('thema-biozone') };
   });
-  expect(r).toEqual({ vorher: true, nachNeustart: false, wieder: true });
+  expect(r).toEqual({ beforehand: true, afterRestart: false, again: true });
 });
 
 test('Felsoptik: gleiche Segment-Id ergibt dieselbe Zeichnung, Wurmloecher nur auf breitem Fels, Kante gestuft', async ({
   page,
 }) => {
   const r = await page.evaluate(async () => {
-    const Anzeige = await import('./js/anzeige.js');
-    const bau = (id, p) => Anzeige.erzeuge({ id, x: 0, y: 0, oben: { ...p }, unten: { ...p } }, 'fels').el;
-    const breit = { l: 140, r: 140, im: 200, ib: 0 };
-    const schmal = { l: 20, r: 20, im: 200, ib: 0 };
-    const a = bau('fe_77', breit);
-    const b = bau('fe_77', breit);
-    let loecherBreit = 0;
-    let loecherSchmal = 0;
+    const Display = await import('./js/anzeige.js');
+    const build = (id, p) => Display.create({ id, x: 0, y: 0, top: { ...p }, bottom: { ...p } }, 'rock').el;
+    const wide = { l: 140, r: 140, inner: 200, ib: 0 };
+    const narrow = { l: 20, r: 20, inner: 200, ib: 0 };
+    const a = build('fe_77', wide);
+    const b = build('fe_77', wide);
+    let holesWide = 0;
+    let holesNarrow = 0;
     for (let i = 0; i < 40; i++) {
-      loecherBreit += bau('fe_b' + i, breit).querySelectorAll('.wurmloch, .fels-kugel').length;
-      loecherSchmal += bau('fe_s' + i, schmal).querySelectorAll('.wurmloch, .fels-kugel').length;
+      holesWide += build('fe_b' + i, wide).querySelectorAll('.wurmloch, .fels-kugel').length;
+      holesNarrow += build('fe_s' + i, narrow).querySelectorAll('.wurmloch, .fels-kugel').length;
     }
-    const kante = a.querySelector('polyline.fels-kante').getAttribute('points').split(' ').length;
+    const edge = a.querySelector('polyline.fels-kante').getAttribute('points').split(' ').length;
     [a, b].forEach(el => el.remove());
     document.querySelectorAll('.fels-segment').forEach(el => el.remove());
-    return { gleich: a.innerHTML === b.innerHTML, loecherBreit, loecherSchmal, kante };
+    return { equal: a.innerHTML === b.innerHTML, holesWide, holesNarrow, edge };
   });
-  expect(r.gleich).toBe(true);
-  expect(r.loecherBreit).toBeGreaterThan(20);
-  expect(r.loecherSchmal).toBe(0);
-  expect(r.kante).toBe(4); // zwei Plattenreihen, je zwei Punkte
+  expect(r.equal).toBe(true);
+  expect(r.holesWide).toBeGreaterThan(20);
+  expect(r.holesNarrow).toBe(0);
+  expect(r.edge).toBe(4); // zwei Plattenreihen, je zwei Punkte
 });

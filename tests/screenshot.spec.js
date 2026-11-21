@@ -1,9 +1,9 @@
 const { test } = require('@playwright/test');
 const path = require('path');
-const { setzeSpielstand } = require('./helfer');
+const { setGameState } = require('./helfer');
 
 test('Generiere Gameplay-Screenshot fuer README.md', async ({ page }) => {
-  await setzeSpielstand(page);
+  await setGameState(page);
 
   await page.goto('/');
 
@@ -22,39 +22,39 @@ test('Generiere Gameplay-Screenshot fuer README.md', async ({ page }) => {
     const inputMod = await import('./js/input.js');
 
     // Laser feuern
-    stateMod.state.energie = 100;
-    if (inputMod.feuereLaser) inputMod.feuereLaser();
+    stateMod.state.energy = 100;
+    if (inputMod.fireLaser) inputMod.fireLaser();
 
     // Feinde und Asteroiden erzeugen
-    entMod.erzeugeFeind();
-    entMod.erzeugeFeind();
-    entMod.erzeugeAsteroid();
-    entMod.erzeugeAsteroid();
+    entMod.createEnemy();
+    entMod.createEnemy();
+    entMod.createAsteroid();
+    entMod.createAsteroid();
 
     // Positionen der Feinde etwas anpassen fuer gute Bildkomposition
-    if (stateMod.arrays.feinde[0]) {
-      stateMod.arrays.feinde[0].y = 120;
-      stateMod.arrays.feinde[0].x = 100;
-      stateMod.arrays.feinde[0].el.style.top = '120px';
-      stateMod.arrays.feinde[0].el.style.left = '100px';
+    if (stateMod.arrays.enemies[0]) {
+      stateMod.arrays.enemies[0].y = 120;
+      stateMod.arrays.enemies[0].x = 100;
+      stateMod.arrays.enemies[0].el.style.top = '120px';
+      stateMod.arrays.enemies[0].el.style.left = '100px';
     }
-    if (stateMod.arrays.feinde[1]) {
-      stateMod.arrays.feinde[1].y = 180;
-      stateMod.arrays.feinde[1].x = 240;
-      stateMod.arrays.feinde[1].el.style.top = '180px';
-      stateMod.arrays.feinde[1].el.style.left = '240px';
+    if (stateMod.arrays.enemies[1]) {
+      stateMod.arrays.enemies[1].y = 180;
+      stateMod.arrays.enemies[1].x = 240;
+      stateMod.arrays.enemies[1].el.style.top = '180px';
+      stateMod.arrays.enemies[1].el.style.left = '240px';
     }
-    if (stateMod.arrays.asteroiden[0]) {
-      stateMod.arrays.asteroiden[0].y = 80;
-      stateMod.arrays.asteroiden[0].x = 180;
-      stateMod.arrays.asteroiden[0].el.style.top = '80px';
-      stateMod.arrays.asteroiden[0].el.style.left = '180px';
+    if (stateMod.arrays.asteroids[0]) {
+      stateMod.arrays.asteroids[0].y = 80;
+      stateMod.arrays.asteroids[0].x = 180;
+      stateMod.arrays.asteroids[0].el.style.top = '80px';
+      stateMod.arrays.asteroids[0].el.style.left = '180px';
     }
   });
 
   await page.waitForTimeout(300);
 
   // Screenshot vom Spielfeld aufnehmen (Pfad unabhaengig vom Arbeitsverzeichnis)
-  const spielfeld = page.locator('#spielfeld');
-  await spielfeld.screenshot({ path: path.join(__dirname, '..', 'docs', 'gameplay.png') });
+  const playfield = page.locator('#spielfeld');
+  await playfield.screenshot({ path: path.join(__dirname, '..', 'docs', 'gameplay.png') });
 });

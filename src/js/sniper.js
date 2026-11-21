@@ -11,301 +11,301 @@ import * as Utils from './utils.js';
 import * as Audio from './audio.js';
 import * as Hack from './hack.js';
 import * as Network from './network.js';
-import { schadeZiel, zeigeLadungenHud } from './gleve.js';
-import * as Anzeige from './anzeige.js';
-import { erzeugeEffekt, entferneEffekte as entferneAlleEffekte } from './effekte.js';
+import { damageTarget, showChargeHud } from './gleve.js';
+import * as Display from './anzeige.js';
+import { createEffect, removeEffects as removeAllEffects } from './effekte.js';
 
-export const FADENKREUZ_ABSTAND = 220; // px ueber der Schiffsoberkante
-export const SCHUSS_ENERGIE = 6;
-const AUTOZIEL_REICHWEITE = 320;
-const STRAHL_SCHRITTE = 8;
-export const LADEN_AB = 10; // Haltedauer in Schritten, ab der aus dem Normalschuss ein Ladeschuss wird
-export const LADUNG_VOLL = 90; // Schritte bis zur vollen Ladung (1,5 s)
-export const LADE_ENERGIE = 19; // zusaetzliche Energie fuer das Laden von Schritt 10 bis 90 (gleichmaessig)
-const LADE_KOSTEN = LADE_ENERGIE / (LADUNG_VOLL - LADEN_AB);
-export const MAX_SCHADENSFAKTOR = 4;
-export const MAX_RADIUSFAKTOR = 1.5;
+export const CROSSHAIR_DISTANCE = 220; // px ueber der Schiffsoberkante
+export const SHOT_ENERGY = 6;
+const AUTO_AIM_RANGE = 320;
+const BEAM_STEPS = 8;
+export const CHARGE_FROM = 10; // Haltedauer in Schritten, ab der aus dem Normalschuss ein Ladeschuss wird
+export const CHARGE_FULL = 90; // Schritte bis zur vollen Ladung (1,5 s)
+export const CHARGING_ENERGY = 19; // zusaetzliche Energie fuer das Laden von Schritt 10 bis 90 (gleichmaessig)
+const CHARGING_COST = CHARGING_ENERGY / (CHARGE_FULL - CHARGE_FROM);
+export const MAX_DAMAGE_FACTOR = 4;
+export const MAX_RADIUS_FACTOR = 1.5;
 
 // Werte pro Laser-Stufe 1-5
 const RADIUS = [6, 14, 22, 22, 30];
-const SCHADEN = [30, 35, 40, 45, 50];
-const SCHUSS_ABSTAND = [24, 21, 21, 18, 18];
-const AUTOZIEL_TEMPO = [0, 0, 0, 6, 10]; // px pro Schritt, 0 = kein Auto-Zielen
+const DAMAGE = [30, 35, 40, 45, 50];
+const SHOT_DISTANCE = [24, 21, 21, 18, 18];
+const AUTO_AIM_SPEED = [0, 0, 0, 6, 10]; // px pro Schritt, 0 = kein Auto-Zielen
 
 // Granate, Werte pro Raketen-Stufe 1-5
-export const GRANATE_FLUG = 30; // Schritte bis zur Explosion
-const GRANATE_BOGEN = 70; // px Bogenhoehe in der Mitte des Flugs
-const STOSS_SCHRITTE = 10; // Wegstossen gleitet ueber so viele Schritte
-const WELLE_SCHRITTE = 14; // Wachstum des Druckwellen-Rings
-const GRANATE_RADIUS = [70, 80, 90, 100, 110];
-const GRANATE_STOSS = [60, 70, 80, 90, 100];
-const GRANATE_BETAEUBUNG = [60, 72, 90, 90, 120];
-const GRANATE_SCHADEN = [0, 15, 25, 35, 45];
-const GRANATE_COOLDOWN = [240, 210, 180, 180, 150];
+export const GRENADE_FLIGHT = 30; // Schritte bis zur Explosion
+const GRENADE_ARC = 70; // px Bogenhoehe in der Mitte des Flugs
+const PUSH_STEPS = 10; // Wegstossen gleitet ueber so viele Schritte
+const WAVE_STEPS = 14; // Wachstum des Druckwellen-Rings
+const GRENADE_RADIUS = [70, 80, 90, 100, 110];
+const GRENADE_PUSH = [60, 70, 80, 90, 100];
+const GRENADE_STUN = [60, 72, 90, 90, 120];
+const GRENADE_DAMAGE = [0, 15, 25, 35, 45];
+const GRENADE_COOLDOWN = [240, 210, 180, 180, 150];
 
 // Granaten-Taste: Tippen (< HALTEN_AB Schritte) = Granate + EMP, Halten (ab HALTEN_AB) = Haftminen
-export const HALTEN_AB = 10;
+export const HOLD_FROM = 10;
 // EMP (beim Tippen): Ring waechst in EMP_SCHRITTE auf den Radius der Raketen-Stufe, zerstoert feindliche Geschosse und betaeubt Feinde
-export const EMP_SCHRITTE = 10;
-export const EMP_BETAEUBUNG = 30;
+export const EMP_STEPS = 10;
+export const EMP_STUN = 30;
 const EMP_RADIUS = [70, 80, 90, 100, 110];
 
 // Haftminen (beim Halten): alle MINE_INTERVALL Schritte ab HALTEN_AB eine Mine, max. MINE_MAX_PRO_HALTEN pro Halten,
 // max. MINE_MAX_AKTIV pro Spieler (aelteste weg). Lebensdauer MINE_LEBEN (die letzten MINE_BLINK blinkend); haftet am Ziel
 // und explodiert nach MINE_ZUENDUNG Schritten mit Radius MINE_RADIUS.
-export const MINE_INTERVALL = 12;
-export const MINE_MAX_PRO_HALTEN = 5;
-export const MINE_MAX_AKTIV = 8;
-export const MINE_LEBEN = 360;
+export const MINE_INTERVAL = 12;
+export const MINE_MAX_PRO_HOLD = 5;
+export const MINE_MAX_ACTIVE = 8;
+export const MINE_LIVES = 360;
 export const MINE_BLINK = 60;
-export const MINE_ZUENDUNG = 30;
+export const MINE_IGNITION = 30;
 export const MINE_RADIUS = 30;
 // Freie Minen driften langsam nach oben, den Gegnern entgegen (px pro Schritt)
 export const MINE_DRIFT = 0.6;
-export const MINE_GROESSE = 12;
-const MINE_SCHADEN = [20, 25, 30, 35, 40];
+export const MINE_SIZE = 12;
+const MINE_DAMAGE = [20, 25, 30, 35, 40];
 
-function stufenIndex(pState) {
-  return Math.max(1, Math.min(5, pState.laserStufe || 1)) - 1;
+function tierIndex(pState) {
+  return Math.max(1, Math.min(5, pState.laserTier || 1)) - 1;
 }
 
-function raketenIndex(pState) {
-  return Math.max(1, Math.min(5, pState.raketenStufe || 1)) - 1;
+function missileIndex(pState) {
+  return Math.max(1, Math.min(5, pState.missileTier || 1)) - 1;
 }
 
-export function istSniper(pState) {
+export function isSniper(pState) {
   return !!pState && pState.selectedShipModel === 'sniper';
 }
 
-export function trefferRadius(pState) {
-  return RADIUS[stufenIndex(pState)];
+export function hitRadius(pState) {
+  return RADIUS[tierIndex(pState)];
 }
-export function schussSchaden(pState) {
-  return SCHADEN[stufenIndex(pState)];
+export function shotDamage(pState) {
+  return DAMAGE[tierIndex(pState)];
 }
-export function schussAbstand(pState) {
-  return SCHUSS_ABSTAND[stufenIndex(pState)];
+export function shotDistance(pState) {
+  return SHOT_DISTANCE[tierIndex(pState)];
 }
-export function autoZielTempo(pState) {
-  return AUTOZIEL_TEMPO[stufenIndex(pState)];
+export function autoTargetSpeed(pState) {
+  return AUTO_AIM_SPEED[tierIndex(pState)];
 }
-export function granatenCooldown(pState) {
-  return GRANATE_COOLDOWN[raketenIndex(pState)];
+export function grenadeCooldown(pState) {
+  return GRENADE_COOLDOWN[missileIndex(pState)];
 }
 // Granaten-Ladungen: Raketen-Stufe 1-3 -> 2, 4-5 -> 3. raketenCooldown ist die Ladezeit der naechsten Ladung.
-export function granatenMax(pState) {
-  return (pState.raketenStufe || 1) >= 4 ? 3 : 2;
+export function grenadeMax(pState) {
+  return (pState.missileTier || 1) >= 4 ? 3 : 2;
 }
 
 // Ladungen voll, kein laufendes Nachladen (Spielstart, Neustart, Schiffswechsel)
-export function setzeGranatenLadungenVoll(pState) {
+export function setGrenadeChargeFull(pState) {
   if (!pState) return;
-  pState.sniperGranatenLadungen = granatenMax(pState);
-  pState.raketenCooldown = 0;
+  pState.sniperGrenadeCharges = grenadeMax(pState);
+  pState.missileCooldown = 0;
 }
 
-export function granatenLadungen(pState) {
-  return pState.sniperGranatenLadungen === undefined ? granatenMax(pState) : pState.sniperGranatenLadungen;
+export function grenadeCharges(pState) {
+  return pState.sniperGrenadeCharges === undefined ? grenadeMax(pState) : pState.sniperGrenadeCharges;
 }
 
 // Verbraucht eine Ladung; ein Nachladen startet nur, wenn noch keins laeuft
-function verbraucheGranate(pState) {
-  pState.sniperGranatenLadungen = Math.max(0, granatenLadungen(pState) - 1);
-  if ((pState.raketenCooldown || 0) <= 0) pState.raketenCooldown = granatenCooldown(pState);
+function consumeGrenade(pState) {
+  pState.sniperGrenadeCharges = Math.max(0, grenadeCharges(pState) - 1);
+  if ((pState.missileCooldown || 0) <= 0) pState.missileCooldown = grenadeCooldown(pState);
 }
 
 // Pro Schritt (waffen.js): Nachladen nacheinander (laeuft auf 0 -> +1 Ladung, ggf. weiter laden) und HUD
-export function aktualisiereGranatenLadungen(pKey, pState) {
-  const max = granatenMax(pState);
-  if (pState.sniperGranatenLadungen === undefined) pState.sniperGranatenLadungen = max;
-  if (pState.sniperGranatenLadungen > max) pState.sniperGranatenLadungen = max;
-  if (pState.raketenCooldown > 0) {
-    pState.raketenCooldown--;
-    if (pState.raketenCooldown <= 0) {
-      pState.sniperGranatenLadungen = Math.min(max, pState.sniperGranatenLadungen + 1);
-      pState.raketenCooldown = pState.sniperGranatenLadungen < max ? granatenCooldown(pState) : 0;
+export function updateGrenadeCharges(pKey, pState) {
+  const max = grenadeMax(pState);
+  if (pState.sniperGrenadeCharges === undefined) pState.sniperGrenadeCharges = max;
+  if (pState.sniperGrenadeCharges > max) pState.sniperGrenadeCharges = max;
+  if (pState.missileCooldown > 0) {
+    pState.missileCooldown--;
+    if (pState.missileCooldown <= 0) {
+      pState.sniperGrenadeCharges = Math.min(max, pState.sniperGrenadeCharges + 1);
+      pState.missileCooldown = pState.sniperGrenadeCharges < max ? grenadeCooldown(pState) : 0;
     }
-  } else if (pState.sniperGranatenLadungen < max) {
+  } else if (pState.sniperGrenadeCharges < max) {
     // z. B. nach Upgrade auf Stufe 4: Nachladen starten
-    pState.raketenCooldown = granatenCooldown(pState);
+    pState.missileCooldown = grenadeCooldown(pState);
   }
-  zeigeGranatenHud(pKey, pState);
+  showGrenadeHud(pKey, pState);
 }
 
-export function zeigeGranatenHud(pKey, pState) {
-  if (!pState || !istSniper(pState)) return;
-  zeigeLadungenHud(pKey, pState, granatenLadungen(pState), granatenMax(pState), granatenCooldown(pState));
+export function showGrenadeHud(pKey, pState) {
+  if (!pState || !isSniper(pState)) return;
+  showChargeHud(pKey, pState, grenadeCharges(pState), grenadeMax(pState), grenadeCooldown(pState));
 }
-export function granatenRadius(pState) {
-  return GRANATE_RADIUS[raketenIndex(pState)];
+export function grenadeRadius(pState) {
+  return GRENADE_RADIUS[missileIndex(pState)];
 }
-export function granatenStoss(pState) {
-  return GRANATE_STOSS[raketenIndex(pState)];
+export function grenadePush(pState) {
+  return GRENADE_PUSH[missileIndex(pState)];
 }
-export function granatenBetaeubung(pState) {
-  return GRANATE_BETAEUBUNG[raketenIndex(pState)];
+export function grenadeStun(pState) {
+  return GRENADE_STUN[missileIndex(pState)];
 }
-export function granatenSchaden(pState) {
-  return GRANATE_SCHADEN[raketenIndex(pState)];
+export function grenadeDamage(pState) {
+  return GRENADE_DAMAGE[missileIndex(pState)];
 }
 export function empRadius(pState) {
-  return EMP_RADIUS[raketenIndex(pState)];
+  return EMP_RADIUS[missileIndex(pState)];
 }
-export function minenSchaden(pState) {
-  return MINE_SCHADEN[raketenIndex(pState)];
+export function mineDamage(pState) {
+  return MINE_DAMAGE[missileIndex(pState)];
 }
 
 // Ladeanteil 0-1 (unter 10 Schritten Haltedauer = Normalschuss, also 0)
-export function ladeAnteil(ladung) {
-  return ladung < LADEN_AB ? 0 : Math.min(1, ladung / LADUNG_VOLL);
+export function chargeShare(charge) {
+  return charge < CHARGE_FROM ? 0 : Math.min(1, charge / CHARGE_FULL);
 }
-export function schadensFaktor(ladung) {
-  return 1 + (MAX_SCHADENSFAKTOR - 1) * ladeAnteil(ladung);
+export function damageFactor(charge) {
+  return 1 + (MAX_DAMAGE_FACTOR - 1) * chargeShare(charge);
 }
-export function radiusFaktor(ladung) {
-  return 1 + (MAX_RADIUSFAKTOR - 1) * ladeAnteil(ladung);
+export function radiusFactor(charge) {
+  return 1 + (MAX_RADIUS_FACTOR - 1) * chargeShare(charge);
 }
-export function istVoll(ladung) {
-  return ladung >= LADUNG_VOLL;
+export function isFull(charge) {
+  return charge >= CHARGE_FULL;
 }
 // Laedt der Spieler gerade (Taste gehalten)? Dann gibt es keine Energie-Regeneration.
-export function laedt(pState) {
-  return !!pState && istSniper(pState) && !!pState.sniperGehalten;
+export function isCharging(pState) {
+  return !!pState && isSniper(pState) && !!pState.sniperHeld;
 }
 
-function schiffFarbe(pState) {
+function shipColor(pState) {
   const c = shipColors[pState.selectedShipColor];
   return c ? c.prim : '#ffffff';
 }
 
 // Schiffsmitte oben (Strahlursprung)
-function schiffsNase(pState) {
+function shipNose(pState) {
   return { x: pState.x + 15, y: pState.y };
 }
 
 // Grundposition des Fadenkreuzes: ueber dem Schiff, am oberen Feldrand begrenzt
-export function grundPosition(pState) {
-  const n = schiffsNase(pState);
-  return { x: n.x, y: Math.max(0, n.y - FADENKREUZ_ABSTAND) };
+export function basePosition(pState) {
+  const n = shipNose(pState);
+  return { x: n.x, y: Math.max(0, n.y - CROSSHAIR_DISTANCE) };
 }
 
 // --- ZIELE ---
 
-function zielBox(z) {
-  const g = z.groesse || 20;
+function targetBox(z) {
+  const g = z.size || 20;
   const w = z.width || g;
   const h = z.height || g;
-  const pad = z.istBoss ? g * 0.15 : 0;
+  const pad = z.isBoss ? g * 0.15 : 0;
   return { x1: z.x + pad, y1: z.y + pad, x2: z.x + w - pad, y2: z.y + h - pad };
 }
 
-function zielMitte(z) {
-  const b = zielBox(z);
+function targetMiddle(z) {
+  const b = targetBox(z);
   return { x: (b.x1 + b.x2) / 2, y: (b.y1 + b.y2) / 2 };
 }
 
 // Schneidet die Box den Kreis? (naechster Punkt der Box zum Kreismittelpunkt)
-function boxSchneidetKreis(b, cx, cy, r) {
+function boxIntersectsCircle(b, cx, cy, r) {
   const nx = Math.max(b.x1, Math.min(cx, b.x2));
   const ny = Math.max(b.y1, Math.min(cy, b.y2));
   return Math.hypot(nx - cx, ny - cy) <= r;
 }
 
-function alleZiele() {
+function allTargets() {
   return [
-    ...arrays.feinde,
-    ...arrays.asteroiden,
+    ...arrays.enemies,
+    ...arrays.asteroids,
     ...arrays.bosses,
-    ...arrays.bossRaketenArray,
-    ...arrays.bossBombenArray,
+    ...arrays.bossMissileArray,
+    ...arrays.bossBombArray,
   ];
 }
 
 // Ziele im Trefferkreis (Magma bleibt unversehrt und zaehlt nicht mit)
-export function zieleImKreis(cx, cy, r) {
-  return alleZiele().filter(
+export function targetInCircle(cx, cy, r) {
+  return allTargets().filter(
     z =>
-      !z.istUnzerstoerbar &&
+      !z.isIndestructible &&
       (z.hp === undefined || z.hp > 0) &&
       (z.immune || 0) <= 0 &&
-      boxSchneidetKreis(zielBox(z), cx, cy, r),
+      boxIntersectsCircle(targetBox(z), cx, cy, r),
   );
 }
 
 // --- AUTO-ZIELEN ---
 
 // Naechster Gegner (Feind/Boss, kein Asteroid) oberhalb des Schiffs innerhalb der Reichweite
-function autoZiel(pState) {
-  const n = schiffsNase(pState);
-  let bestes = null;
-  let besteDist = Infinity;
-  for (const z of [...arrays.feinde, ...arrays.bosses]) {
-    if (z.istUnzerstoerbar || (z.hp !== undefined && z.hp <= 0)) continue;
-    const m = zielMitte(z);
+function autoTarget(pState) {
+  const n = shipNose(pState);
+  let best = null;
+  let bestDist = Infinity;
+  for (const z of [...arrays.enemies, ...arrays.bosses]) {
+    if (z.isIndestructible || (z.hp !== undefined && z.hp <= 0)) continue;
+    const m = targetMiddle(z);
     if (m.y >= n.y) continue;
     const dist = Math.hypot(m.x - n.x, m.y - n.y);
-    if (dist <= AUTOZIEL_REICHWEITE && dist < besteDist) {
-      besteDist = dist;
-      bestes = m;
+    if (dist <= AUTO_AIM_RANGE && dist < bestDist) {
+      bestDist = dist;
+      best = m;
     }
   }
-  return bestes;
+  return best;
 }
 
-function gleiteZu(pState, zx, zy, tempo) {
-  const dx = zx - pState.sniperZielX;
-  const dy = zy - pState.sniperZielY;
+function glideTo(pState, zx, zy, speed) {
+  const dx = zx - pState.sniperTargetX;
+  const dy = zy - pState.sniperTargetY;
   const dist = Math.hypot(dx, dy);
-  if (dist <= tempo) {
-    pState.sniperZielX = zx;
-    pState.sniperZielY = zy;
+  if (dist <= speed) {
+    pState.sniperTargetX = zx;
+    pState.sniperTargetY = zy;
   } else {
-    pState.sniperZielX += (dx / dist) * tempo;
-    pState.sniperZielY += (dy / dist) * tempo;
+    pState.sniperTargetX += (dx / dist) * speed;
+    pState.sniperTargetY += (dy / dist) * speed;
   }
 }
 
-function aktualisiereFadenkreuz(pState) {
-  const grund = grundPosition(pState);
-  const tempo = autoZielTempo(pState);
-  if (pState.sniperZielX == null || tempo === 0) {
+function updateCrosshair(pState) {
+  const reason = basePosition(pState);
+  const speed = autoTargetSpeed(pState);
+  if (pState.sniperTargetX == null || speed === 0) {
     // Kein Auto-Zielen: Fadenkreuz klebt an der Grundposition (auch beim Wechsel auf eine niedrigere Stufe)
-    pState.sniperZielX = grund.x;
-    pState.sniperZielY = grund.y;
+    pState.sniperTargetX = reason.x;
+    pState.sniperTargetY = reason.y;
     return;
   }
-  const ziel = autoZiel(pState);
-  const sollX = ziel ? ziel.x : grund.x;
-  const sollY = ziel ? ziel.y : grund.y;
-  gleiteZu(pState, sollX, sollY, tempo);
-  pState.sniperZielX = Math.max(0, Math.min(config.spielfeldBreite, pState.sniperZielX));
-  pState.sniperZielY = Math.max(0, Math.min(config.spielfeldHoehe, pState.sniperZielY));
+  const target = autoTarget(pState);
+  const shouldX = target ? target.x : reason.x;
+  const shouldY = target ? target.y : reason.y;
+  glideTo(pState, shouldX, shouldY, speed);
+  pState.sniperTargetX = Math.max(0, Math.min(config.playfieldWidth, pState.sniperTargetX));
+  pState.sniperTargetY = Math.max(0, Math.min(config.playfieldHeight, pState.sniperTargetY));
 }
 
 // --- DARSTELLUNG ---
 // Das Fadenkreuz samt Ladering zeichnet das Anzeige-Backend aus dem Spielerzustand (zeichneFadenkreuz in anzeige-dom.js).
 
-function erzeugeStrahl(pState, anteil = 0) {
-  const n = schiffsNase(pState);
-  const dx = pState.sniperZielX - n.x;
-  const dy = pState.sniperZielY - n.y;
-  erzeugeEffekt({
-    art: 'sniperStrahl',
+function createBeam(pState, share = 0) {
+  const n = shipNose(pState);
+  const dx = pState.sniperTargetX - n.x;
+  const dy = pState.sniperTargetY - n.y;
+  createEffect({
+    kind: 'sniperBeam',
     x: n.x,
     y: n.y,
-    laenge: Math.hypot(dx, dy),
-    winkel: (Math.atan2(dx, -dy) * 180) / Math.PI,
-    breite: 3 + 9 * anteil,
-    glow: anteil,
-    farbe: schiffFarbe(pState),
+    length: Math.hypot(dx, dy),
+    angle: (Math.atan2(dx, -dy) * 180) / Math.PI,
+    width: 3 + 9 * share,
+    glow: share,
+    color: shipColor(pState),
     pKey: pState === state ? 'p1' : 'p2',
-    rest: STRAHL_SCHRITTE,
+    rest: BEAM_STEPS,
   });
 }
 
-function erzeugeEinschlag(pState, cx, cy, anteil = 0) {
-  Utils.erzeugeExplosion(cx, cy, '#ffffff', 6 + Math.round(8 * anteil));
-  Utils.erzeugeExplosion(cx, cy, schiffFarbe(pState), 4 + Math.round(6 * anteil));
+function createImpact(pState, cx, cy, share = 0) {
+  Utils.createExplosion(cx, cy, '#ffffff', 6 + Math.round(8 * share));
+  Utils.createExplosion(cx, cy, shipColor(pState), 4 + Math.round(6 * share));
 }
 
 // --- SCHUSS ---
@@ -314,67 +314,67 @@ function erzeugeEinschlag(pState, cx, cy, anteil = 0) {
 // `ladung` (Schritte, 0 = Normalschuss) skaliert Schaden (x1 bis x4) und Radius (x1 bis x1,5); der voll geladene Schuss
 // trifft unabhaengig von der Stufe alle Ziele im Kreis und ignoriert Schilde (Schild weg, Schaden auf die HP).
 // Gibt die Anzahl der getroffenen Ziele zurueck.
-export function feuereSchuss(pState, pKey, ladung = 0) {
-  const cx = pState.sniperZielX;
-  const cy = pState.sniperZielY;
-  const voll = istVoll(ladung);
-  const anteil = ladeAnteil(ladung);
-  let ziele = zieleImKreis(cx, cy, trefferRadius(pState) * radiusFaktor(ladung));
-  if (!voll && (pState.laserStufe || 1) < 3 && ziele.length > 1) {
-    let bestes = ziele[0];
-    let besteDist = Infinity;
-    for (const z of ziele) {
-      const m = zielMitte(z);
+export function fireShot(pState, pKey, charge = 0) {
+  const cx = pState.sniperTargetX;
+  const cy = pState.sniperTargetY;
+  const full = isFull(charge);
+  const share = chargeShare(charge);
+  let targets = targetInCircle(cx, cy, hitRadius(pState) * radiusFactor(charge));
+  if (!full && (pState.laserTier || 1) < 3 && targets.length > 1) {
+    let best = targets[0];
+    let bestDist = Infinity;
+    for (const z of targets) {
+      const m = targetMiddle(z);
       const d = Math.hypot(m.x - cx, m.y - cy);
-      if (d < besteDist) {
-        besteDist = d;
-        bestes = z;
+      if (d < bestDist) {
+        bestDist = d;
+        best = z;
       }
     }
-    ziele = [bestes];
+    targets = [best];
   }
-  const schaden = schussSchaden(pState) * schadensFaktor(ladung);
-  for (const z of ziele) {
-    const m = zielMitte(z);
-    erzeugeEinschlag(pState, m.x, m.y, anteil);
-    if (voll && (z.schildHp || 0) > 0) {
-      z.schildHp = 0;
+  const damage = shotDamage(pState) * damageFactor(charge);
+  for (const z of targets) {
+    const m = targetMiddle(z);
+    createImpact(pState, m.x, m.y, share);
+    if (full && (z.shieldHp || 0) > 0) {
+      z.shieldHp = 0;
     }
-    schadeZiel(z, schaden, pKey);
+    damageTarget(z, damage, pKey);
   }
-  if (!ziele.length) erzeugeEinschlag(pState, cx, cy, anteil);
-  erzeugeStrahl(pState, anteil);
-  Audio.playSniperSchuss(pState.laserStufe || 1, anteil);
-  return ziele.length;
+  if (!targets.length) createImpact(pState, cx, cy, share);
+  createBeam(pState, share);
+  Audio.playSniperShot(pState.laserTier || 1, share);
+  return targets.length;
 }
 
-function setzeLadungZurueck(pState) {
-  pState.sniperLadung = 0;
-  pState.sniperVoll = false;
+function resetCharge(pState) {
+  pState.sniperCharge = 0;
+  pState.sniperFull = false;
 }
 
 // Einen Ladeschritt (Taste gehalten): die ersten 10 Schritte kosten nichts, danach 19/80 Energie pro Schritt.
 // Reicht die Energie nicht (es muss immer noch der Schuss mit 6 Energie moeglich bleiben), bleibt die Ladung stehen.
-function lade(pState) {
-  if ((pState.sniperLadung || 0) >= LADUNG_VOLL) return;
-  if (pState.sniperLadung >= LADEN_AB && !pState.unbegrenzteEnergie) {
-    if (pState.energie - LADE_KOSTEN < SCHUSS_ENERGIE) return;
-    pState.energie -= LADE_KOSTEN;
+function charging(pState) {
+  if ((pState.sniperCharge || 0) >= CHARGE_FULL) return;
+  if (pState.sniperCharge >= CHARGE_FROM && !pState.unlimitedEnergy) {
+    if (pState.energy - CHARGING_COST < SHOT_ENERGY) return;
+    pState.energy -= CHARGING_COST;
   }
-  pState.sniperLadung++;
-  if (istVoll(pState.sniperLadung) && !pState.sniperVoll) {
-    pState.sniperVoll = true;
-    Audio.playSniperVoll();
+  pState.sniperCharge++;
+  if (isFull(pState.sniperCharge) && !pState.sniperFull) {
+    pState.sniperFull = true;
+    Audio.playSniperFull();
   }
 }
 
 // Schuss mit Schussabstand-Sperre und Energiepruefung; false = kein Schuss (Ladung verfaellt)
-function versuche(pState, pKey, ladung) {
+function attempts(pState, pKey, charge) {
   if ((pState.sniperCooldown || 0) > 0) return false;
-  if (!pState.unbegrenzteEnergie && pState.energie < SCHUSS_ENERGIE) return false;
-  if (!pState.unbegrenzteEnergie) pState.energie -= SCHUSS_ENERGIE;
-  pState.sniperCooldown = schussAbstand(pState);
-  feuereSchuss(pState, pKey, ladung);
+  if (!pState.unlimitedEnergy && pState.energy < SHOT_ENERGY) return false;
+  if (!pState.unlimitedEnergy) pState.energy -= SHOT_ENERGY;
+  pState.sniperCooldown = shotDistance(pState);
+  fireShot(pState, pKey, charge);
   return true;
 }
 
@@ -382,89 +382,89 @@ function versuche(pState, pKey, ladung) {
 
 // Granaten im Flug: arrays.sniperGranaten, { id, pKey, x, y (Mitte), startX, startY, zielX, zielY, rest, rot, werte }
 // (Client: nur id, pKey, x, y, rest, rot aus dem Snapshot)
-let granatenId = 0;
-const stoesse = []; // { z, vx, vy, rest, pKey } laufendes Wegstossen
+let grenadeId = 0;
+const pushes = []; // { z, vx, vy, rest, pKey } laufendes Wegstossen
 
 // Wurf zum Fadenkreuz (Position beim Wurf), Flug in GRANATE_FLUG Schritten im Bogen; die Werte der Stufe gelten ab dem Wurf.
-export function werfeGranate(pState, pKey) {
-  const n = schiffsNase(pState);
-  const grund = grundPosition(pState);
-  const zx = pState.sniperZielX != null ? pState.sniperZielX : grund.x;
-  const zy = pState.sniperZielY != null ? pState.sniperZielY : grund.y;
-  arrays.sniperGranaten.push(
-    Anzeige.erzeuge(
+export function throwGrenade(pState, pKey) {
+  const n = shipNose(pState);
+  const reason = basePosition(pState);
+  const zx = pState.sniperTargetX != null ? pState.sniperTargetX : reason.x;
+  const zy = pState.sniperTargetY != null ? pState.sniperTargetY : reason.y;
+  arrays.sniperGrenades.push(
+    Display.create(
       {
-        id: 'sg_' + ++granatenId,
+        id: 'sg_' + ++grenadeId,
         pKey,
         x: n.x,
         y: n.y,
         startX: n.x,
         startY: n.y,
-        zielX: zx,
-        zielY: zy,
-        rest: GRANATE_FLUG,
+        targetX: zx,
+        targetY: zy,
+        rest: GRENADE_FLIGHT,
         rot: 0,
-        werte: {
-          radius: granatenRadius(pState),
-          stoss: granatenStoss(pState),
-          betaeubung: granatenBetaeubung(pState),
-          schaden: granatenSchaden(pState),
-          loescht: (pState.raketenStufe || 1) >= 5,
+        values: {
+          radius: grenadeRadius(pState),
+          push: grenadePush(pState),
+          stun: grenadeStun(pState),
+          damage: grenadeDamage(pState),
+          deletes: (pState.missileTier || 1) >= 5,
         },
       },
-      'sniperGranate',
+      'sniperGrenade',
     ),
   );
 }
 
-function aktualisiereGranaten(pKey) {
-  for (let i = arrays.sniperGranaten.length - 1; i >= 0; i--) {
-    const g = arrays.sniperGranaten[i];
+function updateGrenades(pKey) {
+  for (let i = arrays.sniperGrenades.length - 1; i >= 0; i--) {
+    const g = arrays.sniperGrenades[i];
     if (g.pKey !== pKey) continue;
     g.rest--;
     if (g.rest <= 0) {
-      Anzeige.entferne(g);
-      arrays.sniperGranaten.splice(i, 1);
-      explodiereGranate(g);
+      Display.remove(g);
+      arrays.sniperGrenades.splice(i, 1);
+      explodeGrenade(g);
       continue;
     }
-    const t = 1 - g.rest / GRANATE_FLUG;
-    const x = g.startX + (g.zielX - g.startX) * t;
-    const y = g.startY + (g.zielY - g.startY) * t - Math.sin(Math.PI * t) * GRANATE_BOGEN;
+    const t = 1 - g.rest / GRENADE_FLIGHT;
+    const x = g.startX + (g.targetX - g.startX) * t;
+    const y = g.startY + (g.targetY - g.startY) * t - Math.sin(Math.PI * t) * GRENADE_ARC;
     g.rot += 24;
     g.x = x;
     g.y = y;
   }
 }
 
-function erzeugeDruckwelle(cx, cy, radius, pKey, art = 'sniperDruckwelle') {
-  erzeugeEffekt({ art, x: cx, y: cy, radius, pKey, rest: WELLE_SCHRITTE });
+function createBlastWave(cx, cy, radius, pKey, kind = 'sniperBlastWave') {
+  createEffect({ kind, x: cx, y: cy, radius, pKey, rest: WAVE_STEPS });
 }
 
-function wegstossZiele() {
-  return [...arrays.feinde, ...arrays.asteroiden, ...arrays.bosses];
+function pushAwayTargets() {
+  return [...arrays.enemies, ...arrays.asteroids, ...arrays.bosses];
 }
 
-function loescheGeschosse(array, cx, cy, r) {
+function deleteProjectiles(array, cx, cy, r) {
   for (let i = array.length - 1; i >= 0; i--) {
     const p = array[i];
-    const b = { x1: p.x, y1: p.y, x2: p.x + (p.width || p.groesse || 4), y2: p.y + (p.height || p.groesse || 4) };
-    if (boxSchneidetKreis(b, cx, cy, r)) {
-      Utils.erzeugeExplosion((b.x1 + b.x2) / 2, (b.y1 + b.y2) / 2, '#ffffff', 3);
-      Anzeige.entferne(p);
+    const b = { x1: p.x, y1: p.y, x2: p.x + (p.width || p.size || 4), y2: p.y + (p.height || p.size || 4) };
+    if (boxIntersectsCircle(b, cx, cy, r)) {
+      Utils.createExplosion((b.x1 + b.x2) / 2, (b.y1 + b.y2) / 2, '#ffffff', 3);
+      Display.remove(p);
       array.splice(i, 1);
     }
   }
 }
 
-function explodiereGranate(g) {
-  const cx = g.zielX;
-  const cy = g.zielY;
-  const w = g.werte;
-  Audio.playGranate();
-  Utils.erzeugeExplosion(cx, cy, '#ffffff', 10);
-  Utils.erzeugeExplosion(cx, cy, '#ffeb3b', 10);
-  erzeugeDruckwelle(cx, cy, w.radius, g.pKey);
+function explodeGrenade(g) {
+  const cx = g.targetX;
+  const cy = g.targetY;
+  const w = g.values;
+  Audio.playGrenade();
+  Utils.createExplosion(cx, cy, '#ffffff', 10);
+  Utils.createExplosion(cx, cy, '#ffeb3b', 10);
+  createBlastWave(cx, cy, w.radius, g.pKey);
   // Online-Host: der Client zeigt die Druckwelle ueber ein Ereignis (Granate verschwindet im Snapshot)
   if (state.gameMode === 'online' && state.network && state.network.isHost) {
     Network.sendNetworkEvent({
@@ -476,10 +476,10 @@ function explodiereGranate(g) {
     });
   }
 
-  for (const z of wegstossZiele().filter(
-    t => (t.hp === undefined || t.hp > 0) && boxSchneidetKreis(zielBox(t), cx, cy, w.radius),
+  for (const z of pushAwayTargets().filter(
+    t => (t.hp === undefined || t.hp > 0) && boxIntersectsCircle(targetBox(t), cx, cy, w.radius),
   )) {
-    const m = zielMitte(z);
+    const m = targetMiddle(z);
     let dx = m.x - cx;
     let dy = m.y - cy;
     let dist = Math.hypot(dx, dy);
@@ -488,74 +488,74 @@ function explodiereGranate(g) {
       dy = -1;
       dist = 1;
     }
-    if (w.schaden > 0 && !z.istUnzerstoerbar) schadeZiel(z, w.schaden, g.pKey);
+    if (w.damage > 0 && !z.isIndestructible) damageTarget(z, w.damage, g.pKey);
     // Vom Schaden zerstoert: nichts mehr zu tun
-    if (!wegstossZiele().includes(z)) continue;
-    if (!z.istBoss) {
-      stoesse.push({
+    if (!pushAwayTargets().includes(z)) continue;
+    if (!z.isBoss) {
+      pushes.push({
         z,
-        vx: ((dx / dist) * w.stoss) / STOSS_SCHRITTE,
-        vy: ((dy / dist) * w.stoss) / STOSS_SCHRITTE,
-        rest: STOSS_SCHRITTE,
+        vx: ((dx / dist) * w.push) / PUSH_STEPS,
+        vy: ((dy / dist) * w.push) / PUSH_STEPS,
+        rest: PUSH_STEPS,
         pKey: g.pKey,
       });
     }
-    if (z.istFeind || z.istBoss) {
-      const dauer = z.istBoss ? Math.round(w.betaeubung / 2) : w.betaeubung;
-      z.betaeubt = Math.max(z.betaeubt || 0, dauer);
+    if (z.isEnemy || z.isBoss) {
+      const duration = z.isBoss ? Math.round(w.stun / 2) : w.stun;
+      z.stunned = Math.max(z.stunned || 0, duration);
     }
   }
 
-  if (w.loescht) {
-    loescheGeschosse(arrays.feindLaserArray, cx, cy, w.radius);
-    loescheGeschosse(arrays.bossLaserArray, cx, cy, w.radius);
-    loescheGeschosse(arrays.hackProjektilArray, cx, cy, w.radius);
+  if (w.deletes) {
+    deleteProjectiles(arrays.enemyLaserArray, cx, cy, w.radius);
+    deleteProjectiles(arrays.bossLaserArray, cx, cy, w.radius);
+    deleteProjectiles(arrays.hackProjectileArray, cx, cy, w.radius);
   }
 }
 
 // --- GRANATEN-TASTE (Tippen / Halten) und EMP ---
 
 // Mittelpunkt des Schiffs (EMP-Ursprung)
-function schiffsMitte(pState) {
-  return { x: pState.x + config.spielerGroesse / 2, y: pState.y + config.spielerGroesse / 2 };
+function shipMiddle(pState) {
+  return { x: pState.x + config.playerSize / 2, y: pState.y + config.playerSize / 2 };
 }
 
-function erzeugeEmpRing(cx, cy, radius, pKey) {
-  erzeugeEffekt({ art: 'sniperEmp', x: cx, y: cy, radius, pKey, rest: EMP_SCHRITTE });
+function createEmpRing(cx, cy, radius, pKey) {
+  createEffect({ kind: 'sniperEmp', x: cx, y: cy, radius, pKey, rest: EMP_STEPS });
 }
 
 // Feindliche Geschosse im Radius entfernen (mit kleinem Funken); Bomben ohne Detonation
-function zerstoereGeschosse(array, cx, cy, r) {
+function destroyProjectiles(array, cx, cy, r) {
   for (let i = array.length - 1; i >= 0; i--) {
     const p = array[i];
-    const b = { x1: p.x, y1: p.y, x2: p.x + (p.width || p.groesse || 4), y2: p.y + (p.height || p.groesse || 4) };
-    if (boxSchneidetKreis(b, cx, cy, r)) {
-      Utils.erzeugeExplosion((b.x1 + b.x2) / 2, (b.y1 + b.y2) / 2, '#4fc3f7', 4);
-      Anzeige.entferne(p);
+    const b = { x1: p.x, y1: p.y, x2: p.x + (p.width || p.size || 4), y2: p.y + (p.height || p.size || 4) };
+    if (boxIntersectsCircle(b, cx, cy, r)) {
+      Utils.createExplosion((b.x1 + b.x2) / 2, (b.y1 + b.y2) / 2, '#4fc3f7', 4);
+      Display.remove(p);
       array.splice(i, 1);
     }
   }
 }
 
 // EMP ums eigene Schiff: Geschosse zerstoeren, Feinde (keine Bosse, keine Asteroiden) 30 Schritte betaeuben, kein Schaden.
-export function loeseEmpAus(pState, pKey) {
-  const m = schiffsMitte(pState);
+export function triggerEmp(pState, pKey) {
+  const m = shipMiddle(pState);
   const r = empRadius(pState);
   Audio.playEmp();
-  erzeugeEmpRing(m.x, m.y, r, pKey);
-  for (const liste of [
-    arrays.feindLaserArray,
+  createEmpRing(m.x, m.y, r, pKey);
+  for (const list of [
+    arrays.enemyLaserArray,
     arrays.bossLaserArray,
-    arrays.hackProjektilArray,
-    arrays.bossRaketenArray,
-    arrays.bossBombenArray,
+    arrays.hackProjectileArray,
+    arrays.bossMissileArray,
+    arrays.bossBombArray,
   ]) {
-    zerstoereGeschosse(liste, m.x, m.y, r);
+    destroyProjectiles(list, m.x, m.y, r);
   }
-  for (const f of arrays.feinde) {
+  for (const f of arrays.enemies) {
     if (f.hp !== undefined && f.hp <= 0) continue;
-    if (!boxSchneidetKreis(zielBox(f), m.x, m.y, r)) continue;
-    f.betaeubt = Math.max(f.betaeubt || 0, EMP_BETAEUBUNG);
+    if (!boxIntersectsCircle(targetBox(f), m.x, m.y, r)) continue;
+    f.stunned = Math.max(f.stunned || 0, EMP_STUN);
   }
   if (state.gameMode === 'online' && state.network && state.network.isHost) {
     Network.sendNetworkEvent({
@@ -570,69 +570,69 @@ export function loeseEmpAus(pState, pKey) {
 
 // --- HAFTMINEN ---
 
-function ueberlappen(a, b) {
+function overlap(a, b) {
   return a.x1 <= b.x2 && a.x2 >= b.x1 && a.y1 <= b.y2 && a.y2 >= b.y1;
 }
 
 function mineBox(m) {
-  const h = MINE_GROESSE / 2;
+  const h = MINE_SIZE / 2;
   return { x1: m.x - h, y1: m.y - h, x2: m.x + h, y2: m.y + h };
 }
 
 // Ziele fuer Kontakt und Explosion: Feinde, Asteroiden (ausser Magma) und Bosse
-function minenZiele() {
-  return [...arrays.feinde, ...arrays.asteroiden, ...arrays.bosses].filter(
-    z => !z.istUnzerstoerbar && (z.hp === undefined || z.hp > 0),
+function mineTargets() {
+  return [...arrays.enemies, ...arrays.asteroids, ...arrays.bosses].filter(
+    z => !z.isIndestructible && (z.hp === undefined || z.hp > 0),
   );
 }
 
-let minenId = 0;
+let mineId = 0;
 
 // Darstellungsfelder haftet/blinkt aus dem Zustand ableiten (Host); der Client uebernimmt sie aus dem Snapshot
-function setzeMineAnzeige(m) {
-  m.haftet = !!m.ziel;
-  m.blinkt = !m.ziel && m.rest <= MINE_BLINK;
+function setMineDisplay(m) {
+  m.sticks = !!m.target;
+  m.blinks = !m.target && m.rest <= MINE_BLINK;
 }
 
-function entferneMine(m) {
-  Anzeige.entferne(m);
-  const i = arrays.sniperMinen.indexOf(m);
-  if (i >= 0) arrays.sniperMinen.splice(i, 1);
+function removeMine(m) {
+  Display.remove(m);
+  const i = arrays.sniperMines.indexOf(m);
+  if (i >= 0) arrays.sniperMines.splice(i, 1);
 }
 
 // Mine unter der Schiffsmitte legen; ueber dem Limit pro Spieler faellt die aelteste weg
-function legeMine(pState, pKey) {
-  const eigene = arrays.sniperMinen.filter(m => m.pKey === pKey);
-  while (eigene.length >= MINE_MAX_AKTIV) entferneMine(eigene.shift());
+function putMine(pState, pKey) {
+  const own = arrays.sniperMines.filter(m => m.pKey === pKey);
+  while (own.length >= MINE_MAX_ACTIVE) removeMine(own.shift());
   const m = {
-    id: 'sm_' + ++minenId,
+    id: 'sm_' + ++mineId,
     pKey,
-    x: pState.x + config.spielerGroesse / 2,
-    y: pState.y + config.spielerGroesse,
-    rest: MINE_LEBEN,
-    ziel: null,
+    x: pState.x + config.playerSize / 2,
+    y: pState.y + config.playerSize,
+    rest: MINE_LIVES,
+    target: null,
     offX: 0,
     offY: 0,
-    zuender: -1,
-    schaden: minenSchaden(pState),
-    haftet: false,
-    blinkt: false,
+    fuse: -1,
+    damage: mineDamage(pState),
+    sticks: false,
+    blinks: false,
   };
-  arrays.sniperMinen.push(Anzeige.erzeuge(m, 'sniperMine'));
-  Audio.playMineLegen();
+  arrays.sniperMines.push(Display.create(m, 'sniperMine'));
+  Audio.playMinePut();
 }
 
-function erzeugeMinenExplosion(cx, cy, pKey) {
+function createMineExplosion(cx, cy, pKey) {
   Audio.playMineExplosion();
-  Utils.erzeugeExplosion(cx, cy, '#ffffff', 6);
-  Utils.erzeugeExplosion(cx, cy, '#ff9800', 8);
-  erzeugeDruckwelle(cx, cy, MINE_RADIUS, pKey, 'sniperMinenExplosion');
+  Utils.createExplosion(cx, cy, '#ffffff', 6);
+  Utils.createExplosion(cx, cy, '#ff9800', 8);
+  createBlastWave(cx, cy, MINE_RADIUS, pKey, 'sniperMineExplosion');
 }
 
 // Explosion an der aktuellen Position: jedes Ziel im Radius genau einmal (Schild zuerst)
-function explodiereMine(m) {
-  entferneMine(m);
-  erzeugeMinenExplosion(m.x, m.y, m.pKey);
+function explodeMine(m) {
+  removeMine(m);
+  createMineExplosion(m.x, m.y, m.pKey);
   if (state.gameMode === 'online' && state.network && state.network.isHost) {
     Network.sendNetworkEvent({
       type: 'mine_explodiert',
@@ -642,129 +642,129 @@ function explodiereMine(m) {
       owner: m.pKey,
     });
   }
-  for (const z of minenZiele().filter(t => boxSchneidetKreis(zielBox(t), m.x, m.y, MINE_RADIUS))) {
-    schadeZiel(z, m.schaden, m.pKey);
+  for (const z of mineTargets().filter(t => boxIntersectsCircle(targetBox(t), m.x, m.y, MINE_RADIUS))) {
+    damageTarget(z, m.damage, m.pKey);
   }
   // Boss-Raketen und -Bomben im Radius werden zerstoert (wie beim EMP)
-  zerstoereGeschosse(arrays.bossRaketenArray, m.x, m.y, MINE_RADIUS);
-  zerstoereGeschosse(arrays.bossBombenArray, m.x, m.y, MINE_RADIUS);
+  destroyProjectiles(arrays.bossMissileArray, m.x, m.y, MINE_RADIUS);
+  destroyProjectiles(arrays.bossBombArray, m.x, m.y, MINE_RADIUS);
 }
 
 // Beruehrt eine Boss-Rakete oder -Bombe die Mine?
-function bossGeschossAnMine(m) {
+function bossProjectileAnMine(m) {
   const box = mineBox(m);
-  return [...arrays.bossRaketenArray, ...arrays.bossBombenArray].some(g => ueberlappen(box, zielBox(g)));
+  return [...arrays.bossMissileArray, ...arrays.bossBombArray].some(g => overlap(box, targetBox(g)));
 }
 
-function zielLebt(z) {
+function targetAlive(z) {
   return (
-    (arrays.feinde.includes(z) || arrays.asteroiden.includes(z) || arrays.bosses.includes(z)) &&
+    (arrays.enemies.includes(z) || arrays.asteroids.includes(z) || arrays.bosses.includes(z)) &&
     (z.hp === undefined || z.hp > 0)
   );
 }
 
-function aktualisiereMinen(pKey) {
-  for (let i = arrays.sniperMinen.length - 1; i >= 0; i--) {
-    const m = arrays.sniperMinen[i];
+function updateMines(pKey) {
+  for (let i = arrays.sniperMines.length - 1; i >= 0; i--) {
+    const m = arrays.sniperMines[i];
     if (!m || m.pKey !== pKey) continue;
-    if (m.ziel) {
-      if (!zielLebt(m.ziel)) {
-        explodiereMine(m);
+    if (m.target) {
+      if (!targetAlive(m.target)) {
+        explodeMine(m);
         continue;
       } // Ziel vorher gestorben: Explosion an der letzten Position
-      const c = zielMitte(m.ziel);
+      const c = targetMiddle(m.target);
       m.x = c.x + m.offX;
       m.y = c.y + m.offY;
-      m.zuender--;
-      if (m.zuender <= 0) {
-        explodiereMine(m);
+      m.fuse--;
+      if (m.fuse <= 0) {
+        explodeMine(m);
         continue;
       }
-      if (m.zuender % 10 === 0) Audio.playMinePiep();
+      if (m.fuse % 10 === 0) Audio.playMineBeep();
     } else {
       m.rest--;
       m.y -= MINE_DRIFT;
-      if (m.rest <= 0 || m.y < -MINE_GROESSE) {
-        entferneMine(m);
+      if (m.rest <= 0 || m.y < -MINE_SIZE) {
+        removeMine(m);
         continue;
       }
       // Boss-Raketen und -Bomben loesen die Mine sofort aus (kein Haften an Geschossen)
-      if (bossGeschossAnMine(m)) {
-        explodiereMine(m);
+      if (bossProjectileAnMine(m)) {
+        explodeMine(m);
         continue;
       }
       const box = mineBox(m);
-      const z = minenZiele().find(t => ueberlappen(box, zielBox(t)));
+      const z = mineTargets().find(t => overlap(box, targetBox(t)));
       if (z) {
-        const c = zielMitte(z);
-        m.ziel = z;
+        const c = targetMiddle(z);
+        m.target = z;
         m.offX = m.x - c.x;
         m.offY = m.y - c.y;
-        m.zuender = MINE_ZUENDUNG;
-        Audio.playMinePiep();
+        m.fuse = MINE_IGNITION;
+        Audio.playMineBeep();
       }
     }
-    setzeMineAnzeige(m);
+    setMineDisplay(m);
   }
 }
 
 // Halten der Granaten-Taste (aus aktualisiereGranatenTaste, ab HALTEN_AB): alle MINE_INTERVALL Schritte eine Mine, bei freiem Cooldown.
 // `schritte` = bisherige Haltedauer.
-export function haltenSchritt(pState, pKey, schritte) {
-  if (Hack.hatHack(pState, 'waffenOffline')) return;
-  if ((pState.granateMinen || 0) >= MINE_MAX_PRO_HALTEN) return;
-  if ((schritte - HALTEN_AB) % MINE_INTERVALL !== 0) return;
+export function holdStep(pState, pKey, steps) {
+  if (Hack.hasHack(pState, 'weaponOffline')) return;
+  if ((pState.grenadeMines || 0) >= MINE_MAX_PRO_HOLD) return;
+  if ((steps - HOLD_FROM) % MINE_INTERVAL !== 0) return;
   // Die erste Mine eines Haltens kostet eine Ladung (ohne Ladung keine Minen), weitere nichts
-  if ((pState.granateMinen || 0) === 0) {
-    if (granatenLadungen(pState) < 1) return;
-    verbraucheGranate(pState);
+  if ((pState.grenadeMines || 0) === 0) {
+    if (grenadeCharges(pState) < 1) return;
+    consumeGrenade(pState);
   }
-  legeMine(pState, pKey);
-  pState.granateMinen = (pState.granateMinen || 0) + 1;
+  putMine(pState, pKey);
+  pState.grenadeMines = (pState.grenadeMines || 0) + 1;
 }
 
 // Tippen: Granate ins Fadenkreuz und EMP, danach startet der Cooldown
-function tippeGranate(pState, pKey) {
-  verbraucheGranate(pState);
-  werfeGranate(pState, pKey);
-  loeseEmpAus(pState, pKey);
+function tapGrenade(pState, pKey) {
+  consumeGrenade(pState);
+  throwGrenade(pState, pKey);
+  triggerEmp(pState, pKey);
 }
 
 // Pro Schritt aus waffen.js (statt der Raketen): `gehalten` ist die Raketen-Taste. Druck startet die Zaehlung, Loslassen
 // entscheidet: unter HALTEN_AB Schritten (und freiem Cooldown) = Tippen; nach dem Halten startet der Cooldown, wenn Minen lagen.
-export function aktualisiereGranatenTaste(pState, pKey, gehalten) {
-  if (!istSniper(pState)) return;
-  const sperre = Hack.hatHack(pState, 'waffenOffline') || pState.isDead || !state.spielLaeuft;
-  if (gehalten && !sperre) {
-    if (!pState.granateGehalten) {
-      pState.granateSchritte = 0;
-      pState.granateMinen = 0;
+export function updateGrenadeKey(pState, pKey, held) {
+  if (!isSniper(pState)) return;
+  const lock = Hack.hasHack(pState, 'weaponOffline') || pState.isDead || !state.gameRunning;
+  if (held && !lock) {
+    if (!pState.grenadeHeld) {
+      pState.grenadeSteps = 0;
+      pState.grenadeMines = 0;
     }
-    pState.granateGehalten = true;
-    pState.granateSchritte = (pState.granateSchritte || 0) + 1;
-    if (pState.granateSchritte >= HALTEN_AB) haltenSchritt(pState, pKey, pState.granateSchritte);
-  } else if (pState.granateGehalten) {
-    const schritte = pState.granateSchritte || 0;
-    pState.granateGehalten = false;
-    pState.granateSchritte = 0;
-    pState.granateMinen = 0;
-    if (!sperre && schritte < HALTEN_AB && granatenLadungen(pState) >= 1) tippeGranate(pState, pKey);
+    pState.grenadeHeld = true;
+    pState.grenadeSteps = (pState.grenadeSteps || 0) + 1;
+    if (pState.grenadeSteps >= HOLD_FROM) holdStep(pState, pKey, pState.grenadeSteps);
+  } else if (pState.grenadeHeld) {
+    const steps = pState.grenadeSteps || 0;
+    pState.grenadeHeld = false;
+    pState.grenadeSteps = 0;
+    pState.grenadeMines = 0;
+    if (!lock && steps < HOLD_FROM && grenadeCharges(pState) >= 1) tapGrenade(pState, pKey);
   }
 }
 
 // Wegstossen: pro Schritt ein Stueck, am Feld begrenzt (seitlich und oben; unten darf ein Ziel das Feld verlassen)
-function aktualisiereStoesse(pKey) {
-  for (let i = stoesse.length - 1; i >= 0; i--) {
-    const s = stoesse[i];
+function updatePushes(pKey) {
+  for (let i = pushes.length - 1; i >= 0; i--) {
+    const s = pushes[i];
     if (s.pKey !== pKey) continue;
     const z = s.z;
     s.rest--;
-    if (s.rest < 0 || !wegstossZiele().includes(z)) {
-      stoesse.splice(i, 1);
+    if (s.rest < 0 || !pushAwayTargets().includes(z)) {
+      pushes.splice(i, 1);
       continue;
     }
-    const g = z.groesse || 30;
-    const nx = Math.max(0, Math.min(config.spielfeldBreite - g, z.x + s.vx));
+    const g = z.size || 30;
+    const nx = Math.max(0, Math.min(config.playfieldWidth - g, z.x + s.vx));
     let ny = z.y + s.vy;
     if (ny < 0 && z.y >= 0) ny = 0;
     const ddx = nx - z.x;
@@ -772,25 +772,25 @@ function aktualisiereStoesse(pKey) {
     z.x = nx;
     z.y = ny;
     if (z.basisX !== undefined) z.basisX += ddx;
-    if (z.festX !== undefined) z.festX += ddx;
-    if (z.festY !== undefined) z.festY += ddy;
-    if (s.rest === 0) stoesse.splice(i, 1);
+    if (z.fixedX !== undefined) z.fixedX += ddx;
+    if (z.fixedY !== undefined) z.fixedY += ddy;
+    if (s.rest === 0) pushes.splice(i, 1);
   }
 }
 
-function entferneGranatenEffekte(pKey) {
-  entferneAlleEffekte(pKey);
-  for (let i = arrays.sniperMinen.length - 1; i >= 0; i--) {
-    if (!pKey || arrays.sniperMinen[i].pKey === pKey) entferneMine(arrays.sniperMinen[i]);
+function removeGrenadeEffects(pKey) {
+  removeAllEffects(pKey);
+  for (let i = arrays.sniperMines.length - 1; i >= 0; i--) {
+    if (!pKey || arrays.sniperMines[i].pKey === pKey) removeMine(arrays.sniperMines[i]);
   }
-  for (let i = arrays.sniperGranaten.length - 1; i >= 0; i--) {
-    if (pKey && arrays.sniperGranaten[i].pKey !== pKey) continue;
-    Anzeige.entferne(arrays.sniperGranaten[i]);
-    arrays.sniperGranaten.splice(i, 1);
+  for (let i = arrays.sniperGrenades.length - 1; i >= 0; i--) {
+    if (pKey && arrays.sniperGrenades[i].pKey !== pKey) continue;
+    Display.remove(arrays.sniperGrenades[i]);
+    arrays.sniperGrenades.splice(i, 1);
   }
-  for (let i = stoesse.length - 1; i >= 0; i--) {
-    if (pKey && stoesse[i].pKey !== pKey) continue;
-    stoesse.splice(i, 1);
+  for (let i = pushes.length - 1; i >= 0; i--) {
+    if (pKey && pushes[i].pKey !== pKey) continue;
+    pushes.splice(i, 1);
   }
 }
 
@@ -800,246 +800,246 @@ function entferneGranatenEffekte(pKey) {
 //   Wird in der Schussabstand-Sperre losgelassen, faellt der Schuss (samt Ladung) automatisch, sobald die Sperre abläuft.
 // - `auto` (Joystick-Autofeuer am Handy): Dauerfeuer aus Normalschuessen im Schussabstand, kein Laden.
 // Gibt zurueck, ob in diesem Schritt geschossen wurde.
-export function aktualisiereSniper(pState, pKey, gehalten, auto = false) {
-  if (!istSniper(pState)) return false;
-  aktualisiereGranaten(pKey);
-  aktualisiereMinen(pKey);
-  aktualisiereStoesse(pKey);
-  if (pState.isDead || !state.spielLaeuft) {
-    pState.sniperGehalten = false;
-    pState.sniperGepuffert = null;
-    setzeLadungZurueck(pState);
+export function updateSniper(pState, pKey, held, auto = false) {
+  if (!isSniper(pState)) return false;
+  updateGrenades(pKey);
+  updateMines(pKey);
+  updatePushes(pKey);
+  if (pState.isDead || !state.gameRunning) {
+    pState.sniperHeld = false;
+    pState.sniperBuffered = null;
+    resetCharge(pState);
     return false;
   }
-  aktualisiereFadenkreuz(pState);
+  updateCrosshair(pState);
 
   if (pState.sniperCooldown > 0) pState.sniperCooldown--;
-  let geschossen = false;
-  const kannSchiessen = !Hack.hatHack(pState, 'waffenOffline');
+  let shot = false;
+  const canShoot = !Hack.hasHack(pState, 'weaponOffline');
   // In der Sperre losgelassener Schuss: faellt, sobald die Sperre abgelaufen ist
-  if (pState.sniperGepuffert != null && pState.sniperCooldown <= 0) {
-    if (kannSchiessen) geschossen = versuche(pState, pKey, pState.sniperGepuffert);
-    pState.sniperGepuffert = null;
+  if (pState.sniperBuffered != null && pState.sniperCooldown <= 0) {
+    if (canShoot) shot = attempts(pState, pKey, pState.sniperBuffered);
+    pState.sniperBuffered = null;
   }
   if (auto) {
-    setzeLadungZurueck(pState);
-    pState.sniperGehalten = false;
-    if (gehalten && kannSchiessen) geschossen = versuche(pState, pKey, 0);
+    resetCharge(pState);
+    pState.sniperHeld = false;
+    if (held && canShoot) shot = attempts(pState, pKey, 0);
   } else {
-    const haelt = !!gehalten && kannSchiessen;
-    if (haelt) {
-      if (!pState.sniperGehalten) setzeLadungZurueck(pState); // Druck
-      lade(pState);
-    } else if (pState.sniperGehalten && kannSchiessen) {
+    const holds = !!held && canShoot;
+    if (holds) {
+      if (!pState.sniperHeld) resetCharge(pState); // Druck
+      charging(pState);
+    } else if (pState.sniperHeld && canShoot) {
       // Loslassen: sofort feuern oder bis zum Ende der Sperre vormerken
-      if (pState.sniperCooldown > 0) pState.sniperGepuffert = pState.sniperLadung || 0;
-      else geschossen = versuche(pState, pKey, pState.sniperLadung || 0);
-      setzeLadungZurueck(pState);
+      if (pState.sniperCooldown > 0) pState.sniperBuffered = pState.sniperCharge || 0;
+      else shot = attempts(pState, pKey, pState.sniperCharge || 0);
+      resetCharge(pState);
     } else {
-      setzeLadungZurueck(pState);
+      resetCharge(pState);
     }
-    pState.sniperGehalten = haelt;
+    pState.sniperHeld = holds;
   }
-  return geschossen;
+  return shot;
 }
 
 // --- ONLINE ---
 
 // Host: Sniper-Zustand eines Spielers fuer den Snapshot (leer bei anderen Schiffen)
-export function netzZustand(pState) {
-  if (!istSniper(pState)) return {};
-  const grund = grundPosition(pState);
+export function networkStatus(pState) {
+  if (!isSniper(pState)) return {};
+  const reason = basePosition(pState);
   return {
-    sniperZielX: pState.sniperZielX != null ? pState.sniperZielX : grund.x,
-    sniperZielY: pState.sniperZielY != null ? pState.sniperZielY : grund.y,
-    sniperLadung: pState.sniperLadung || 0,
-    sniperVoll: istVoll(pState.sniperLadung || 0),
+    sniperTargetX: pState.sniperTargetX != null ? pState.sniperTargetX : reason.x,
+    sniperTargetY: pState.sniperTargetY != null ? pState.sniperTargetY : reason.y,
+    sniperCharge: pState.sniperCharge || 0,
+    sniperFull: isFull(pState.sniperCharge || 0),
     sniperCooldown: pState.sniperCooldown || 0,
-    sniperGranatenLadungen: granatenLadungen(pState),
+    sniperGrenadeCharges: grenadeCharges(pState),
   };
 }
 
 // Host: fliegende Granaten fuer den Snapshot (id, Position, Besitzer, Restschritte des Flugs)
-export function netzGranatenListe() {
-  return arrays.sniperGranaten.map(g => ({ id: g.id, x: g.x, y: g.y, owner: g.pKey, rest: g.rest }));
+export function networkGrenadeList() {
+  return arrays.sniperGrenades.map(g => ({ id: g.id, x: g.x, y: g.y, owner: g.pKey, rest: g.rest }));
 }
 
 // Host: aktive Minen fuer den Snapshot (id, Position, Besitzer, haftet, Restzuendzeit, Restlebensdauer, blinkt)
-export function netzMinenListe() {
-  return arrays.sniperMinen.map(m => ({
+export function networkMineList() {
+  return arrays.sniperMines.map(m => ({
     id: m.id,
     x: m.x,
     y: m.y,
     owner: m.pKey,
-    haftet: !!m.ziel,
-    zuender: m.ziel ? m.zuender : 0,
+    sticks: !!m.target,
+    fuse: m.target ? m.fuse : 0,
     rest: m.rest,
-    blinkt: !m.ziel && m.rest <= MINE_BLINK,
+    blinks: !m.target && m.rest <= MINE_BLINK,
   }));
 }
 
 // Client: Zustand eines Spielers aus dem Snapshot uebernehmen und darstellen. Der Schuss wird am Sprung des
 // Schussabstands erkannt (Strahl mit der zuletzt bekannten Ladung), Sounds nur fuer das eigene Schiff.
-export function uebernehmeSnapshot(pState, daten, pKey, eigenes) {
+export function applySnapshot(pState, payload, pKey, ownOne) {
   if (!pState) return;
-  if (!istSniper(pState) || !daten || daten.sniperZielX === undefined || daten.isDead) {
+  if (!isSniper(pState) || !payload || payload.sniperTargetX === undefined || payload.isDead) {
     // Kein Sniper-Zustand im Snapshot: Fadenkreuz ausblenden (die Anzeige zeichnet es nur bei gesetztem Ziel)
-    pState.sniperZielX = null;
-    pState.sniperZielY = null;
-    pState.sniperGehalten = false;
-    pState.sniperLadung = 0;
+    pState.sniperTargetX = null;
+    pState.sniperTargetY = null;
+    pState.sniperHeld = false;
+    pState.sniperCharge = 0;
     pState.sniperCooldown = 0;
-    pState.sniperVoll = false;
+    pState.sniperFull = false;
     return;
   }
-  const alteLadung = pState.sniperLadung || 0;
+  const oldCharge = pState.sniperCharge || 0;
   const alterCooldown = pState.sniperCooldown || 0;
-  const warVoll = !!pState.sniperVoll;
-  pState.sniperZielX = daten.sniperZielX;
-  pState.sniperZielY = daten.sniperZielY;
-  pState.sniperLadung = daten.sniperLadung || 0;
-  pState.sniperVoll = !!daten.sniperVoll;
-  pState.sniperCooldown = daten.sniperCooldown || 0;
-  pState.sniperGehalten = pState.sniperLadung > 0;
-  if (daten.sniperGranatenLadungen !== undefined) {
-    pState.sniperGranatenLadungen = daten.sniperGranatenLadungen;
-    zeigeGranatenHud(pKey, pState);
+  const wasFull = !!pState.sniperFull;
+  pState.sniperTargetX = payload.sniperTargetX;
+  pState.sniperTargetY = payload.sniperTargetY;
+  pState.sniperCharge = payload.sniperCharge || 0;
+  pState.sniperFull = !!payload.sniperFull;
+  pState.sniperCooldown = payload.sniperCooldown || 0;
+  pState.sniperHeld = pState.sniperCharge > 0;
+  if (payload.sniperGrenadeCharges !== undefined) {
+    pState.sniperGrenadeCharges = payload.sniperGrenadeCharges;
+    showGrenadeHud(pKey, pState);
   }
   if (pState.sniperCooldown > alterCooldown) {
-    const anteil = ladeAnteil(alteLadung);
-    erzeugeStrahl(pState, anteil);
-    erzeugeEinschlag(pState, pState.sniperZielX, pState.sniperZielY, anteil);
-    if (eigenes) Audio.playSniperSchuss(pState.laserStufe || 1, anteil);
+    const share = chargeShare(oldCharge);
+    createBeam(pState, share);
+    createImpact(pState, pState.sniperTargetX, pState.sniperTargetY, share);
+    if (ownOne) Audio.playSniperShot(pState.laserTier || 1, share);
   }
-  if (eigenes && pState.sniperVoll && !warVoll) Audio.playSniperVoll();
+  if (ownOne && pState.sniperFull && !wasFull) Audio.playSniperFull();
 }
 
 // Client: Granaten des Hosts abgleichen (Modell pro Id in arrays.sniperGranaten, Position und Drehung aus dem Snapshot;
 // auf dem Client laeuft aktualisiereGranaten nicht, die Liste gehoert allein dem Snapshot)
-export function synchronisiereGranaten(liste) {
-  const daten = liste || [];
-  const ids = new Set(daten.map(d => d.id));
-  const gran = arrays.sniperGranaten;
+export function syncGrenades(list) {
+  const payload = list || [];
+  const ids = new Set(payload.map(d => d.id));
+  const gran = arrays.sniperGrenades;
   for (let i = gran.length - 1; i >= 0; i--) {
     if (!ids.has(gran[i].id)) {
-      Anzeige.entferne(gran[i]);
+      Display.remove(gran[i]);
       gran.splice(i, 1);
     }
   }
-  for (const d of daten) {
+  for (const d of payload) {
     let g = gran.find(n => n.id === d.id);
     if (!g) {
-      g = Anzeige.erzeuge(
-        { id: d.id, pKey: d.owner, x: d.x, y: d.y, rest: d.rest || 0, rot: (GRANATE_FLUG - (d.rest || 0)) * 24 },
-        'sniperGranate',
+      g = Display.create(
+        { id: d.id, pKey: d.owner, x: d.x, y: d.y, rest: d.rest || 0, rot: (GRENADE_FLIGHT - (d.rest || 0)) * 24 },
+        'sniperGrenade',
       );
       gran.push(g);
     }
     g.x = d.x;
     g.y = d.y;
     g.rest = d.rest || 0;
-    g.rot = (GRANATE_FLUG - g.rest) * 24;
+    g.rot = (GRENADE_FLIGHT - g.rest) * 24;
   }
 }
 
 // Client: Minen des Hosts abgleichen (Modell pro Id in arrays.sniperMinen; aktualisiereMinen laeuft dort nicht, die
 // Liste gehoert allein dem Snapshot). Legen-, Haft- und Piep-Ton bleiben hier.
-export function synchronisiereMinen(liste) {
-  const daten = liste || [];
-  const ids = new Set(daten.map(d => d.id));
-  const minen = arrays.sniperMinen;
-  for (let i = minen.length - 1; i >= 0; i--) {
-    if (!ids.has(minen[i].id)) {
-      Anzeige.entferne(minen[i]);
-      minen.splice(i, 1);
+export function syncMines(list) {
+  const payload = list || [];
+  const ids = new Set(payload.map(d => d.id));
+  const mines = arrays.sniperMines;
+  for (let i = mines.length - 1; i >= 0; i--) {
+    if (!ids.has(mines[i].id)) {
+      Display.remove(mines[i]);
+      mines.splice(i, 1);
     }
   }
-  for (const d of daten) {
-    let m = minen.find(n => n.id === d.id);
+  for (const d of payload) {
+    let m = mines.find(n => n.id === d.id);
     if (!m) {
-      m = Anzeige.erzeuge(
+      m = Display.create(
         {
           id: d.id,
           pKey: d.owner === 'p2' ? 'p2' : 'p1',
           x: d.x,
           y: d.y,
           rest: d.rest || 0,
-          haftet: !!d.haftet,
-          blinkt: !d.haftet && !!d.blinkt,
+          sticks: !!d.sticks,
+          blinks: !d.sticks && !!d.blinks,
         },
         'sniperMine',
       );
-      minen.push(m);
-      Audio.playMineLegen();
+      mines.push(m);
+      Audio.playMinePut();
     }
-    if (d.haftet && !m.haftet) Audio.playMinePiep();
+    if (d.sticks && !m.sticks) Audio.playMineBeep();
     m.x = d.x;
     m.y = d.y;
     m.rest = d.rest || 0;
-    m.haftet = !!d.haftet;
-    m.blinkt = !m.haftet && !!d.blinkt;
+    m.sticks = !!d.sticks;
+    m.blinks = !m.sticks && !!d.blinks;
   }
 }
 
 // Client: Minen-Explosion (Ereignis 'mine_explodiert')
-export function zeigeMinenExplosion(daten) {
-  if (!daten || !Number.isFinite(daten.x) || !Number.isFinite(daten.y)) return;
-  erzeugeMinenExplosion(daten.x, daten.y, daten.owner === 'p2' ? 'p2' : 'p1');
+export function showMineExplosion(payload) {
+  if (!payload || !Number.isFinite(payload.x) || !Number.isFinite(payload.y)) return;
+  createMineExplosion(payload.x, payload.y, payload.owner === 'p2' ? 'p2' : 'p1');
 }
 
 // Client: Explosion einer Granate (Ereignis 'granate_detonated')
-export function zeigeDetonation(daten) {
-  if (!daten || !Number.isFinite(daten.x) || !Number.isFinite(daten.y) || !(daten.radius > 0)) return;
-  Audio.playGranate();
-  Utils.erzeugeExplosion(daten.x, daten.y, '#ffffff', 10);
-  Utils.erzeugeExplosion(daten.x, daten.y, '#ffeb3b', 10);
-  erzeugeDruckwelle(daten.x, daten.y, daten.radius, daten.owner === 'p2' ? 'p2' : 'p1');
+export function showDetonation(payload) {
+  if (!payload || !Number.isFinite(payload.x) || !Number.isFinite(payload.y) || !(payload.radius > 0)) return;
+  Audio.playGrenade();
+  Utils.createExplosion(payload.x, payload.y, '#ffffff', 10);
+  Utils.createExplosion(payload.x, payload.y, '#ffeb3b', 10);
+  createBlastWave(payload.x, payload.y, payload.radius, payload.owner === 'p2' ? 'p2' : 'p1');
 }
 
 // Client: EMP-Ring (Ereignis 'emp_ausgeloest')
-export function zeigeEmp(daten) {
-  if (!daten || !Number.isFinite(daten.x) || !Number.isFinite(daten.y) || !(daten.radius > 0)) return;
+export function showEmp(payload) {
+  if (!payload || !Number.isFinite(payload.x) || !Number.isFinite(payload.y) || !(payload.radius > 0)) return;
   Audio.playEmp();
-  erzeugeEmpRing(daten.x, daten.y, daten.radius, daten.owner === 'p2' ? 'p2' : 'p1');
+  createEmpRing(payload.x, payload.y, payload.radius, payload.owner === 'p2' ? 'p2' : 'p1');
 }
 
 // Client, jeden Schritt: das eigene Fadenkreuz folgt dem vorhergesagten Schiff
 // (ohne Auto-Zielen liegt es auf der Grundposition, mit Auto-Zielen gilt der Host-Wert)
-export function clientSchritt() {
+export function clientStep() {
   const p = state.p2;
-  if (p && istSniper(p) && !p.isDead && p.sniperZielX != null) {
-    if (autoZielTempo(p) === 0) {
-      const grund = grundPosition(p);
-      p.sniperZielX = grund.x;
-      p.sniperZielY = grund.y;
+  if (p && isSniper(p) && !p.isDead && p.sniperTargetX != null) {
+    if (autoTargetSpeed(p) === 0) {
+      const reason = basePosition(p);
+      p.sniperTargetX = reason.x;
+      p.sniperTargetY = reason.y;
     }
   }
 }
 
 // Fadenkreuz, Strahlen und Schusszustand eines Spielers zuruecksetzen (restartGame, Game Over, Schiffswechsel)
-export function setzeZurueck(pState) {
+export function reset(pState) {
   if (!pState) return false;
-  pState.sniperZielX = null;
-  pState.sniperZielY = null;
+  pState.sniperTargetX = null;
+  pState.sniperTargetY = null;
   pState.sniperCooldown = 0;
-  pState.sniperGehalten = false;
-  pState.sniperGepuffert = null;
-  pState.sniperLadung = 0;
-  pState.sniperVoll = false;
-  setzeGranatenLadungenVoll(pState);
-  pState.granateGehalten = false;
-  pState.granateSchritte = 0;
-  pState.granateMinen = 0;
-  entferneGranatenEffekte(pState === state ? 'p1' : 'p2');
+  pState.sniperHeld = false;
+  pState.sniperBuffered = null;
+  pState.sniperCharge = 0;
+  pState.sniperFull = false;
+  setGrenadeChargeFull(pState);
+  pState.grenadeHeld = false;
+  pState.grenadeSteps = 0;
+  pState.grenadeMines = 0;
+  removeGrenadeEffects(pState === state ? 'p1' : 'p2');
   return true;
 }
 
 // Alle Sniper-Darstellungen entfernen (Game Over: danach laeuft keine Simulation mehr, die sie abraeumen wuerde)
-export function entferneEffekte() {
+export function removeEffects() {
   for (const s of [state, state.p2]) {
     if (!s) continue;
-    s.sniperZielX = null;
-    s.sniperZielY = null;
+    s.sniperTargetX = null;
+    s.sniperTargetY = null;
   }
-  entferneGranatenEffekte();
+  removeGrenadeEffects();
 }

@@ -1,18 +1,18 @@
 // PreToolUse-Hook (Bash, PowerShell): blockiert zerstoererische Git-Befehle.
 // Normales git push bleibt erlaubt (Push-Gate: vorher npm run check gruen).
-let eingabe = '';
+let input = '';
 process.stdin.on('data', d => {
-  eingabe += d;
+  input += d;
 });
 process.stdin.on('end', () => {
-  let befehl = '';
+  let command = '';
   try {
-    befehl = JSON.parse(eingabe).tool_input?.command || '';
+    command = JSON.parse(input).tool_input?.command || '';
   } catch {
     process.exit(0);
   }
   // [^\n;&|]* bleibt innerhalb eines Teilbefehls, damit Text in Heredocs oder Folgebefehlen nicht mitzaehlt
-  const verboten = [
+  const forbidden = [
     /git\s+push\b[^\n;&|]*(--force\b|--force-with-lease\b|\s-f\b|\s\+\S)/,
     /git\s+reset\s+[^\n;&|]*--hard\b/,
     /git\s+clean\s+[^\n;&|]*-\w*f/,
@@ -20,10 +20,10 @@ process.stdin.on('end', () => {
     /git\s+(checkout|restore)\s+(--\s+)?\.(\s|$)/,
     /git\s+stash\s+(drop|clear)\b/,
   ];
-  const treffer = verboten.find(muster => muster.test(befehl));
-  if (treffer) {
+  const hit = forbidden.find(pattern => pattern.test(command));
+  if (hit) {
     console.error(
-      `BLOCKIERT: '${befehl}' passt auf ${treffer}. Zerstoererische Git-Befehle nur nach Freigabe durch den Nutzer, der sie selbst ausfuehrt.`,
+      `BLOCKIERT: '${command}' passt auf ${hit}. Zerstoererische Git-Befehle nur nach Freigabe durch den Nutzer, der sie selbst ausfuehrt.`,
     );
     process.exit(2);
   }

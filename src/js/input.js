@@ -4,45 +4,45 @@ import * as Audio from './audio.js';
 import * as Cutscene from './cutscene.js';
 import * as Network from './network.js';
 import * as Sniper from './sniper.js';
-import { schaltePause, behandleEscape, initPauseMenue } from './pause.js';
-import * as Anzeige from './anzeige.js';
+import { togglePause, handleEscape, initPauseMenu } from './pause.js';
+import * as Display from './anzeige.js';
 
 export function setupInput() {
-  initPauseMenue();
+  initPauseMenu();
   window.addEventListener('keydown', e => {
     if (e.target instanceof HTMLInputElement) return;
     Audio.initAudio();
 
     if (e.key === 'Escape' || e.key === 'Esc') {
-      const steuerung = document.getElementById('steuerung-overlay');
-      if (steuerung && steuerung.style.display !== 'none') {
-        steuerung.style.display = 'none';
+      const controls = document.getElementById('steuerung-overlay');
+      if (controls && controls.style.display !== 'none') {
+        controls.style.display = 'none';
         e.preventDefault();
         return;
       }
-      if (state.cutsceneAktiv) {
+      if (state.cutsceneActive) {
         Cutscene.skipCutscene();
         return;
       }
-      if (behandleEscape()) {
+      if (handleEscape()) {
         e.preventDefault();
         return;
       }
     }
 
     const k = e.key ? e.key.toLowerCase() : '';
-    if (Object.hasOwn(state.tastenGedrueckt, k)) {
-      state.tastenGedrueckt[k] = true;
+    if (Object.hasOwn(state.keysPressed, k)) {
+      state.keysPressed[k] = true;
       if (e.key === ' ') e.preventDefault();
     }
-    if (e.code === 'Quote') state.tastenGedrueckt['ä'] = true;
-    if (e.code === 'Semicolon') state.tastenGedrueckt['ö'] = true;
+    if (e.code === 'Quote') state.keysPressed['ä'] = true;
+    if (e.code === 'Semicolon') state.keysPressed['ö'] = true;
     if (e.key && e.key.length === 1) {
       if (k === 'm') {
         Audio.toggleMute();
       }
       if (k === 'p') {
-        schaltePause(e.repeat);
+        togglePause(e.repeat);
       }
 
       const isOnline = state.gameMode === 'online' || (state.network && state.network.isOnline);
@@ -50,10 +50,10 @@ export function setupInput() {
         state.typedCheatKeys += k;
         if (state.typedCheatKeys.length > 10) state.typedCheatKeys = state.typedCheatKeys.slice(-10);
         function resetAllCooldowns() {
-          state.bombenCooldown = 0;
-          state.raketenCooldown = 0;
-          state.spielerSchussCooldown = 0;
-          state.energie = state.maxEnergie;
+          state.bombCooldown = 0;
+          state.missileCooldown = 0;
+          state.playerShotCooldown = 0;
+          state.energy = state.maxEnergy;
         }
 
         const idkflMatch = state.typedCheatKeys.match(/idkfl([1-9])$/);
@@ -63,22 +63,22 @@ export function setupInput() {
           state.level = lvl;
           Utils.updateLevelUI();
           if (dom.bossHpContainer) dom.bossHpContainer.style.display = 'none';
-          state.frameZaehler = 0;
+          state.frameCounter = 0;
           if (arrays.bosses) {
-            arrays.bosses.forEach(Anzeige.entferne);
+            arrays.bosses.forEach(Display.remove);
             arrays.bosses.length = 0;
           }
           if (arrays.bossLaserArray) {
-            arrays.bossLaserArray.forEach(Anzeige.entferne);
+            arrays.bossLaserArray.forEach(Display.remove);
             arrays.bossLaserArray.length = 0;
           }
-          if (arrays.bossBombenArray) {
-            arrays.bossBombenArray.forEach(Anzeige.entferne);
-            arrays.bossBombenArray.length = 0;
+          if (arrays.bossBombArray) {
+            arrays.bossBombArray.forEach(Display.remove);
+            arrays.bossBombArray.length = 0;
           }
-          if (arrays.bossRaketenArray) {
-            arrays.bossRaketenArray.forEach(Anzeige.entferne);
-            arrays.bossRaketenArray.length = 0;
+          if (arrays.bossMissileArray) {
+            arrays.bossMissileArray.forEach(Display.remove);
+            arrays.bossMissileArray.length = 0;
           }
           resetAllCooldowns();
           let overlay = document.getElementById('warning-overlay');
@@ -96,11 +96,11 @@ export function setupInput() {
         if (idkfMatch) {
           const lvl = parseInt(idkfMatch[1], 10);
           state.cheatUsed = true;
-          state.laserStufe = lvl;
-          state.raketenStufe = lvl;
-          state.bombenStufe = lvl;
+          state.laserTier = lvl;
+          state.missileTier = lvl;
+          state.bombTier = lvl;
           resetAllCooldowns();
-          Utils.updateAktivePowerupsUI();
+          Utils.updateActivePowerupsUi();
           let overlay = document.getElementById('warning-overlay');
           overlay.innerHTML = `IDKF${lvl}<br>Weapons Level ${lvl}!`;
           overlay.style.display = 'block';
@@ -113,15 +113,15 @@ export function setupInput() {
         }
         if (state.typedCheatKeys.endsWith('idkfa')) {
           state.cheatUsed = true;
-          state.laserStufe = 5;
-          state.raketenStufe = 5;
-          state.bombenStufe = 5;
-          state.laserDurchschlag = true;
-          state.durchschlagTimer = 999999;
-          state.schildStufe = 3;
-          state.unbegrenzteEnergie = true;
+          state.laserTier = 5;
+          state.missileTier = 5;
+          state.bombTier = 5;
+          state.laserPierce = true;
+          state.pierceTimer = 999999;
+          state.shieldTier = 3;
+          state.unlimitedEnergy = true;
           resetAllCooldowns();
-          Utils.updateAktivePowerupsUI();
+          Utils.updateActivePowerupsUi();
           let overlay = document.getElementById('warning-overlay');
           overlay.innerHTML = 'IDKFA<br>Full Weapons & Ammo!';
           overlay.style.display = 'block';
@@ -152,9 +152,9 @@ export function setupInput() {
   window.addEventListener('keyup', e => {
     if (e.target instanceof HTMLInputElement) return;
     const k = e.key ? e.key.toLowerCase() : '';
-    if (Object.hasOwn(state.tastenGedrueckt, k)) state.tastenGedrueckt[k] = false;
-    if (e.code === 'Quote') state.tastenGedrueckt['ä'] = false;
-    if (e.code === 'Semicolon') state.tastenGedrueckt['ö'] = false;
+    if (Object.hasOwn(state.keysPressed, k)) state.keysPressed[k] = false;
+    if (e.code === 'Quote') state.keysPressed['ä'] = false;
+    if (e.code === 'Semicolon') state.keysPressed['ö'] = false;
   });
   const hsInput = document.getElementById('highscore-name');
   if (hsInput) {
@@ -191,7 +191,7 @@ export function setupInput() {
   document.getElementById('btn-restart').addEventListener('click', Utils.restartGame);
 
   // --- MOBILE TOUCH CONTROLS (VIRTUAL JOYSTICK & TAP) ---
-  const spielfeldContainer = document.getElementById('game-wrapper');
+  const playfieldContainer = document.getElementById('game-wrapper');
   const joystickZone = document.getElementById('joystick-zone');
   const joystickBase = document.getElementById('joystick-base');
   const joystickStick = document.getElementById('joystick-stick');
@@ -201,7 +201,7 @@ export function setupInput() {
   const maxJoystickRadius = 50;
 
   // 1. Tap to Pause on Spielfeld & Tap to start on start screen
-  spielfeldContainer.addEventListener(
+  playfieldContainer.addEventListener(
     'touchstart',
     e => {
       Audio.initAudio();
@@ -243,10 +243,10 @@ export function setupInput() {
         return;
       const whatsNew = document.getElementById('whats-new-overlay');
       if (whatsNew && whatsNew.style.display !== 'none') return;
-      const steuerungOv = document.getElementById('steuerung-overlay');
-      if (steuerungOv && steuerungOv.style.display !== 'none') return;
+      const controlsOv = document.getElementById('steuerung-overlay');
+      if (controlsOv && controlsOv.style.display !== 'none') return;
 
-      if (!state.spielLaeuft || state.gameOverAktiv) return;
+      if (!state.gameRunning || state.gameOverActive) return;
 
       // Ignore if clicking mobile controls
       if (/** @type {Element} */ (e.target).closest('#mobile-controls')) return;
@@ -255,7 +255,7 @@ export function setupInput() {
       if (e.touches.length > 0) {
         let touchY = e.touches[0].clientY;
         if (touchY < window.innerHeight * 0.3) {
-          schaltePause();
+          togglePause();
         }
       }
     },
@@ -268,7 +268,7 @@ export function setupInput() {
       'touchstart',
       e => {
         e.preventDefault();
-        if (!state.spielLaeuft || state.gameOverAktiv || state.pausiert) return;
+        if (!state.gameRunning || state.gameOverActive || state.paused) return;
 
         let touchX = e.touches[0].clientX;
         let touchY = e.touches[0].clientY;
@@ -282,8 +282,8 @@ export function setupInput() {
         joystickStick.style.transform = `translate(-50%, -50%)`;
 
         state.joystick.active = true;
-        state.tastenGedrueckt.l = true; // Auto-fire laser (Gleve: Dauer-Sweep)
-        state.joystick.feuert = true; // Autofeuer, nicht die echte Taste (Sniper: Normalschuesse statt Laden)
+        state.keysPressed.l = true; // Auto-fire laser (Gleve: Dauer-Sweep)
+        state.joystick.fires = true; // Autofeuer, nicht die echte Taste (Sniper: Normalschuesse statt Laden)
       },
       { passive: false },
     );
@@ -292,7 +292,7 @@ export function setupInput() {
       'touchmove',
       e => {
         e.preventDefault();
-        if (!state.joystick.active || state.pausiert) return;
+        if (!state.joystick.active || state.paused) return;
 
         let touchX = e.touches[0].clientX;
         let touchY = e.touches[0].clientY;
@@ -321,52 +321,52 @@ export function setupInput() {
       state.joystick.active = false;
       state.joystick.x = 0;
       state.joystick.y = 0;
-      state.tastenGedrueckt.l = false; // Stop auto-fire
-      state.joystick.feuert = false;
+      state.keysPressed.l = false; // Stop auto-fire
+      state.joystick.fires = false;
     });
   }
 
   // 3. Mobile Buttons
-  const btnRakete = document.getElementById('btn-rakete');
-  if (btnRakete) {
-    btnRakete.addEventListener('touchstart', e => {
+  const btnMissile = document.getElementById('btn-rakete');
+  if (btnMissile) {
+    btnMissile.addEventListener('touchstart', e => {
       e.preventDefault();
-      if (state.spielLaeuft && !state.gameOverAktiv && !state.pausiert) {
-        state.tastenGedrueckt.k = true;
+      if (state.gameRunning && !state.gameOverActive && !state.paused) {
+        state.keysPressed.k = true;
         // Sniper: Halten zaehlt (Tippen = Granate + EMP, Halten = Minen), also bis zum Loslassen gedrueckt lassen
-        if (!Sniper.istSniper(state)) setTimeout(() => (state.tastenGedrueckt.k = false), 100);
+        if (!Sniper.isSniper(state)) setTimeout(() => (state.keysPressed.k = false), 100);
       }
     });
-    const raketeEnde = e => {
+    const missileEnd = e => {
       e.preventDefault();
-      if (Sniper.istSniper(state)) state.tastenGedrueckt.k = false;
+      if (Sniper.isSniper(state)) state.keysPressed.k = false;
     };
-    btnRakete.addEventListener('touchend', raketeEnde);
-    btnRakete.addEventListener('touchcancel', raketeEnde);
+    btnMissile.addEventListener('touchend', missileEnd);
+    btnMissile.addEventListener('touchcancel', missileEnd);
   }
 
   // Sniper: Halten laedt, Loslassen feuert (wie die Laser-Taste; der Joystick feuert dagegen Normalschuesse)
-  const btnLaden = document.getElementById('btn-laden');
-  if (btnLaden) {
-    btnLaden.addEventListener('touchstart', e => {
+  const btnCharge = document.getElementById('btn-laden');
+  if (btnCharge) {
+    btnCharge.addEventListener('touchstart', e => {
       e.preventDefault();
-      if (state.spielLaeuft && !state.gameOverAktiv && !state.pausiert) state.sniperLadeKnopf = true;
+      if (state.gameRunning && !state.gameOverActive && !state.paused) state.sniperChargingButton = true;
     });
-    const ladenEnde = e => {
+    const chargeEnd = e => {
       e.preventDefault();
-      state.sniperLadeKnopf = false;
+      state.sniperChargingButton = false;
     };
-    btnLaden.addEventListener('touchend', ladenEnde);
-    btnLaden.addEventListener('touchcancel', ladenEnde);
+    btnCharge.addEventListener('touchend', chargeEnd);
+    btnCharge.addEventListener('touchcancel', chargeEnd);
   }
 
-  const btnBombe = document.getElementById('btn-bombe');
-  if (btnBombe) {
-    btnBombe.addEventListener('touchstart', e => {
+  const btnBomb = document.getElementById('btn-bombe');
+  if (btnBomb) {
+    btnBomb.addEventListener('touchstart', e => {
       e.preventDefault();
-      if (state.spielLaeuft && !state.gameOverAktiv && !state.pausiert) {
-        state.tastenGedrueckt[' '] = true;
-        setTimeout(() => (state.tastenGedrueckt[' '] = false), 100);
+      if (state.gameRunning && !state.gameOverActive && !state.paused) {
+        state.keysPressed[' '] = true;
+        setTimeout(() => (state.keysPressed[' '] = false), 100);
       }
     });
   }

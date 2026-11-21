@@ -1,97 +1,97 @@
 import { state, dom } from './state.js';
 import * as Entities from './entities.js';
 import * as Audio from './audio.js';
-import { verwalteFeindSpawns } from './gegner.js';
-import * as Fels from './fels.js';
-import * as Gewaechse from './gewaechse.js';
-import * as Anzeige from './anzeige.js';
-import * as Inselboss from './inselboss.js';
-import { verwalteBioSpawns } from './biowesen.js';
+import { manageEnemySpawns } from './gegner.js';
+import * as Rock from './fels.js';
+import * as Growths from './gewaechse.js';
+import * as Display from './anzeige.js';
+import * as IslandBoss from './inselboss.js';
+import { manageBioSpawns } from './biowesen.js';
 
 // Ablauf eines Levels: Asteroiden-Takt in drei Phasen, Feinde ab feindStart im Takt feindRate,
 // Boss-Warnung bei bossFrame. levelPlan(level) liefert die Werte; neue Levelarten bekommen hier ihren Plan.
-export const LEVEL_DAUER = 3600; // 60 s bei 60 Hz
-export const FELS_AUSLAUF = 900; // so viele Schritte vor dem Boss laufen die Felswaende aus
+export const LEVEL_DURATION = 3600; // 60 s bei 60 Hz
+export const ROCK_RUNOUT = 900; // so viele Schritte vor dem Boss laufen die Felswaende aus
 
 // Fels-Level: ab Level 4 jedes zweite Level
-export function istFelsLevel(level) {
+export function isRockLevel(level) {
   return level >= 4 && level % 2 === 0;
 }
 
 // Gegner-Spawner je Levelart (Plan-Feld spawner)
-const SPAWNER = { standard: verwalteFeindSpawns, bio: verwalteBioSpawns };
+const SPAWNER = { standard: manageEnemySpawns, bio: manageBioSpawns };
 
 // Fels-Level (Biozone): eigener Gegnermix aus Ketten und Wesen, frueher Start, Asteroiden halb so oft
-export const BIO_FEIND_START = 300;
+export const BIO_ENEMY_START = 300;
 
 export function levelPlan(level) {
-  const stufe = level - 1;
-  const bio = istFelsLevel(level);
-  const faktor = bio ? 2 : 1;
-  const asteroidenStart = Math.max(40, 120 - stufe * 10);
-  const asteroidenMitte = Math.max(30, asteroidenStart - 20);
+  const tier = level - 1;
+  const bio = isRockLevel(level);
+  const factor = bio ? 2 : 1;
+  const asteroidsStart = Math.max(40, 120 - tier * 10);
+  const asteroidsMiddle = Math.max(30, asteroidsStart - 20);
   return {
-    thema: istFelsLevel(level) ? 'biozone' : 'standard',
-    fels: istFelsLevel(level),
+    theme: isRockLevel(level) ? 'biozone' : 'standard',
+    rock: isRockLevel(level),
     // [abFrame, Takt]: der letzte Eintrag mit abFrame < frame gilt
-    asteroidenTakt: [
-      [0, asteroidenStart * faktor],
-      [1200, asteroidenMitte * faktor],
-      [2400, Math.max(20, asteroidenMitte - 20) * faktor],
+    asteroidsCadence: [
+      [0, asteroidsStart * factor],
+      [1200, asteroidsMiddle * factor],
+      [2400, Math.max(20, asteroidsMiddle - 20) * factor],
     ],
-    feindStart: bio ? BIO_FEIND_START : Math.max(600, 1200 - stufe * 100),
-    feindRate: Math.max(120, 300 - stufe * 30),
-    bossFrame: LEVEL_DAUER,
-    boss: istFelsLevel(level) ? 'insel' : 'standard',
+    enemyStart: bio ? BIO_ENEMY_START : Math.max(600, 1200 - tier * 100),
+    enemyRate: Math.max(120, 300 - tier * 30),
+    bossFrame: LEVEL_DURATION,
+    boss: isRockLevel(level) ? 'island' : 'standard',
     spawner: bio ? 'bio' : 'standard',
   };
 }
 
 // Boss des Levels erzeugen (nach der Boss-Warnung)
-export function starteBoss() {
-  if (levelPlan(state.level).boss === 'insel') Inselboss.erzeuge();
-  else Entities.erzeugeBoss();
+export function startBoss() {
+  if (levelPlan(state.level).boss === 'island') IslandBoss.create();
+  else Entities.createBoss();
 }
 
-function taktBei(phasen, frame) {
-  let takt = phasen[0][1];
-  for (const [ab, t] of phasen) if (frame > ab) takt = t;
-  return takt;
+function cadenceAt(phases, frame) {
+  let cadence = phases[0][1];
+  for (const [fromEntry, t] of phases) if (frame > fromEntry) cadence = t;
+  return cadence;
 }
 
 // Thema des aktuellen Levels an die Anzeige geben, nur bei Wechsel (Host jeden Schritt, Online-Client in clientSchritt)
-let aktuellesThema = null;
+let currentTheme = null;
 // Neustart: zurueck zum Standard-Look (Cutszene, Level 1), naechstes pruefeThema setzt neu
-export function setzeThemaZurueck() {
-  aktuellesThema = null;
-  Anzeige.setzeThema('standard');
+export function resetTheme() {
+  currentTheme = null;
+  Display.setTheme('standard');
 }
 
-export function pruefeThema() {
-  const thema = levelPlan(state.level).thema;
-  if (thema === aktuellesThema) return;
-  aktuellesThema = thema;
-  Anzeige.setzeThema(thema);
+export function checkTheme() {
+  const theme = levelPlan(state.level).theme;
+  if (theme === currentTheme) return;
+  currentTheme = theme;
+  Display.setTheme(theme);
 }
 
 // Ein Simulationsschritt des Level-Ablaufs: zaehlt den Level-Frame hoch und spawnt nach Plan.
-export function levelSchritt() {
-  pruefeThema();
-  state.frameZaehler++;
-  if (state.bossAktiv) return;
+export function levelStep() {
+  checkTheme();
+  state.frameCounter++;
+  if (state.bossActive) return;
   const plan = levelPlan(state.level);
-  const frame = state.frameZaehler;
+  const frame = state.frameCounter;
 
-  if (frame % taktBei(plan.asteroidenTakt, frame) === 0) Entities.erzeugeAsteroid();
-  if (frame > plan.feindStart && frame % plan.feindRate === 0) SPAWNER[plan.spawner]();
-  if (plan.fels) {
-    const nachschub = frame < plan.bossFrame - FELS_AUSLAUF;
-    Fels.erzeugeNachschub(nachschub);
-    if (nachschub) Gewaechse.wachseNach(frame);
+  if (frame % cadenceAt(plan.asteroidsCadence, frame) === 0) Entities.createAsteroid();
+  if (frame > plan.enemyStart && frame % plan.enemyRate === 0) SPAWNER[plan.spawner]();
+  if (plan.rock) {
+    const supply = frame < plan.bossFrame - ROCK_RUNOUT;
+    Rock.createSupply(supply);
+    if (supply) Growths.regrow(frame);
   }
 
-  if (frame === plan.bossFrame && !state.bossWarningAktiv) {
-    state.bossWarningAktiv = true;
+  if (frame === plan.bossFrame && !state.bossWarningActive) {
+    state.bossWarningActive = true;
     state.bossWarningTimer = 120; // 2 Sekunden Pause bei 60 FPS
     Audio.playBossAlert();
     dom.warningOverlay.style.display = 'flex';

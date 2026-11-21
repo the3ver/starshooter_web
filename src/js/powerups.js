@@ -2,122 +2,122 @@ import { state, dom, config, arrays, isCoopMode } from './state.js';
 import * as Utils from './utils.js';
 import * as Audio from './audio.js';
 import * as Network from './network.js';
-import * as Anzeige from './anzeige.js';
-import * as Schockwelle from './schockwelle.js';
-import * as Fels from './fels.js';
+import * as Display from './anzeige.js';
+import * as Shockwave from './schockwelle.js';
+import * as Rock from './fels.js';
 
-function wendePowerupAn(p, targetKey = 'p1') {
+function applyPowerup(p, targetKey = 'p1') {
   const isP1 = targetKey === 'p1';
   const pState = isP1 ? state : state.p2;
-  const pDom = isP1 ? dom.spieler : dom.spieler2;
+  const pDom = isP1 ? dom.player : dom.player2;
   if (!pState) return;
 
   Audio.playPowerup(p.type);
-  if (p.type === 'leben') {
-    pState.leben++;
+  if (p.type === 'lives') {
+    pState.lives++;
     if (isCoopMode()) {
       const otherState = isP1 ? state.p2 : state;
       if (otherState && otherState.isDead) {
         otherState.isDead = false;
-        otherState.leben = 1;
-        otherState.energie = otherState.maxEnergie / 2;
+        otherState.lives = 1;
+        otherState.energy = otherState.maxEnergy / 2;
         otherState.invulnerableTimer = 180;
-        otherState.schiffSichtbar = true;
-        Anzeige.zeichneSpieler();
-        if (isP1) Utils.updateLebenP2UI();
-        else Utils.updateLebenUI();
+        otherState.shipVisible = true;
+        Display.drawPlayer();
+        if (isP1) Utils.updateLivesP2Ui();
+        else Utils.updateLivesUi();
       }
     }
-    if (isP1) Utils.updateLebenUI();
-    else Utils.updateLebenP2UI();
-  } else if (p.type === 'energie') {
-    if (pState.maxEnergie >= pState.absMaxEnergie) {
-      pState.unbegrenzteEnergie = true;
-      const marker = isP1 ? dom.maxEnergieMarker : dom.maxEnergieMarkerP2;
+    if (isP1) Utils.updateLivesUi();
+    else Utils.updateLivesP2Ui();
+  } else if (p.type === 'energy') {
+    if (pState.maxEnergy >= pState.absMaxEnergy) {
+      pState.unlimitedEnergy = true;
+      const marker = isP1 ? dom.maxEnergyMarker : dom.maxEnergyMarkerP2;
       if (marker) marker.style.display = 'none';
-      pState.energie = pState.absMaxEnergie;
+      pState.energy = pState.absMaxEnergy;
     } else {
-      pState.maxEnergie = Math.min(pState.absMaxEnergie, pState.maxEnergie + 10);
-      pState.energie = pState.maxEnergie;
-      if (isP1) Utils.updateMaxEnergieMarker();
-      else Utils.updateMaxEnergieMarkerP2();
+      pState.maxEnergy = Math.min(pState.absMaxEnergy, pState.maxEnergy + 10);
+      pState.energy = pState.maxEnergy;
+      if (isP1) Utils.updateMaxEnergyMarker();
+      else Utils.updateMaxEnergyMarkerP2();
     }
-  } else if (p.type === 'durchschlag') {
-    pState.laserDurchschlag = true;
-    pState.durchschlagTimer = 600;
-    if (isP1) Utils.updateAktivePowerupsUI();
-    else Utils.updateAktivePowerupsP2UI();
-  } else if (p.type === 'schild') {
-    if (pState.schildStufe > 0 && pDom) pDom.classList.remove(`schild-aktiv-${pState.schildStufe}`);
-    if (pState.schildStufe < 3) pState.schildStufe++;
-    if (pDom) pDom.classList.add(`schild-aktiv-${pState.schildStufe}`);
-    if (isP1) Utils.updateAktivePowerupsUI();
-    else Utils.updateAktivePowerupsP2UI();
-  } else if (p.type === 'laserWaffe') {
-    if (pState.laserStufe < 5) {
-      pState.laserStufe++;
-      if (isP1) Utils.updateAktivePowerupsUI();
-      else Utils.updateAktivePowerupsP2UI();
+  } else if (p.type === 'pierce') {
+    pState.laserPierce = true;
+    pState.pierceTimer = 600;
+    if (isP1) Utils.updateActivePowerupsUi();
+    else Utils.updateActivePowerupsP2Ui();
+  } else if (p.type === 'shield') {
+    if (pState.shieldTier > 0 && pDom) pDom.classList.remove(`schild-aktiv-${pState.shieldTier}`);
+    if (pState.shieldTier < 3) pState.shieldTier++;
+    if (pDom) pDom.classList.add(`schild-aktiv-${pState.shieldTier}`);
+    if (isP1) Utils.updateActivePowerupsUi();
+    else Utils.updateActivePowerupsP2Ui();
+  } else if (p.type === 'laserWeapon') {
+    if (pState.laserTier < 5) {
+      pState.laserTier++;
+      if (isP1) Utils.updateActivePowerupsUi();
+      else Utils.updateActivePowerupsP2Ui();
     }
-  } else if (p.type === 'raketenWaffe') {
-    if (pState.raketenStufe < 5) {
-      pState.raketenStufe++;
-      if (isP1) Utils.updateAktivePowerupsUI();
-      else Utils.updateAktivePowerupsP2UI();
+  } else if (p.type === 'missileWeapon') {
+    if (pState.missileTier < 5) {
+      pState.missileTier++;
+      if (isP1) Utils.updateActivePowerupsUi();
+      else Utils.updateActivePowerupsP2Ui();
     }
-  } else if (p.type === 'bombenWaffe') {
-    if (pState.bombenStufe < 5) {
-      pState.bombenStufe++;
-      if (isP1) Utils.updateAktivePowerupsUI();
-      else Utils.updateAktivePowerupsP2UI();
+  } else if (p.type === 'bombWeapon') {
+    if (pState.bombTier < 5) {
+      pState.bombTier++;
+      if (isP1) Utils.updateActivePowerupsUi();
+      else Utils.updateActivePowerupsP2Ui();
     }
-  } else if (p.type === 'superWaffe') {
-    if (pState.laserStufe < 5) pState.laserStufe++;
-    if (pState.raketenStufe < 5) pState.raketenStufe++;
-    if (pState.bombenStufe < 5) pState.bombenStufe++;
-    if (isP1) Utils.updateAktivePowerupsUI();
-    else Utils.updateAktivePowerupsP2UI();
+  } else if (p.type === 'superWeapon') {
+    if (pState.laserTier < 5) pState.laserTier++;
+    if (pState.missileTier < 5) pState.missileTier++;
+    if (pState.bombTier < 5) pState.bombTier++;
+    if (isP1) Utils.updateActivePowerupsUi();
+    else Utils.updateActivePowerupsP2Ui();
   } else if (p.type === 'autolaser') {
-    pState.autolaserAktiv = true;
+    pState.autolaserActive = true;
     pState.autolaserTimer = 600;
-    if (isP1) Utils.updateAktivePowerupsUI();
-    else Utils.updateAktivePowerupsP2UI();
-  } else if (p.type === 'schockwelle') {
-    Schockwelle.loeseAus(p.x + (p.groesse || 24) / 2, p.y + (p.groesse || 24) / 2, targetKey);
-  } else if (p.type === 'splitterRot') {
-    pState.splitterRot = (pState.splitterRot || 0) + 1;
-    if (pState.splitterRot >= 10) {
-      pState.splitterRot -= 10;
-      pState.leben++;
+    if (isP1) Utils.updateActivePowerupsUi();
+    else Utils.updateActivePowerupsP2Ui();
+  } else if (p.type === 'shockwave') {
+    Shockwave.trigger(p.x + (p.size || 24) / 2, p.y + (p.size || 24) / 2, targetKey);
+  } else if (p.type === 'splitterRed') {
+    pState.splitterRed = (pState.splitterRed || 0) + 1;
+    if (pState.splitterRed >= 10) {
+      pState.splitterRed -= 10;
+      pState.lives++;
       if (isCoopMode()) {
         const otherState = isP1 ? state.p2 : state;
         if (otherState && otherState.isDead) {
           otherState.isDead = false;
-          otherState.leben = 1;
-          otherState.energie = otherState.maxEnergie / 2;
+          otherState.lives = 1;
+          otherState.energy = otherState.maxEnergy / 2;
           otherState.invulnerableTimer = 180;
-          otherState.schiffSichtbar = true;
-          Anzeige.zeichneSpieler();
-          if (isP1) Utils.updateLebenP2UI();
-          else Utils.updateLebenUI();
+          otherState.shipVisible = true;
+          Display.drawPlayer();
+          if (isP1) Utils.updateLivesP2Ui();
+          else Utils.updateLivesUi();
         }
       }
-      if (isP1) Utils.updateLebenUI();
-      else Utils.updateLebenP2UI();
-      Audio.playPowerup('leben');
+      if (isP1) Utils.updateLivesUi();
+      else Utils.updateLivesP2Ui();
+      Audio.playPowerup('lives');
     }
     if (isP1) Utils.updateSplitterUI();
     else Utils.updateSplitterP2UI();
-  } else if (p.type === 'splitterWeiss') {
-    pState.splitterWeiss = (pState.splitterWeiss || 0) + 1;
-    if (pState.splitterWeiss >= 10) {
-      pState.splitterWeiss -= 10;
-      if (pState.laserStufe < 5) pState.laserStufe++;
-      if (pState.raketenStufe < 5) pState.raketenStufe++;
-      if (pState.bombenStufe < 5) pState.bombenStufe++;
-      if (isP1) Utils.updateAktivePowerupsUI();
-      else Utils.updateAktivePowerupsP2UI();
-      Audio.playPowerup('superWaffe');
+  } else if (p.type === 'splitterWhite') {
+    pState.splitterWhite = (pState.splitterWhite || 0) + 1;
+    if (pState.splitterWhite >= 10) {
+      pState.splitterWhite -= 10;
+      if (pState.laserTier < 5) pState.laserTier++;
+      if (pState.missileTier < 5) pState.missileTier++;
+      if (pState.bombTier < 5) pState.bombTier++;
+      if (isP1) Utils.updateActivePowerupsUi();
+      else Utils.updateActivePowerupsP2Ui();
+      Audio.playPowerup('superWeapon');
     }
     if (isP1) Utils.updateSplitterUI();
     else Utils.updateSplitterP2UI();
@@ -125,19 +125,19 @@ function wendePowerupAn(p, targetKey = 'p1') {
   Utils.addScore(50);
   const isOnline = state.gameMode === 'online' || (state.network && state.network.isOnline);
   if (!isOnline || isP1) {
-    Anzeige.blitzeSpielfeld(p.farbe, 100);
+    Display.flashPlayfield(p.color, 100);
   } else if (isOnline && !isP1) {
-    Network.sendNetworkEvent({ type: 'powerup_collected', target: 'p2', farbe: p.farbe });
+    Network.sendNetworkEvent({ type: 'powerup_collected', target: 'p2', color: p.color });
   }
 }
 
 // Startpunkt des Traktorstrahls (Unterkante Schiffsmitte); die Anzeige zeichnet den Strahl, solange towedBy gesetzt ist
 function updateTractorBeam(p, sx, sy) {
-  p.strahlX = sx;
-  p.strahlY = sy;
+  p.beamX = sx;
+  p.beamY = sy;
 }
 
-export function aktualisierePowerups() {
+export function updatePowerups() {
   for (let i = arrays.powerups.length - 1; i >= 0; i--) {
     let p = arrays.powerups[i];
 
@@ -149,8 +149,8 @@ export function aktualisierePowerups() {
       } else {
         const p1Towed = arrays.powerups.filter(pu => pu.towedBy === 'p1');
         const slotIdx = p1Towed.indexOf(p);
-        let targetX = state.x + config.spielerGroesse / 2 - p.groesse / 2;
-        let targetY = state.y + config.spielerGroesse + 16;
+        let targetX = state.x + config.playerSize / 2 - p.size / 2;
+        let targetY = state.y + config.playerSize + 16;
         if (slotIdx === 1) {
           targetX -= 18;
           targetY += 16;
@@ -162,20 +162,20 @@ export function aktualisierePowerups() {
         p.x += (targetX - p.x) * 0.28;
         p.y += (targetY - p.y) * 0.28;
 
-        updateTractorBeam(p, state.x + config.spielerGroesse / 2, state.y + config.spielerGroesse);
+        updateTractorBeam(p, state.x + config.playerSize / 2, state.y + config.playerSize);
 
         // Übergabe an Spieler 2 prüfen
         if (
           isCoopMode() &&
           state.p2 &&
           !state.p2.isDead &&
-          state.p2.x < p.x + p.groesse &&
-          state.p2.x + config.spielerGroesse > p.x &&
-          state.p2.y < p.y + p.groesse &&
-          state.p2.y + config.spielerGroesse > p.y
+          state.p2.x < p.x + p.size &&
+          state.p2.x + config.playerSize > p.x &&
+          state.p2.y < p.y + p.size &&
+          state.p2.y + config.playerSize > p.y
         ) {
-          wendePowerupAn(p, 'p2');
-          Anzeige.entferne(p);
+          applyPowerup(p, 'p2');
+          Display.remove(p);
           arrays.powerups.splice(i, 1);
           continue;
         }
@@ -191,8 +191,8 @@ export function aktualisierePowerups() {
       } else if (state.p2) {
         const p2Towed = arrays.powerups.filter(pu => pu.towedBy === 'p2');
         const slotIdx = p2Towed.indexOf(p);
-        let targetX = state.p2.x + config.spielerGroesse / 2 - p.groesse / 2;
-        let targetY = state.p2.y + config.spielerGroesse + 16;
+        let targetX = state.p2.x + config.playerSize / 2 - p.size / 2;
+        let targetY = state.p2.y + config.playerSize + 16;
         if (slotIdx === 1) {
           targetX -= 18;
           targetY += 16;
@@ -204,18 +204,18 @@ export function aktualisierePowerups() {
         p.x += (targetX - p.x) * 0.28;
         p.y += (targetY - p.y) * 0.28;
 
-        updateTractorBeam(p, state.p2.x + config.spielerGroesse / 2, state.p2.y + config.spielerGroesse);
+        updateTractorBeam(p, state.p2.x + config.playerSize / 2, state.p2.y + config.playerSize);
 
         // Übergabe an Spieler 1 prüfen
         if (
           !state.isDead &&
-          state.x < p.x + p.groesse &&
-          state.x + config.spielerGroesse > p.x &&
-          state.y < p.y + p.groesse &&
-          state.y + config.spielerGroesse > p.y
+          state.x < p.x + p.size &&
+          state.x + config.playerSize > p.x &&
+          state.y < p.y + p.size &&
+          state.y + config.playerSize > p.y
         ) {
-          wendePowerupAn(p, 'p1');
-          Anzeige.entferne(p);
+          applyPowerup(p, 'p1');
+          Display.remove(p);
           arrays.powerups.splice(i, 1);
           continue;
         }
@@ -225,9 +225,9 @@ export function aktualisierePowerups() {
 
     // --- CASE C: Freies Powerup (im Fels-Level gleitet es in den freien Gang) ---
     p.y += p.vy;
-    if (arrays.fels.length) Fels.schwebeInGang(p, p.groesse || 24);
-    if (p.y > config.spielfeldHoehe) {
-      Anzeige.entferne(p);
+    if (arrays.rock.length) Rock.hoverInCorridor(p, p.size || 24);
+    if (p.y > config.playfieldHeight) {
+      Display.remove(p);
       arrays.powerups.splice(i, 1);
       continue;
     }
@@ -235,25 +235,25 @@ export function aktualisierePowerups() {
     // Prüfe Einsammeln durch Spieler 1
     const p1Col =
       !state.isDead &&
-      state.x < p.x + p.groesse &&
-      state.x + config.spielerGroesse > p.x &&
-      state.y < p.y + p.groesse &&
-      state.y + config.spielerGroesse > p.y;
+      state.x < p.x + p.size &&
+      state.x + config.playerSize > p.x &&
+      state.y < p.y + p.size &&
+      state.y + config.playerSize > p.y;
 
     // Prüfe Einsammeln durch Spieler 2 (Co-op)
     const p2Col =
       isCoopMode() &&
       state.p2 &&
       !state.p2.isDead &&
-      state.p2.x < p.x + p.groesse &&
-      state.p2.x + config.spielerGroesse > p.x &&
-      state.p2.y < p.y + p.groesse &&
-      state.p2.y + config.spielerGroesse > p.y;
+      state.p2.x < p.x + p.size &&
+      state.p2.x + config.playerSize > p.x &&
+      state.p2.y < p.y + p.size &&
+      state.p2.y + config.playerSize > p.y;
 
     if (p1Col) {
       if (!p.owner || p.owner === 'p1') {
-        wendePowerupAn(p, 'p1');
-        Anzeige.entferne(p);
+        applyPowerup(p, 'p1');
+        Display.remove(p);
         arrays.powerups.splice(i, 1);
         continue;
       } else if (isCoopMode() && p.owner === 'p2') {
@@ -261,13 +261,13 @@ export function aktualisierePowerups() {
         if (p1TowedCount < 3) {
           p.towedBy = 'p1';
           Audio.playPowerup('tether');
-          updateTractorBeam(p, state.x + config.spielerGroesse / 2, state.y + config.spielerGroesse);
+          updateTractorBeam(p, state.x + config.playerSize / 2, state.y + config.playerSize);
         }
       }
     } else if (p2Col) {
       if (!p.owner || p.owner === 'p2') {
-        wendePowerupAn(p, 'p2');
-        Anzeige.entferne(p);
+        applyPowerup(p, 'p2');
+        Display.remove(p);
         arrays.powerups.splice(i, 1);
         continue;
       } else if (isCoopMode() && p.owner === 'p1') {
@@ -275,7 +275,7 @@ export function aktualisierePowerups() {
         if (p2TowedCount < 3) {
           p.towedBy = 'p2';
           Audio.playPowerup('tether');
-          updateTractorBeam(p, state.p2.x + config.spielerGroesse / 2, state.p2.y + config.spielerGroesse);
+          updateTractorBeam(p, state.p2.x + config.playerSize / 2, state.p2.y + config.playerSize);
         }
       }
     }

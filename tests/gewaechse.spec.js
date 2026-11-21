@@ -1,5 +1,5 @@
 const { test, expect } = require('@playwright/test');
-const { setzeSpielstand, starteSpiel } = require('./helfer');
+const { setGameState, startGame } = require('./helfer');
 
 test.beforeEach(async ({ page }) => {
   await page.route('**/api/highscores*', route =>
@@ -9,39 +9,39 @@ test.beforeEach(async ({ page }) => {
       body: JSON.stringify({ success: true, mode: 'single', highscores: [] }),
     }),
   );
-  await setzeSpielstand(page);
+  await setGameState(page);
   await page.goto('/');
-  await starteSpiel(page);
-  await page.waitForFunction(() => window.__game.state.spielLaeuft);
+  await startGame(page);
+  await page.waitForFunction(() => window.__game.state.gameRunning);
   // Feld leeren, Spieler unten in der Mitte, keine Zufalls-Spawns; Helfer in window.__gw
   await page.evaluate(async () => {
     const { state, arrays, config } = await import('./js/state.js');
-    const Anzeige = await import('./js/anzeige.js');
-    const Fels = await import('./js/fels.js');
+    const Display = await import('./js/anzeige.js');
+    const Rock = await import('./js/fels.js');
     for (const name of Object.keys(arrays)) {
-      if (name === 'sterne') continue;
-      arrays[name].forEach(o => o.el && Anzeige.entferne(o));
+      if (name === 'stars') continue;
+      arrays[name].forEach(o => o.el && Display.remove(o));
       arrays[name].length = 0;
     }
-    Fels.setzeZurueck();
-    state.frameZaehler = 1;
+    Rock.reset();
+    state.frameCounter = 1;
     state.level = 1;
-    state.x = config.spielfeldBreite / 2 - 15;
+    state.x = config.playfieldWidth / 2 - 15;
     state.y = 560;
     state.godMode = true;
     state.selectedShipModel = 'phantom';
     // Segment mit festem Profil (oben = unten) auf Hoehe y
     const segment = (y, p) => {
-      const s = Anzeige.erzeuge({ id: 'fe_t' + y, x: 0, y, oben: { ...p }, unten: { ...p } }, 'fels');
-      arrays.fels.push(s);
+      const s = Display.create({ id: 'fe_t' + y, x: 0, y, top: { ...p }, bottom: { ...p } }, 'rock');
+      arrays.rock.push(s);
       return s;
     };
     window.__gw = {
       G: await import('./js/gewaechse.js'),
       Loop: await import('./js/loop.js'),
       Utils: await import('./js/utils.js'),
-      Fels,
-      Anzeige,
+      Rock,
+      Display,
       state,
       arrays,
       config,
@@ -53,170 +53,170 @@ test.beforeEach(async ({ page }) => {
 test('Gewaechse sitzen an Wand- und Inselkanten und blicken in den Gang', async ({ page }) => {
   const r = await page.evaluate(() => {
     const { G, segment, config } = window.__gw;
-    const b = config.spielfeldBreite;
-    const s = segment(200, { l: 60, r: 50, im: b / 2, ib: 80 });
-    const lage = seite => {
-      const f = G.erzeugeGewaechs('trichter', s, seite);
-      return { x: f.x, y: f.y, rot: f.rot, richtung: f.richtung };
+    const b = config.playfieldWidth;
+    const s = segment(200, { l: 60, r: 50, inner: b / 2, ib: 80 });
+    const position = side => {
+      const f = G.createGrowth('funnel', s, side);
+      return { x: f.x, y: f.y, rot: f.rot, direction: f.direction };
     };
-    const ohnePlatz = G.erzeugeGewaechs('bluete', segment(300, { l: 10, r: 10, im: b / 2, ib: 0 }));
-    return { l: lage('l'), r: lage('r'), il: lage('il'), ir: lage('ir'), ohnePlatz, b };
+    const withoutSpot = G.createGrowth('bloom', segment(300, { l: 10, r: 10, inner: b / 2, ib: 0 }));
+    return { l: position('l'), r: position('r'), il: position('il'), ir: position('ir'), withoutSpot, b };
   });
   const g = 30;
-  expect(r.l).toEqual({ x: 60 - g * 0.3, y: 205, rot: -90, richtung: 1 });
-  expect(r.r).toEqual({ x: r.b - 50 - g * 0.7, y: 205, rot: 90, richtung: -1 });
-  expect(r.il).toEqual({ x: r.b / 2 - 40 - g * 0.7, y: 205, rot: 90, richtung: -1 });
-  expect(r.ir).toEqual({ x: r.b / 2 + 40 - g * 0.3, y: 205, rot: -90, richtung: 1 });
-  expect(r.ohnePlatz).toBeNull();
+  expect(r.l).toEqual({ x: 60 - g * 0.3, y: 205, rot: -90, direction: 1 });
+  expect(r.r).toEqual({ x: r.b - 50 - g * 0.7, y: 205, rot: 90, direction: -1 });
+  expect(r.il).toEqual({ x: r.b / 2 - 40 - g * 0.7, y: 205, rot: 90, direction: -1 });
+  expect(r.ir).toEqual({ x: r.b / 2 + 40 - g * 0.3, y: 205, rot: -90, direction: 1 });
+  expect(r.withoutSpot).toBeNull();
 });
 
 test('Gewaechs scrollt mit seinem Felssegment', async ({ page }) => {
   const r = await page.evaluate(() => {
     const { G, Loop, segment } = window.__gw;
-    const s = segment(100, { l: 60, r: 60, im: 200, ib: 0 });
-    const f = G.erzeugeGewaechs('kapsel', s, 'l');
-    const vorher = f.y;
-    for (let i = 0; i < 20; i++) Loop.simulationsSchritt();
-    return { weg: f.y - vorher, abstand: f.y - s.y };
+    const s = segment(100, { l: 60, r: 60, inner: 200, ib: 0 });
+    const f = G.createGrowth('capsule', s, 'l');
+    const beforehand = f.y;
+    for (let i = 0; i < 20; i++) Loop.simulationStep();
+    return { gone: f.y - beforehand, distance: f.y - s.y };
   });
-  expect(r.weg).toBeCloseTo(20 * 1.5, 5);
-  expect(r.abstand).toBe((40 - 24) / 2);
+  expect(r.gone).toBeCloseTo(20 * 1.5, 5);
+  expect(r.distance).toBe((40 - 24) / 2);
 });
 
 test('Bluete: zu und gepanzert, dann offen mit drei Sporen quer in den Gang, dann wieder zu', async ({ page }) => {
   const r = await page.evaluate(() => {
     const { G, Loop, segment, arrays } = window.__gw;
-    const s = segment(200, { l: 60, r: 60, im: 200, ib: 0 });
+    const s = segment(200, { l: 60, r: 60, inner: 200, ib: 0 });
     s.y = 200;
-    const f = G.erzeugeGewaechs('bluete', s, 'l');
-    const verlauf = [];
-    for (let i = 0; i < G.ZU_DAUER + G.OFFEN_DAUER + 2; i++) {
+    const f = G.createGrowth('bloom', s, 'l');
+    const history = [];
+    for (let i = 0; i < G.TOO_DURATION + G.OPEN_DURATION + 2; i++) {
       s.y = 200; // Segment festhalten (Fels wird hier nicht gescrollt)
-      Loop.simulationsSchritt();
-      verlauf.push({ offen: f.offen, panzer: f.istUnzerstoerbar });
+      Loop.simulationStep();
+      history.push({ open: f.open, armor: f.isIndestructible });
     }
-    const sporen = arrays.feindLaserArray.filter(l => l.spore);
+    const spores = arrays.enemyLaserArray.filter(l => l.spore);
     return {
-      zuAnfang: verlauf[0],
-      offenNachZu: verlauf[G.ZU_DAUER],
-      wiederZu: verlauf.at(-1),
-      sporen: sporen.length,
-      tempo: sporen.map(l => [l.vx, l.vy, l.width]),
-      klasse: sporen[0] && sporen[0].el.className,
+      tooStart: history[0],
+      openAfterClosed: history[G.TOO_DURATION],
+      closedAgain: history.at(-1),
+      spores: spores.length,
+      speed: spores.map(l => [l.vx, l.vy, l.width]),
+      cls: spores[0] && spores[0].el.className,
     };
   });
-  expect(r.zuAnfang).toEqual({ offen: false, panzer: true });
-  expect(r.offenNachZu).toEqual({ offen: true, panzer: false });
-  expect(r.wiederZu).toEqual({ offen: false, panzer: true });
-  expect(r.sporen).toBe(3);
-  for (const [vx, vy, w] of r.tempo) {
+  expect(r.tooStart).toEqual({ open: false, armor: true });
+  expect(r.openAfterClosed).toEqual({ open: true, armor: false });
+  expect(r.closedAgain).toEqual({ open: false, armor: true });
+  expect(r.spores).toBe(3);
+  for (const [vx, vy, w] of r.speed) {
     expect(vx).toBeCloseTo(2.6, 5);
     expect(Math.abs(vy)).toBeLessThan(1);
     expect(w).toBe(10);
   }
-  expect(r.klasse).toBe('spore');
+  expect(r.cls).toBe('spore');
 });
 
 test('Laser prallen an der geschlossenen Bluete ab und treffen die offene', async ({ page }) => {
   const r = await page.evaluate(() => {
-    const { G, Loop, segment, arrays, Anzeige } = window.__gw;
-    const s = segment(200, { l: 60, r: 60, im: 200, ib: 0 });
-    const f = G.erzeugeGewaechs('bluete', s, 'l');
-    const schuss = () => {
+    const { G, Loop, segment, arrays, Display } = window.__gw;
+    const s = segment(200, { l: 60, r: 60, inner: 200, ib: 0 });
+    const f = G.createGrowth('bloom', s, 'l');
+    const shot = () => {
       s.y = 200;
       arrays.laserArray.push(
-        Anzeige.erzeuge(
+        Display.create(
           {
             id: 'l_t' + Math.random(),
             x: f.x + 15,
-            y: f.y + f.groesse + 4,
+            y: f.y + f.size + 4,
             vx: 0,
             vy: 15,
             width: 4,
             height: 20,
-            schaden: 16,
+            damage: 16,
             owner: 'p1',
           },
           'laser',
         ),
       );
       const hp = f.hp;
-      Loop.simulationsSchritt();
+      Loop.simulationStep();
       return hp - f.hp;
     };
-    const zu = schuss();
-    f.phase = 'offen';
-    f.phaseTimer = G.OFFEN_DAUER;
-    const offen = schuss();
-    return { zu, offen };
+    const too = shot();
+    f.phase = 'open';
+    f.phaseTimer = G.OPEN_DURATION;
+    const open = shot();
+    return { too, open };
   });
-  expect(r.zu).toBe(0);
-  expect(r.offen).toBe(16);
+  expect(r.too).toBe(0);
+  expect(r.open).toBe(16);
 });
 
 test('Trichter schiesst im Takt einzelne Sporen, Kapsel nie', async ({ page }) => {
   const r = await page.evaluate(() => {
     const { G, Loop, segment, arrays } = window.__gw;
-    const s = segment(200, { l: 60, r: 60, im: 200, ib: 0 });
-    const t = G.erzeugeGewaechs('trichter', s, 'l');
+    const s = segment(200, { l: 60, r: 60, inner: 200, ib: 0 });
+    const t = G.createGrowth('funnel', s, 'l');
     t.phaseTimer = 5;
-    const k = G.erzeugeGewaechs('kapsel', s, 'r');
-    for (let i = 0; i < 5 + G.TRICHTER_TAKT; i++) {
+    const k = G.createGrowth('capsule', s, 'r');
+    for (let i = 0; i < 5 + G.FUNNEL_CADENCE; i++) {
       s.y = 200;
-      Loop.simulationsSchritt();
+      Loop.simulationStep();
     }
-    const sporen = arrays.feindLaserArray.filter(l => l.spore);
-    return { anzahl: sporen.length, richtungen: sporen.map(l => Math.sign(l.vx)), kapselOffen: k.offen };
+    const spores = arrays.enemyLaserArray.filter(l => l.spore);
+    return { count: spores.length, directions: spores.map(l => Math.sign(l.vx)), capsuleOpen: k.open };
   });
-  expect(r.anzahl).toBe(2);
-  expect(r.richtungen).toEqual([1, 1]);
-  expect(r.kapselOffen).toBe(true);
+  expect(r.count).toBe(2);
+  expect(r.directions).toEqual([1, 1]);
+  expect(r.capsuleOpen).toBe(true);
 });
 
 test('Eierkapsel laesst beim Abschuss den Bonus fallen (Schockwelle hoechstens einmal pro Level)', async ({ page }) => {
   const r = await page.evaluate(() => {
     const { G, Utils, segment, arrays, state } = window.__gw;
     state.level = 4;
-    state.schockwelleLevel = 0;
-    const s = segment(200, { l: 60, r: 60, im: 200, ib: 0 });
-    const typen = [];
+    state.shockwaveLevel = 0;
+    const s = segment(200, { l: 60, r: 60, inner: 200, ib: 0 });
+    const types = [];
     const orig = Math.random;
     for (let i = 0; i < 2; i++) {
-      const k = G.erzeugeGewaechs('kapsel', s, 'l');
+      const k = G.createGrowth('capsule', s, 'l');
       Math.random = () => 0.1;
       try {
-        Utils.zerstoereZiel(k);
+        Utils.destroyTarget(k);
       } finally {
         Math.random = orig;
       }
-      typen.push(arrays.powerups.at(-1).type);
+      types.push(arrays.powerups.at(-1).type);
     }
-    return typen;
+    return types;
   });
-  expect(r[0]).toBe('schockwelle');
-  expect(r[1]).not.toBe('schockwelle');
+  expect(r[0]).toBe('shockwave');
+  expect(r[1]).not.toBe('shockwave');
 });
 
 test('Schockwelle laesst geschlossene Blueten stehen und erfasst offene Gewaechse', async ({ page }) => {
   const r = await page.evaluate(async () => {
     const { G, Loop, segment, arrays } = window.__gw;
     const SW = await import('./js/schockwelle.js');
-    const s = segment(200, { l: 60, r: 60, im: 200, ib: 0 });
-    const zu = G.erzeugeGewaechs('bluete', s, 'l');
-    const trichter = G.erzeugeGewaechs('trichter', s, 'r');
-    SW.loeseAus(200, 300, 'p1');
-    for (let i = 0; i < SW.WELLEN_DAUER; i++) {
+    const s = segment(200, { l: 60, r: 60, inner: 200, ib: 0 });
+    const too = G.createGrowth('bloom', s, 'l');
+    const funnel = G.createGrowth('funnel', s, 'r');
+    SW.trigger(200, 300, 'p1');
+    for (let i = 0; i < SW.WAVE_DURATION; i++) {
       s.y = 200;
-      Loop.simulationsSchritt();
+      Loop.simulationStep();
     }
-    return { bluete: arrays.feinde.includes(zu), trichter: arrays.feinde.includes(trichter) };
+    return { bloom: arrays.enemies.includes(too), funnel: arrays.enemies.includes(funnel) };
   });
-  expect(r).toEqual({ bluete: true, trichter: false });
+  expect(r).toEqual({ bloom: true, funnel: false });
 });
 
 test('Fels-Level laesst Gewaechse wachsen, normale Level nicht', async ({ page }) => {
   const r = await page.evaluate(() => {
-    const { Loop, arrays, state, Anzeige, Fels, G } = window.__gw;
+    const { Loop, arrays, state, Display, Rock, G } = window.__gw;
     // Fester Seed (mulberry32): das Ergebnis haengt vom Wuerfeln ab (Flake-Suche 2026-11-21: in CI einmal 0 Gewaechse)
     let x = 1;
     Math.random = () => {
@@ -225,20 +225,20 @@ test('Fels-Level laesst Gewaechse wachsen, normale Level nicht', async ({ page }
       t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
       return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
     };
-    const lauf = level => {
+    const run = level => {
       // alle Weltlisten leeren: zwischen beforeEach und Test laufen Echtzeit-Frames (Asteroiden, Powerups)
       for (const name of Object.keys(arrays)) {
-        if (name === 'sterne') continue;
-        arrays[name].forEach(o => o.el && Anzeige.entferne(o));
+        if (name === 'stars') continue;
+        arrays[name].forEach(o => o.el && Display.remove(o));
         arrays[name].length = 0;
       }
-      Fels.setzeZurueck();
+      Rock.reset();
       state.level = level;
-      state.frameZaehler = 1;
-      for (let i = 0; i < 700; i++) Loop.simulationsSchritt();
-      return arrays.feinde.filter(G.istGewaechs).length;
+      state.frameCounter = 1;
+      for (let i = 0; i < 700; i++) Loop.simulationStep();
+      return arrays.enemies.filter(G.isGrowth).length;
     };
-    return { level3: lauf(3), level4: lauf(4) };
+    return { level3: run(3), level4: run(4) };
   });
   expect(r.level3).toBe(0);
   expect(r.level4).toBeGreaterThan(0);
@@ -248,35 +248,35 @@ test('Online: Snapshot traegt offen und spore, der Client zeigt Bluete und Spore
   const r = await page.evaluate(async () => {
     const { G, segment, arrays, state } = window.__gw;
     const Network = await import('./js/network.js');
-    const s = segment(200, { l: 60, r: 60, im: 200, ib: 0 });
-    const f = G.erzeugeGewaechs('bluete', s, 'l');
-    f.offen = true;
-    G.erzeugeSpore(f);
+    const s = segment(200, { l: 60, r: 60, inner: 200, ib: 0 });
+    const f = G.createGrowth('bloom', s, 'l');
+    f.open = true;
+    G.createSpore(f);
     const snap = JSON.parse(JSON.stringify(Network.serializeGameState()));
-    const gesendet = { offen: snap.feinde[0].offen, spore: snap.feindLaser[0].spore };
-    for (const name of ['feinde', 'feindLaserArray']) {
+    const sent = { open: snap.enemies[0].open, spore: snap.enemyLaser[0].spore };
+    for (const name of ['enemies', 'enemyLaserArray']) {
       arrays[name].forEach(o => o.el.remove());
       arrays[name].length = 0;
     }
-    const netz = state.network;
+    const network = state.network;
     state.network = { isOnline: true, isHost: false, connected: true };
     Network.applyGameStateSnapshot(snap);
-    state.network = netz;
-    const cf = arrays.feinde[0];
-    const cs = arrays.feindLaserArray[0];
+    state.network = network;
+    const cf = arrays.enemies[0];
+    const cs = arrays.enemyLaserArray[0];
     return {
-      gesendet,
-      bluete: !!cf.el.querySelector('svg.gewaechs .bluete-kappe'),
-      offenKlasse: cf.el.classList.contains('offen'),
-      sporeKlasse: cs.el.className,
+      sent,
+      bloom: !!cf.el.querySelector('svg.gewaechs .bluete-kappe'),
+      openClass: cf.el.classList.contains('offen'),
+      sporeClass: cs.el.className,
       sporeBox: [cs.width, cs.height],
     };
   });
   expect(r).toEqual({
-    gesendet: { offen: true, spore: true },
-    bluete: true,
-    offenKlasse: true,
-    sporeKlasse: 'spore',
+    sent: { open: true, spore: true },
+    bloom: true,
+    openClass: true,
+    sporeClass: 'spore',
     sporeBox: [10, 10],
   });
 });
@@ -285,14 +285,14 @@ test('Bot zielt nicht auf geschlossene Blueten', async ({ page }) => {
   const r = await page.evaluate(async () => {
     const { G, segment, config } = window.__gw;
     const Bot = await import('./js/bot.js');
-    const s = segment(200, { l: 60, r: 60, im: 200, ib: 0 });
-    const f = G.erzeugeGewaechs('bluete', s, 'l');
-    const p2 = { x: config.spielfeldBreite / 2, y: 500 };
-    const zu = Bot.findBestTarget(p2, { aimCorridor: 30 });
-    f.offen = true;
-    f.istUnzerstoerbar = false;
-    const offen = Bot.findBestTarget(p2, { aimCorridor: 30 });
-    return { zu, offen: !!offen };
+    const s = segment(200, { l: 60, r: 60, inner: 200, ib: 0 });
+    const f = G.createGrowth('bloom', s, 'l');
+    const p2 = { x: config.playfieldWidth / 2, y: 500 };
+    const too = Bot.findBestTarget(p2, { aimCorridor: 30 });
+    f.open = true;
+    f.isIndestructible = false;
+    const open = Bot.findBestTarget(p2, { aimCorridor: 30 });
+    return { too, open: !!open };
   });
-  expect(r).toEqual({ zu: null, offen: true });
+  expect(r).toEqual({ too: null, open: true });
 });

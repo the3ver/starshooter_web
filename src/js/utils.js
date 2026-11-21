@@ -6,25 +6,25 @@ import * as Network from './network.js';
 import * as Gleve from './gleve.js';
 import * as Sniper from './sniper.js';
 import * as Viper from './viper.js';
-import * as Anzeige from './anzeige.js';
-import * as Kette from './kette.js';
-import * as Fels from './fels.js';
-import * as Schockwelle from './schockwelle.js';
-import * as Inselboss from './inselboss.js';
+import * as Display from './anzeige.js';
+import * as Chain from './kette.js';
+import * as Rock from './fels.js';
+import * as Shockwave from './schockwelle.js';
+import * as IslandBoss from './inselboss.js';
 import * as Level from './level.js';
-import { getShipSVGContent } from './anzeige-dom-objekte.js';
+import { getShipSvgContent } from './anzeige-dom-objekte.js';
 // Schiffs-SVG fuer Hangar und Cutszene (gleiche Vorlage wie im Spiel)
-export { getShipSVGContent };
-import { erzeugePartikel } from './partikel.js';
-import { erzeugeEffekt, entferneEffekte } from './effekte.js';
+export { getShipSvgContent };
+import { createParticles } from './partikel.js';
+import { createEffect, removeEffects } from './effekte.js';
 
 // faktor: Punkte-Multiplikator (Viper-Kombo), Ergebnis gerundet
-export function addScore(punkte, faktor = 1) {
-  state.score += Math.round(punkte * faktor);
-  dom.scoreAnzeige.innerText = state.score.toString().padStart(5, '0');
+export function addScore(points, factor = 1) {
+  state.score += Math.round(points * factor);
+  dom.scoreDisplay.innerText = state.score.toString().padStart(5, '0');
 }
 // Setzt HTML und entfernt verlorene Symbole (.pu-anim-lost) nach der Animation
-function zeigeMitVerlustAnimation(container, html, lostHtml) {
+function showWithLossAnimation(container, html, lostHtml) {
   container.innerHTML = html + lostHtml;
 
   if (lostHtml) {
@@ -36,12 +36,12 @@ function zeigeMitVerlustAnimation(container, html, lostHtml) {
 }
 
 // Herzen für einen Spieler; stilAttr hängt am span (P2: eigene Farbe)
-function zeichneLeben(leben, prevWert, container, stilAttr) {
+function drawLives(lives, prevValue, container, styleAttr) {
   // Unveränderte Lebenszahl, Herzen schon im DOM und keine Animationsreste: nichts neu aufbauen
   // (der Online-Client ruft das pro Snapshot auf). Reste (pu-anim-new/-lost) räumt genau ein Neuaufbau weg.
   if (
-    leben === prevWert &&
-    container.querySelectorAll('.leben-herz').length === leben &&
+    lives === prevValue &&
+    container.querySelectorAll('.leben-herz').length === lives &&
     !container.querySelector('.pu-anim-new, .pu-anim-lost')
   ) {
     return;
@@ -50,39 +50,39 @@ function zeichneLeben(leben, prevWert, container, stilAttr) {
   let html = '';
   let lostHtml = '';
 
-  for (let i = 0; i < leben; i++) {
-    let animClass = i >= prevWert ? 'pu-anim-new' : '';
-    html += `<span class="leben-herz ${animClass}"${stilAttr}>&hearts;</span>`;
+  for (let i = 0; i < lives; i++) {
+    let animClass = i >= prevValue ? 'pu-anim-new' : '';
+    html += `<span class="leben-herz ${animClass}"${styleAttr}>&hearts;</span>`;
   }
 
-  if (leben < prevWert) {
-    let lostCount = prevWert - leben;
+  if (lives < prevValue) {
+    let lostCount = prevValue - lives;
     for (let i = 0; i < lostCount; i++) {
-      lostHtml += `<span class="leben-herz pu-anim-lost"${stilAttr}>&hearts;</span>`;
+      lostHtml += `<span class="leben-herz pu-anim-lost"${styleAttr}>&hearts;</span>`;
     }
   }
 
-  zeigeMitVerlustAnimation(container, html, lostHtml);
+  showWithLossAnimation(container, html, lostHtml);
 }
 
-let prevLeben = null;
+let prevLives = null;
 
-export function updateLebenUI() {
-  if (prevLeben === null) {
-    prevLeben = state.leben;
+export function updateLivesUi() {
+  if (prevLives === null) {
+    prevLives = state.lives;
   }
-  zeichneLeben(state.leben, prevLeben, dom.lebenAnzeige, '');
-  prevLeben = state.leben;
+  drawLives(state.lives, prevLives, dom.livesDisplay, '');
+  prevLives = state.lives;
 }
 export function updateLevelUI() {
-  dom.levelAnzeige.innerText = 'LEVEL ' + state.level;
+  dom.levelDisplay.innerText = 'LEVEL ' + state.level;
 }
-export function updateMaxEnergieMarker() {
-  dom.maxEnergieMarker.style.left = (state.maxEnergie / state.absMaxEnergie) * 100 + '%';
+export function updateMaxEnergyMarker() {
+  dom.maxEnergyMarker.style.left = (state.maxEnergy / state.absMaxEnergy) * 100 + '%';
 }
 // Powerup-Icons eines Spielers (s = state oder state.p2); prev merkt sich den
 // letzten Stand für Animationen und wird am Ende aktualisiert
-function zeichneAktivePowerups(s, prev, container) {
+function drawActivePowerups(s, prev, container) {
   let html = '';
   let lostHtml = '';
 
@@ -107,83 +107,81 @@ function zeichneAktivePowerups(s, prev, container) {
     }
   }
 
-  buildIcon('laserStufe', s.laserStufe, 1, 'L', false, 'rgba(155,89,182,0.2)', val =>
+  buildIcon('laserTier', s.laserTier, 1, 'L', false, 'rgba(155,89,182,0.2)', val =>
     val === 5 ? '#e056fd' : '#9b59b6',
   );
-  buildIcon('raketenStufe', s.raketenStufe, 1, 'R', false, 'rgba(230,126,34,0.2)', val =>
+  buildIcon('missileTier', s.missileTier, 1, 'R', false, 'rgba(230,126,34,0.2)', val =>
     val === 5 ? '#f39c12' : '#e67e22',
   );
-  buildIcon('bombenStufe', s.bombenStufe, 1, 'B', false, 'rgba(192,57,43,0.2)', val =>
-    val === 5 ? '#e74c3c' : '#c0392b',
-  );
-  buildIcon('laserDurchschlag', s.laserDurchschlag, false, '&uarr;', true, 'rgba(0,255,255,0.2)', '#00ffff');
-  if (s.schildStufe > 0) {
-    buildIcon('schildStufe', s.schildStufe, 0, 'O', false, 'rgba(52,152,219,0.2)', '#3498db');
-  } else if (s.selectedShipModel === 'phantom' && (s.phantomSchildRegenTimer || 0) > 0) {
-    const maxTimer = s.phantomSchildRegenMax || 900;
-    const progress = Math.min(1, Math.max(0, s.phantomSchildRegenTimer / maxTimer));
+  buildIcon('bombTier', s.bombTier, 1, 'B', false, 'rgba(192,57,43,0.2)', val => (val === 5 ? '#e74c3c' : '#c0392b'));
+  buildIcon('laserPierce', s.laserPierce, false, '&uarr;', true, 'rgba(0,255,255,0.2)', '#00ffff');
+  if (s.shieldTier > 0) {
+    buildIcon('shieldTier', s.shieldTier, 0, 'O', false, 'rgba(52,152,219,0.2)', '#3498db');
+  } else if (s.selectedShipModel === 'phantom' && (s.phantomShieldRegenTimer || 0) > 0) {
+    const maxTimer = s.phantomShieldRegenMax || 900;
+    const progress = Math.min(1, Math.max(0, s.phantomShieldRegenTimer / maxTimer));
     const deg = Math.round(progress * 360);
     html += `<div class="active-pu-icon pu-recharging-shield" style="background: conic-gradient(#3498db ${deg}deg, rgba(52,152,219,0.15) 0deg); border:1px solid #3498db; color:#3498db;" title="Schild Stufe 1 lädt auf (${Math.round(progress * 100)}%)">O1</div>`;
   } else {
-    buildIcon('schildStufe', s.schildStufe, 0, 'O', false, 'rgba(52,152,219,0.2)', '#3498db');
+    buildIcon('shieldTier', s.shieldTier, 0, 'O', false, 'rgba(52,152,219,0.2)', '#3498db');
   }
-  buildIcon('autolaserAktiv', s.autolaserAktiv, false, 'A', true, 'rgba(230,126,34,0.2)', '#e67e22');
+  buildIcon('autolaserActive', s.autolaserActive, false, 'A', true, 'rgba(230,126,34,0.2)', '#e67e22');
 
-  zeigeMitVerlustAnimation(container, html, lostHtml);
+  showWithLossAnimation(container, html, lostHtml);
 
-  prev.laserStufe = s.laserStufe;
-  prev.raketenStufe = s.raketenStufe;
-  prev.bombenStufe = s.bombenStufe;
-  prev.laserDurchschlag = s.laserDurchschlag;
-  prev.schildStufe = s.schildStufe;
-  prev.autolaserAktiv = s.autolaserAktiv;
+  prev.laserTier = s.laserTier;
+  prev.missileTier = s.missileTier;
+  prev.bombTier = s.bombTier;
+  prev.laserPierce = s.laserPierce;
+  prev.shieldTier = s.shieldTier;
+  prev.autolaserActive = s.autolaserActive;
 }
 
 let prevPuState = null;
 
-export function updateAktivePowerupsUI() {
+export function updateActivePowerupsUi() {
   if (!prevPuState) {
     prevPuState = { ...state };
   }
-  zeichneAktivePowerups(state, prevPuState, dom.aktivePowerupsContainer);
-  updateRaketenWerferVisuals();
+  drawActivePowerups(state, prevPuState, dom.activePowerupsContainer);
+  updateMissileLauncherVisuals();
 }
 
-let prevLebenP2 = null;
+let prevLivesP2 = null;
 
-export function updateLebenP2UI() {
-  if (!state.p2 || !dom.lebenAnzeigeP2) return;
-  if (prevLebenP2 === null) {
-    prevLebenP2 = state.p2.leben;
+export function updateLivesP2Ui() {
+  if (!state.p2 || !dom.livesDisplayP2) return;
+  if (prevLivesP2 === null) {
+    prevLivesP2 = state.p2.lives;
   }
-  zeichneLeben(state.p2.leben, prevLebenP2, dom.lebenAnzeigeP2, ' style="color: #3498db;"');
-  prevLebenP2 = state.p2.leben;
+  drawLives(state.p2.lives, prevLivesP2, dom.livesDisplayP2, ' style="color: #3498db;"');
+  prevLivesP2 = state.p2.lives;
 }
 
-export function updateMaxEnergieMarkerP2() {
-  if (dom.maxEnergieMarkerP2 && state.p2) {
-    dom.maxEnergieMarkerP2.style.left = (state.p2.maxEnergie / state.p2.absMaxEnergie) * 100 + '%';
+export function updateMaxEnergyMarkerP2() {
+  if (dom.maxEnergyMarkerP2 && state.p2) {
+    dom.maxEnergyMarkerP2.style.left = (state.p2.maxEnergy / state.p2.absMaxEnergy) * 100 + '%';
   }
 }
 
 let prevPuStateP2 = null;
 
-export function updateAktivePowerupsP2UI() {
-  if (!state.p2 || !dom.aktivePowerupsContainerP2) return;
+export function updateActivePowerupsP2Ui() {
+  if (!state.p2 || !dom.activePowerupsContainerP2) return;
   if (!prevPuStateP2) {
     prevPuStateP2 = { ...state.p2 };
   }
-  zeichneAktivePowerups(state.p2, prevPuStateP2, dom.aktivePowerupsContainerP2);
-  updateRaketenWerferVisuals();
+  drawActivePowerups(state.p2, prevPuStateP2, dom.activePowerupsContainerP2);
+  updateMissileLauncherVisuals();
   updateSplitterUI();
 }
 
 // Splitter-HUD eines Spielers ein-/ausblenden und Zähler setzen
-function zeigeSplitter(s, hud, rotEl, weissEl, sichtbar) {
-  if (sichtbar) {
+function showSplitter(s, hud, rotEl, whiteEl, visible) {
+  if (visible) {
     hud.style.display = 'flex';
-    if (rotEl) rotEl.textContent = s.splitterRot || 0;
-    if (weissEl) weissEl.textContent = s.splitterWeiss || 0;
+    if (rotEl) rotEl.textContent = s.splitterRed || 0;
+    if (whiteEl) whiteEl.textContent = s.splitterWhite || 0;
   } else {
     hud.style.display = 'none';
   }
@@ -191,60 +189,60 @@ function zeigeSplitter(s, hud, rotEl, weissEl, sichtbar) {
 
 export function updateSplitterUI() {
   const hud = dom.splitterHudP1 || document.getElementById('splitter-hud-p1');
-  const rotEl = dom.splitterRotCountP1 || document.getElementById('splitter-rot-count');
-  const weissEl = dom.splitterWeissCountP1 || document.getElementById('splitter-weiss-count');
+  const rotEl = dom.splitterRedCountP1 || document.getElementById('splitter-rot-count');
+  const whiteEl = dom.splitterWhiteCountP1 || document.getElementById('splitter-weiss-count');
   if (!hud) return;
-  zeigeSplitter(state, hud, rotEl, weissEl, state.selectedShipModel === 'viper');
+  showSplitter(state, hud, rotEl, whiteEl, state.selectedShipModel === 'viper');
 }
 
 export function updateSplitterP2UI() {
   const hud = dom.splitterHudP2 || document.getElementById('splitter-hud-p2');
-  const rotEl = dom.splitterRotCountP2 || document.getElementById('splitter-rot-count-p2');
-  const weissEl = dom.splitterWeissCountP2 || document.getElementById('splitter-weiss-count-p2');
+  const rotEl = dom.splitterRedCountP2 || document.getElementById('splitter-rot-count-p2');
+  const whiteEl = dom.splitterWhiteCountP2 || document.getElementById('splitter-weiss-count-p2');
   if (!hud || !state.p2) return;
-  zeigeSplitter(state.p2, hud, rotEl, weissEl, isCoopMode() && state.p2.selectedShipModel === 'viper');
+  showSplitter(state.p2, hud, rotEl, whiteEl, isCoopMode() && state.p2.selectedShipModel === 'viper');
 }
 
 export function updateP2UI() {
-  updateLebenP2UI();
-  updateMaxEnergieMarkerP2();
-  updateAktivePowerupsP2UI();
+  updateLivesP2Ui();
+  updateMaxEnergyMarkerP2();
+  updateActivePowerupsP2Ui();
   updateSplitterP2UI();
 }
 // Mehrteilige Bosse (bossId, z. B. Augen des Insel-Bosses) sind erst mit dem letzten Teil besiegt
-function istLetzterBossTeil(ziel) {
-  return !ziel.bossId || !arrays.bosses.some(b => b !== ziel && b.bossId === ziel.bossId);
+function isLastBossPart(target) {
+  return !target.bossId || !arrays.bosses.some(b => b !== target && b.bossId === target.bossId);
 }
 
-function bossTeilZerstoert(ziel, komboFaktor) {
+function bossPartDestroyed(target, comboFactor) {
   Audio.playExplosion('medium');
-  addScore(300 * state.level, komboFaktor);
-  const farbe = ziel.leuchtFarbe || '#f1c40f';
-  erzeugeExplosion(ziel.x + ziel.groesse / 2, ziel.y + ziel.groesse / 2, farbe, 35);
+  addScore(300 * state.level, comboFactor);
+  const color = target.glowColor || '#f1c40f';
+  createExplosion(target.x + target.size / 2, target.y + target.size / 2, color, 35);
   if (state.gameMode === 'online') {
     Network.sendNetworkEvent({
       type: 'target_destroyed',
-      x: ziel.x + ziel.groesse / 2,
-      y: ziel.y + ziel.groesse / 2,
-      farbe,
-      anzahl: 35,
+      x: target.x + target.size / 2,
+      y: target.y + target.size / 2,
+      color,
+      count: 35,
       soundType: 'medium',
     });
   }
 }
 
 // Boss besiegt: Explosion, Punkte, Coop-Wiederbelebung, Drops (Viper-Splitter), naechstes Level
-function besiegeBoss(ziel, killer, komboFaktor) {
+function defeatBoss(target, killer, comboFactor) {
   Audio.playExplosion('boss');
-  addScore(1000 * state.level, komboFaktor);
-  erzeugeExplosion(ziel.x + ziel.groesse / 2, ziel.y + ziel.groesse / 2, '#f1c40f', 50);
+  addScore(1000 * state.level, comboFactor);
+  createExplosion(target.x + target.size / 2, target.y + target.size / 2, '#f1c40f', 50);
   if (state.gameMode === 'online') {
     Network.sendNetworkEvent({
       type: 'target_destroyed',
-      x: ziel.x + ziel.groesse / 2,
-      y: ziel.y + ziel.groesse / 2,
-      farbe: '#f1c40f',
-      anzahl: 50,
+      x: target.x + target.size / 2,
+      y: target.y + target.size / 2,
+      color: '#f1c40f',
+      count: 50,
       soundType: 'boss',
     });
   }
@@ -253,34 +251,34 @@ function besiegeBoss(ziel, killer, komboFaktor) {
   if (isCoopMode()) {
     if (state.isDead) {
       state.isDead = false;
-      state.leben = 1;
-      state.energie = state.maxEnergie / 2;
+      state.lives = 1;
+      state.energy = state.maxEnergy / 2;
       state.invulnerableTimer = 180;
-      state.schiffSichtbar = true;
-      Anzeige.zeichneSpieler();
-      updateLebenUI();
+      state.shipVisible = true;
+      Display.drawPlayer();
+      updateLivesUi();
     }
     if (state.p2 && state.p2.isDead) {
       state.p2.isDead = false;
-      state.p2.leben = 1;
-      state.p2.energie = state.p2.maxEnergie / 2;
+      state.p2.lives = 1;
+      state.p2.energy = state.p2.maxEnergy / 2;
       state.p2.invulnerableTimer = 180;
-      state.p2.schiffSichtbar = true;
-      Anzeige.zeichneSpieler();
-      updateLebenP2UI();
+      state.p2.shipVisible = true;
+      Display.drawPlayer();
+      updateLivesP2Ui();
     }
   }
 
   // 3 Belohnungen fallen lassen (1 Waffe + 2 zufällige verschiedene)
-  const moeglicheDrops = ['leben', 'energie', 'durchschlag', 'schild'];
-  let drops = ['superWaffe']; // Super-Waffe ist immer garantiert beim Boss
-  let randomIndex = Math.floor(Math.random() * moeglicheDrops.length);
-  drops.push(moeglicheDrops.splice(randomIndex, 1)[0]); // Typ entfernen, damit er nicht doppelt kommt
-  randomIndex = Math.floor(Math.random() * moeglicheDrops.length);
-  drops.push(moeglicheDrops[randomIndex]);
+  const possibleDrops = ['lives', 'energy', 'pierce', 'shield'];
+  let drops = ['superWeapon']; // Super-Waffe ist immer garantiert beim Boss
+  let randomIndex = Math.floor(Math.random() * possibleDrops.length);
+  drops.push(possibleDrops.splice(randomIndex, 1)[0]); // Typ entfernen, damit er nicht doppelt kommt
+  randomIndex = Math.floor(Math.random() * possibleDrops.length);
+  drops.push(possibleDrops[randomIndex]);
 
   drops.forEach((d, i) => {
-    Entities.erzeugePowerup(ziel.x + i * 25, ziel.y, d);
+    Entities.createPowerup(target.x + i * 25, target.y, d);
   });
 
   // 3 garantierte Splitter nur fallen lassen wenn ein Viper-Schiff beteiligt ist
@@ -301,117 +299,124 @@ function besiegeBoss(ziel, killer, komboFaktor) {
   if (shardTarget) {
     const shardOwner = shardTarget === 'solo' ? null : shardTarget;
     for (let s = 0; s < 3; s++) {
-      const shardType = Math.random() < 0.5 ? 'splitterRot' : 'splitterWeiss';
-      Entities.erzeugePowerup(ziel.x + s * 25 + 12, ziel.y + 30, shardType, shardOwner);
+      const shardType = Math.random() < 0.5 ? 'splitterRed' : 'splitterWhite';
+      Entities.createPowerup(target.x + s * 25 + 12, target.y + 30, shardType, shardOwner);
     }
   }
 
-  state.bossAktiv = false;
+  state.bossActive = false;
   state.level++;
   updateLevelUI();
   dom.bossHpContainer.style.display = 'none';
-  state.frameZaehler = 0; // Setzt Level-Timer zurück
+  state.frameCounter = 0; // Setzt Level-Timer zurück
 }
 
-export function zerstoereZiel(ziel, killer = 'p1') {
-  let fIndex = arrays.feinde.indexOf(ziel);
-  let aIndex = arrays.asteroiden.indexOf(ziel);
-  let bIndex = arrays.bosses.indexOf(ziel);
+export function destroyTarget(target, killer = 'p1') {
+  let fIndex = arrays.enemies.indexOf(target);
+  let aIndex = arrays.asteroids.indexOf(target);
+  let bIndex = arrays.bosses.indexOf(target);
   if (fIndex === -1 && aIndex === -1 && bIndex === -1) return;
 
   // Viper-Kill-Kombo: Punkte dieses Kills zaehlen mit dem Faktor VOR dem Kill, danach waechst die Kombo
-  const komboZustand = killer === 'p2' && state.p2 ? state.p2 : state;
-  const komboFaktor = Viper.komboFaktor(komboZustand);
+  const comboStatus = killer === 'p2' && state.p2 ? state.p2 : state;
+  const comboFactor = Viper.comboFactor(comboStatus);
 
   // Boss besiegt: Belohnungen und naechstes Level
-  if (ziel.istBoss) {
-    if (istLetzterBossTeil(ziel)) besiegeBoss(ziel, killer, komboFaktor);
-    else bossTeilZerstoert(ziel, komboFaktor);
+  if (target.isBoss) {
+    if (isLastBossPart(target)) defeatBoss(target, killer, comboFactor);
+    else bossPartDestroyed(target, comboFactor);
   } else {
-    Audio.playExplosion(ziel.groesse >= 35 ? 'medium' : 'small');
+    Audio.playExplosion(target.size >= 35 ? 'medium' : 'small');
     addScore(
-      ziel.istFeind ? (ziel.muster === 'hacker' ? 200 : 100) : ziel.traegtPowerup ? 50 : ziel.groesse >= 35 ? 20 : 10,
-      komboFaktor,
+      target.isEnemy
+        ? target.pattern === 'hacker'
+          ? 200
+          : 100
+        : target.carriesPowerup
+          ? 50
+          : target.size >= 35
+            ? 20
+            : 10,
+      comboFactor,
     );
-    if (ziel.istFeind) {
-      if (Kette.gliedAbgeschossen(ziel)) addScore(Kette.KETTEN_BONUS_PUNKTE, komboFaktor);
+    if (target.isEnemy) {
+      if (Chain.linkShotDown(target)) addScore(Chain.CHAIN_BONUS_POINTS, comboFactor);
       const killerShipModel = killer === 'p2' ? state.p2 && state.p2.selectedShipModel : state.selectedShipModel;
       const currentShip = shipModels && shipModels[killerShipModel || 'viper'];
       const energyGain = (currentShip && currentShip.energyPerKill) || 0;
       if (energyGain > 0) {
         if (killer === 'p2' && state.p2) {
-          state.p2.energie = Math.min(state.p2.maxEnergie, state.p2.energie + energyGain);
-          if (dom.energieBalkenP2)
-            dom.energieBalkenP2.style.width = (state.p2.energie / state.p2.absMaxEnergie) * 100 + '%';
+          state.p2.energy = Math.min(state.p2.maxEnergy, state.p2.energy + energyGain);
+          if (dom.energyBarP2) dom.energyBarP2.style.width = (state.p2.energy / state.p2.absMaxEnergy) * 100 + '%';
         } else {
-          state.energie = Math.min(state.maxEnergie, state.energie + energyGain);
-          if (dom.energieBalken) dom.energieBalken.style.width = (state.energie / state.absMaxEnergie) * 100 + '%';
+          state.energy = Math.min(state.maxEnergy, state.energy + energyGain);
+          if (dom.energyBar) dom.energyBar.style.width = (state.energy / state.absMaxEnergy) * 100 + '%';
         }
       }
       if (killerShipModel === 'viper') {
         const killerState = killer === 'p2' && state.p2 ? state.p2 : state;
         killerState.viperKillCount = (killerState.viperKillCount || 0) + 1;
         if (killerState.viperKillCount % 10 === 0) {
-          const shardType = Math.random() < 0.5 ? 'splitterRot' : 'splitterWeiss';
+          const shardType = Math.random() < 0.5 ? 'splitterRed' : 'splitterWhite';
           const owner = isCoopMode() ? killer : null;
-          Entities.erzeugePowerup(ziel.x + ziel.groesse / 2 - 10, ziel.y + ziel.groesse / 2 - 10, shardType, owner);
+          Entities.createPowerup(target.x + target.size / 2 - 10, target.y + target.size / 2 - 10, shardType, owner);
         }
       }
     }
-    let farbe = ziel.istFeind ? ziel.explosionsFarbe || '#9b59b6' : ziel.farbe || '#ffffff';
-    erzeugeExplosion(ziel.x + ziel.groesse / 2, ziel.y + ziel.groesse / 2, farbe, 25);
+    let color = target.isEnemy ? target.explosionsColor || '#9b59b6' : target.color || '#ffffff';
+    createExplosion(target.x + target.size / 2, target.y + target.size / 2, color, 25);
     if (state.gameMode === 'online') {
       Network.sendNetworkEvent({
         type: 'target_destroyed',
-        x: ziel.x + ziel.groesse / 2,
-        y: ziel.y + ziel.groesse / 2,
-        farbe: farbe,
-        anzahl: 25,
-        soundType: ziel.groesse >= 35 ? 'medium' : 'small',
+        x: target.x + target.size / 2,
+        y: target.y + target.size / 2,
+        color: color,
+        count: 25,
+        soundType: target.size >= 35 ? 'medium' : 'small',
       });
     }
-    if (ziel.traegtPowerup) {
+    if (target.carriesPowerup) {
       // Eierkapsel: Bonus (Schockwelle oder Zufall), sonst Zufall
-      const typ = ziel.powerupTyp === 'bonus' ? Schockwelle.bonusTyp() : null;
-      Entities.erzeugePowerup(ziel.x + ziel.groesse / 2 - 12, ziel.y + ziel.groesse / 2 - 12, typ);
-    } else if (!ziel.istFeind && ziel.groesse >= 35) {
-      let neueGroesse = ziel.groesse * 0.6;
-      Entities.erzeugeAsteroid(ziel.x, ziel.y, neueGroesse, -3, ziel.vy, 15, true);
-      Entities.erzeugeAsteroid(ziel.x + ziel.groesse - neueGroesse, ziel.y, neueGroesse, 3, ziel.vy, 15, true);
-      erzeugeExplosion(ziel.x + ziel.groesse / 2, ziel.y + ziel.groesse / 2, farbe, 20); // Extra split particles
+      const typ = target.powerupTyp === 'bonus' ? Shockwave.bonusType() : null;
+      Entities.createPowerup(target.x + target.size / 2 - 12, target.y + target.size / 2 - 12, typ);
+    } else if (!target.isEnemy && target.size >= 35) {
+      let newSize = target.size * 0.6;
+      Entities.createAsteroid(target.x, target.y, newSize, -3, target.vy, 15, true);
+      Entities.createAsteroid(target.x + target.size - newSize, target.y, newSize, 3, target.vy, 15, true);
+      createExplosion(target.x + target.size / 2, target.y + target.size / 2, color, 20); // Extra split particles
     }
   }
-  Viper.registriereKill(komboZustand);
-  Anzeige.entferne(ziel);
-  if (fIndex > -1) arrays.feinde.splice(fIndex, 1);
-  if (aIndex > -1) arrays.asteroiden.splice(aIndex, 1);
+  Viper.registerKill(comboStatus);
+  Display.remove(target);
+  if (fIndex > -1) arrays.enemies.splice(fIndex, 1);
+  if (aIndex > -1) arrays.asteroids.splice(aIndex, 1);
   if (bIndex > -1) arrays.bosses.splice(bIndex, 1);
 }
 
 // Laufende Sweeps, Dashs und Klingenwellen beenden (die Anzeige leitet die Klinge aus dem Zustand ab).
 // Nach dem Game Over laeuft keine Simulation mehr, die sie selbst abraeumen wuerde.
-function entferneGleveEffekte() {
-  Sniper.entferneEffekte();
-  entferneEffekte();
+function removeGleveEffects() {
+  Sniper.removeEffects();
+  removeEffects();
   // Laufende Dashs und Rollen enden mit dem Spiel (die Anzeige leitet die Schiffsklassen daraus ab)
   for (const s of [state, state.p2]) {
     if (!s) continue;
     s.gleveDashTimer = 0;
-    s.gleveAbprallTimer = 0;
+    s.gleveBounceTimer = 0;
     s.gleveSweepTimer = 0;
-    s.viperRolleTimer = 0;
+    s.viperRollTimer = 0;
     s.viperOverdriveTimer = 0;
   }
-  Anzeige.zeichneSpieler();
-  for (const w of arrays.gleveWellen) Anzeige.entferne(w);
-  arrays.gleveWellen.length = 0;
+  Display.drawPlayer();
+  for (const w of arrays.gleveWaves) Display.remove(w);
+  arrays.gleveWaves.length = 0;
 }
 
 export function triggerGameOver(finalScoreFromHost = null) {
   Audio.playGameOver();
-  state.gameOverAktiv = true;
-  entferneGleveEffekte();
-  state.finalerScore = finalScoreFromHost !== null ? finalScoreFromHost : state.cheatUsed ? 0 : state.score;
+  state.gameOverActive = true;
+  removeGleveEffects();
+  state.finalScore = finalScoreFromHost !== null ? finalScoreFromHost : state.cheatUsed ? 0 : state.score;
 
   state.onlineHighscoreNames = { p1: null, p2: null };
 
@@ -419,7 +424,7 @@ export function triggerGameOver(finalScoreFromHost = null) {
   if (startScreen) startScreen.style.display = 'none';
 
   const finalScoreEl = document.getElementById('final-score');
-  if (finalScoreEl) finalScoreEl.innerText = String(state.finalerScore);
+  if (finalScoreEl) finalScoreEl.innerText = String(state.finalScore);
   const gameOverScreen = document.getElementById('game-over-screen');
   if (gameOverScreen) gameOverScreen.style.display = 'flex';
 
@@ -430,7 +435,7 @@ export function triggerGameOver(finalScoreFromHost = null) {
   if (isOnline && state.network && state.network.isHost && finalScoreFromHost === null) {
     Network.sendNetworkEvent({
       type: 'game_over',
-      finalScore: state.finalerScore,
+      finalScore: state.finalScore,
     });
   }
 
@@ -461,7 +466,7 @@ export function triggerGameOver(finalScoreFromHost = null) {
     }
   }
 
-  if (hs.length < 10 || state.finalerScore > hs[hs.length - 1].score) {
+  if (hs.length < 10 || state.finalScore > hs[hs.length - 1].score) {
     const hsForm = document.getElementById('highscore-form');
     if (hsForm) hsForm.style.display = 'block';
     if (hsInput) {
@@ -479,123 +484,123 @@ export function triggerGameOver(finalScoreFromHost = null) {
 }
 
 // Gleve-Dash (+ Nachlauf/Abprall) und Viper-Rolle: Schiff ist nicht treffbar, Geschosse und Gegner fliegen durch
-export function istDashUnverwundbar(pState) {
-  return !!pState && ((pState.gleveUnverwundbar || 0) > 0 || (pState.viperRolleTimer || 0) > 0);
+export function isDashInvulnerable(pState) {
+  return !!pState && ((pState.gleveInvulnerable || 0) > 0 || (pState.viperRollTimer || 0) > 0);
 }
 
 // Koerperkollision Spieler gegen Asteroid/Feind: Kreis gegen Kreis statt Bounding-Box. Die Box zaehlte leere Ecken
 // (spitze Schiffsnase, runde Asteroiden mit 70-100 % Radius) mit, das Schiff wurde mit sichtbarem Abstand getroffen.
-export const SPIELER_TREFFER_RADIUS = 0.36; // Anteil an spielerGroesse (30 px -> 10,8 px)
-export const ASTEROID_TREFFER_RADIUS = 0.42; // Anteil an groesse (Umriss 35-50 %, Mittel ~42 %)
-export const FEIND_TREFFER_RADIUS = 0.4;
-export function koerperTrifftSpieler(pState, obj, radiusAnteil) {
-  const s = config.spielerGroesse;
-  const dx = pState.x + s / 2 - (obj.x + obj.groesse / 2);
-  const dy = pState.y + s / 2 - (obj.y + obj.groesse / 2);
-  const r = s * SPIELER_TREFFER_RADIUS + obj.groesse * radiusAnteil;
+export const PLAYER_HIT_RADIUS = 0.36; // Anteil an spielerGroesse (30 px -> 10,8 px)
+export const ASTEROID_HIT_RADIUS = 0.42; // Anteil an groesse (Umriss 35-50 %, Mittel ~42 %)
+export const ENEMY_HIT_RADIUS = 0.4;
+export function bodyHitsPlayer(pState, obj, radiusShare) {
+  const s = config.playerSize;
+  const dx = pState.x + s / 2 - (obj.x + obj.size / 2);
+  const dy = pState.y + s / 2 - (obj.y + obj.size / 2);
+  const r = s * PLAYER_HIT_RADIUS + obj.size * radiusShare;
   return dx * dx + dy * dy < r * r;
 }
 
 // Treffer am Spieler; das Schiff (Blinken, Schild, Sichtbarkeit) wird sofort neu gezeichnet
-export function spielerGetroffen(kollisionsObjekt, explodiert = true, targetPlayer = 'p1') {
-  trefferAmSpieler(kollisionsObjekt, explodiert, targetPlayer);
-  Anzeige.zeichneSpieler();
+export function playerHit(collisionObject, exploded = true, targetPlayer = 'p1') {
+  hitAmPlayer(collisionObject, exploded, targetPlayer);
+  Display.drawPlayer();
 }
 
-function trefferAmSpieler(kollisionsObjekt, explodiert, targetPlayer) {
+function hitAmPlayer(collisionObject, exploded, targetPlayer) {
   if (targetPlayer === 'p1') {
-    if (state.godMode || state.invulnerableTimer > 0 || state.isDead || istDashUnverwundbar(state)) return;
+    if (state.godMode || state.invulnerableTimer > 0 || state.isDead || isDashInvulnerable(state)) return;
 
     Audio.playHit('player');
-    Viper.setzeKomboZurueck(state);
+    Viper.resetCombo(state);
     state.invulnerableTimer = 45;
 
-    if (state.schildStufe > 0) {
-      state.schildStufe--;
-      if (state.schildStufe === 0 && state.selectedShipModel === 'phantom') {
-        state.phantomSchildRegenTimer = 0;
+    if (state.shieldTier > 0) {
+      state.shieldTier--;
+      if (state.shieldTier === 0 && state.selectedShipModel === 'phantom') {
+        state.phantomShieldRegenTimer = 0;
       }
-      updateAktivePowerupsUI();
-      if (explodiert && kollisionsObjekt) {
-        let c = kollisionsObjekt.istFeind ? '#9b59b6' : kollisionsObjekt.farbe || '#7f8c8d';
-        erzeugeExplosion(
-          kollisionsObjekt.x + (kollisionsObjekt.groesse || 4) / 2,
-          kollisionsObjekt.y + (kollisionsObjekt.groesse || 15) / 2,
+      updateActivePowerupsUi();
+      if (exploded && collisionObject) {
+        let c = collisionObject.isEnemy ? '#9b59b6' : collisionObject.color || '#7f8c8d';
+        createExplosion(
+          collisionObject.x + (collisionObject.size || 4) / 2,
+          collisionObject.y + (collisionObject.size || 15) / 2,
           c,
           10,
         );
       }
       addScore(10);
-      Anzeige.blitzeSpielfeld('rgba(52, 152, 219, 0.3)', 150);
+      Display.flashPlayfield('rgba(52, 152, 219, 0.3)', 150);
       return;
     }
-    state.leben--;
+    state.lives--;
     if (state.selectedShipModel === 'phantom') {
-      state.phantomSchildRegenTimer = 0;
-      updateAktivePowerupsUI();
+      state.phantomShieldRegenTimer = 0;
+      updateActivePowerupsUi();
     }
     const currentShip = shipModels && shipModels[state.selectedShipModel || 'viper'];
     if (!currentShip || currentShip.loseUpgradesOnHit) {
-      let moeglicheDowngrades = [];
-      if (state.laserStufe > 1) moeglicheDowngrades.push('laser');
-      if (state.raketenStufe > 1) moeglicheDowngrades.push('raketen');
-      if (state.bombenStufe > 1) moeglicheDowngrades.push('bomben');
-      if (moeglicheDowngrades.length > 0) {
-        let wahl = moeglicheDowngrades[Math.floor(Math.random() * moeglicheDowngrades.length)];
-        if (wahl === 'laser') state.laserStufe--;
-        else if (wahl === 'raketen') state.raketenStufe--;
-        else if (wahl === 'bomben') state.bombenStufe--;
+      let possibleDowngrades = [];
+      if (state.laserTier > 1) possibleDowngrades.push('laser');
+      if (state.missileTier > 1) possibleDowngrades.push('missiles');
+      if (state.bombTier > 1) possibleDowngrades.push('bombs');
+      if (possibleDowngrades.length > 0) {
+        let choice = possibleDowngrades[Math.floor(Math.random() * possibleDowngrades.length)];
+        if (choice === 'laser') state.laserTier--;
+        else if (choice === 'missiles') state.missileTier--;
+        else if (choice === 'bombs') state.bombTier--;
       }
     }
-    updateLebenUI();
-    updateAktivePowerupsUI();
-    Anzeige.blitzeSpielfeld('#900', 150);
-    if (explodiert && kollisionsObjekt && !kollisionsObjekt.istBoss) {
-      let c = kollisionsObjekt.istFeind ? '#9b59b6' : kollisionsObjekt.farbe || '#7f8c8d';
-      erzeugeExplosion(
-        kollisionsObjekt.x + (kollisionsObjekt.groesse || 4) / 2,
-        kollisionsObjekt.y + (kollisionsObjekt.groesse || 15) / 2,
+    updateLivesUi();
+    updateActivePowerupsUi();
+    Display.flashPlayfield('#900', 150);
+    if (exploded && collisionObject && !collisionObject.isBoss) {
+      let c = collisionObject.isEnemy ? '#9b59b6' : collisionObject.color || '#7f8c8d';
+      createExplosion(
+        collisionObject.x + (collisionObject.size || 4) / 2,
+        collisionObject.y + (collisionObject.size || 15) / 2,
         c,
         10,
       );
     }
-    if (state.leben <= 0) {
+    if (state.lives <= 0) {
       state.isDead = true;
-      state.schiffSichtbar = false;
-      erzeugeExplosion(state.x + 15, state.y + 15, '#e74c3c', 40);
+      state.shipVisible = false;
+      createExplosion(state.x + 15, state.y + 15, '#e74c3c', 40);
 
-      const isOtherAlive = isCoopMode() && state.p2 && !state.p2.isDead && state.p2.leben > 0;
+      const isOtherAlive = isCoopMode() && state.p2 && !state.p2.isDead && state.p2.lives > 0;
       if (!isOtherAlive) {
         triggerGameOver();
       }
     }
   } else if (targetPlayer === 'p2' && isCoopMode() && state.p2) {
-    if (state.godMode || state.p2.invulnerableTimer > 0 || state.p2.isDead || istDashUnverwundbar(state.p2)) return;
+    if (state.godMode || state.p2.invulnerableTimer > 0 || state.p2.isDead || isDashInvulnerable(state.p2)) return;
 
     Audio.playHit('player');
-    Viper.setzeKomboZurueck(state.p2);
+    Viper.resetCombo(state.p2);
     state.p2.invulnerableTimer = 45;
 
     const isOnline = state.gameMode === 'online' || (state.network && state.network.isOnline);
 
-    if (state.p2.schildStufe > 0) {
-      state.p2.schildStufe--;
-      if (state.p2.schildStufe === 0 && state.p2.selectedShipModel === 'phantom') {
-        state.p2.phantomSchildRegenTimer = 0;
+    if (state.p2.shieldTier > 0) {
+      state.p2.shieldTier--;
+      if (state.p2.shieldTier === 0 && state.p2.selectedShipModel === 'phantom') {
+        state.p2.phantomShieldRegenTimer = 0;
       }
-      updateAktivePowerupsP2UI();
-      if (explodiert && kollisionsObjekt) {
-        let c = kollisionsObjekt.istFeind ? '#9b59b6' : kollisionsObjekt.farbe || '#7f8c8d';
-        erzeugeExplosion(
-          kollisionsObjekt.x + (kollisionsObjekt.groesse || 4) / 2,
-          kollisionsObjekt.y + (kollisionsObjekt.groesse || 15) / 2,
+      updateActivePowerupsP2Ui();
+      if (exploded && collisionObject) {
+        let c = collisionObject.isEnemy ? '#9b59b6' : collisionObject.color || '#7f8c8d';
+        createExplosion(
+          collisionObject.x + (collisionObject.size || 4) / 2,
+          collisionObject.y + (collisionObject.size || 15) / 2,
           c,
           10,
         );
       }
       addScore(10);
       if (!isOnline) {
-        Anzeige.blitzeSpielfeld('rgba(52, 152, 219, 0.3)', 150);
+        Display.flashPlayfield('rgba(52, 152, 219, 0.3)', 150);
       } else {
         Network.sendNetworkEvent({
           type: 'player_hit',
@@ -606,28 +611,28 @@ function trefferAmSpieler(kollisionsObjekt, explodiert, targetPlayer) {
       }
       return;
     }
-    state.p2.leben--;
+    state.p2.lives--;
     if (state.p2.selectedShipModel === 'phantom') {
-      state.p2.phantomSchildRegenTimer = 0;
-      updateAktivePowerupsP2UI();
+      state.p2.phantomShieldRegenTimer = 0;
+      updateActivePowerupsP2Ui();
     }
     const p2Ship = shipModels && shipModels[state.p2.selectedShipModel || 'phantom'];
     if (!p2Ship || p2Ship.loseUpgradesOnHit) {
-      let moeglicheDowngrades = [];
-      if (state.p2.laserStufe > 1) moeglicheDowngrades.push('laser');
-      if (state.p2.raketenStufe > 1) moeglicheDowngrades.push('raketen');
-      if (state.p2.bombenStufe > 1) moeglicheDowngrades.push('bomben');
-      if (moeglicheDowngrades.length > 0) {
-        let wahl = moeglicheDowngrades[Math.floor(Math.random() * moeglicheDowngrades.length)];
-        if (wahl === 'laser') state.p2.laserStufe--;
-        else if (wahl === 'raketen') state.p2.raketenStufe--;
-        else if (wahl === 'bomben') state.p2.bombenStufe--;
+      let possibleDowngrades = [];
+      if (state.p2.laserTier > 1) possibleDowngrades.push('laser');
+      if (state.p2.missileTier > 1) possibleDowngrades.push('missiles');
+      if (state.p2.bombTier > 1) possibleDowngrades.push('bombs');
+      if (possibleDowngrades.length > 0) {
+        let choice = possibleDowngrades[Math.floor(Math.random() * possibleDowngrades.length)];
+        if (choice === 'laser') state.p2.laserTier--;
+        else if (choice === 'missiles') state.p2.missileTier--;
+        else if (choice === 'bombs') state.p2.bombTier--;
       }
     }
-    updateLebenP2UI();
-    updateAktivePowerupsP2UI();
+    updateLivesP2Ui();
+    updateActivePowerupsP2Ui();
     if (!isOnline) {
-      Anzeige.blitzeSpielfeld('#900', 150);
+      Display.flashPlayfield('#900', 150);
     } else {
       Network.sendNetworkEvent({
         type: 'player_hit',
@@ -636,21 +641,21 @@ function trefferAmSpieler(kollisionsObjekt, explodiert, targetPlayer) {
         invulnerable: state.p2.invulnerableTimer,
       });
     }
-    if (explodiert && kollisionsObjekt && !kollisionsObjekt.istBoss) {
-      let c = kollisionsObjekt.istFeind ? '#9b59b6' : kollisionsObjekt.farbe || '#7f8c8d';
-      erzeugeExplosion(
-        kollisionsObjekt.x + (kollisionsObjekt.groesse || 4) / 2,
-        kollisionsObjekt.y + (kollisionsObjekt.groesse || 15) / 2,
+    if (exploded && collisionObject && !collisionObject.isBoss) {
+      let c = collisionObject.isEnemy ? '#9b59b6' : collisionObject.color || '#7f8c8d';
+      createExplosion(
+        collisionObject.x + (collisionObject.size || 4) / 2,
+        collisionObject.y + (collisionObject.size || 15) / 2,
         c,
         10,
       );
     }
-    if (state.p2.leben <= 0) {
+    if (state.p2.lives <= 0) {
       state.p2.isDead = true;
-      state.p2.schiffSichtbar = false;
-      erzeugeExplosion(state.p2.x + 15, state.p2.y + 15, '#3498db', 40);
+      state.p2.shipVisible = false;
+      createExplosion(state.p2.x + 15, state.p2.y + 15, '#3498db', 40);
 
-      const isOtherAlive = !state.isDead && state.leben > 0;
+      const isOtherAlive = !state.isDead && state.lives > 0;
       if (!isOtherAlive) {
         triggerGameOver();
       }
@@ -661,7 +666,7 @@ export function updateMobileControlsVisibility() {
   const isTouchDevice = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
   const mobileControls = document.getElementById('mobile-controls');
   if (mobileControls) {
-    if (state.spielLaeuft && !state.gameOverAktiv && isTouchDevice) {
+    if (state.gameRunning && !state.gameOverActive && isTouchDevice) {
       mobileControls.style.display = 'flex';
     } else {
       mobileControls.style.display = 'none';
@@ -673,165 +678,165 @@ export function updateMobileControlsVisibility() {
 }
 
 // Gleve-Dash- und Sweep-Zustand eines Spielers zuruecksetzen (Felder siehe gleve.js)
-function setzeGleveDashZurueck(pState) {
+function resetGleveDash(pState) {
   pState.gleveDashTimer = 0;
   pState.gleveDashVx = 0;
   pState.gleveDashVy = 0;
-  pState.gleveAbprallTimer = 0;
-  pState.gleveUnverwundbar = 0;
-  pState.gleveDashTasteGehalten = false;
-  pState.gleveDashTreffer = [];
-  Gleve.setzeDashLadungenVoll(pState);
+  pState.gleveBounceTimer = 0;
+  pState.gleveInvulnerable = 0;
+  pState.gleveDashKeyHeld = false;
+  pState.gleveDashHit = [];
+  Gleve.setDashChargeFull(pState);
   pState.gleveSweepTimer = 0;
-  pState.gleveSweepWinkel = 0;
-  pState.gleveSweepRichtung = 0;
-  pState.gleveSweepTreffer = [];
-  pState.gleveSweepTakt = 0;
+  pState.gleveSweepAngle = 0;
+  pState.gleveSweepDirection = 0;
+  pState.gleveSweepHit = [];
+  pState.gleveSweepCadence = 0;
   // Online: Dash-Richtung, Client-Vorhersage und Bot-Dash
-  pState.gleveDashRichtung = null;
-  pState.gleveNetzAbprall = null;
-  pState.netzRichtung = null;
-  pState.netzDashAnfrage = false;
-  pState.botDashRichtung = null;
+  pState.gleveDashDirection = null;
+  pState.gleveNetworkBounce = null;
+  pState.networkDirection = null;
+  pState.networkDashRequest = false;
+  pState.botDashDirection = null;
 }
 
 export function restartGame() {
-  state.gameOverAktiv = false;
+  state.gameOverActive = false;
   document.getElementById('game-over-screen').style.display = 'none';
-  state.leben = 3;
-  state.maxEnergie = 50;
-  state.energie = state.maxEnergie;
-  state.laserStufe = 1;
-  state.raketenStufe = 1;
-  state.bombenStufe = 1;
+  state.lives = 3;
+  state.maxEnergy = 50;
+  state.energy = state.maxEnergy;
+  state.laserTier = 1;
+  state.missileTier = 1;
+  state.bombTier = 1;
   state.cheatUsed = false;
   state.godMode = false;
-  state.unbegrenzteEnergie = false;
-  dom.maxEnergieMarker.style.display = 'block';
-  state.laserDurchschlag = false;
-  state.durchschlagTimer = 0;
-  state.phantomSchildRegenTimer = 0;
+  state.unlimitedEnergy = false;
+  dom.maxEnergyMarker.style.display = 'block';
+  state.laserPierce = false;
+  state.pierceTimer = 0;
+  state.phantomShieldRegenTimer = 0;
   const currentShip = shipModels && shipModels[state.selectedShipModel || 'viper'];
-  state.schildStufe = (currentShip && currentShip.startShield) || 0;
+  state.shieldTier = (currentShip && currentShip.startShield) || 0;
   state.score = 0;
   addScore(0);
   state.level = 1;
-  state.schockwelleLevel = 0;
-  state.splitterRot = 0;
-  state.splitterWeiss = 0;
+  state.shockwaveLevel = 0;
+  state.splitterRed = 0;
+  state.splitterWhite = 0;
   state.viperKillCount = 0;
   state.isDead = false;
   state.hacks = [];
   if (state.p2) state.p2.hacks = [];
-  setzeGleveDashZurueck(state);
-  if (state.p2) setzeGleveDashZurueck(state.p2);
-  Viper.setzeZurueck(state);
-  if (state.p2) Viper.setzeZurueck(state.p2);
-  Sniper.setzeZurueck(state);
-  if (state.p2) Sniper.setzeZurueck(state.p2);
-  entferneGleveEffekte();
+  resetGleveDash(state);
+  if (state.p2) resetGleveDash(state.p2);
+  Viper.reset(state);
+  if (state.p2) Viper.reset(state.p2);
+  Sniper.reset(state);
+  if (state.p2) Sniper.reset(state.p2);
+  removeGleveEffects();
   Bot.resetBot();
-  updateLebenUI();
-  updateMaxEnergieMarker();
-  updateAktivePowerupsUI();
+  updateLivesUi();
+  updateMaxEnergyMarker();
+  updateActivePowerupsUi();
   updateSplitterUI();
   updateLevelUI();
   state.x = 185;
   state.y = 285;
-  state.schiffSichtbar = false;
-  state.drehung = 0;
+  state.shipVisible = false;
+  state.rotation = 0;
   // Interpolierte Anzeigeposition eines frueheren Online-Clients gilt nicht mehr
-  delete state.anzeigeX;
-  delete state.anzeigeY;
+  delete state.displayX;
+  delete state.displayY;
 
   if (state.p2) {
-    state.p2.leben = 3;
-    state.p2.maxEnergie = 50;
-    state.p2.energie = 50;
-    state.p2.splitterRot = 0;
-    state.p2.splitterWeiss = 0;
+    state.p2.lives = 3;
+    state.p2.maxEnergy = 50;
+    state.p2.energy = 50;
+    state.p2.splitterRed = 0;
+    state.p2.splitterWhite = 0;
     state.p2.viperKillCount = 0;
-    state.p2.laserStufe = 1;
-    state.p2.raketenStufe = 1;
-    state.p2.bombenStufe = 1;
-    state.p2.laserDurchschlag = false;
-    state.p2.durchschlagTimer = 0;
-    state.p2.phantomSchildRegenTimer = 0;
-    state.p2.autolaserAktiv = false;
+    state.p2.laserTier = 1;
+    state.p2.missileTier = 1;
+    state.p2.bombTier = 1;
+    state.p2.laserPierce = false;
+    state.p2.pierceTimer = 0;
+    state.p2.phantomShieldRegenTimer = 0;
+    state.p2.autolaserActive = false;
     state.p2.autolaserTimer = 0;
-    state.p2.raketenCooldown = 0;
-    state.p2.bombenCooldown = 0;
-    state.p2.spielerSchussCooldown = 0;
+    state.p2.missileCooldown = 0;
+    state.p2.bombCooldown = 0;
+    state.p2.playerShotCooldown = 0;
     state.p2.invulnerableTimer = 0;
     state.p2.isDead = false;
     const p2Ship = shipModels && shipModels[state.p2.selectedShipModel || 'phantom'];
-    state.p2.schildStufe = (p2Ship && p2Ship.startShield) || 0;
+    state.p2.shieldTier = (p2Ship && p2Ship.startShield) || 0;
     state.p2.x = 370;
     state.p2.y = 285;
-    state.p2.schiffSichtbar = false;
-    state.p2.drehung = 0;
+    state.p2.shipVisible = false;
+    state.p2.rotation = 0;
     updateP2UI();
   }
-  Anzeige.zeichneSpieler();
+  Display.drawPlayer();
 
   const clearArray = arr => {
     if (arr) {
-      arr.forEach(Anzeige.entferne);
+      arr.forEach(Display.remove);
       arr.length = 0;
     }
   };
 
-  clearArray(arrays.asteroiden);
-  clearArray(arrays.feinde);
-  clearArray(arrays.feindLaserArray);
-  clearArray(arrays.hackProjektilArray);
+  clearArray(arrays.asteroids);
+  clearArray(arrays.enemies);
+  clearArray(arrays.enemyLaserArray);
+  clearArray(arrays.hackProjectileArray);
   clearArray(arrays.bosses);
   clearArray(arrays.bossLaserArray);
-  clearArray(arrays.bossBombenArray);
-  clearArray(arrays.bossRaketenArray);
+  clearArray(arrays.bossBombArray);
+  clearArray(arrays.bossMissileArray);
   clearArray(arrays.powerups);
-  clearArray(arrays.partikelArray);
+  clearArray(arrays.particleArray);
   clearArray(arrays.laserArray);
-  clearArray(arrays.raketenArray);
-  clearArray(arrays.bombenArray);
-  clearArray(arrays.explosionenArray);
-  clearArray(arrays.effekte);
-  clearArray(arrays.fels);
-  Fels.setzeZurueck();
-  Inselboss.setzeZurueck();
-  Level.setzeThemaZurueck();
-  clearArray(arrays.sniperGranaten);
+  clearArray(arrays.missileArray);
+  clearArray(arrays.bombArray);
+  clearArray(arrays.explosionsArray);
+  clearArray(arrays.effects);
+  clearArray(arrays.rock);
+  Rock.reset();
+  IslandBoss.reset();
+  Level.resetTheme();
+  clearArray(arrays.sniperGrenades);
 
   // Verwaiste Spiel-Entitäten und Projektile aus dem DOM entfernen
   const orphanSelectors =
     '.boss-rakete, .boss-bombe, .boss-laser, .feind-laser, .laser, .rakete, .bombe, .powerup, .feind, .asteroid, .boss, .partikel, .werfer-abgeworfen, .shockwave, .schockwelle, .cutscene-fireball, .cutscene-shockwave, .cutscene-debris, .tractor-beam-svg';
-  if (dom.spielfeld) {
-    dom.spielfeld.querySelectorAll(orphanSelectors).forEach(el => el.remove());
+  if (dom.playfield) {
+    dom.playfield.querySelectorAll(orphanSelectors).forEach(el => el.remove());
   }
 
-  state.bossAktiv = false;
-  state.bossWarningAktiv = false;
+  state.bossActive = false;
+  state.bossWarningActive = false;
   state.bossWarningTimer = 0;
   dom.warningOverlay.style.display = 'none';
   dom.bossHpContainer.style.display = 'none';
 
-  state.pausiert = false;
-  state.pauseVon = null;
-  state.pauseEndeZeit = 0;
+  state.paused = false;
+  state.pauseFrom = null;
+  state.pauseEndTime = 0;
   dom.pauseOverlay.style.display = 'none';
 
-  state.bossKampfAktiv = false;
-  state.autolaserAktiv = false;
-  state.autolaserStrahl = null;
-  state.hitscanStrahl = null;
+  state.bossFightActive = false;
+  state.autolaserActive = false;
+  state.autolaserBeam = null;
+  state.hitscanBeam = null;
 
-  state.spielerSchussCooldown = 0;
-  state.raketenCooldown = 0;
-  state.bombenCooldown = 0;
+  state.playerShotCooldown = 0;
+  state.missileCooldown = 0;
+  state.bombCooldown = 0;
 
-  state.frameZaehler = 0;
-  state.spielLaeuft = false;
-  state.cutsceneAktiv = false;
+  state.frameCounter = 0;
+  state.gameRunning = false;
+  state.cutsceneActive = false;
 
   const cutsceneContainer = document.getElementById('cutscene-container');
   if (cutsceneContainer) {
@@ -839,13 +844,13 @@ export function restartGame() {
     cutsceneContainer.style.display = 'none';
   }
 
-  for (let key in state.tastenGedrueckt) {
-    state.tastenGedrueckt[key] = false;
+  for (let key in state.keysPressed) {
+    state.keysPressed[key] = false;
   }
 
   let startScreen = document.getElementById('start-screen');
   if (startScreen) startScreen.style.display = 'block';
-  wendeSpielfeldBreiteAn('menue');
+  applyPlayfieldWidth('menu');
   updatePlayerShipVisuals();
   updateMobileControlsVisibility();
   if (state.gameMode === 'online') {
@@ -992,8 +997,8 @@ async function submitGlobalScore(mode, name, score, level, shipP1, shipP2) {
 }
 
 // Maskiert HTML-Sonderzeichen für Strings aus der API (Name, Stadt, Land)
-export function escapeHtml(wert) {
-  return String(wert ?? '')
+export function escapeHtml(value) {
+  return String(value ?? '')
     .replace(/&/g, '&amp;')
     .replace(/</g, '&lt;')
     .replace(/>/g, '&gt;')
@@ -1002,15 +1007,15 @@ export function escapeHtml(wert) {
 }
 
 // Badge-Daten je Schiffsmodell für die Bestenliste (unbekannt/fehlend = Viper-X)
-const HS_SCHIFFE = {
-  viper: { klasse: 'hs-ship-viper', label: 'Viper-X', kurz: 'V' },
-  phantom: { klasse: 'hs-ship-phantom', label: 'Phantom-NX', kurz: 'P' },
-  gleve: { klasse: 'hs-ship-gleve', label: 'Gleve-MR', kurz: 'G' },
-  sniper: { klasse: 'hs-ship-sniper', label: 'Spectre-SR', kurz: 'S' },
+const HS_SHIPS = {
+  viper: { cls: 'hs-ship-viper', label: 'Viper-X', short: 'V' },
+  phantom: { cls: 'hs-ship-phantom', label: 'Phantom-NX', short: 'P' },
+  gleve: { cls: 'hs-ship-gleve', label: 'Gleve-MR', short: 'G' },
+  sniper: { cls: 'hs-ship-sniper', label: 'Spectre-SR', short: 'S' },
 };
 
-function hsSchiffInfo(model) {
-  return HS_SCHIFFE[model] || HS_SCHIFFE.viper;
+function hsShipInfo(model) {
+  return HS_SHIPS[model] || HS_SHIPS.viper;
 }
 
 export function renderHighscoresTable(currentMode, hsList) {
@@ -1023,7 +1028,7 @@ export function renderHighscoresTable(currentMode, hsList) {
     return;
   }
 
-  let zeilenHtml = '';
+  let lineHtml = '';
   hsList.forEach((entry, idx) => {
     const rank = idx + 1;
     let rankClass = '';
@@ -1044,17 +1049,17 @@ export function renderHighscoresTable(currentMode, hsList) {
     const isMulti = currentMode === 'coop_bot' || currentMode === 'online';
 
     if (isMulti) {
-      const p1Info = hsSchiffInfo(entry.shipP1);
-      const p2Info = hsSchiffInfo(entry.shipP2);
-      const p1Badge = `<span class="hs-ship-badge hs-badge-mini ${p1Info.klasse}" title="P1: ${p1Info.label}">P1:${p1Info.kurz}</span>`;
-      const p2Badge = `<span class="hs-ship-badge hs-badge-mini ${p2Info.klasse}" title="P2: ${p2Info.label}">P2:${p2Info.kurz}</span>`;
-      zeilenHtml += `<tr><td>${rankBadge}</td><td>${escapeHtml(entry.name)}${locDisplay}</td><td>${escapeHtml(entry.score)}</td><td><div class="hs-coop-badges">${p1Badge} ${p2Badge}</div></td></tr>`;
+      const p1Info = hsShipInfo(entry.shipP1);
+      const p2Info = hsShipInfo(entry.shipP2);
+      const p1Badge = `<span class="hs-ship-badge hs-badge-mini ${p1Info.cls}" title="P1: ${p1Info.label}">P1:${p1Info.short}</span>`;
+      const p2Badge = `<span class="hs-ship-badge hs-badge-mini ${p2Info.cls}" title="P2: ${p2Info.label}">P2:${p2Info.short}</span>`;
+      lineHtml += `<tr><td>${rankBadge}</td><td>${escapeHtml(entry.name)}${locDisplay}</td><td>${escapeHtml(entry.score)}</td><td><div class="hs-coop-badges">${p1Badge} ${p2Badge}</div></td></tr>`;
     } else {
-      const info = hsSchiffInfo(entry.shipP1 || entry.ship);
-      zeilenHtml += `<tr><td>${rankBadge}</td><td>${escapeHtml(entry.name)}${locDisplay}</td><td>${escapeHtml(entry.score)}</td><td><span class="hs-ship-badge ${info.klasse}">${info.label}</span></td></tr>`;
+      const info = hsShipInfo(entry.shipP1 || entry.ship);
+      lineHtml += `<tr><td>${rankBadge}</td><td>${escapeHtml(entry.name)}${locDisplay}</td><td>${escapeHtml(entry.score)}</td><td><span class="hs-ship-badge ${info.cls}">${info.label}</span></td></tr>`;
     }
   });
-  tbody.innerHTML = zeilenHtml;
+  tbody.innerHTML = lineHtml;
 }
 
 export async function fetchGlobalHighscores(mode) {
@@ -1120,7 +1125,7 @@ export function renderHighscores(targetMode = null) {
   // Header-Spalte anpassen (SCHIFF vs SCHIFFE)
   const colHeaderShip = document.getElementById('hs-col-ship');
   if (colHeaderShip) {
-    colHeaderShip.innerText = normMode === 'single' ? 'SCHIFF' : 'SCHIFFE';
+    colHeaderShip.innerText = normMode === 'single' ? 'SCHIFF' : 'SHIPS';
   }
 
   // Zuerst gecachte globale Scores oder lokale Scores sofort anzeigen
@@ -1155,7 +1160,7 @@ export function submitHighscore() {
     const mode = isCoop ? 'coop_bot' : 'single';
     saveHighscore(
       nameInput,
-      state.finalerScore,
+      state.finalScore,
       state.selectedShipModel,
       mode,
       state.p2 ? state.p2.selectedShipModel : null,
@@ -1228,7 +1233,7 @@ export function checkAndCommitOnlineHighscore() {
     // State sofort zurücksetzen, um doppelte Ausführung zu verhindern
     state.onlineHighscoreNames = { p1: null, p2: null };
 
-    saveHighscore(combinedName, state.finalerScore, modelP1, 'online', modelP2, state.level || 1);
+    saveHighscore(combinedName, state.finalScore, modelP1, 'online', modelP2, state.level || 1);
 
     const hsForm = document.getElementById('highscore-form');
     if (hsForm) hsForm.style.display = 'none';
@@ -1242,28 +1247,28 @@ export function checkAndCommitOnlineHighscore() {
     renderHighscores('online');
   }
 }
-export function erzeugeExplosion(x, y, farbe, anzahl = 15) {
-  for (let i = 0; i < anzahl; i++) {
-    const winkel = Math.random() * Math.PI * 2;
-    const tempo = Math.random() * 4 + 2;
-    erzeugePartikel({
-      farbe,
+export function createExplosion(x, y, color, count = 15) {
+  for (let i = 0; i < count; i++) {
+    const angle = Math.random() * Math.PI * 2;
+    const speed = Math.random() * 4 + 2;
+    createParticles({
+      color,
       x: x,
       y: y,
-      vx: Math.cos(winkel) * tempo,
-      vy: Math.sin(winkel) * tempo,
-      leben: 1.0,
-      zerfall: Math.random() * 0.03 + 0.02,
+      vx: Math.cos(angle) * speed,
+      vy: Math.sin(angle) * speed,
+      lives: 1.0,
+      decay: Math.random() * 0.03 + 0.02,
     });
   }
 }
 
-export function erzeugeBombenDetonation(bcx, bcy, farbe = '#f39c12', radius = 150, stufe = 1, isMini = false) {
-  const spielfeld = dom.spielfeld || document.getElementById('spielfeld');
-  if (!spielfeld) return;
+export function createBombDetonation(bcx, bcy, color = '#f39c12', radius = 150, tier = 1, isMini = false) {
+  const playfield = dom.playfield || document.getElementById('spielfeld');
+  if (!playfield) return;
 
   // 1. Partikel
-  erzeugeExplosion(bcx, bcy, farbe || '#f39c12', isMini ? 35 : 60);
+  createExplosion(bcx, bcy, color || '#f39c12', isMini ? 35 : 60);
 
   // 2. Sound
   if (Audio && Audio.playExplosion) {
@@ -1271,64 +1276,64 @@ export function erzeugeBombenDetonation(bcx, bcy, farbe = '#f39c12', radius = 15
   }
 
   // 3. Schockwelle (Effekt im Simulationstakt; Stufe 3 Vortex: zweite, leicht verzoegert und violett)
-  erzeugeEffekt({ art: 'bombenWelle', x: bcx, y: bcy, radius, farbe: farbe || '#f39c12', rest: 30 });
-  if (stufe === 3 && !isMini) {
-    erzeugeEffekt({ art: 'bombenWelle2', x: bcx, y: bcy, radius: radius * 0.75, rest: 24 + 9, verzoegerung: 9 });
+  createEffect({ kind: 'bombWave', x: bcx, y: bcy, radius, color: color || '#f39c12', rest: 30 });
+  if (tier === 3 && !isMini) {
+    createEffect({ kind: 'bombWave2', x: bcx, y: bcy, radius: radius * 0.75, rest: 24 + 9, delay: 9 });
   }
 }
 
-export function erzeugeRaketenDetonation(rcx, rcy, radius = 70) {
-  const spielfeld = dom.spielfeld || document.getElementById('spielfeld');
-  if (!spielfeld) return;
+export function createMissileDetonation(rcx, rcy, radius = 70) {
+  const playfield = dom.playfield || document.getElementById('spielfeld');
+  if (!playfield) return;
 
   if (Audio && Audio.playMissileExplosion) {
     Audio.playMissileExplosion();
   }
-  erzeugeExplosion(rcx, rcy, '#e67e22', 25);
-  erzeugeExplosion(rcx, rcy, '#f1c40f', 15);
+  createExplosion(rcx, rcy, '#e67e22', 25);
+  createExplosion(rcx, rcy, '#f1c40f', 15);
 
-  erzeugeEffekt({ art: 'raketenWelle', x: rcx, y: rcy, radius, rest: 18 });
+  createEffect({ kind: 'missileWave', x: rcx, y: rcy, radius, rest: 18 });
 }
-export function erzeugeRauchFunken(x, y, groesse) {
+export function createSmokeSparks(x, y, size) {
   // Rauch
   if (Math.random() < 0.5) {
-    erzeugePartikel({
-      farbe: '#555',
-      groesse: 6,
-      x: x + Math.random() * groesse,
-      y: y + Math.random() * groesse,
+    createParticles({
+      color: '#555',
+      size: 6,
+      x: x + Math.random() * size,
+      y: y + Math.random() * size,
       vx: (Math.random() - 0.5) * 2,
       vy: -Math.random() * 2 - 1,
-      leben: 1.0,
-      zerfall: 0.02,
+      lives: 1.0,
+      decay: 0.02,
     });
   }
   // Funken
   if (Math.random() < 0.3) {
-    erzeugePartikel({
-      farbe: '#f1c40f',
+    createParticles({
+      color: '#f1c40f',
       glow: true,
-      x: x + Math.random() * groesse,
-      y: y + Math.random() * groesse,
+      x: x + Math.random() * size,
+      y: y + Math.random() * size,
       vx: (Math.random() - 0.5) * 4,
       vy: -Math.random() * 4,
-      leben: 1.0,
-      zerfall: 0.05,
+      lives: 1.0,
+      decay: 0.05,
     });
   }
 }
-export function erzeugeAntriebsRauch(x, y, vy = -1.5) {
+export function createDriveSmoke(x, y, vy = -1.5) {
   if (Math.random() < 0.6) {
-    const farbe = Math.random() < 0.3 ? '#e74c3c' : '#7f8c8d';
-    erzeugePartikel({
-      farbe,
-      groesse: 4,
+    const color = Math.random() < 0.3 ? '#e74c3c' : '#7f8c8d';
+    createParticles({
+      color,
+      size: 4,
       x: x,
       y: y,
       vx: (Math.random() - 0.5) * 1,
       vy: vy + (Math.random() - 0.5) * 0.5,
-      leben: 1.0,
-      zerfall: 0.05,
+      lives: 1.0,
+      decay: 0.05,
     });
   }
 }
@@ -1336,18 +1341,18 @@ export function erzeugeAntriebsRauch(x, y, vy = -1.5) {
 // --- SCHIFFS-AUSWAHL & VISUALS ---
 
 // Menuebreite (Einzelspieler-Feld), gilt solange der Startbildschirm sichtbar ist
-export const MENUE_BREITE = 400;
-export const MULTIPLAYER_BREITE = 600;
+export const MENU_WIDTH = 400;
+export const MULTIPLAYER_WIDTH = 600;
 
 // Setzt die Spielfeldbreite: 'single' = 400 px, 'coop'/'online' = 600 px, 'menue' = Menuebreite.
 // Ohne Argument gilt state.gameMode. Wird beim Spielstart (Cutscene) bzw. beim Rueckweg ins Menue gerufen.
-export function wendeSpielfeldBreiteAn(modus = state.gameMode) {
-  const breit = modus === 'coop' || modus === 'online';
-  config.spielfeldBreite = breit ? MULTIPLAYER_BREITE : MENUE_BREITE;
-  const spielfeld = dom.spielfeld || document.getElementById('spielfeld');
-  if (spielfeld) {
-    spielfeld.classList.toggle('mode-coop', breit);
-    spielfeld.style.width = config.spielfeldBreite + 'px';
+export function applyPlayfieldWidth(mode = state.gameMode) {
+  const wide = mode === 'coop' || mode === 'online';
+  config.playfieldWidth = wide ? MULTIPLAYER_WIDTH : MENU_WIDTH;
+  const playfield = dom.playfield || document.getElementById('spielfeld');
+  if (playfield) {
+    playfield.classList.toggle('mode-coop', wide);
+    playfield.style.width = config.playfieldWidth + 'px';
   }
   if (typeof window.resizeGame === 'function') window.resizeGame();
 }
@@ -1367,10 +1372,10 @@ export function setGameMode(mode) {
 
   // Die Spielfeldbreite aendert sich NICHT hier: Das Menue bleibt in allen Modi gleich breit,
   // die Modusbreite gilt erst ab Spielstart (wendeSpielfeldBreiteAn in startCutscene/startOnlineGame).
-  const hinweisSingle = document.getElementById('modus-optionen-single');
-  if (hinweisSingle) hinweisSingle.style.display = mode === 'single' ? 'block' : 'none';
-  const optionenCoop = document.getElementById('modus-optionen-coop');
-  if (optionenCoop) optionenCoop.style.display = isCoop ? 'block' : 'none';
+  const hintSingle = document.getElementById('modus-optionen-single');
+  if (hintSingle) hintSingle.style.display = mode === 'single' ? 'block' : 'none';
+  const optionsCoop = document.getElementById('modus-optionen-coop');
+  if (optionsCoop) optionsCoop.style.display = isCoop ? 'block' : 'none';
 
   const onlineLobby = document.getElementById('online-lobby-container');
   if (onlineLobby) onlineLobby.style.display = isOnline ? 'block' : 'none';
@@ -1385,10 +1390,10 @@ export function setGameMode(mode) {
   if (infoCoop) infoCoop.style.display = isCoop ? 'block' : 'none';
   if (infoOnline) infoOnline.style.display = isOnline ? 'block' : 'none';
 
-  updateSteuerungInfo();
+  updateControlsInfo();
 
   const uiP2 = dom.uiContainerP2 || document.getElementById('ui-container-p2');
-  if (uiP2) uiP2.style.display = isMultiplayer && state.spielLaeuft ? 'flex' : 'none';
+  if (uiP2) uiP2.style.display = isMultiplayer && state.gameRunning ? 'flex' : 'none';
 
   const tagP1 = /** @type {HTMLElement} */ (document.querySelector('.tag-p1'));
   if (tagP1) tagP1.style.display = isMultiplayer ? 'block' : 'none';
@@ -1424,15 +1429,15 @@ export function setGameMode(mode) {
   }
 }
 
-export function updateSteuerungInfo() {
-  const kurz = document.getElementById('steuerung-kurz');
-  if (kurz) {
+export function updateControlsInfo() {
+  const short = document.getElementById('steuerung-kurz');
+  if (short) {
     if (state.gameMode === 'coop') {
-      kurz.textContent = state.p2IsBot
+      short.textContent = state.p2IsBot
         ? 'WASD bewegen · L/B Laser · K/V Raketen · LEER/C Bombe · P Pause'
         : 'P1: WASD · B/V/C   P2: Pfeile · Ä/Ö/L';
     } else {
-      kurz.textContent = 'WASD bewegen · L Laser · K Raketen · LEER Bombe · P Pause';
+      short.textContent = 'WASD bewegen · L Laser · K Raketen · LEER Bombe · P Pause';
     }
   }
   const infoCoop = document.getElementById('steuerung-info-coop');
@@ -1468,12 +1473,12 @@ export function updateSteuerungInfo() {
 }
 
 // Beschreibungszeile unter den Perk-Chips (feste Hoehe, Index -1 = Hinweistext)
-export function zeigePerkDetail(index) {
+export function showPerkDetail(index) {
   const detail = document.getElementById('hangar-perk-detail');
   const container = document.getElementById('hangar-ship-perks');
   if (!detail || !container) return;
-  const modell = container.dataset.modell;
-  const perk = shipModels && shipModels[modell] && shipModels[modell].perks[index];
+  const model = container.dataset.model;
+  const perk = shipModels && shipModels[model] && shipModels[model].perks[index];
   container.querySelectorAll('.hangar-perk-chip').forEach((chip, i) => chip.classList.toggle('aktiv', i === index));
   detail.classList.toggle('hinweis', !perk);
   detail.textContent = perk ? perk.label + ': ' + perk.desc : 'Perk antippen für Details';
@@ -1490,12 +1495,12 @@ export function updatePlayerShipVisuals() {
   const activeHangarColor = isP2Hangar ? colorIdP2 : colorIdP1;
 
   // Schiffe im Spiel (SVG nach Modell/Farbe, Werfer-Pods) zeichnet die Anzeige aus dem Zustand
-  Anzeige.zeichneSpieler();
+  Display.drawPlayer();
 
   // Hangar Preview im Startscreen aktualisieren
   const previewSvg = document.getElementById('hangar-preview-svg');
   if (previewSvg) {
-    previewSvg.innerHTML = getShipSVGContent(activeHangarModel, activeHangarColor);
+    previewSvg.innerHTML = getShipSvgContent(activeHangarModel, activeHangarColor);
     if (previewSvg.parentElement)
       previewSvg.parentElement.classList.toggle('schiff-gleve', activeHangarModel === 'gleve');
   }
@@ -1507,15 +1512,15 @@ export function updatePlayerShipVisuals() {
 
   // Hangar Perks rendern
   const perksContainer = document.getElementById('hangar-ship-perks');
-  if (perksContainer && shipData && shipData.perks && perksContainer.dataset.modell !== activeHangarModel) {
-    perksContainer.dataset.modell = activeHangarModel;
+  if (perksContainer && shipData && shipData.perks && perksContainer.dataset.model !== activeHangarModel) {
+    perksContainer.dataset.model = activeHangarModel;
     perksContainer.innerHTML = shipData.perks
       .map(
         (p, i) =>
           `<button type="button" class="hangar-perk-chip ${p.type === 'nerf' ? 'perk-nerf' : 'perk-buff'}" data-perk="${i}" title="${p.label}: ${p.desc}">${p.icon}</button>`,
       )
       .join('');
-    zeigePerkDetail(-1);
+    showPerkDetail(-1);
   }
 
   // Active Klassen auf Hangar Tabs aktualisieren
@@ -1537,44 +1542,40 @@ export function updatePlayerShipVisuals() {
     botControls.style.display = state.gameMode === 'coop' && isP2Hangar ? 'block' : 'none';
   }
 
-  updateRaketenWerferVisuals();
-  updateSchiffHudLabels();
+  updateMissileLauncherVisuals();
+  updateShipHudLabels();
 }
 
 // HUD-Beschriftungen je Schiff: Gleve nutzt den Energiebalken für den Laser-Sweep
 // und den Raketen-Cooldown für den Dash. Sonst Originaltexte (E / R).
 const HUD_LABELS = {
-  standard: { energie: 'E', rakete: 'R', mobilRakete: 'R' },
-  gleve: { energie: 'SWEEP', rakete: 'DASH', mobilRakete: 'D', lang: true },
-  sniper: { energie: 'E', rakete: 'GRANATE', mobilRakete: 'G', lang: true },
+  standard: { energy: 'E', missile: 'R', mobileMissile: 'R' },
+  gleve: { energy: 'SWEEP', missile: 'DASH', mobileMissile: 'D', lang: true },
+  sniper: { energy: 'E', missile: 'GRANATE', mobileMissile: 'G', lang: true },
 };
 
-function setzeHudLabel(el, text, lang) {
+function setHudLabel(el, text, lang) {
   if (!el) return;
   if (el.textContent !== text) el.textContent = text;
   el.classList.toggle('cooldown-letter-lang', lang);
 }
 
-export function updateSchiffHudLabels() {
+export function updateShipHudLabels() {
   const modelP1 = state.selectedShipModel || 'viper';
   const modelP2 = (state.p2 && state.p2.selectedShipModel) || 'phantom';
-  Viper.zeigeRollenHud('p1', state);
-  if (state.p2) Viper.zeigeRollenHud('p2', state.p2, isCoopMode());
+  Viper.showRollHud('p1', state);
+  if (state.p2) Viper.showRollHud('p2', state.p2, isCoopMode());
   const labelsP1 = HUD_LABELS[modelP1] || HUD_LABELS.standard;
   const labelsP2 = HUD_LABELS[modelP2] || HUD_LABELS.standard;
 
-  setzeHudLabel(
-    document.querySelector('#energie-cd-container .cooldown-letter'),
-    labelsP1.energie,
-    modelP1 === 'gleve',
-  );
-  setzeHudLabel(document.querySelector('#raketen-cd-container .cooldown-letter'), labelsP1.rakete, !!labelsP1.lang);
-  setzeHudLabel(
+  setHudLabel(document.querySelector('#energie-cd-container .cooldown-letter'), labelsP1.energy, modelP1 === 'gleve');
+  setHudLabel(document.querySelector('#raketen-cd-container .cooldown-letter'), labelsP1.missile, !!labelsP1.lang);
+  setHudLabel(
     document.querySelector('#energie-cd-container-p2 .cooldown-letter'),
-    labelsP2.energie,
+    labelsP2.energy,
     modelP2 === 'gleve',
   );
-  setzeHudLabel(document.querySelector('#raketen-cd-container-p2 .cooldown-letter'), labelsP2.rakete, !!labelsP2.lang);
+  setHudLabel(document.querySelector('#raketen-cd-container-p2 .cooldown-letter'), labelsP2.missile, !!labelsP2.lang);
 
   // Ladungspunkte nur bei Gleve (Dash) und Sniper (Granaten); Inhalt pflegt Gleve.zeigeLadungenHud
   for (const [id, model] of [
@@ -1583,87 +1584,88 @@ export function updateSchiffHudLabels() {
   ]) {
     const el = document.getElementById(id);
     if (!el) continue;
-    const mitLadungen = model === 'gleve' || model === 'sniper';
-    el.style.display = mitLadungen ? 'flex' : 'none';
-    if (!mitLadungen) el.replaceChildren();
+    const withCharges = model === 'gleve' || model === 'sniper';
+    el.style.display = withCharges ? 'flex' : 'none';
+    if (!withCharges) el.replaceChildren();
   }
-  const ladungenEl = document.getElementById('btn-rakete-ladungen');
-  if (ladungenEl) {
-    const mobilGleve = lokalesSchiffModell() === 'gleve' || lokalesSchiffModell() === 'sniper';
-    ladungenEl.style.display = mobilGleve ? '' : 'none';
-    if (!mobilGleve) ladungenEl.textContent = '';
+  const chargeEl = document.getElementById('btn-rakete-ladungen');
+  if (chargeEl) {
+    const mobileGleve = localShipModel() === 'gleve' || localShipModel() === 'sniper';
+    chargeEl.style.display = mobileGleve ? '' : 'none';
+    if (!mobileGleve) chargeEl.textContent = '';
   }
 
   // Mobil-Knopf zum Aufladen nur beim Sniper (lokales Schiff)
-  const ladenBtn = document.getElementById('btn-laden');
-  if (ladenBtn) {
-    const zeigen = lokalesSchiffModell() === 'sniper';
-    ladenBtn.style.display = zeigen ? 'flex' : 'none';
-    if (!zeigen) state.sniperLadeKnopf = false;
+  const chargeBtn = document.getElementById('btn-laden');
+  if (chargeBtn) {
+    const show = localShipModel() === 'sniper';
+    chargeBtn.style.display = show ? 'flex' : 'none';
+    if (!show) state.sniperChargingButton = false;
   }
 
   // Mobile-Raketen-Button gehört dem lokalen Spieler (Online-Client = P2)
-  const mobilLabels = HUD_LABELS[lokalesSchiffModell()] || HUD_LABELS.standard;
-  const mobilSpan = document.querySelector('#btn-rakete span');
-  if (mobilSpan && mobilSpan.textContent !== mobilLabels.mobilRakete) mobilSpan.textContent = mobilLabels.mobilRakete;
+  const mobileLabels = HUD_LABELS[localShipModel()] || HUD_LABELS.standard;
+  const mobileSpan = document.querySelector('#btn-rakete span');
+  if (mobileSpan && mobileSpan.textContent !== mobileLabels.mobileMissile)
+    mobileSpan.textContent = mobileLabels.mobileMissile;
 }
 
 // Schiff des Spielers an diesem Gerät: Online-Client steuert P2, sonst P1
-export function lokalesSchiffModell() {
-  const istClient = state.gameMode === 'online' && state.network && state.network.isClient;
-  if (istClient) return (state.p2 && state.p2.selectedShipModel) || 'phantom';
+export function localShipModel() {
+  const isClient = state.gameMode === 'online' && state.network && state.network.isClient;
+  if (isClient) return (state.p2 && state.p2.selectedShipModel) || 'phantom';
   return state.selectedShipModel || 'viper';
 }
 
-export function erzeugeAbgeworfenenWerfer(x, y, vx, vy, vRot) {
+export function createDroppedLauncher(x, y, vx, vy, vRot) {
   // Kleine Funken/Rauchwolke am Abreißpunkt
   for (let i = 0; i < 3; i++) {
-    erzeugeRauchFunken(x, y, 8);
+    createSmokeSparks(x, y, 8);
   }
 
-  erzeugePartikel({
-    sorte: 'werfer',
+  createParticles({
+    sort: 'launcher',
     x: x,
     y: y,
     vx: vx,
     vy: vy,
     rot: 0,
     vRot: vRot || (vx > 0 ? 8 : -8),
-    leben: 1.0,
-    zerfall: 0.02,
+    lives: 1.0,
+    decay: 0.02,
   });
 }
 
-let prevWerferStatesP1 = null;
-let prevWerferStatesP2 = null;
+let prevLauncherStatesP1 = null;
+let prevLauncherStatesP2 = null;
 
 // Sichtbare Raketenwerfer-Pods eines Schiffs nach Modell und Raketen-Stufe (die Anzeige zeichnet sie)
-export function werferBelegung(pState) {
+export function launcherBinding(pState) {
   const model = pState.selectedShipModel || 'viper';
-  const lvl = pState.raketenStufe || 1;
-  if (model === 'gleve' || Sniper.istSniper(pState)) {
+  const lvl = pState.missileTier || 1;
+  if (model === 'gleve' || Sniper.isSniper(pState)) {
     // Gleve (Dash) und Sniper (Granate) haben keine Raketenwerfer
-    return { links: false, rechts: false, mitte: false };
+    return { left: false, right: false, middle: false };
   }
-  if (lvl <= 2) return { links: model !== 'phantom', rechts: model === 'phantom', mitte: false };
-  if (lvl <= 4) return { links: true, rechts: true, mitte: false };
-  return { links: true, rechts: true, mitte: true };
+  if (lvl <= 2) return { left: model !== 'phantom', right: model === 'phantom', middle: false };
+  if (lvl <= 4) return { left: true, right: true, middle: false };
+  return { left: true, right: true, middle: true };
 }
 
 // Abwurf-Effekt, wenn ein Pod durch ein Downgrade wegfaellt (Gleve/Sniper haben keine Pods)
-function pruefeWerferAbwurf(pState, prevKey) {
+function checkLauncherDrop(pState, prevKey) {
   if (!pState) return;
-  const jetzt = werferBelegung(pState);
-  const vorher = prevKey === 'p1' ? prevWerferStatesP1 : prevWerferStatesP2;
-  if (vorher && state.spielLaeuft && !pState.isDead) {
-    if (vorher.links && !jetzt.links) {
-      erzeugeAbgeworfenenWerfer(pState.x - 8, pState.y + 7, -3 - Math.random() * 2, 2 + Math.random() * 2, -10);
+  const now = launcherBinding(pState);
+  const beforehand = prevKey === 'p1' ? prevLauncherStatesP1 : prevLauncherStatesP2;
+  if (beforehand && state.gameRunning && !pState.isDead) {
+    if (beforehand.left && !now.left) {
+      createDroppedLauncher(pState.x - 8, pState.y + 7, -3 - Math.random() * 2, 2 + Math.random() * 2, -10);
     }
-    if (vorher.rechts && !jetzt.rechts) {
-      erzeugeAbgeworfenenWerfer(pState.x + 31, pState.y + 7, 3 + Math.random() * 2, 2 + Math.random() * 2, 10);
+    if (beforehand.right && !now.right) {
+      createDroppedLauncher(pState.x + 31, pState.y + 7, 3 + Math.random() * 2, 2 + Math.random() * 2, 10);
     }
-    if (vorher.mitte && !jetzt.mitte) {
-      erzeugeAbgeworfenenWerfer(
+    if (beforehand.middle && !now.middle) {
+      createDroppedLauncher(
         pState.x + 11.5,
         pState.y + 18,
         (Math.random() - 0.5) * 2,
@@ -1672,12 +1674,12 @@ function pruefeWerferAbwurf(pState, prevKey) {
       );
     }
   }
-  if (prevKey === 'p1') prevWerferStatesP1 = jetzt;
-  else prevWerferStatesP2 = jetzt;
+  if (prevKey === 'p1') prevLauncherStatesP1 = now;
+  else prevLauncherStatesP2 = now;
 }
 
-export function updateRaketenWerferVisuals() {
-  pruefeWerferAbwurf(state, 'p1');
-  if (state.p2) pruefeWerferAbwurf(state.p2, 'p2');
-  Anzeige.zeichneSpieler();
+export function updateMissileLauncherVisuals() {
+  checkLauncherDrop(state, 'p1');
+  if (state.p2) checkLauncherDrop(state.p2, 'p2');
+  Display.drawPlayer();
 }

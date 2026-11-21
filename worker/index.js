@@ -1,6 +1,6 @@
 // Starshooter Highscores Cloudflare Worker API
-import { bereinigeName } from './validierung.mjs';
-import { behandleTurnAnfrage } from './turn.mjs';
+import { cleanName } from './validierung.mjs';
+import { handleTurnRequest } from './turn.mjs';
 
 const SECRET_SALT = 'st4r-sh00t3r-s3cr3t-k3y-2026';
 const VALID_MODES = ['single', 'coop_bot', 'online'];
@@ -47,7 +47,7 @@ export default {
     // --- GET /api/turn (Cloudflare TURN Zugangsdaten, Rate-Limit ueber Cache API) ---
     if (request.method === 'GET' && url.pathname === '/api/turn') {
       const cache = typeof caches !== 'undefined' ? caches.default : null;
-      return behandleTurnAnfrage(request, env, fetch, cache);
+      return handleTurnRequest(request, env, fetch, cache);
     }
 
     // --- GET /api/highscores ---
@@ -60,7 +60,7 @@ export default {
       }
 
       try {
-        const db = env.starshooter_db || env.DB;
+        const db = env.starshooterDb || env.DB;
         if (!db) {
           // Fallback wenn DB nicht gebunden (z.B. Mock-Modus)
           return jsonResponse({
@@ -105,11 +105,11 @@ export default {
 
         // 2. Name bereinigen & prüfen
         // (inkl. Zeichen-Check und Profanity-Filter, siehe validierung.mjs)
-        const nameErgebnis = bereinigeName(name);
-        if (!nameErgebnis.ok) {
-          return jsonResponse({ success: false, error: nameErgebnis.fehler }, 400);
+        const nameResult = cleanName(name);
+        if (!nameResult.ok) {
+          return jsonResponse({ success: false, error: nameResult.error }, 400);
         }
-        name = nameErgebnis.name;
+        name = nameResult.name;
 
         // 3. Score & Level Plausibilität
         score = parseInt(score, 10);
@@ -159,7 +159,7 @@ export default {
         const clientIp = request.headers.get('CF-Connecting-IP') || '127.0.0.1';
         const ipHash = await sha256(`${clientIp}:${new Date().toISOString().slice(0, 10)}`);
 
-        const db = env.starshooter_db || env.DB;
+        const db = env.starshooterDb || env.DB;
         if (db) {
           // Rate-Limit Check: Max 15 Einträge pro Stunde/IP
           const countCheck = await db

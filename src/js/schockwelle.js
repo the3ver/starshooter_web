@@ -2,106 +2,106 @@ import { state, config, arrays } from './state.js';
 import * as Utils from './utils.js';
 import * as Audio from './audio.js';
 import * as Network from './network.js';
-import * as Anzeige from './anzeige.js';
-import { erzeugeEffekt } from './effekte.js';
+import * as Display from './anzeige.js';
+import { createEffect } from './effekte.js';
 
 // Powerup Schockwelle: Ein Ring laeuft vom Aufnahmepunkt in WELLEN_DAUER Schritten bis zur fernsten Feldecke.
 // Was der Ring erreicht: Feinde explodieren (Abschuss fuer den Sammler), Feind- und Boss-Geschosse verschwinden,
 // Bosse verlieren einmal BOSS_SCHADEN_ANTEIL ihrer Max-HP (sterben aber nicht). Asteroiden bleiben.
 // Der Ring ist ein Effekt (arrays.effekte, Art schockwelle); getroffen merkt sich die erfassten Ziele.
 
-export const WELLEN_DAUER = 36;
+export const WAVE_DURATION = 36;
 
 // Bonus-Drop (Kettenbonus, Eierkapsel): mit SCHOCKWELLE_CHANCE eine Schockwelle, hoechstens eine pro Level und
 // nie im Bosskampf; sonst null (zufaelliges Powerup)
-export const SCHOCKWELLE_CHANCE = 0.35;
-export function bonusTyp() {
-  if (state.bossAktiv || state.schockwelleLevel === state.level) return null;
-  if (Math.random() >= SCHOCKWELLE_CHANCE) return null;
-  state.schockwelleLevel = state.level;
-  return 'schockwelle';
+export const SHOCKWAVE_CHANCE = 0.35;
+export function bonusType() {
+  if (state.bossActive || state.shockwaveLevel === state.level) return null;
+  if (Math.random() >= SHOCKWAVE_CHANCE) return null;
+  state.shockwaveLevel = state.level;
+  return 'shockwave';
 }
 
-export const BOSS_SCHADEN_ANTEIL = 0.15;
+export const BOSS_DAMAGE_SHARE = 0.15;
 
-const GESCHOSS_LISTEN = [
-  'feindLaserArray',
-  'hackProjektilArray',
+const PROJECTILE_LISTEN = [
+  'enemyLaserArray',
+  'hackProjectileArray',
   'bossLaserArray',
-  'bossRaketenArray',
-  'bossBombenArray',
+  'bossMissileArray',
+  'bossBombArray',
 ];
 
-function fernsteEcke(x, y) {
-  const b = config.spielfeldBreite;
-  const h = config.spielfeldHoehe;
+function farthestCorner(x, y) {
+  const b = config.playfieldWidth;
+  const h = config.playfieldHeight;
   return Math.max(Math.hypot(x, y), Math.hypot(b - x, y), Math.hypot(x, h - y), Math.hypot(b - x, h - y));
 }
 
 // Ring, Blitz und Ton (Host und Online-Client)
-function zeige(x, y, radius) {
-  Anzeige.blitzeSpielfeld('#ffffff', 90);
-  Audio.playSchockwelle();
-  return erzeugeEffekt({ art: 'schockwelle', x, y, radius, rest: WELLEN_DAUER });
+function show(x, y, radius) {
+  Display.flashPlayfield('#ffffff', 90);
+  Audio.playShockwave();
+  return createEffect({ kind: 'shockwave', x, y, radius, rest: WAVE_DURATION });
 }
 
 // Host/Solo: Welle mit Trefferlogik ausloesen; owner = Sammler (Abschuesse zaehlen fuer ihn)
-export function loeseAus(x, y, owner = 'p1') {
-  const radius = fernsteEcke(x, y);
-  const welle = zeige(x, y, radius);
-  welle.owner = owner;
-  welle.getroffen = new Set();
-  if (state.gameMode === 'online') Network.sendNetworkEvent({ type: 'schockwelle', x, y, radius });
-  return welle;
+export function trigger(x, y, owner = 'p1') {
+  const radius = farthestCorner(x, y);
+  const wave = show(x, y, radius);
+  wave.owner = owner;
+  wave.hit = new Set();
+  if (state.gameMode === 'online') Network.sendNetworkEvent({ type: 'shockwave', x, y, radius });
+  return wave;
 }
 
 // Online-Client: nur Darstellung
-export function zeigeSchockwelle(data) {
-  zeige(data.x, data.y, data.radius);
+export function showShockwave(data) {
+  show(data.x, data.y, data.radius);
 }
 
-function mitte(o) {
-  const g = o.groesse || 0;
+function middle(o) {
+  const g = o.size || 0;
   const w = o.width || g;
   const h = o.height || g;
   return { x: o.x + w / 2, y: o.y + h / 2 };
 }
 
 // Aktueller Ringradius: waechst linear, im ersten Schritt schon ein Stueck
-export function aktuellerRadius(welle) {
-  return (welle.radius * (welle.dauer - welle.rest + 1)) / welle.dauer;
+export function currentRadius(wave) {
+  return (wave.radius * (wave.duration - wave.rest + 1)) / wave.duration;
 }
 
 // Jeder Host-Schritt vor aktualisiereEffekte: erfasst, was der Ring neu erreicht
-export function aktualisiereSchockwellen() {
-  for (const welle of arrays.effekte) {
-    if (welle.art !== 'schockwelle' || !welle.getroffen) continue;
-    const r = aktuellerRadius(welle);
-    const imRing = o => {
-      const m = mitte(o);
-      return Math.hypot(m.x - welle.x, m.y - welle.y) <= r;
+export function updateShockwaves() {
+  for (const wave of arrays.effects) {
+    if (wave.kind !== 'shockwave' || !wave.hit) continue;
+    const r = currentRadius(wave);
+    const inRing = o => {
+      const m = middle(o);
+      return Math.hypot(m.x - wave.x, m.y - wave.y) <= r;
     };
 
-    for (const f of arrays.feinde.slice()) {
+    for (const f of arrays.enemies.slice()) {
       // geschlossene Blueten (istUnzerstoerbar) ueberstehen die Welle
-      if (welle.getroffen.has(f) || f.kettenT < 0 || f.istUnzerstoerbar || !imRing(f)) continue;
-      welle.getroffen.add(f);
-      Utils.zerstoereZiel(f, welle.owner);
+      if (wave.hit.has(f) || f.chainT < 0 || f.isIndestructible || !inRing(f)) continue;
+      wave.hit.add(f);
+      Utils.destroyTarget(f, wave.owner);
     }
 
     for (const b of arrays.bosses) {
-      if (welle.getroffen.has(b) || b.istUnzerstoerbar || !imRing(b)) continue;
-      welle.getroffen.add(b);
-      b.hp = Math.max(1, b.hp - Math.ceil(b.maxHp * BOSS_SCHADEN_ANTEIL));
-      Anzeige.blitze(b, 1);
+      if (wave.hit.has(b) || b.isIndestructible || !inRing(b)) continue;
+      wave.hit.add(b);
+      b.hp = Math.max(1, b.hp - Math.ceil(b.maxHp * BOSS_DAMAGE_SHARE));
+      Display.flash(b, 1);
     }
 
-    for (const name of GESCHOSS_LISTEN) {
-      const liste = arrays[name];
-      for (let i = liste.length - 1; i >= 0; i--) {
-        if (!imRing(liste[i])) continue;
-        Anzeige.entferne(liste[i]);
-        liste.splice(i, 1);
+    for (const name of PROJECTILE_LISTEN) {
+      const list = arrays[name];
+      for (let i = list.length - 1; i >= 0; i--) {
+        if (!inRing(list[i])) continue;
+        Display.remove(list[i]);
+        list.splice(i, 1);
       }
     }
   }

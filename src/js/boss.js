@@ -2,193 +2,189 @@ import { state, dom, config, arrays, isCoopMode } from './state.js';
 import * as Utils from './utils.js';
 import * as Entities from './entities.js';
 import * as Audio from './audio.js';
-import { naechsterSpielerMitte, tickBetaeubung } from './gegner.js';
-import * as Anzeige from './anzeige.js';
-import { erzeugePartikel } from './partikel.js';
-import { erzeugeEffekt } from './effekte.js';
-import * as Inselboss from './inselboss.js';
+import { nextPlayerMiddle, tickStun } from './gegner.js';
+import * as Display from './anzeige.js';
+import { createParticles } from './partikel.js';
+import { createEffect } from './effekte.js';
+import * as IslandBoss from './inselboss.js';
 
-const BOSS_HACK_AB_LEVEL = 5;
-const BOSS_HACK_INTERVALL = 300; // 5 s
-const BOSS_HACK_INTERVALL_ENRAGE = 180; // 3 s
+const BOSS_HACK_FROM_LEVEL = 5;
+const BOSS_HACK_INTERVAL = 300; // 5 s
+const BOSS_HACK_INTERVAL_ENRAGE = 180; // 3 s
 
-export function aktualisiereBosse() {
-  Inselboss.aktualisiere();
+export function updateBosses() {
+  IslandBoss.update();
   for (let i = arrays.bosses.length - 1; i >= 0; i--) {
     let b = arrays.bosses[i];
     if (!b) break;
-    const betaeubt = tickBetaeubung(b); // Sniper-Granate: keine Bewegung, keine Angriffe
-    if (b.bossTyp === 'auge') {
+    const stunned = tickStun(b); // Sniper-Granate: keine Bewegung, keine Angriffe
+    if (b.bossTyp === 'eye') {
       // Insel-Boss: Augen sitzen im Koerper (Fels), keine eigene Bewegung, kein Rammschaden
-      Inselboss.aktualisiereAuge(b, betaeubt);
+      IslandBoss.updateEye(b, stunned);
       continue;
     }
     if (b.phase === 'einzug') {
-      b.repulsorAktiv = true;
+      b.repulsorActive = true;
       b.y += b.vy;
       if (b.y >= 20) {
         b.y = 20;
         b.phase = 'kampf';
-        b.repulsorAktiv = false;
+        b.repulsorActive = false;
       }
 
       // Repulsor auf Projektile anwenden
       arrays.laserArray.forEach(l => {
-        let cx = b.x + b.groesse / 2;
-        let cy = b.y + b.groesse / 2;
+        let cx = b.x + b.size / 2;
+        let cy = b.y + b.size / 2;
         let lx = l.x + l.width / 2;
         let ly = l.y;
         let dx = lx - cx;
         let dy = ly - cy;
         let dist = Math.hypot(dx, dy);
-        if (dist < b.groesse * 1.5 && dy > 0) {
+        if (dist < b.size * 1.5 && dy > 0) {
           // Wirkt am besten nach unten abwehrend
-          let kraft = (b.groesse * 1.5 - dist) * 0.15;
-          l.vx += dx > 0 ? kraft : -kraft;
+          let force = (b.size * 1.5 - dist) * 0.15;
+          l.vx += dx > 0 ? force : -force;
         }
       });
-      dom.bossHpBalken.style.width = Math.max(0, (b.hp / b.maxHp) * 100) + '%';
+      dom.bossHpBar.style.width = Math.max(0, (b.hp / b.maxHp) * 100) + '%';
       continue; // Überspringt Kampf-Bewegungen und Schießen
     } else {
       // Enrage Check für alle Typen
-      if (!b.enragePhaseAktiv && b.hp < b.maxHp * 0.5) {
-        b.enragePhaseAktiv = true;
-        b.baseSchussRate = Math.max(15, Math.floor(b.baseSchussRate / 2));
-        dom.bossHpBalken.style.backgroundColor = '#8e44ad'; // Visualisiert Enrage im Balken
+      if (!b.enragePhaseActive && b.hp < b.maxHp * 0.5) {
+        b.enragePhaseActive = true;
+        b.baseShotRate = Math.max(15, Math.floor(b.baseShotRate / 2));
+        dom.bossHpBar.style.backgroundColor = '#8e44ad'; // Visualisiert Enrage im Balken
         if (b.bossTyp === 2) b.vx *= 1.5; // Jäger wird im Enrage schneller
       }
 
       // Hack-Projektile ab Level 5 (Quelle null, damit der Boss mehrfach hacken kann)
-      if (!betaeubt && state.level >= BOSS_HACK_AB_LEVEL) {
+      if (!stunned && state.level >= BOSS_HACK_FROM_LEVEL) {
         b.hackTimer--;
         if (b.hackTimer <= 0) {
-          const ziel = naechsterSpielerMitte(b);
-          Entities.erzeugeHackProjektil(b.x + b.groesse / 2 - 6, b.y + b.groesse, ziel.x, ziel.y, null);
-          b.hackTimer = b.enragePhaseAktiv ? BOSS_HACK_INTERVALL_ENRAGE : BOSS_HACK_INTERVALL;
+          const target = nextPlayerMiddle(b);
+          Entities.createHackProjectile(b.x + b.size / 2 - 6, b.y + b.size, target.x, target.y, null);
+          b.hackTimer = b.enragePhaseActive ? BOSS_HACK_INTERVAL_ENRAGE : BOSS_HACK_INTERVAL;
         }
       }
 
       // Bewegung
-      if (betaeubt) {
+      if (stunned) {
         // betaeubt: steht still
       } else if (b.bossTyp === 1) {
         // Kreuzer
         b.x += b.vx;
-        if (b.x <= 10 || b.x >= config.spielfeldBreite - b.groesse - 10) b.vx *= -1;
+        if (b.x <= 10 || b.x >= config.playfieldWidth - b.size - 10) b.vx *= -1;
       } else if (b.bossTyp === 2) {
         // Jäger - verfolgt den näheren lebenden Spieler
-        let zielX = naechsterSpielerMitte(b).x - b.groesse / 2;
-        if (b.x < zielX - 5) b.x += b.vx;
-        else if (b.x > zielX + 5) b.x -= b.vx;
+        let targetX = nextPlayerMiddle(b).x - b.size / 2;
+        if (b.x < targetX - 5) b.x += b.vx;
+        else if (b.x > targetX + 5) b.x -= b.vx;
       } else if (b.bossTyp === 3) {
         // Träger
-        b.zeit = (b.zeit || 0) + 0.02 * (b.enragePhaseAktiv ? 1.5 : 1);
-        b.x =
-          config.spielfeldBreite / 2 -
-          b.groesse / 2 +
-          Math.sin(b.zeit) * (config.spielfeldBreite / 2 - b.groesse / 2 - 10);
+        b.time = (b.time || 0) + 0.02 * (b.enragePhaseActive ? 1.5 : 1);
+        b.x = config.playfieldWidth / 2 - b.size / 2 + Math.sin(b.time) * (config.playfieldWidth / 2 - b.size / 2 - 10);
       } else if (b.bossTyp === 4) {
         // Festung
         b.x += b.vx * 0.5; // Bewegt sich sehr langsam
-        if (b.x <= 10 || b.x >= config.spielfeldBreite - b.groesse - 10) b.vx *= -1;
+        if (b.x <= 10 || b.x >= config.playfieldWidth - b.size - 10) b.vx *= -1;
       }
 
       // Update HP Balken Breite
-      dom.bossHpBalken.style.width = Math.max(0, (b.hp / b.maxHp) * 100) + '%';
-      if (b.enragePhaseAktiv) {
-        Utils.erzeugeRauchFunken(b.x, b.y, b.groesse);
+      dom.bossHpBar.style.width = Math.max(0, (b.hp / b.maxHp) * 100) + '%';
+      if (b.enragePhaseActive) {
+        Utils.createSmokeSparks(b.x, b.y, b.size);
       }
       if (b.bossTyp === 1) {
-        Utils.erzeugeAntriebsRauch(b.x + b.groesse * 0.3, b.y - b.groesse * 0.05, -2);
-        Utils.erzeugeAntriebsRauch(b.x + b.groesse * 0.7, b.y - b.groesse * 0.05, -2);
+        Utils.createDriveSmoke(b.x + b.size * 0.3, b.y - b.size * 0.05, -2);
+        Utils.createDriveSmoke(b.x + b.size * 0.7, b.y - b.size * 0.05, -2);
       } else if (b.bossTyp === 2) {
-        Utils.erzeugeAntriebsRauch(b.x + b.groesse * 0.35, b.y - b.groesse * 0.05, -2);
-        Utils.erzeugeAntriebsRauch(b.x + b.groesse * 0.65, b.y - b.groesse * 0.05, -2);
+        Utils.createDriveSmoke(b.x + b.size * 0.35, b.y - b.size * 0.05, -2);
+        Utils.createDriveSmoke(b.x + b.size * 0.65, b.y - b.size * 0.05, -2);
       } else if (b.bossTyp === 3) {
-        Utils.erzeugeAntriebsRauch(b.x + b.groesse * 0.5, b.y - b.groesse * 0.05, -2);
+        Utils.createDriveSmoke(b.x + b.size * 0.5, b.y - b.size * 0.05, -2);
       } else if (b.bossTyp === 4) {
-        Utils.erzeugeAntriebsRauch(b.x + b.groesse * 0.25, b.y - b.groesse * 0.05, -2);
-        Utils.erzeugeAntriebsRauch(b.x + b.groesse * 0.75, b.y - b.groesse * 0.05, -2);
+        Utils.createDriveSmoke(b.x + b.size * 0.25, b.y - b.size * 0.05, -2);
+        Utils.createDriveSmoke(b.x + b.size * 0.75, b.y - b.size * 0.05, -2);
       }
-      if (!betaeubt) b.schussTimer--;
-      if (!betaeubt && b.schussTimer <= 0) {
+      if (!stunned) b.shotTimer--;
+      if (!stunned && b.shotTimer <= 0) {
         if (b.bossTyp === 1) {
-          Entities.erzeugeBossLaser(b.x + b.groesse * 0.2, b.y + b.groesse * 0.7);
-          Entities.erzeugeBossLaser(b.x + b.groesse * 0.46, b.y + b.groesse * 0.9);
-          Entities.erzeugeBossLaser(b.x + b.groesse * 0.72, b.y + b.groesse * 0.7);
-          if (b.enragePhaseAktiv) {
-            Entities.erzeugeBossLaser(b.x + b.groesse * 0.1, b.y + b.groesse * 0.5);
-            Entities.erzeugeBossLaser(b.x + b.groesse * 0.82, b.y + b.groesse * 0.5);
+          Entities.createBossLaser(b.x + b.size * 0.2, b.y + b.size * 0.7);
+          Entities.createBossLaser(b.x + b.size * 0.46, b.y + b.size * 0.9);
+          Entities.createBossLaser(b.x + b.size * 0.72, b.y + b.size * 0.7);
+          if (b.enragePhaseActive) {
+            Entities.createBossLaser(b.x + b.size * 0.1, b.y + b.size * 0.5);
+            Entities.createBossLaser(b.x + b.size * 0.82, b.y + b.size * 0.5);
           }
         } else if (b.bossTyp === 2) {
           // Gezielter Schuss auf den näheren lebenden Spieler
-          const ziel = naechsterSpielerMitte(b);
-          let startX = b.x + b.groesse / 2 - 4;
-          let startY = b.y + b.groesse;
-          let winkel = Math.atan2(ziel.y - startY, ziel.x - startX);
-          Entities.erzeugeBossLaser(startX, startY, Math.cos(winkel) * 8, Math.sin(winkel) * 8);
-          if (b.enragePhaseAktiv) {
-            Entities.erzeugeBossLaser(startX, startY, Math.cos(winkel - 0.2) * 8, Math.sin(winkel - 0.2) * 8);
-            Entities.erzeugeBossLaser(startX, startY, Math.cos(winkel + 0.2) * 8, Math.sin(winkel + 0.2) * 8);
+          const target = nextPlayerMiddle(b);
+          let startX = b.x + b.size / 2 - 4;
+          let startY = b.y + b.size;
+          let angle = Math.atan2(target.y - startY, target.x - startX);
+          Entities.createBossLaser(startX, startY, Math.cos(angle) * 8, Math.sin(angle) * 8);
+          if (b.enragePhaseActive) {
+            Entities.createBossLaser(startX, startY, Math.cos(angle - 0.2) * 8, Math.sin(angle - 0.2) * 8);
+            Entities.createBossLaser(startX, startY, Math.cos(angle + 0.2) * 8, Math.sin(angle + 0.2) * 8);
           }
         } else if (b.bossTyp === 3) {
           // Spawnt einen Feind
-          Entities.erzeugeFeind(b.x + b.groesse / 2 - 15, b.y + b.groesse);
-          if (Math.random() < 0.5 || b.enragePhaseAktiv)
-            Entities.erzeugeBossLaser(b.x + b.groesse / 2 - 4, b.y + b.groesse);
+          Entities.createEnemy(b.x + b.size / 2 - 15, b.y + b.size);
+          if (Math.random() < 0.5 || b.enragePhaseActive) Entities.createBossLaser(b.x + b.size / 2 - 4, b.y + b.size);
         } else if (b.bossTyp === 4) {
           // Fächerschuss (Spread)
-          let anzahl = b.enragePhaseAktiv ? 7 : 5;
-          let startX = b.x + b.groesse / 2 - 4;
-          let startY = b.y + b.groesse - 10;
-          for (let j = 0; j < anzahl; j++) {
-            let winkel = Math.PI / 2 - 0.5 + j * (1.0 / (anzahl - 1));
-            Entities.erzeugeBossLaser(startX, startY, Math.cos(winkel) * 6, Math.sin(winkel) * 6);
+          let count = b.enragePhaseActive ? 7 : 5;
+          let startX = b.x + b.size / 2 - 4;
+          let startY = b.y + b.size - 10;
+          for (let j = 0; j < count; j++) {
+            let angle = Math.PI / 2 - 0.5 + j * (1.0 / (count - 1));
+            Entities.createBossLaser(startX, startY, Math.cos(angle) * 6, Math.sin(angle) * 6);
           }
         }
-        b.schussTimer = b.baseSchussRate;
+        b.shotTimer = b.baseShotRate;
       }
 
       // Boss-Bomben Abwurf
-      b.bombenTimer = (b.bombenTimer !== undefined ? b.bombenTimer : Math.random() * 120 + 240) - (betaeubt ? 0 : 1);
-      if (!betaeubt && b.bombenTimer <= 0) {
-        Entities.erzeugeBossBombe(b.x + b.groesse / 2 - 13, b.y + b.groesse * 0.7);
-        b.bombenTimer = Math.max(160, 360 - (state.level - 1) * 30);
+      b.bombTimer = (b.bombTimer !== undefined ? b.bombTimer : Math.random() * 120 + 240) - (stunned ? 0 : 1);
+      if (!stunned && b.bombTimer <= 0) {
+        Entities.createBossBomb(b.x + b.size / 2 - 13, b.y + b.size * 0.7);
+        b.bombTimer = Math.max(160, 360 - (state.level - 1) * 30);
       }
 
       // Boss-Raketen Abwurf (seitlich zielsuchend)
-      b.raketenTimer = (b.raketenTimer !== undefined ? b.raketenTimer : Math.random() * 140 + 200) - (betaeubt ? 0 : 1);
-      if (!betaeubt && b.raketenTimer <= 0) {
+      b.missileTimer = (b.missileTimer !== undefined ? b.missileTimer : Math.random() * 140 + 200) - (stunned ? 0 : 1);
+      if (!stunned && b.missileTimer <= 0) {
         let side = Math.random() < 0.5 ? -1 : 1;
-        Entities.erzeugeBossRakete(b.x + (side < 0 ? 0 : b.groesse - 14), b.y + b.groesse * 0.5, side);
-        if (b.enragePhaseAktiv || state.level >= 4) {
-          Entities.erzeugeBossRakete(b.x + (-side < 0 ? 0 : b.groesse - 14), b.y + b.groesse * 0.5, -side);
+        Entities.createBossMissile(b.x + (side < 0 ? 0 : b.size - 14), b.y + b.size * 0.5, side);
+        if (b.enragePhaseActive || state.level >= 4) {
+          Entities.createBossMissile(b.x + (-side < 0 ? 0 : b.size - 14), b.y + b.size * 0.5, -side);
         }
-        b.raketenTimer = Math.max(180, 360 - (state.level - 1) * 25);
+        b.missileTimer = Math.max(180, 360 - (state.level - 1) * 25);
       }
     }
-    let bossPadding = b.groesse * 0.15;
+    let bossPadding = b.size * 0.15;
     if (
       !state.isDead &&
-      !Utils.istDashUnverwundbar(state) &&
-      state.x < b.x + b.groesse - bossPadding &&
-      state.x + config.spielerGroesse > b.x + bossPadding &&
-      state.y < b.y + b.groesse - bossPadding &&
-      state.y + config.spielerGroesse > b.y + bossPadding
+      !Utils.isDashInvulnerable(state) &&
+      state.x < b.x + b.size - bossPadding &&
+      state.x + config.playerSize > b.x + bossPadding &&
+      state.y < b.y + b.size - bossPadding &&
+      state.y + config.playerSize > b.y + bossPadding
     ) {
-      Utils.spielerGetroffen(b, false, 'p1');
+      Utils.playerHit(b, false, 'p1');
     }
     if (
       isCoopMode() &&
       state.p2 &&
       !state.p2.isDead &&
-      !Utils.istDashUnverwundbar(state.p2) &&
-      state.p2.x < b.x + b.groesse - bossPadding &&
-      state.p2.x + config.spielerGroesse > b.x + bossPadding &&
-      state.p2.y < b.y + b.groesse - bossPadding &&
-      state.p2.y + config.spielerGroesse > b.y + bossPadding
+      !Utils.isDashInvulnerable(state.p2) &&
+      state.p2.x < b.x + b.size - bossPadding &&
+      state.p2.x + config.playerSize > b.x + bossPadding &&
+      state.p2.y < b.y + b.size - bossPadding &&
+      state.p2.y + config.playerSize > b.y + bossPadding
     ) {
-      Utils.spielerGetroffen(b, false, 'p2');
+      Utils.playerHit(b, false, 'p2');
     }
   }
   for (let i = arrays.bossLaserArray.length - 1; i >= 0; i--) {
@@ -196,23 +192,23 @@ export function aktualisiereBosse() {
     if (!bl) break;
     bl.x += bl.vx || 0;
     bl.y += bl.vy;
-    if (bl.y > config.spielfeldHoehe || bl.y < -bl.height || bl.x < -10 || bl.x > config.spielfeldBreite + 10) {
-      Anzeige.entferne(bl);
+    if (bl.y > config.playfieldHeight || bl.y < -bl.height || bl.x < -10 || bl.x > config.playfieldWidth + 10) {
+      Display.remove(bl);
       arrays.bossLaserArray.splice(i, 1);
       continue;
     }
     // Von der Gleve seitlich weggeschleudert: trifft keine Spieler mehr
-    if (bl.harmlos) continue;
+    if (bl.harmless) continue;
     if (
       !state.isDead &&
-      !Utils.istDashUnverwundbar(state) &&
+      !Utils.isDashInvulnerable(state) &&
       state.x < bl.x + bl.width &&
-      state.x + config.spielerGroesse > bl.x &&
+      state.x + config.playerSize > bl.x &&
       state.y < bl.y + bl.height &&
-      state.y + config.spielerGroesse > bl.y
+      state.y + config.playerSize > bl.y
     ) {
-      Utils.spielerGetroffen(bl, false, 'p1');
-      Anzeige.entferne(bl);
+      Utils.playerHit(bl, false, 'p1');
+      Display.remove(bl);
       arrays.bossLaserArray.splice(i, 1);
       continue;
     }
@@ -220,23 +216,23 @@ export function aktualisiereBosse() {
       isCoopMode() &&
       state.p2 &&
       !state.p2.isDead &&
-      !Utils.istDashUnverwundbar(state.p2) &&
+      !Utils.isDashInvulnerable(state.p2) &&
       state.p2.x < bl.x + bl.width &&
-      state.p2.x + config.spielerGroesse > bl.x &&
+      state.p2.x + config.playerSize > bl.x &&
       state.p2.y < bl.y + bl.height &&
-      state.p2.y + config.spielerGroesse > bl.y
+      state.p2.y + config.playerSize > bl.y
     ) {
-      Utils.spielerGetroffen(bl, false, 'p2');
-      Anzeige.entferne(bl);
+      Utils.playerHit(bl, false, 'p2');
+      Display.remove(bl);
       arrays.bossLaserArray.splice(i, 1);
       continue;
     }
   }
 }
 
-export function aktualisiereBossBomben() {
-  for (let i = arrays.bossBombenArray.length - 1; i >= 0; i--) {
-    let bb = arrays.bossBombenArray[i];
+export function updateBossBombs() {
+  for (let i = arrays.bossBombArray.length - 1; i >= 0; i--) {
+    let bb = arrays.bossBombArray[i];
     if (!bb) break;
     bb.x += bb.vx;
     bb.y += bb.vy;
@@ -254,74 +250,71 @@ export function aktualisiereBossBomben() {
 
     if (bb.hp <= 0) {
       Utils.addScore(150);
-      Utils.erzeugeExplosion(bb.x + 13, bb.y + 13, '#2ecc71', 25);
-      Anzeige.entferne(bb);
-      arrays.bossBombenArray.splice(i, 1);
+      Utils.createExplosion(bb.x + 13, bb.y + 13, '#2ecc71', 25);
+      Display.remove(bb);
+      arrays.bossBombArray.splice(i, 1);
       continue;
     }
 
-    if (bb.y > config.spielfeldHoehe + 40 || bb.x < -40 || bb.x > config.spielfeldBreite + 40) {
-      Anzeige.entferne(bb);
-      arrays.bossBombenArray.splice(i, 1);
+    if (bb.y > config.playfieldHeight + 40 || bb.x < -40 || bb.x > config.playfieldWidth + 40) {
+      Display.remove(bb);
+      arrays.bossBombArray.splice(i, 1);
       continue;
     }
 
-    if (bb.timer <= 0 || bb.y >= config.spielfeldHoehe - 60) {
+    if (bb.timer <= 0 || bb.y >= config.playfieldHeight - 60) {
       let cx = bb.x + 13;
       let cy = bb.y + 13;
-      Utils.erzeugeExplosion(cx, cy, '#e74c3c', 40);
+      Utils.createExplosion(cx, cy, '#e74c3c', 40);
 
-      erzeugeEffekt({ art: 'bossWelle', x: cx, y: cy, radius: bb.radius, rest: 24 });
+      createEffect({ kind: 'bossWave', x: cx, y: cy, radius: bb.radius, rest: 24 });
 
-      let distP1 = Math.hypot(state.x + config.spielerGroesse / 2 - cx, state.y + config.spielerGroesse / 2 - cy);
+      let distP1 = Math.hypot(state.x + config.playerSize / 2 - cx, state.y + config.playerSize / 2 - cy);
       if (!state.isDead && distP1 <= bb.radius) {
-        Utils.spielerGetroffen(bb, false, 'p1');
+        Utils.playerHit(bb, false, 'p1');
       }
       if (isCoopMode() && state.p2 && !state.p2.isDead) {
-        let distP2 = Math.hypot(
-          state.p2.x + config.spielerGroesse / 2 - cx,
-          state.p2.y + config.spielerGroesse / 2 - cy,
-        );
+        let distP2 = Math.hypot(state.p2.x + config.playerSize / 2 - cx, state.p2.y + config.playerSize / 2 - cy);
         if (distP2 <= bb.radius) {
-          Utils.spielerGetroffen(bb, false, 'p2');
+          Utils.playerHit(bb, false, 'p2');
         }
       }
 
-      Anzeige.entferne(bb);
-      arrays.bossBombenArray.splice(i, 1);
+      Display.remove(bb);
+      arrays.bossBombArray.splice(i, 1);
       continue;
     }
 
     if (
       !state.isDead &&
-      !Utils.istDashUnverwundbar(state) &&
-      state.x < bb.x + bb.groesse &&
-      state.x + config.spielerGroesse > bb.x &&
-      state.y < bb.y + bb.groesse &&
-      state.y + config.spielerGroesse > bb.y
+      !Utils.isDashInvulnerable(state) &&
+      state.x < bb.x + bb.size &&
+      state.x + config.playerSize > bb.x &&
+      state.y < bb.y + bb.size &&
+      state.y + config.playerSize > bb.y
     ) {
-      Utils.spielerGetroffen(bb, false, 'p1');
+      Utils.playerHit(bb, false, 'p1');
       bb.hp = 0;
     }
     if (
       isCoopMode() &&
       state.p2 &&
       !state.p2.isDead &&
-      !Utils.istDashUnverwundbar(state.p2) &&
-      state.p2.x < bb.x + bb.groesse &&
-      state.p2.x + config.spielerGroesse > bb.x &&
-      state.p2.y < bb.y + bb.groesse &&
-      state.p2.y + config.spielerGroesse > bb.y
+      !Utils.isDashInvulnerable(state.p2) &&
+      state.p2.x < bb.x + bb.size &&
+      state.p2.x + config.playerSize > bb.x &&
+      state.p2.y < bb.y + bb.size &&
+      state.p2.y + config.playerSize > bb.y
     ) {
-      Utils.spielerGetroffen(bb, false, 'p2');
+      Utils.playerHit(bb, false, 'p2');
       bb.hp = 0;
     }
   }
 }
 
-export function aktualisiereBossRaketen() {
-  for (let i = arrays.bossRaketenArray.length - 1; i >= 0; i--) {
-    let br = arrays.bossRaketenArray[i];
+export function updateBossMissiles() {
+  for (let i = arrays.bossMissileArray.length - 1; i >= 0; i--) {
+    let br = arrays.bossMissileArray[i];
     if (!br) break;
     br.age = (br.age || 0) + 1;
 
@@ -330,9 +323,9 @@ export function aktualisiereBossRaketen() {
     }
 
     // Homing Richtung näherer lebender Spieler
-    const ziel = naechsterSpielerMitte(br);
-    let dx = ziel.x - (br.x + br.width / 2);
-    let dy = ziel.y - (br.y + br.height / 2);
+    const target = nextPlayerMiddle(br);
+    let dx = target.x - (br.x + br.width / 2);
+    let dy = target.y - (br.y + br.height / 2);
     let targetAngle = Math.atan2(dy, dx);
 
     let currentAngle = Math.atan2(br.vy, br.vx);
@@ -353,15 +346,15 @@ export function aktualisiereBossRaketen() {
 
     // Partikel-Schweif
     if (Math.random() < 0.4) {
-      const farbe = Math.random() < 0.6 ? '#e74c3c' : '#f39c12';
-      erzeugePartikel({
-        farbe,
+      const color = Math.random() < 0.6 ? '#e74c3c' : '#f39c12';
+      createParticles({
+        color,
         x: br.x + br.width / 2,
         y: br.y + br.height,
         vx: (Math.random() - 0.5) * 0.4,
         vy: 0.5 + Math.random() * 0.5,
-        leben: 0.8,
-        zerfall: 0.05,
+        lives: 0.8,
+        decay: 0.05,
       });
     }
 
@@ -369,50 +362,50 @@ export function aktualisiereBossRaketen() {
     if (br.hp <= 0) {
       Utils.addScore(100);
       Audio.playMissileExplosion();
-      Utils.erzeugeExplosion(br.x + br.width / 2, br.y + br.height / 2, '#e67e22', 20);
-      Anzeige.entferne(br);
-      arrays.bossRaketenArray.splice(i, 1);
+      Utils.createExplosion(br.x + br.width / 2, br.y + br.height / 2, '#e67e22', 20);
+      Display.remove(br);
+      arrays.bossMissileArray.splice(i, 1);
       continue;
     }
 
     // Bildschirm weit verlassen
-    if (br.y > config.spielfeldHoehe + 60 || br.x < -80 || br.x > config.spielfeldBreite + 80 || br.y < -100) {
-      Anzeige.entferne(br);
-      arrays.bossRaketenArray.splice(i, 1);
+    if (br.y > config.playfieldHeight + 60 || br.x < -80 || br.x > config.playfieldWidth + 80 || br.y < -100) {
+      Display.remove(br);
+      arrays.bossMissileArray.splice(i, 1);
       continue;
     }
 
     // Kollision mit Spieler
     if (
       !state.isDead &&
-      !Utils.istDashUnverwundbar(state) &&
+      !Utils.isDashInvulnerable(state) &&
       state.x < br.x + br.width &&
-      state.x + config.spielerGroesse > br.x &&
+      state.x + config.playerSize > br.x &&
       state.y < br.y + br.height &&
-      state.y + config.spielerGroesse > br.y
+      state.y + config.playerSize > br.y
     ) {
-      Utils.spielerGetroffen(br, false, 'p1');
+      Utils.playerHit(br, false, 'p1');
       Audio.playMissileExplosion();
-      Utils.erzeugeExplosion(br.x + br.width / 2, br.y + br.height / 2, '#e74c3c', 25);
-      Anzeige.entferne(br);
-      arrays.bossRaketenArray.splice(i, 1);
+      Utils.createExplosion(br.x + br.width / 2, br.y + br.height / 2, '#e74c3c', 25);
+      Display.remove(br);
+      arrays.bossMissileArray.splice(i, 1);
       continue;
     }
     if (
       isCoopMode() &&
       state.p2 &&
       !state.p2.isDead &&
-      !Utils.istDashUnverwundbar(state.p2) &&
+      !Utils.isDashInvulnerable(state.p2) &&
       state.p2.x < br.x + br.width &&
-      state.p2.x + config.spielerGroesse > br.x &&
+      state.p2.x + config.playerSize > br.x &&
       state.p2.y < br.y + br.height &&
-      state.p2.y + config.spielerGroesse > br.y
+      state.p2.y + config.playerSize > br.y
     ) {
-      Utils.spielerGetroffen(br, false, 'p2');
+      Utils.playerHit(br, false, 'p2');
       Audio.playMissileExplosion();
-      Utils.erzeugeExplosion(br.x + br.width / 2, br.y + br.height / 2, '#e74c3c', 25);
-      Anzeige.entferne(br);
-      arrays.bossRaketenArray.splice(i, 1);
+      Utils.createExplosion(br.x + br.width / 2, br.y + br.height / 2, '#e74c3c', 25);
+      Display.remove(br);
+      arrays.bossMissileArray.splice(i, 1);
       continue;
     }
   }

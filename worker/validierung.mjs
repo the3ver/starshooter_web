@@ -19,10 +19,10 @@ export const FORBIDDEN_WORDS = [
 ];
 
 // Bereinigt einen Spielernamen: trimmen, Grossbuchstaben, max. 10 Zeichen, Zeichen pruefen, Profanity-Filter
-export function bereinigeName(name) {
+export function cleanName(name) {
   name = (name || '').trim().toUpperCase().slice(0, 10);
   if (!name || !/^[A-Z0-9+_-]{1,10}$/.test(name)) {
-    return { ok: false, name: '', fehler: 'Ungültiger Spielername (nur A-Z, 0-9, max. 10 Zeichen)' };
+    return { ok: false, name: '', error: 'Ungültiger Spielername (nur A-Z, 0-9, max. 10 Zeichen)' };
   }
 
   // Jeden Teil einzeln pruefen, sonst trifft replace() die erste Fundstelle im ganzen Namen
@@ -30,5 +30,5 @@ export function bereinigeName(name) {
     .split('+')
     .map(part => (FORBIDDEN_WORDS.includes(part) ? '***' : part))
     .join('+');
-  return { ok: true, name, fehler: null };
+  return { ok: true, name, error: null };
 }

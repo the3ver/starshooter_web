@@ -1,9 +1,9 @@
 // Messlogik des Balancing-Messstands, gemeinsam fuer npm run balancing und den Rauchtest in tests/
-const { setzeSpielstand } = require('../tests/helfer');
+const { setGameState } = require('../tests/helfer');
 
 // Laeuft im Browser vor jedem Seitenskript: Math.random durch mulberry32 ersetzen
-function installiereSeed() {
-  window.__setzeSeed = seed => {
+function installSeed() {
+  window.__setSeed = seed => {
     let a = seed >>> 0;
     Math.random = () => {
       a = (a + 0x6d2b79f5) >>> 0;
@@ -13,160 +13,160 @@ function installiereSeed() {
       return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
     };
   };
-  window.__setzeSeed(1);
+  window.__setSeed(1);
 }
 
 // Aufbau und Lauf passieren synchron nach den Imports, damit die echte rAF-Schleife nicht dazwischenfunkt
-async function messe(page, { schiff, szenario, seed, maxSchritte }) {
+async function measure(page, { ship, scenario, seed, maxSteps }) {
   return page.evaluate(
-    async ({ schiff, szenario, seed, maxSchritte }) => {
+    async ({ ship, scenario, seed, maxSteps }) => {
       const Gleve = await import('./js/gleve.js');
       const Sniper = await import('./js/sniper.js');
       const Bot = await import('./js/bot.js');
       const { state, arrays, Entities, Loop, shipModels, config } = window.__game;
-      window.__setzeSeed(seed);
+      window.__setSeed(seed);
 
       // Sauberer Ausgangszustand wie beim Spielstart (die echte Schleife hat vorher beliebig viele Schritte gemacht)
       window.__game.Utils.restartGame();
       // restartGame setzt das Spielfeld auf Menuebreite zurueck; gespielt wird im Co-op-Feld wie beim echten Start
-      window.__game.Utils.wendeSpielfeldBreiteAn('coop');
-      state.spielLaeuft = true;
-      window.__game.dom.spieler.style.display = 'block';
-      window.__game.dom.spieler2.style.display = 'block';
-      state.frameZaehler = 1;
+      window.__game.Utils.applyPlayfieldWidth('coop');
+      state.gameRunning = true;
+      window.__game.dom.player.style.display = 'block';
+      window.__game.dom.player2.style.display = 'block';
+      state.frameCounter = 1;
       // Sterne verbrauchen beim Umbruch Zufallswerte; ihre Lage haengt von den echten Schritten davor ab
-      arrays.sterne.forEach((stern, i) => {
-        stern.y = (i * 47) % config.spielfeldHoehe;
-        stern.x = (i * 83) % config.spielfeldBreite;
+      arrays.stars.forEach((star, i) => {
+        star.y = (i * 47) % config.playfieldHeight;
+        star.x = (i * 83) % config.playfieldWidth;
       });
 
       // Feld leeren
       [
-        'feinde',
-        'asteroiden',
-        'feindLaserArray',
-        'hackProjektilArray',
+        'enemies',
+        'asteroids',
+        'enemyLaserArray',
+        'hackProjectileArray',
         'bossLaserArray',
-        'bossBombenArray',
-        'bossRaketenArray',
+        'bossBombArray',
+        'bossMissileArray',
         'bosses',
         'powerups',
         'laserArray',
-        'raketenArray',
-        'bombenArray',
+        'missileArray',
+        'bombArray',
       ].forEach(name => {
         arrays[name].forEach(o => o.el && o.el.remove());
         arrays[name].length = 0;
       });
-      Object.keys(state.tastenGedrueckt).forEach(k => {
-        state.tastenGedrueckt[k] = false;
+      Object.keys(state.keysPressed).forEach(k => {
+        state.keysPressed[k] = false;
       });
-      state.bossAktiv = false;
-      state.bossWarningAktiv = false;
+      state.bossActive = false;
+      state.bossWarningActive = false;
       state.hacks = [];
 
       // P1: nur Zuschauer
       // godMode schuetzt auch P2, deshalb P1 ueber Dauer-I-Frames unverwundbar halten
       state.godMode = false;
-      state.autolaserAktiv = false;
+      state.autolaserActive = false;
 
       // P2-Bot mit dem Schiff wie beim echten Start (Werte analog restartGame)
       const p2 = state.p2;
       state.p2IsBot = true;
       state.p2BotDifficulty = 'hard';
-      p2.selectedShipModel = schiff;
-      p2.leben = 3;
-      p2.maxEnergie = 50;
-      p2.energie = 50;
-      p2.laserStufe = 1;
-      p2.raketenStufe = 1;
-      p2.bombenStufe = 1;
-      p2.laserDurchschlag = false;
-      p2.durchschlagTimer = 0;
-      p2.phantomSchildRegenTimer = 0;
-      p2.autolaserAktiv = false;
+      p2.selectedShipModel = ship;
+      p2.lives = 3;
+      p2.maxEnergy = 50;
+      p2.energy = 50;
+      p2.laserTier = 1;
+      p2.missileTier = 1;
+      p2.bombTier = 1;
+      p2.laserPierce = false;
+      p2.pierceTimer = 0;
+      p2.phantomShieldRegenTimer = 0;
+      p2.autolaserActive = false;
       p2.autolaserTimer = 0;
-      p2.raketenCooldown = 0;
-      p2.bombenCooldown = 0;
-      p2.spielerSchussCooldown = 0;
+      p2.missileCooldown = 0;
+      p2.bombCooldown = 0;
+      p2.playerShotCooldown = 0;
       p2.invulnerableTimer = 0;
       p2.isDead = false;
       p2.hacks = [];
-      p2.splitterRot = 0;
-      p2.splitterWeiss = 0;
+      p2.splitterRed = 0;
+      p2.splitterWhite = 0;
       p2.viperKillCount = 0;
-      p2.schildStufe = (shipModels[schiff] && shipModels[schiff].startShield) || 0;
+      p2.shieldTier = (shipModels[ship] && shipModels[ship].startShield) || 0;
       p2.x = 370;
       p2.y = 285;
-      Gleve.setzeDashLadungenVoll(p2);
-      Sniper.setzeZurueck(p2);
+      Gleve.setDashChargeFull(p2);
+      Sniper.reset(p2);
       Bot.resetBot();
-      const schildStart = p2.schildStufe;
+      const shieldStart = p2.shieldTier;
 
       // Szenario aufbauen
-      state.level = szenario === 'C_boss2' ? 2 : 1;
-      state.frameZaehler = 1;
-      const istBoss = szenario !== 'A_welle';
-      if (istBoss) {
-        Entities.erzeugeBoss();
+      state.level = scenario === 'C_boss2' ? 2 : 1;
+      state.frameCounter = 1;
+      const isBoss = scenario !== 'A_welle';
+      if (isBoss) {
+        Entities.createBoss();
       } else {
-        const muster = ['normal', 'normal', 'normal', 'stopAndGo', 'stopAndGo', 'stopAndGo', 'normal', 'normal'];
+        const pattern = ['normal', 'normal', 'normal', 'stopAndGo', 'stopAndGo', 'stopAndGo', 'normal', 'normal'];
         const xs = [40, 110, 180, 250, 320, 390, 470, 540];
         const ys = [-30, -60, -30, -90, -30, -60, -30, -90];
         for (let i = 0; i < 8; i++) {
-          Entities.erzeugeFeind(xs[i], ys[i], muster[i], 0, i >= 6);
+          Entities.createEnemy(xs[i], ys[i], pattern[i], 0, i >= 6);
         }
       }
 
-      let schritte = 0;
-      let sieg = false;
-      let treffer = 0;
+      let steps = 0;
+      let victory = false;
+      let hit = 0;
       let kills = 0;
-      let entkommen = 0;
+      let escaped = 0;
       let bossHpRest = null;
-      while (schritte < maxSchritte) {
-        state.frameZaehler = 1; // keine natuerlichen Spawns
+      while (steps < maxSteps) {
+        state.frameCounter = 1; // keine natuerlichen Spawns
         state.x = 560;
         state.y = 560;
         state.invulnerableTimer = 1e9;
         state.isDead = false;
-        state.autolaserAktiv = false;
+        state.autolaserActive = false;
         state.autolaserTimer = 0;
-        const vorherFeinde = arrays.feinde.slice();
-        Loop.simulationsSchritt();
-        schritte++;
-        if (state.gameOverAktiv) throw new Error('Game Over im Messlauf');
+        const beforehandEnemies = arrays.enemies.slice();
+        Loop.simulationStep();
+        steps++;
+        if (state.gameOverActive) throw new Error('Game Over im Messlauf');
         // Feind-Abgaenge: im Feld = besiegt (oder Rammstoss), ausserhalb = entkommen
-        for (const f of vorherFeinde) {
-          if (!arrays.feinde.includes(f)) {
+        for (const f of beforehandEnemies) {
+          if (!arrays.enemies.includes(f)) {
             if (
-              f.y > config.spielfeldHoehe ||
-              f.x < -f.groesse - 50 ||
-              f.x > config.spielfeldBreite + 50 ||
-              f.y < -f.groesse - 10
+              f.y > config.playfieldHeight ||
+              f.x < -f.size - 50 ||
+              f.x > config.playfieldWidth + 50 ||
+              f.y < -f.size - 10
             )
-              entkommen++;
+              escaped++;
             else kills++;
           }
         }
-        if (p2.leben * 10 + p2.schildStufe < 3 * 10 + schildStart) treffer++;
-        p2.leben = 3;
-        p2.schildStufe = schildStart;
+        if (p2.lives * 10 + p2.shieldTier < 3 * 10 + shieldStart) hit++;
+        p2.lives = 3;
+        p2.shieldTier = shieldStart;
         p2.isDead = false;
-        if (istBoss ? arrays.bosses.length === 0 : arrays.feinde.length === 0) {
-          sieg = true;
+        if (isBoss ? arrays.bosses.length === 0 : arrays.enemies.length === 0) {
+          victory = true;
           break;
         }
       }
-      if (istBoss && arrays.bosses[0]) bossHpRest = Math.round(arrays.bosses[0].hp);
-      return { schritte, sieg, treffer, kills, entkommen, bossHpRest };
+      if (isBoss && arrays.bosses[0]) bossHpRest = Math.round(arrays.bosses[0].hp);
+      return { steps, victory, hit, kills, escaped, bossHpRest };
     },
-    { schiff, szenario, seed, maxSchritte },
+    { ship, scenario, seed, maxSteps },
   );
 }
 
 // Seite laden, Seed-Hook installieren und ein Co-op-Spiel mit dem Bot-Schiff als P2 starten
-async function bereiteMessungVor(page, schiff) {
+async function prepareMeasurement(page, ship) {
   await page.route('**/api/highscores*', route =>
     route.fulfill({
       status: 200,
@@ -174,18 +174,18 @@ async function bereiteMessungVor(page, schiff) {
       body: JSON.stringify({ success: true, mode: 'single', highscores: [] }),
     }),
   );
-  await setzeSpielstand(page);
-  await page.addInitScript(installiereSeed);
+  await setGameState(page);
+  await page.addInitScript(installSeed);
   await page.goto('/');
   await page.evaluate(s => {
     window.__game.Utils.setGameMode('coop');
     window.__game.state.p2IsBot = true;
     window.__game.state.p2BotDifficulty = 'hard';
     window.__game.state.p2.selectedShipModel = s;
-  }, schiff);
+  }, ship);
   await page.keyboard.down('KeyW');
-  await page.waitForFunction(() => window.__game.state.spielLaeuft && !window.__game.state.cutsceneAktiv);
+  await page.waitForFunction(() => window.__game.state.gameRunning && !window.__game.state.cutsceneActive);
   await page.keyboard.up('KeyW');
 }
 
-module.exports = { messe, bereiteMessungVor };
+module.exports = { measure, prepareMeasurement };

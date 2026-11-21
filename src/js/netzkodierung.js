@@ -12,410 +12,411 @@
 //   Delta eines Objekts: geaenderte Felder, '_d' = entfernte Felder, '_r' = Wert ersetzt.
 //   Fehlt 'i', bleiben die Ids wie im letzten Paket; fehlt eine Liste, ist sie unveraendert.
 
-export const PROTOKOLL_VERSION = 19;
-export const KEYFRAME_INTERVALL = 30; // jedes 30. Paket ist ein Keyframe (~1 s)
-export const DR_TOLERANZ = 0.5; // px, ab dieser Abweichung wird x/y mitgesendet
+export const PROTOCOL_VERSION = 20;
+export const KEYFRAME_INTERVAL = 30; // jedes 30. Paket ist ein Keyframe (~1 s)
+export const DR_TOLERANCE = 0.5; // px, ab dieser Abweichung wird x/y mitgesendet
 
 // Id-Praefix je Liste (siehe Entities.neueId); andere Ids gehen als Text
-const LISTEN_PRAEFIX = {
-  feinde: 'f',
-  asteroiden: 'a',
+const LISTEN_PREFIX = {
+  enemies: 'f',
+  asteroids: 'a',
   bosses: 'boss',
   laser: 'l',
-  raketen: 'r',
-  bomben: 'b',
-  hackProjektile: 'hp',
-  feindLaser: 'fl',
+  missiles: 'r',
+  bombs: 'b',
+  hackProjectiles: 'hp',
+  enemyLaser: 'fl',
   bossLaser: 'bl',
-  bossRaketen: 'br',
-  bossBomben: 'bb',
+  bossMissiles: 'br',
+  bossBombs: 'bb',
   powerups: 'pu',
-  gleveWellen: 'gw',
-  sniperGranaten: 'sg',
-  sniperMinen: 'sm',
-  fels: 'fe',
+  gleveWaves: 'gw',
+  sniperGrenades: 'sg',
+  sniperMines: 'sm',
+  rock: 'fe',
 };
-export const LISTEN = Object.keys(LISTEN_PRAEFIX);
+export const LISTEN = Object.keys(LISTEN_PREFIX);
 
 // Bewegungsregel wie auf dem Host und in client.js: x += vx, y += Richtung * vy pro Schritt.
 // Spielerlaser fliegen mit y -= vy. Listen ohne gesendete Geschwindigkeit fehlen hier.
-const BEWEGUNG = { laser: -1, feindLaser: 1, bossLaser: 1, bossRaketen: 1 };
+const MOVEMENT = { laser: -1, enemyLaser: 1, bossLaser: 1, bossMissiles: 1 };
 
-const runde1 = v => Math.round(v * 10) / 10 || 0;
-const runde0 = v => Math.round(v) || 0;
-const runde2 = v => Math.round(v * 100) / 100 || 0;
+const round1 = v => Math.round(v * 10) / 10 || 0;
+const round0 = v => Math.round(v) || 0;
+const round2 = v => Math.round(v * 100) / 100 || 0;
 
 // Rundung je Feldname. Ids, Typen, Besitzer, Texte und Booleans werden nie gerundet.
-export const RUNDUNG = {
-  x: runde1,
-  y: runde1,
-  vx: runde1,
-  vy: runde1,
-  energie: runde1,
-  maxEnergie: runde1,
-  rot: runde0,
-  rotate: runde0,
-  hp: runde0,
-  maxHp: runde0,
-  schildHp: runde0,
-  raketenCooldown: runde0,
-  bombenCooldown: runde0,
-  phantomSchildRegenTimer: runde0,
+export const ROUNDING = {
+  x: round1,
+  y: round1,
+  vx: round1,
+  vy: round1,
+  energy: round1,
+  maxEnergy: round1,
+  rot: round0,
+  rotate: round0,
+  hp: round0,
+  maxHp: round0,
+  shieldHp: round0,
+  missileCooldown: round0,
+  bombCooldown: round0,
+  phantomShieldRegenTimer: round0,
   // Gleve: Restframes ganzzahlig, Strahlwinkel (Grad, Schritte von 4,5) mit 1 Nachkommastelle
-  gleveDashLadungen: runde0,
-  sniperGranatenLadungen: runde0,
-  gleveDashTimer: runde0,
-  gleveAbprallTimer: runde0,
-  gleveUnverwundbar: runde0,
-  gleveSweepTimer: runde0,
-  gleveSweepWinkel: runde1,
-  gleveSweepRichtung: runde0,
+  gleveDashCharges: round0,
+  sniperGrenadeCharges: round0,
+  gleveDashTimer: round0,
+  gleveBounceTimer: round0,
+  gleveInvulnerable: round0,
+  gleveSweepTimer: round0,
+  gleveSweepAngle: round1,
+  gleveSweepDirection: round0,
   // Viper-Rolle: Restschritte, Richtung und Cooldown ganzzahlig
-  viperRolleTimer: runde0,
-  viperRolleRichtung: runde0,
-  viperRolleCooldown: runde0,
+  viperRollTimer: round0,
+  viperRollDirection: round0,
+  viperRollCooldown: round0,
   // Viper-Overdrive: Leiste (0..100) und Restschritte ganzzahlig
-  viperOverdriveLeiste: runde0,
-  viperOverdriveTimer: runde0,
+  viperOverdriveStrip: round0,
+  viperOverdriveTimer: round0,
   // Viper-Kill-Kombo: Kills und Restschritte des Fensters ganzzahlig
-  viperKombo: runde0,
-  viperKomboTimer: runde0,
+  viperCombo: round0,
+  viperComboTimer: round0,
   // Sniper: Fadenkreuz (x/y 1 Nachkommastelle), Ladung, Schussabstand, Granatenflug und Betaeubung ganzzahlig
-  sniperZielX: runde1,
-  sniperZielY: runde1,
-  sniperLadung: runde0,
-  sniperCooldown: runde0,
-  rest: runde0,
-  zuender: runde0,
-  betaeubt: runde0,
+  sniperTargetX: round1,
+  sniperTargetY: round1,
+  sniperCharge: round0,
+  sniperCooldown: round0,
+  rest: round0,
+  fuse: round0,
+  stunned: round0,
 };
 
-function rundungsErsetzer(schluessel, wert) {
-  if (typeof wert === 'number' && Number.isFinite(wert) && RUNDUNG[schluessel]) {
-    return RUNDUNG[schluessel](wert);
+function roundingReplacer(key, value) {
+  if (typeof value === 'number' && Number.isFinite(value) && ROUNDING[key]) {
+    return ROUNDING[key](value);
   }
-  return wert;
+  return value;
 }
 
 // Gerundete Kopie, so wie sie nach JSON beim Empfaenger ankommt (undefined faellt weg, NaN wird null)
-export function rundeSnapshot(voll) {
-  return JSON.parse(JSON.stringify(voll, rundungsErsetzer));
+export function roundSnapshot(full) {
+  return JSON.parse(JSON.stringify(full, roundingReplacer));
 }
 
-function istObjekt(w) {
+function isObject(w) {
   return w !== null && typeof w === 'object' && !Array.isArray(w);
 }
 
-function kopie(w) {
+function copy(w) {
   return w === null || typeof w !== 'object' ? w : JSON.parse(JSON.stringify(w));
 }
 
-function gleich(a, b) {
+function equal(a, b) {
   if (a === b) return true;
   if (typeof a !== 'object' || typeof b !== 'object' || a === null || b === null) return false;
   if (Array.isArray(a) !== Array.isArray(b)) return false;
   if (Array.isArray(a)) {
     if (a.length !== b.length) return false;
-    for (let i = 0; i < a.length; i++) if (!gleich(a[i], b[i])) return false;
+    for (let i = 0; i < a.length; i++) if (!equal(a[i], b[i])) return false;
     return true;
   }
   const ka = Object.keys(a);
   if (ka.length !== Object.keys(b).length) return false;
-  for (const k of ka) if (!(k in b) || !gleich(a[k], b[k])) return false;
+  for (const k of ka) if (!(k in b) || !equal(a[k], b[k])) return false;
   return true;
 }
 
 // Delta von alt nach neu (null = keine Aenderung). Felder in 'ohne' werden nicht verglichen.
-function objektDelta(alt, neu, ohne) {
+function objectDelta(old, fresh, without) {
   /** @type {any} */
   let delta = null;
-  for (const k of Object.keys(neu)) {
-    if (ohne && ohne.has(k)) continue;
-    const vorhanden = k in alt;
-    if (vorhanden && gleich(alt[k], neu[k])) continue;
-    let wert = neu[k];
-    if (istObjekt(wert)) {
-      wert = vorhanden && istObjekt(alt[k]) ? objektDelta(alt[k], wert, null) : { _r: wert };
+  for (const k of Object.keys(fresh)) {
+    if (without && without.has(k)) continue;
+    const present = k in old;
+    if (present && equal(old[k], fresh[k])) continue;
+    let value = fresh[k];
+    if (isObject(value)) {
+      value = present && isObject(old[k]) ? objectDelta(old[k], value, null) : { _r: value };
     }
-    (delta || (delta = {}))[k] = wert;
+    (delta || (delta = {}))[k] = value;
   }
-  const weg = Object.keys(alt).filter(k => !(k in neu));
-  if (weg.length) (delta || (delta = {}))._d = weg;
+  const gone = Object.keys(old).filter(k => !(k in fresh));
+  if (gone.length) (delta || (delta = {}))._d = gone;
   return delta;
 }
 
-function wendeObjektDeltaAn(ziel, delta) {
+function applyObjectDelta(target, delta) {
   for (const k of Object.keys(delta)) {
     if (k === '_d') continue;
     const d = delta[k];
-    if (istObjekt(d)) {
+    if (isObject(d)) {
       if ('_r' in d) {
-        ziel[k] = kopie(d._r);
+        target[k] = copy(d._r);
       } else {
-        if (!istObjekt(ziel[k])) ziel[k] = {};
-        wendeObjektDeltaAn(ziel[k], d);
+        if (!isObject(target[k])) target[k] = {};
+        applyObjectDelta(target[k], d);
       }
     } else {
-      ziel[k] = kopie(d);
+      target[k] = copy(d);
     }
   }
   if (delta._d)
     delta._d.forEach(k => {
-      delete ziel[k];
+      delete target[k];
     });
 }
 
-function kodiereId(liste, id) {
-  const praefix = LISTEN_PRAEFIX[liste] + '_';
-  if (id.startsWith(praefix)) {
-    const rest = id.slice(praefix.length);
+function encodeId(list, id) {
+  const prefix = LISTEN_PREFIX[list] + '_';
+  if (id.startsWith(prefix)) {
+    const rest = id.slice(prefix.length);
     if (/^[1-9]\d{0,14}$/.test(rest)) return Number(rest);
   }
   return id;
 }
 
-function dekodiereId(liste, code) {
-  return typeof code === 'number' ? LISTEN_PRAEFIX[liste] + '_' + code : code;
+function decodeId(list, code) {
+  return typeof code === 'number' ? LISTEN_PREFIX[list] + '_' + code : code;
 }
 
 // Liste per Id verfolgbar? Sonst geht sie als normales Feld (ganz) ueber 'o'.
-function istVerfolgbar(liste) {
-  if (!Array.isArray(liste)) return false;
+function isTrackable(list) {
+  if (!Array.isArray(list)) return false;
   const ids = new Set();
-  for (const obj of liste) {
-    if (!istObjekt(obj) || typeof obj.id !== 'string' || ids.has(obj.id)) return false;
+  for (const obj of list) {
+    if (!isObject(obj) || typeof obj.id !== 'string' || ids.has(obj.id)) return false;
     ids.add(obj.id);
   }
   return true;
 }
 
 // Vorhergesagte Position nach dt Schritten (null = keine Vorhersage fuer diese Liste)
-function sageVorher(liste, obj, dt) {
-  const richtung = BEWEGUNG[liste];
-  if (!richtung || !(dt > 0)) return null;
+function sayBeforehand(list, obj, dt) {
+  const direction = MOVEMENT[list];
+  if (!direction || !(dt > 0)) return null;
   if (![obj.x, obj.y, obj.vx, obj.vy].every(Number.isFinite)) return null;
-  return { x: runde1(obj.x + obj.vx * dt), y: runde1(obj.y + richtung * obj.vy * dt) };
+  return { x: round1(obj.x + obj.vx * dt), y: round1(obj.y + direction * obj.vy * dt) };
 }
 
-export class SnapshotDekodierer {
+export class SnapshotDecoder {
   constructor() {
-    this.zustand = null;
+    this.status = null;
   }
 
   reset() {
-    this.zustand = null;
+    this.status = null;
   }
 
   // True, solange kein Keyframe angewendet ist (Deltas werden dann ignoriert)
-  get brauchtKeyframe() {
-    return this.zustand === null;
+  get needsKeyframe() {
+    return this.status === null;
   }
 
   // Liefert den vollen Snapshot oder null (kein Keyframe, Luecke in der Laufnummer, Fehler).
   // Bei Luecken wartet der Dekodierer auf den naechsten Keyframe: Ohne das verlorene
   // Paket waeren Ids und Felder nicht sicher, also lieber kurz nichts als etwas Falsches.
-  dekodiere(paket, mitAusgabe = true) {
-    if (!istObjekt(paket) || paket.v !== PROTOKOLL_VERSION || !Number.isInteger(paket.n)) return null;
-    let z = this.zustand;
-    if (paket.k) {
-      z = { n: paket.n, t: paket.t, oben: {}, listen: {} };
-    } else if (!z || paket.n !== z.n + 1) {
-      this.zustand = null;
+  decode(packet, withOutput = true) {
+    if (!isObject(packet) || packet.v !== PROTOCOL_VERSION || !Number.isInteger(packet.n)) return null;
+    let z = this.status;
+    if (packet.k) {
+      z = { n: packet.n, t: packet.t, top: {}, listen: {} };
+    } else if (!z || packet.n !== z.n + 1) {
+      this.status = null;
       return null;
     }
     try {
-      const neu = this._wendeAn(z, paket);
-      this.zustand = neu;
+      const fresh = this._turnAn(z, packet);
+      this.status = fresh;
     } catch (e) {
-      this.zustand = null;
+      this.status = null;
       return null;
     }
-    return mitAusgabe ? this.snapshot() : true;
+    return withOutput ? this.snapshot() : true;
   }
 
-  _wendeAn(alt, paket) {
-    const dt = Number.isFinite(paket.t) && Number.isFinite(alt.t) ? paket.t - alt.t : 0;
-    const oben = paket.k ? {} : kopie(alt.oben);
-    if (paket.o) wendeObjektDeltaAn(oben, paket.o);
-    const listenPaket = paket.l || {};
+  _turnAn(old, packet) {
+    const dt = Number.isFinite(packet.t) && Number.isFinite(old.t) ? packet.t - old.t : 0;
+    const top = packet.k ? {} : copy(old.top);
+    if (packet.o) applyObjectDelta(top, packet.o);
+    const listenPacket = packet.l || {};
     const listen = {};
-    const namen = new Set([...Object.keys(alt.listen), ...Object.keys(listenPaket)]);
-    for (const name of namen) {
-      if (!LISTEN_PRAEFIX[name]) throw new Error('Unbekannte Liste ' + name);
-      const eintrag = listenPaket[name];
-      if (eintrag === null) continue; // Liste wird nicht mehr verfolgt
-      const vorher = alt.listen[name];
-      const ids = eintrag && eintrag.i ? eintrag.i.map(c => dekodiereId(name, c)) : vorher ? vorher.ids : [];
-      const objekte = new Map();
+    const names = new Set([...Object.keys(old.listen), ...Object.keys(listenPacket)]);
+    for (const name of names) {
+      if (!LISTEN_PREFIX[name]) throw new Error('Unbekannte Liste ' + name);
+      const entry = listenPacket[name];
+      if (entry === null) continue; // Liste wird nicht mehr verfolgt
+      const beforehand = old.listen[name];
+      const ids = entry && entry.i ? entry.i.map(c => decodeId(name, c)) : beforehand ? beforehand.ids : [];
+      const objects = new Map();
       ids.forEach((id, idx) => {
-        const d = (eintrag && eintrag.d && eintrag.d[idx]) || 0;
-        const altObj = vorher && vorher.objekte.get(id);
+        const d = (entry && entry.d && entry.d[idx]) || 0;
+        const oldObj = beforehand && beforehand.objects.get(id);
         let obj;
-        if (!altObj) {
-          if (!istObjekt(d)) throw new Error('Neues Objekt ohne Daten ' + id);
-          obj = Object.assign({ id }, kopie(d));
+        if (!oldObj) {
+          if (!isObject(d)) throw new Error('Neues Objekt ohne Daten ' + id);
+          obj = Object.assign({ id }, copy(d));
         } else {
-          obj = Object.assign({}, altObj);
-          const vorhersage = sageVorher(name, obj, dt);
-          if (vorhersage) Object.assign(obj, vorhersage);
-          if (d) wendeObjektDeltaAn(obj, d);
+          obj = Object.assign({}, oldObj);
+          const prediction = sayBeforehand(name, obj, dt);
+          if (prediction) Object.assign(obj, prediction);
+          if (d) applyObjectDelta(obj, d);
         }
-        objekte.set(id, obj);
+        objects.set(id, obj);
       });
-      listen[name] = { ids, objekte };
+      listen[name] = { ids, objects };
     }
-    return { n: paket.n, t: paket.t, oben, listen };
+    return { n: packet.n, t: packet.t, top, listen };
   }
 
   // Voller Snapshot als frische Kopie (applyGameStateSnapshot darf ihn behalten)
   snapshot() {
-    const z = this.zustand;
+    const z = this.status;
     if (!z) return null;
-    const s = kopie(z.oben);
+    const s = copy(z.top);
     for (const name of Object.keys(z.listen)) {
       const l = z.listen[name];
-      s[name] = l.ids.map(id => kopie(l.objekte.get(id)));
+      s[name] = l.ids.map(id => copy(l.objects.get(id)));
     }
     return s;
   }
 }
 
-export class SnapshotKodierer {
+export class SnapshotEncoder {
   constructor() {
     // Spiegel: derselbe Dekodierer wie beim Client, damit beide Seiten denselben Stand kennen
-    this.spiegel = new SnapshotDekodierer();
+    this.mirror = new SnapshotDecoder();
     this.n = 0;
-    this.seitKeyframe = 0;
-    this.keyframeErzwingen = true;
+    this.sinceKeyframe = 0;
+    this.keyframeForce = true;
   }
 
   reset() {
-    this.spiegel.reset();
-    this.keyframeErzwingen = true;
+    this.mirror.reset();
+    this.keyframeForce = true;
   }
 
-  erzwingeKeyframe() {
-    this.keyframeErzwingen = true;
+  forceKeyframe() {
+    this.keyframeForce = true;
   }
 
   // voll: Ergebnis von serializeGameState(); weltSchritt: Zaehler der bewegten Simulationsschritte
-  kodiere(voll, weltSchritt) {
-    const gerundet = rundeSnapshot(voll);
-    const basis = this.spiegel.zustand;
-    const t = Number.isFinite(weltSchritt) ? weltSchritt : basis ? basis.t + 2 : 0;
-    const keyframe = this.keyframeErzwingen || !basis || this.seitKeyframe + 1 >= KEYFRAME_INTERVALL;
+  encode(full, worldStep) {
+    const rounded = roundSnapshot(full);
+    const basis = this.mirror.status;
+    const t = Number.isFinite(worldStep) ? worldStep : basis ? basis.t + 2 : 0;
+    const keyframe = this.keyframeForce || !basis || this.sinceKeyframe + 1 >= KEYFRAME_INTERVAL;
     this.n++;
-    const paket = { v: PROTOKOLL_VERSION, n: this.n, t };
-    if (keyframe) paket.k = 1;
+    const packet = { v: PROTOCOL_VERSION, n: this.n, t };
+    if (keyframe) packet.k = 1;
 
-    const altOben = keyframe ? {} : basis.oben;
-    const altListen = keyframe ? {} : basis.listen;
+    const oldTop = keyframe ? {} : basis.top;
+    const oldListen = keyframe ? {} : basis.listen;
     const dt = keyframe ? 0 : t - basis.t;
 
     // Felder ausserhalb der verfolgten Listen (auch nicht verfolgbare Listen)
-    const oben = {};
+    const top = {};
     const listen = {};
-    for (const k of Object.keys(gerundet)) {
-      if (LISTEN_PRAEFIX[k] && istVerfolgbar(gerundet[k])) listen[k] = gerundet[k];
-      else oben[k] = gerundet[k];
+    for (const k of Object.keys(rounded)) {
+      if (LISTEN_PREFIX[k] && isTrackable(rounded[k])) listen[k] = rounded[k];
+      else top[k] = rounded[k];
     }
-    const o = objektDelta(altOben, oben, null);
-    if (o) paket.o = o;
+    const o = objectDelta(oldTop, top, null);
+    if (o) packet.o = o;
 
     const l = {};
-    for (const name of Object.keys(altListen)) {
+    for (const name of Object.keys(oldListen)) {
       if (!listen[name]) l[name] = null;
     }
     for (const name of Object.keys(listen)) {
-      const eintrag = this._listenEintrag(name, listen[name], altListen[name], dt);
-      if (eintrag) l[name] = eintrag;
+      const entry = this._listenEntry(name, listen[name], oldListen[name], dt);
+      if (entry) l[name] = entry;
     }
-    if (Object.keys(l).length) paket.l = l;
+    if (Object.keys(l).length) packet.l = l;
 
     // Spiegel nachfuehren; scheitert das, beim naechsten Mal Keyframe
-    if (!this.spiegel.dekodiere(paket, false)) this.keyframeErzwingen = true;
-    else this.keyframeErzwingen = false;
-    this.seitKeyframe = keyframe ? 0 : this.seitKeyframe + 1;
-    return paket;
+    if (!this.mirror.decode(packet, false)) this.keyframeForce = true;
+    else this.keyframeForce = false;
+    this.sinceKeyframe = keyframe ? 0 : this.sinceKeyframe + 1;
+    return packet;
   }
 
-  _listenEintrag(name, neuListe, vorher, dt) {
-    const ids = neuListe.map(o => o.id);
-    const idsGleich = vorher && vorher.ids.length === ids.length && vorher.ids.every((id, i) => id === ids[i]);
-    const d = neuListe.map(neu => {
-      const alt = vorher && vorher.objekte.get(neu.id);
-      if (!alt) {
-        const voll = Object.assign({}, neu);
-        delete voll.id;
-        return voll;
+  _listenEntry(name, newList, beforehand, dt) {
+    const ids = newList.map(o => o.id);
+    const idsEqual =
+      beforehand && beforehand.ids.length === ids.length && beforehand.ids.every((id, i) => id === ids[i]);
+    const d = newList.map(fresh => {
+      const old = beforehand && beforehand.objects.get(fresh.id);
+      if (!old) {
+        const full = Object.assign({}, fresh);
+        delete full.id;
+        return full;
       }
-      let vergleich = alt;
-      let ohne = null;
-      const vorhersage = sageVorher(name, alt, dt);
-      if (vorhersage) {
-        vergleich = Object.assign({}, alt, vorhersage);
-        ohne = new Set();
-        if (Number.isFinite(neu.x) && Math.abs(vorhersage.x - neu.x) <= DR_TOLERANZ) ohne.add('x');
-        if (Number.isFinite(neu.y) && Math.abs(vorhersage.y - neu.y) <= DR_TOLERANZ) ohne.add('y');
+      let comparison = old;
+      let without = null;
+      const prediction = sayBeforehand(name, old, dt);
+      if (prediction) {
+        comparison = Object.assign({}, old, prediction);
+        without = new Set();
+        if (Number.isFinite(fresh.x) && Math.abs(prediction.x - fresh.x) <= DR_TOLERANCE) without.add('x');
+        if (Number.isFinite(fresh.y) && Math.abs(prediction.y - fresh.y) <= DR_TOLERANCE) without.add('y');
       }
-      return objektDelta(vergleich, neu, ohne) || 0;
+      return objectDelta(comparison, fresh, without) || 0;
     });
     while (d.length && d[d.length - 1] === 0) d.pop();
-    if (idsGleich && d.length === 0) return undefined;
-    const eintrag = {};
-    if (!idsGleich) eintrag.i = ids.map(id => kodiereId(name, id));
-    if (d.length) eintrag.d = d;
-    return eintrag;
+    if (idsEqual && d.length === 0) return undefined;
+    const entry = {};
+    if (!idsEqual) entry.i = ids.map(id => encodeId(name, id));
+    if (d.length) entry.d = d;
+    return entry;
   }
 }
 
 // Client -> Host: Eingaben nur bei Aenderung senden.
 // Tasten sofort bei jeder Aenderung, Position hoechstens jeden 2. Schritt und nur wenn bewegt,
 // sonst alle HEARTBEAT_SCHRITTE ein volles Paket. Der Host haelt die Tasten bis zum naechsten Paket.
-export const HEARTBEAT_SCHRITTE = 30;
-export const POSITIONS_INTERVALL = 2;
+export const HEARTBEAT_STEPS = 30;
+export const POSITIONS_INTERVAL = 2;
 
-export class EingabeSender {
+export class InputSender {
   constructor() {
     this.reset();
   }
 
   reset() {
-    this.schritt = 0;
-    this.letzterVersand = -Infinity;
-    this.letzte = null;
+    this.step = 0;
+    this.lastDispatch = -Infinity;
+    this.last = null;
   }
 
   // Einmal pro Client-Schritt aufrufen; liefert das zu sendende Paket oder null
-  naechstes(eingabe) {
-    this.schritt++;
+  next(input) {
+    this.step++;
     const e = {
-      v: PROTOKOLL_VERSION,
-      x: Number.isFinite(eingabe.x) ? runde1(eingabe.x) : eingabe.x,
-      y: Number.isFinite(eingabe.y) ? runde1(eingabe.y) : eingabe.y,
-      rotate: eingabe.rotate || 0,
-      laser: Boolean(eingabe.laser),
-      rakete: Boolean(eingabe.rakete),
-      bombe: Boolean(eingabe.bombe),
+      v: PROTOCOL_VERSION,
+      x: Number.isFinite(input.x) ? round1(input.x) : input.x,
+      y: Number.isFinite(input.y) ? round1(input.y) : input.y,
+      rotate: input.rotate || 0,
+      laser: Boolean(input.laser),
+      missile: Boolean(input.missile),
+      bomb: Boolean(input.bomb),
     };
     // Gleve: Steuerrichtung fuer den Dash (2 Nachkommastellen), geht mit jedem Paket mit
-    if (Number.isFinite(eingabe.rx) && Number.isFinite(eingabe.ry)) {
-      e.rx = runde2(eingabe.rx);
-      e.ry = runde2(eingabe.ry);
+    if (Number.isFinite(input.rx) && Number.isFinite(input.ry)) {
+      e.rx = round2(input.rx);
+      e.ry = round2(input.ry);
     }
     // Viper: Rollenstart (Richtung -1/+1) geht sofort raus, nur im Startschritt gesetzt
-    if (eingabe.ro === 1 || eingabe.ro === -1) e.ro = eingabe.ro;
+    if (input.ro === 1 || input.ro === -1) e.ro = input.ro;
     // Sniper: Joystick-Autofeuer (Normalschuesse ohne Laden), nur wenn gesetzt
-    if (eingabe.auto) e.auto = true;
-    const l = this.letzte;
-    const seit = this.schritt - this.letzterVersand;
-    const tastenGeaendert =
-      !l || l.laser !== e.laser || l.rakete !== e.rakete || l.bombe !== e.bombe || l.ro !== e.ro || l.auto !== e.auto;
-    const bewegt = !l || l.x !== e.x || l.y !== e.y || l.rotate !== e.rotate;
-    const faellig = tastenGeaendert || (bewegt && seit >= POSITIONS_INTERVALL) || seit >= HEARTBEAT_SCHRITTE;
-    if (!faellig) return null;
-    this.letzte = e;
-    this.letzterVersand = this.schritt;
+    if (input.auto) e.auto = true;
+    const l = this.last;
+    const since = this.step - this.lastDispatch;
+    const keyChanged =
+      !l || l.laser !== e.laser || l.missile !== e.missile || l.bomb !== e.bomb || l.ro !== e.ro || l.auto !== e.auto;
+    const moved = !l || l.x !== e.x || l.y !== e.y || l.rotate !== e.rotate;
+    const due = keyChanged || (moved && since >= POSITIONS_INTERVAL) || since >= HEARTBEAT_STEPS;
+    if (!due) return null;
+    this.last = e;
+    this.lastDispatch = this.step;
     return e;
   }
 }

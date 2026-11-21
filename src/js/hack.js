@@ -3,11 +3,11 @@
 import { state, dom } from './state.js';
 import * as Audio from './audio.js';
 
-export const HACK_EFFEKTE = ['invertiert', 'waffenOffline', 'tastenVertauscht', 'hudGlitch'];
-export const HACK_DAUER = 180; // 3 s bei 60 FPS
+export const HACK_EFFECTS = ['inverted', 'weaponOffline', 'keySwapped', 'hudGlitch'];
+export const HACK_DURATION = 180; // 3 s bei 60 FPS
 
 // Richtungen: oben, unten, links, rechts
-const RICHTUNGEN = [
+const DIRECTIONS = [
   [0, -1],
   [0, 1],
   [-1, 0],
@@ -15,7 +15,7 @@ const RICHTUNGEN = [
 ];
 
 // Zufällige Permutation ohne Fixpunkt: keine Taste behält ihre Richtung
-function zufallsDerangement() {
+function randomDerangement() {
   let perm;
   do {
     perm = [0, 1, 2, 3];
@@ -27,13 +27,13 @@ function zufallsDerangement() {
   return perm;
 }
 
-export function hackeSpieler(pState, typ = null) {
+export function hackPlayer(pState, typ = null) {
   if (!pState.hacks) pState.hacks = [];
-  const effekt = typ || HACK_EFFEKTE[Math.floor(Math.random() * HACK_EFFEKTE.length)];
-  const hack = { typ: effekt, timer: HACK_DAUER };
-  if (effekt === 'tastenVertauscht') hack.perm = zufallsDerangement();
+  const effect = typ || HACK_EFFECTS[Math.floor(Math.random() * HACK_EFFECTS.length)];
+  const hack = { typ: effect, timer: HACK_DURATION };
+  if (effect === 'keySwapped') hack.perm = randomDerangement();
   pState.hacks.push(hack);
-  return effekt;
+  return effect;
 }
 
 export function tickHacks(pState) {
@@ -42,25 +42,25 @@ export function tickHacks(pState) {
   pState.hacks = pState.hacks.filter(h => h.timer > 0);
 }
 
-export function hatHack(pState, typ) {
+export function hasHack(pState, typ) {
   return !!pState.hacks && pState.hacks.some(h => h.typ === typ);
 }
 
 // Bildet eine Bewegung (dx, dy) durch alle aktiven Steuerungs-Hacks ab
-export function hackeBewegung(pState, dx, dy) {
+export function hackMovement(pState, dx, dy) {
   if (!pState.hacks || pState.hacks.length === 0) return { dx, dy };
   for (const h of pState.hacks) {
-    if (h.typ === 'invertiert') {
+    if (h.typ === 'inverted') {
       dx = -dx;
       dy = -dy;
-    } else if (h.typ === 'tastenVertauscht') {
+    } else if (h.typ === 'keySwapped') {
       let nx = 0,
         ny = 0;
-      RICHTUNGEN.forEach(([rx, ry], k) => {
-        const anteil = Math.max(0, dx * rx + dy * ry);
-        const [zx, zy] = RICHTUNGEN[h.perm[k]];
-        nx += anteil * zx;
-        ny += anteil * zy;
+      DIRECTIONS.forEach(([rx, ry], k) => {
+        const share = Math.max(0, dx * rx + dy * ry);
+        const [zx, zy] = DIRECTIONS[h.perm[k]];
+        nx += share * zx;
+        ny += share * zy;
       });
       dx = nx;
       dy = ny;
@@ -69,28 +69,28 @@ export function hackeBewegung(pState, dx, dy) {
   return { dx, dy };
 }
 
-export function entferneHacks(pState) {
+export function removeHacks(pState) {
   pState.hacks = [];
 }
 
 // Hack-Ton und HUD-Glitch beider Spieler; Schiffsklasse spieler-gehackt und das Label ueber dem Schiff
 // zeichnet die Anzeige aus pState.hacks
-export function zeigeHackStatus() {
-  zeigeFuerSpieler(state, dom.uiContainerP1);
-  if (state.p2) zeigeFuerSpieler(state.p2, dom.uiContainerP2);
+export function showHackStatus() {
+  showForPlayer(state, dom.uiContainerP1);
+  if (state.p2) showForPlayer(state.p2, dom.uiContainerP2);
 }
 
-export const HACK_NAMEN = {
-  invertiert: 'INVERTED',
-  waffenOffline: 'WEAPONS OFFLINE',
-  tastenVertauscht: 'KEYS SCRAMBLED',
+export const HACK_NAMES = {
+  inverted: 'INVERTED',
+  weaponOffline: 'WEAPONS OFFLINE',
+  keySwapped: 'KEYS SCRAMBLED',
   hudGlitch: 'HUD GLITCH',
 };
 
-function zeigeFuerSpieler(pState, hudEl) {
+function showForPlayer(pState, hudEl) {
   const hacks = pState.hacks || [];
   // Sound bei neuem Hack (funktioniert auch auf dem Online-Client, der nur Snapshots sieht)
-  if (hacks.length > (pState.angezeigteHacks || 0)) Audio.playHack();
-  pState.angezeigteHacks = hacks.length;
-  if (hudEl) hudEl.classList.toggle('hud-glitch', hatHack(pState, 'hudGlitch'));
+  if (hacks.length > (pState.shownHacks || 0)) Audio.playHack();
+  pState.shownHacks = hacks.length;
+  if (hudEl) hudEl.classList.toggle('hud-glitch', hasHack(pState, 'hudGlitch'));
 }

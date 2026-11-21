@@ -3,28 +3,16 @@ import * as Cutscene from './cutscene.js';
 import * as Utils from './utils.js';
 import * as Entities from './entities.js';
 import * as Audio from './audio.js';
-import {
-  p1Anzeige,
-  setzeInterpolationsZiel,
-  leiteGeschwindigkeitAb,
-  snapshotEmpfangen,
-  uebernehmeP1Anzeige,
-} from './client.js';
-import { beendePause, verarbeitePauseEvent } from './pause.js';
+import { p1Display, setInterpolationTarget, deriveSpeed, snapshotReceived, applyP1Display } from './client.js';
+import { endPause, processPauseEvent } from './pause.js';
 import { GAME_VERSION } from './changelog.js';
-import {
-  PROTOKOLL_VERSION,
-  KEYFRAME_INTERVALL,
-  SnapshotKodierer,
-  SnapshotDekodierer,
-  EingabeSender,
-} from './netzkodierung.js';
+import { PROTOCOL_VERSION, KEYFRAME_INTERVAL, SnapshotEncoder, SnapshotDecoder, InputSender } from './netzkodierung.js';
 import * as Gleve from './gleve.js';
 import * as Viper from './viper.js';
 import * as Sniper from './sniper.js';
-import * as Schockwelle from './schockwelle.js';
-import * as Fels from './fels.js';
-import * as Anzeige from './anzeige.js';
+import * as Shockwave from './schockwelle.js';
+import * as Rock from './fels.js';
+import * as Display from './anzeige.js';
 
 let room = null;
 let sendStateAction = null;
@@ -38,73 +26,73 @@ let onEventCallbacks = [];
 let trysteroJoinRoom = null;
 
 // Netzkodierung: Host kodiert Snapshots als Deltas, Client dekodiert sie, Client sendet Eingaben nur bei Aenderung
-const kodierer = new SnapshotKodierer();
-const dekodierer = new SnapshotDekodierer();
-const eingabeSender = new EingabeSender();
-let keyframeWarteZaehler = 0;
+const encoder = new SnapshotEncoder();
+const decoder = new SnapshotDecoder();
+const inputSender = new InputSender();
+let keyframeWaitCounter = 0;
 
-export const VERSIONS_MELDUNG = 'Unterschiedliche Spielversionen, bitte Seite neu laden (Strg+F5)';
-export const HALLO_TIMEOUT_MS = 10000;
-let halloTimer = null;
+export const VERSIONS_MESSAGE = 'Unterschiedliche Spielversionen, bitte Seite neu laden (Strg+F5)';
+export const HELLO_TIMEOUT_MS = 10000;
+let helloTimer = null;
 
-function setzeNetzkodierungZurueck() {
-  kodierer.reset();
-  dekodierer.reset();
-  eingabeSender.reset();
-  keyframeWarteZaehler = 0;
+function resetNetEncoding() {
+  encoder.reset();
+  decoder.reset();
+  inputSender.reset();
+  keyframeWaitCounter = 0;
 }
 
 // Gehaltene Tasten des Clients auf dem Host vergessen (Spielstart, Verbindungsende)
-function setzeNetzEingabenZurueck() {
+function resetNetworkInputs() {
   if (!state.p2) return;
   state.p2.laserInputRequested = false;
-  state.p2.raketeGehalten = false;
-  state.p2.bombeGehalten = false;
-  state.p2.networkFireRakete = false;
-  state.p2.networkFireBombe = false;
-  state.p2.netzDashAnfrage = false;
-  state.p2.netzLaserAnfrage = false;
+  state.p2.missileHeld = false;
+  state.p2.bombHeld = false;
+  state.p2.networkFireMissile = false;
+  state.p2.networkFireBomb = false;
+  state.p2.networkDashRequest = false;
+  state.p2.networkLaserRequest = false;
   state.p2.sniperAutoInput = false;
-  state.p2.netzRichtung = null;
+  state.p2.networkDirection = null;
 }
 
 // Beide Peers schicken nach dem Verbinden ihre Protokollversion. Alte Versionen schicken kein
 // 'hallo'; kommt keins rechtzeitig, gilt das ebenfalls als unterschiedliche Version.
 // protokollOk wird nur beim Raumaufbau und Trennen zurueckgesetzt, falls das hallo des Peers vor dem eigenen Join-Ereignis ankommt.
-function starteHandshake() {
-  setzeNetzkodierungZurueck();
-  sendNetworkEvent({ type: 'hallo', protokoll: PROTOKOLL_VERSION, version: GAME_VERSION });
-  clearTimeout(halloTimer);
-  halloTimer = setTimeout(() => {
-    halloTimer = null;
-    if (state.network.connected && !state.network.protokollOk) brecheWegenVersionAb();
-  }, HALLO_TIMEOUT_MS);
+function startHandshake() {
+  resetNetEncoding();
+  sendNetworkEvent({ type: 'hallo', protocol: PROTOCOL_VERSION, version: GAME_VERSION });
+  clearTimeout(helloTimer);
+  helloTimer = setTimeout(() => {
+    helloTimer = null;
+    if (state.network.connected && !state.network.protocolOk) abortOnVersionMismatch();
+  }, HELLO_TIMEOUT_MS);
 }
 
-function pruefeHallo(data) {
-  if (data.protokoll === PROTOKOLL_VERSION) {
-    state.network.protokollOk = true;
-    clearTimeout(halloTimer);
-    halloTimer = null;
-    if (state.network.connected && state.network.verbindungsPhase === 4) {
-      setzeVerbindungsPhase(5, 'BEREIT, SPIEL STARTET');
+function checkHello(data) {
+  if (data.protocol === PROTOCOL_VERSION) {
+    state.network.protocolOk = true;
+    clearTimeout(helloTimer);
+    helloTimer = null;
+    if (state.network.connected && state.network.connectionPhase === 4) {
+      setConnectionPhase(5, 'BEREIT, SPIEL STARTET');
     }
   } else {
-    brecheWegenVersionAb();
+    abortOnVersionMismatch();
   }
 }
 
 // Online-Sitzung wegen unterschiedlicher Protokollversion sauber beenden
-export function brecheWegenVersionAb() {
-  clearTimeout(halloTimer);
-  halloTimer = null;
+export function abortOnVersionMismatch() {
+  clearTimeout(helloTimer);
+  helloTimer = null;
   if (!state.network.isOnline) return;
   if (state.network.connected) sendNetworkEvent({ type: 'peer_left' });
-  if (state.cutsceneAktiv) Cutscene.skipCutscene(true);
+  if (state.cutsceneActive) Cutscene.skipCutscene(true);
   disconnectNetwork();
-  if (state.spielLaeuft || state.gameOverAktiv) Utils.restartGame();
+  if (state.gameRunning || state.gameOverActive) Utils.restartGame();
   if (Utils && Utils.setGameMode) Utils.setGameMode('online');
-  updateOnlineStatus(VERSIONS_MELDUNG, true);
+  updateOnlineStatus(VERSIONS_MESSAGE, true);
 }
 
 // Dynamischer Import von modernem Trystero (@trystero-p2p/torrent oder nostr)
@@ -136,23 +124,23 @@ async function loadTrystero() {
   }
 }
 
-let turnWarnungAusgegeben = false;
+let turnWarningIssued = false;
 
 // Holt TURN-Zugangsdaten vom Worker. Gibt bei jedem Fehler null zurueck (Verbindung laeuft dann nur mit STUN).
-export async function holeTurnConfig(timeoutMs = 3000) {
+export async function getTurnConfig(timeoutMs = 3000) {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), timeoutMs);
   try {
-    const antwort = await fetch(state.turnApiUrl, { signal: controller.signal, cache: 'no-store' });
-    if (!antwort.ok) throw new Error('HTTP ' + antwort.status);
-    const daten = await antwort.json();
-    if (daten && Array.isArray(daten.iceServers) && daten.iceServers.length > 0) {
-      return daten.iceServers;
+    const response = await fetch(state.turnApiUrl, { signal: controller.signal, cache: 'no-store' });
+    if (!response.ok) throw new Error('HTTP ' + response.status);
+    const payload = await response.json();
+    if (payload && Array.isArray(payload.iceServers) && payload.iceServers.length > 0) {
+      return payload.iceServers;
     }
     throw new Error('Keine iceServers in der Antwort');
   } catch (e) {
-    if (!turnWarnungAusgegeben) {
-      turnWarnungAusgegeben = true;
+    if (!turnWarningIssued) {
+      turnWarningIssued = true;
       console.warn('TURN nicht verfuegbar, nutze nur STUN:', e && e.message);
     }
     return null;
@@ -181,92 +169,92 @@ export function updateOnlineStatus(text, isError = false) {
 
 // Verbindungsfortschritt (Schritt 1/5 bis 5/5). Angezeigt werden nur Phasen, die das Spiel wirklich erkennt:
 // Tracker-Signalisierung, Schluesseltausch und ICE sind in Trystero nicht beobachtbar.
-export const VERBINDUNGS_SCHRITTE = 5;
-export const HINWEIS_RAUMCODE_NACH_S = 20;
-export const HINWEIS_NETZ_NACH_S = 45;
-export const HINWEIS_RAUMCODE = 'Raum-Code prüfen, der Host muss den Raum geöffnet haben';
-export const HINWEIS_NETZ = 'Manche Netzwerke blockieren direkte Verbindungen. Ggf. anderes Netz versuchen';
-let verbindungsTimer = null;
-let verbindungsStart = 0; // Beginn von Schritt 3 (Date.now())
-let verbindungsText = '';
+export const CONNECTION_STEPS = 5;
+export const HINT_ROOM_CODE_AFTER_S = 20;
+export const HINT_NETWORK_AFTER_S = 45;
+export const HINT_ROOM_CODE = 'Raum-Code prüfen, der Host muss den Raum geöffnet haben';
+export const HINT_NETWORK = 'Manche Netzwerke blockieren direkte Verbindungen. Ggf. anderes Netz versuchen';
+let connectionTimer = null;
+let connectionStart = 0; // Beginn von Schritt 3 (Date.now())
+let connectionText = '';
 
-function stoppeVerbindungsTimer() {
-  clearInterval(verbindungsTimer);
-  verbindungsTimer = null;
+function stopConnectionTimer() {
+  clearInterval(connectionTimer);
+  connectionTimer = null;
 }
 
-function zeichneVerbindung() {
+function drawConnection() {
   const statusEl = document.getElementById('online-status');
   if (!statusEl) return;
   const net = state.network;
-  const nummer = net.verbindungsPhase;
+  const number = net.connectionPhase;
   statusEl.style.display = 'block';
   statusEl.style.color = '#f1c40f';
   statusEl.style.borderColor = 'rgba(241, 196, 15, 0.3)';
   statusEl.textContent = '';
-  const zeile = (klasse, text) => {
+  const line = (cls, text) => {
     const el = document.createElement('div');
-    el.className = klasse;
+    el.className = cls;
     el.textContent = text;
     statusEl.appendChild(el);
   };
   const code = net.roomCode || '---';
-  zeile('vp-kopf', net.isHost ? `RAUM-CODE: ${code}` : `VERBINDE MIT RAUM ${code}`);
-  let schritt = `${nummer}/${VERBINDUNGS_SCHRITTE} ${verbindungsText}`;
-  const sekunden = nummer === 3 ? Math.max(0, Math.floor((Date.now() - verbindungsStart) / 1000)) : -1;
-  if (sekunden >= 0) schritt += ` (${Math.floor(sekunden / 60)}:${String(sekunden % 60).padStart(2, '0')})`;
-  zeile('vp-schritt', schritt);
-  const balken = document.createElement('div');
-  balken.className = 'vp-balken';
-  for (let i = 1; i <= VERBINDUNGS_SCHRITTE; i++) {
+  line('vp-kopf', net.isHost ? `RAUM-CODE: ${code}` : `VERBINDE MIT RAUM ${code}`);
+  let step = `${number}/${CONNECTION_STEPS} ${connectionText}`;
+  const seconds = number === 3 ? Math.max(0, Math.floor((Date.now() - connectionStart) / 1000)) : -1;
+  if (seconds >= 0) step += ` (${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, '0')})`;
+  line('vp-schritt', step);
+  const bar = document.createElement('div');
+  bar.className = 'vp-balken';
+  for (let i = 1; i <= CONNECTION_STEPS; i++) {
     const segment = document.createElement('span');
-    if (i <= nummer) segment.className = 'aktiv';
-    balken.appendChild(segment);
+    if (i <= number) segment.className = 'aktiv';
+    bar.appendChild(segment);
   }
-  statusEl.appendChild(balken);
-  if (net.verbindungsDetail) zeile('vp-detail', net.verbindungsDetail);
-  if (nummer === 3) {
-    if (!net.isHost && sekunden >= HINWEIS_RAUMCODE_NACH_S) zeile('vp-detail', HINWEIS_RAUMCODE);
-    if (sekunden >= HINWEIS_NETZ_NACH_S) zeile('vp-detail', HINWEIS_NETZ);
+  statusEl.appendChild(bar);
+  if (net.connectionDetail) line('vp-detail', net.connectionDetail);
+  if (number === 3) {
+    if (!net.isHost && seconds >= HINT_ROOM_CODE_AFTER_S) line('vp-detail', HINT_ROOM_CODE);
+    if (seconds >= HINT_NETWORK_AFTER_S) line('vp-detail', HINT_NETWORK);
   }
 }
 
 // Setzt Schritt nummer (1-5) mit Text; detail (z. B. TURN-Status) bleibt bis zum naechsten Detail sichtbar.
-export function setzeVerbindungsPhase(nummer, text, detail) {
+export function setConnectionPhase(number, text, detail) {
   const net = state.network;
-  if (nummer === 1) {
-    net.verbindungsVerlauf = [];
-    net.verbindungsDetail = '';
+  if (number === 1) {
+    net.connectionHistory = [];
+    net.connectionDetail = '';
   }
-  if (detail !== undefined) net.verbindungsDetail = detail;
-  net.verbindungsPhase = nummer;
-  net.verbindungsVerlauf.push(nummer);
-  verbindungsText = text;
-  if (nummer === 3) verbindungsStart = Date.now();
-  if (nummer === 3 || nummer === 4) {
-    if (!verbindungsTimer) verbindungsTimer = setInterval(zeichneVerbindung, 1000);
+  if (detail !== undefined) net.connectionDetail = detail;
+  net.connectionPhase = number;
+  net.connectionHistory.push(number);
+  connectionText = text;
+  if (number === 3) connectionStart = Date.now();
+  if (number === 3 || number === 4) {
+    if (!connectionTimer) connectionTimer = setInterval(drawConnection, 1000);
   } else {
-    stoppeVerbindungsTimer();
+    stopConnectionTimer();
   }
-  zeichneVerbindung();
+  drawConnection();
 }
 
 // Verbindungsaufbau endet (Fehler, Abbruch, Trennen). Liefert den Zusatz fuer Fehlermeldungen,
 // falls der Aufbau in Schritt 1-4 steckte.
-function beendeVerbindungsPhase() {
-  const nummer = state.network.verbindungsPhase;
-  stoppeVerbindungsTimer();
-  state.network.verbindungsPhase = 0;
-  return nummer >= 1 && nummer < VERBINDUNGS_SCHRITTE ? ` (BEI SCHRITT ${nummer}/${VERBINDUNGS_SCHRITTE})` : '';
+function endConnectionPhase() {
+  const number = state.network.connectionPhase;
+  stopConnectionTimer();
+  state.network.connectionPhase = 0;
+  return number >= 1 && number < CONNECTION_STEPS ? ` (BEI SCHRITT ${number}/${CONNECTION_STEPS})` : '';
 }
 
-function verbindungNochAktuell(code) {
+function connectionStillCurrent(code) {
   return state.network.isOnline && state.network.roomCode === code;
 }
 
-function markiereMitspielerVerbunden() {
-  if (state.network.protokollOk) setzeVerbindungsPhase(5, 'BEREIT, SPIEL STARTET');
-  else setzeVerbindungsPhase(4, 'MITSPIELER VERBUNDEN, VERSIONEN ABGLEICHEN');
+function markTeammateConnected() {
+  if (state.network.protocolOk) setConnectionPhase(5, 'BEREIT, SPIEL STARTET');
+  else setConnectionPhase(4, 'MITSPIELER VERBUNDEN, VERSIONEN ABGLEICHEN');
 }
 
 export function updateOnlineLobbyUI() {
@@ -289,19 +277,19 @@ export function updateOnlineLobbyUI() {
     if (initialActions) initialActions.style.display = 'none';
     if (connectedControls) connectedControls.style.display = 'flex';
 
-    const zeigeFortschritt = state.network.verbindungsPhase === 4;
-    if (zeigeFortschritt) zeichneVerbindung();
+    const showProgress = state.network.connectionPhase === 4;
+    if (showProgress) drawConnection();
 
     if (isHost) {
       if (btnStart) btnStart.style.display = 'block';
-      if (!zeigeFortschritt) updateOnlineStatus(`MITSPIELER VERBUNDEN! (CODE: ${roomCode || '---'})`);
+      if (!showProgress) updateOnlineStatus(`MITSPIELER VERBUNDEN! (CODE: ${roomCode || '---'})`);
       if (startText) {
         startText.textContent = 'KLICKE "SPIEL STARTEN" ZUM BEGINN';
         startText.style.color = '#2ecc71';
       }
     } else {
       if (btnStart) btnStart.style.display = 'none';
-      if (!zeigeFortschritt) updateOnlineStatus(`VERBUNDEN MIT HOST! (CODE: ${roomCode || '---'})`);
+      if (!showProgress) updateOnlineStatus(`VERBUNDEN MIT HOST! (CODE: ${roomCode || '---'})`);
       if (startText) {
         startText.textContent = 'WARTE AUF SPIELSTART DURCH DEN HOST...';
         startText.style.color = '#3498db';
@@ -403,16 +391,16 @@ export async function hostRoom(customCode = null) {
   state.network.isClient = false;
   state.network.roomCode = code;
   state.network.connected = false;
-  state.network.protokollOk = false;
-  setzeNetzkodierungZurueck();
+  state.network.protocolOk = false;
+  resetNetEncoding();
 
-  setzeVerbindungsPhase(1, 'VERBINDUNGSDATEN HOLEN');
-  const turnConfig = await holeTurnConfig();
-  if (!verbindungNochAktuell(code)) return;
+  setConnectionPhase(1, 'VERBINDUNGSDATEN HOLEN');
+  const turnConfig = await getTurnConfig();
+  if (!connectionStillCurrent(code)) return;
 
-  setzeVerbindungsPhase(2, 'NETZWERK-MODUL LADEN', turnConfig ? 'TURN verfügbar' : 'ohne TURN');
+  setConnectionPhase(2, 'NETZWERK-MODUL LADEN', turnConfig ? 'TURN verfügbar' : 'ohne TURN');
   const joinRoomFn = await loadTrystero();
-  if (!joinRoomFn || !verbindungNochAktuell(code)) return;
+  if (!joinRoomFn || !connectionStillCurrent(code)) return;
 
   if (room) {
     try {
@@ -421,7 +409,7 @@ export async function hostRoom(customCode = null) {
   }
 
   room = joinRoomFn({ appId: 'starshooter-p2p', ...(turnConfig ? { turnConfig } : {}) }, 'star_' + code);
-  setzeVerbindungsPhase(3, `RAUM ${code} GEÖFFNET, WARTE AUF MITSPIELER`);
+  setConnectionPhase(3, `RAUM ${code} GEÖFFNET, WARTE AUF MITSPIELER`);
 
   sendStateAction = setupAction(room, 'state', (data, peerId) => {
     onStateCallbacks.forEach(cb => cb(data, peerId));
@@ -442,10 +430,10 @@ export async function hostRoom(customCode = null) {
     },
     peerId => {
       state.network.connected = false;
-      beendePause();
-      setzeNetzEingabenZurueck();
-      state.network.protokollOk = false;
-      updateOnlineStatus(`MITSPIELER HAT DAS SPIEL VERLASSEN!${beendeVerbindungsPhase()}`, true);
+      endPause();
+      resetNetworkInputs();
+      state.network.protocolOk = false;
+      updateOnlineStatus(`MITSPIELER HAT DAS SPIEL VERLASSEN!${endConnectionPhase()}`, true);
       updateOnlineLobbyUI();
     },
   );
@@ -457,7 +445,7 @@ export function startOnlineGame() {
   let startScreen = document.getElementById('start-screen');
   if (startScreen) startScreen.style.display = 'none';
 
-  Utils.wendeSpielfeldBreiteAn('online');
+  Utils.applyPlayfieldWidth('online');
 
   const uiP2 = dom.uiContainerP2 || document.getElementById('ui-container-p2');
   if (uiP2) uiP2.style.display = 'flex';
@@ -465,11 +453,11 @@ export function startOnlineGame() {
   state.invulnerableTimer = 0;
   if (state.p2) state.p2.invulnerableTimer = 0;
   // Nach (Neu-)Start beginnt der Host mit einem Keyframe, der Client mit frischen Eingaben
-  kodierer.erzwingeKeyframe();
-  eingabeSender.reset();
-  if (state.network.isHost) setzeNetzEingabenZurueck();
+  encoder.forceKeyframe();
+  inputSender.reset();
+  if (state.network.isHost) resetNetworkInputs();
   // HUD-Beschriftungen (Gleve: SWEEP/DASH) fuer beide Schiffe, Mobile-Button fuer den lokalen Spieler
-  Utils.updateSchiffHudLabels();
+  Utils.updateShipHudLabels();
 
   Cutscene.startCutscene();
 }
@@ -477,9 +465,9 @@ export function startOnlineGame() {
 export function onPeerJoined(peerId) {
   state.network.connected = true;
   state.network.peerId = peerId;
-  markiereMitspielerVerbunden();
+  markTeammateConnected();
   updateOnlineLobbyUI();
-  starteHandshake();
+  startHandshake();
 
   if (state.network.isHost) {
     hostStartGame();
@@ -498,16 +486,16 @@ export async function joinOnlineRoom(code) {
   state.network.isClient = true;
   state.network.roomCode = cleanCode;
   state.network.connected = false;
-  state.network.protokollOk = false;
-  setzeNetzkodierungZurueck();
+  state.network.protocolOk = false;
+  resetNetEncoding();
 
-  setzeVerbindungsPhase(1, 'VERBINDUNGSDATEN HOLEN');
-  const turnConfig = await holeTurnConfig();
-  if (!verbindungNochAktuell(cleanCode)) return;
+  setConnectionPhase(1, 'VERBINDUNGSDATEN HOLEN');
+  const turnConfig = await getTurnConfig();
+  if (!connectionStillCurrent(cleanCode)) return;
 
-  setzeVerbindungsPhase(2, 'NETZWERK-MODUL LADEN', turnConfig ? 'TURN verfügbar' : 'ohne TURN');
+  setConnectionPhase(2, 'NETZWERK-MODUL LADEN', turnConfig ? 'TURN verfügbar' : 'ohne TURN');
   const joinRoomFn = await loadTrystero();
-  if (!joinRoomFn || !verbindungNochAktuell(cleanCode)) return;
+  if (!joinRoomFn || !connectionStillCurrent(cleanCode)) return;
 
   if (room) {
     try {
@@ -516,7 +504,7 @@ export async function joinOnlineRoom(code) {
   }
 
   room = joinRoomFn({ appId: 'starshooter-p2p', ...(turnConfig ? { turnConfig } : {}) }, 'star_' + cleanCode);
-  setzeVerbindungsPhase(3, `SUCHE HOST IN RAUM ${cleanCode}`);
+  setConnectionPhase(3, `SUCHE HOST IN RAUM ${cleanCode}`);
 
   sendStateAction = setupAction(room, 'state', (data, peerId) => {
     onStateCallbacks.forEach(cb => cb(data, peerId));
@@ -535,9 +523,9 @@ export async function joinOnlineRoom(code) {
     peerId => {
       state.network.connected = true;
       state.network.peerId = peerId;
-      markiereMitspielerVerbunden();
+      markTeammateConnected();
       updateOnlineLobbyUI();
-      starteHandshake();
+      startHandshake();
 
       // Client meldet sein im Hangar gewähltes Schiff an den Host
       const myModel = state.selectedShipModel || (state.p2 && state.p2.selectedShipModel) || 'phantom';
@@ -554,8 +542,8 @@ export async function joinOnlineRoom(code) {
     },
     peerId => {
       state.network.connected = false;
-      beendePause();
-      updateOnlineStatus(`VERBINDUNG ZUM HOST VERLOREN!${beendeVerbindungsPhase()}`, true);
+      endPause();
+      updateOnlineStatus(`VERBINDUNG ZUM HOST VERLOREN!${endConnectionPhase()}`, true);
       updateOnlineLobbyUI();
     },
   );
@@ -566,18 +554,18 @@ export async function joinOnlineRoom(code) {
 export function handleNetworkEvent(data, peerId = null) {
   if (!data) return;
 
-  if (data.type === 'pause_start' || data.type === 'pause_ende') {
-    verarbeitePauseEvent(data);
+  if (data.type === 'pause_start' || data.type === 'pauseEnd') {
+    processPauseEvent(data);
     return;
   }
 
   if (data.type === 'hallo') {
-    pruefeHallo(data);
+    checkHello(data);
     return;
   }
 
   if (data.type === 'keyframe_anfordern') {
-    if (state.network.isHost) kodierer.erzwingeKeyframe();
+    if (state.network.isHost) encoder.forceKeyframe();
     return;
   }
 
@@ -597,10 +585,10 @@ export function handleNetworkEvent(data, peerId = null) {
     }
     if (data.type === 'peer_left') {
       state.network.connected = false;
-      beendePause();
-      setzeNetzEingabenZurueck();
-      state.network.protokollOk = false;
-      updateOnlineStatus(`MITSPIELER HAT DEN RAUM VERLASSEN!${beendeVerbindungsPhase()}`, true);
+      endPause();
+      resetNetworkInputs();
+      state.network.protocolOk = false;
+      updateOnlineStatus(`MITSPIELER HAT DEN RAUM VERLASSEN!${endConnectionPhase()}`, true);
       updateOnlineLobbyUI();
     }
   } else {
@@ -625,8 +613,8 @@ export function handleNetworkEvent(data, peerId = null) {
     }
     if (data.type === 'peer_left') {
       state.network.connected = false;
-      beendePause();
-      updateOnlineStatus(`HOST HAT DEN RAUM VERLASSEN!${beendeVerbindungsPhase()}`, true);
+      endPause();
+      updateOnlineStatus(`HOST HAT DEN RAUM VERLASSEN!${endConnectionPhase()}`, true);
       updateOnlineLobbyUI();
     }
     if (data.type === 'game_start') {
@@ -660,11 +648,11 @@ export function handleNetworkEvent(data, peerId = null) {
       if (state.p2)
         state.p2.invulnerableTimer =
           Number.isFinite(data.invulnerable) && data.invulnerable > 0 ? data.invulnerable : 45;
-      Anzeige.zeichneSpieler();
-      Anzeige.blitzeSpielfeld(data.shield ? 'rgba(52, 152, 219, 0.3)' : '#900', 150);
+      Display.drawPlayer();
+      Display.flashPlayfield(data.shield ? 'rgba(52, 152, 219, 0.3)' : '#900', 150);
     }
     if (data.type === 'powerup_collected' && data.target === 'p2') {
-      Anzeige.blitzeSpielfeld(data.farbe || '#f1c40f', 100);
+      Display.flashPlayfield(data.color || '#f1c40f', 100);
     }
     if (data.type === 'highscore_name') {
       Utils.receiveOnlineHighscoreName(data.role, data.name);
@@ -678,25 +666,25 @@ export function handleNetworkEvent(data, peerId = null) {
       }
     }
     if (data.type === 'bomb_detonated') {
-      Utils.erzeugeBombenDetonation(data.x, data.y, data.color, data.radius, data.stufe, data.isMini);
+      Utils.createBombDetonation(data.x, data.y, data.color, data.radius, data.tier, data.isMini);
     }
     if (data.type === 'missile_detonated') {
-      Utils.erzeugeRaketenDetonation(data.x, data.y, data.radius);
+      Utils.createMissileDetonation(data.x, data.y, data.radius);
     }
     if (data.type === 'emp_ausgeloest') {
-      Sniper.zeigeEmp(data);
+      Sniper.showEmp(data);
     }
     if (data.type === 'granate_detonated') {
-      Sniper.zeigeDetonation(data);
+      Sniper.showDetonation(data);
     }
     if (data.type === 'mine_explodiert') {
-      Sniper.zeigeMinenExplosion(data);
+      Sniper.showMineExplosion(data);
     }
-    if (data.type === 'schockwelle') {
-      Schockwelle.zeigeSchockwelle(data);
+    if (data.type === 'shockwave') {
+      Shockwave.showShockwave(data);
     }
     if (data.type === 'target_destroyed') {
-      Utils.erzeugeExplosion(data.x, data.y, data.farbe, data.anzahl);
+      Utils.createExplosion(data.x, data.y, data.color, data.count);
       if (data.soundType) Audio.playExplosion(data.soundType);
     }
   }
@@ -705,34 +693,34 @@ export function handleNetworkEvent(data, peerId = null) {
 }
 
 // Host: vollen Snapshot als Delta-Paket senden (weltSchritt: bewegte Simulationsschritte, fuer Dead Reckoning)
-export function sendNetworkState(stateSnapshot, weltSchritt) {
+export function sendNetworkState(stateSnapshot, worldStep) {
   if (!state.network.connected) return;
-  state.network.snapshotPakete = (state.network.snapshotPakete || 0) + 1;
-  const paket = kodierer.kodiere(stateSnapshot, weltSchritt);
+  state.network.snapshotPackets = (state.network.snapshotPackets || 0) + 1;
+  const packet = encoder.encode(stateSnapshot, worldStep);
   if (sendStateAction) {
-    sendStateAction(paket);
+    sendStateAction(packet);
   }
 }
 
 // Client: Snapshot-Paket dekodieren und anwenden. Ohne Keyframe (Start, Luecke) wird gewartet
 // und ein Keyframe angefordert; Pakete einer anderen Protokollversion beenden die Sitzung.
-export function empfangeSnapshotPaket(paket) {
-  if (!paket || paket.v !== PROTOKOLL_VERSION) {
-    brecheWegenVersionAb();
+export function receiveSnapshotPacket(packet) {
+  if (!packet || packet.v !== PROTOCOL_VERSION) {
+    abortOnVersionMismatch();
     return;
   }
-  const snapshot = dekodierer.dekodiere(paket);
+  const snapshot = decoder.decode(packet);
   if (!snapshot) {
-    if (keyframeWarteZaehler % KEYFRAME_INTERVALL === 0) sendNetworkEvent({ type: 'keyframe_anfordern' });
-    keyframeWarteZaehler++;
+    if (keyframeWaitCounter % KEYFRAME_INTERVAL === 0) sendNetworkEvent({ type: 'keyframe_anfordern' });
+    keyframeWaitCounter++;
     return;
   }
-  keyframeWarteZaehler = 0;
+  keyframeWaitCounter = 0;
   applyGameStateSnapshot(snapshot);
 }
 
 export function sendNetworkInput(inputData) {
-  state.network.eingabePakete = (state.network.eingabePakete || 0) + 1;
+  state.network.inputPackets = (state.network.inputPackets || 0) + 1;
   state.network.lastSentInput = inputData;
   if (sendInputAction && state.network.connected) {
     sendInputAction(inputData);
@@ -740,18 +728,18 @@ export function sendNetworkInput(inputData) {
 }
 
 // Client: einmal pro Schritt aufrufen, sendet nur bei Aenderung oder als Heartbeat
-export function sendeEingabe() {
-  const paket = eingabeSender.naechstes(serializePlayerInput());
-  if (paket) sendNetworkInput(paket);
+export function sendInput() {
+  const packet = inputSender.next(serializePlayerInput());
+  if (packet) sendNetworkInput(packet);
 }
 
 // Host: Eingabe-Paket des Clients pruefen und anwenden
-export function empfangeEingabePaket(paket) {
-  if (!paket || paket.v !== PROTOKOLL_VERSION) {
-    brecheWegenVersionAb();
+export function receiveInputPacket(packet) {
+  if (!packet || packet.v !== PROTOCOL_VERSION) {
+    abortOnVersionMismatch();
     return;
   }
-  applyPlayerInput(paket);
+  applyPlayerInput(packet);
 }
 
 export function sendNetworkEvent(eventData) {
@@ -785,49 +773,49 @@ export function disconnectNetwork() {
   state.network.isClient = false;
   state.network.roomCode = null;
   state.network.connected = false;
-  state.network.protokollOk = false;
-  clearTimeout(halloTimer);
-  halloTimer = null;
-  beendeVerbindungsPhase();
-  setzeNetzkodierungZurueck();
-  setzeNetzEingabenZurueck();
-  beendePause();
+  state.network.protocolOk = false;
+  clearTimeout(helloTimer);
+  helloTimer = null;
+  endConnectionPhase();
+  resetNetEncoding();
+  resetNetworkInputs();
+  endPause();
   state.network.peerId = null;
   const statusEl = document.getElementById('online-status');
   if (statusEl) statusEl.style.display = 'none';
 }
 
 // Dash-/Sweep-Zustand der Gleve fuer die Darstellung beim Client (nur fuer Gleve-Schiffe)
-function gleveZustand(s) {
-  if (!Gleve.istGleve(s)) return {};
+function gleveStatus(s) {
+  if (!Gleve.isGleve(s)) return {};
   return {
-    gleveDashLadungen: s.gleveDashLadungen === undefined ? Gleve.dashMaxLadungen(s) : s.gleveDashLadungen,
+    gleveDashCharges: s.gleveDashCharges === undefined ? Gleve.dashMaxCharges(s) : s.gleveDashCharges,
     gleveDashTimer: s.gleveDashTimer || 0,
-    gleveAbprallTimer: s.gleveAbprallTimer || 0,
-    gleveUnverwundbar: s.gleveUnverwundbar || 0,
+    gleveBounceTimer: s.gleveBounceTimer || 0,
+    gleveInvulnerable: s.gleveInvulnerable || 0,
     gleveSweepTimer: s.gleveSweepTimer || 0,
-    gleveSweepWinkel: s.gleveSweepWinkel || 0,
-    gleveSweepRichtung: s.gleveSweepRichtung || 0,
+    gleveSweepAngle: s.gleveSweepAngle || 0,
+    gleveSweepDirection: s.gleveSweepDirection || 0,
   };
 }
 
 // Rollen-Zustand der Viper (Timer, Richtung, Cooldown) fuer Anzeige und Cooldown-Abgleich beim Client
-function viperZustand(s) {
-  if (!Viper.istViper(s)) return {};
+function viperStatus(s) {
+  if (!Viper.isViper(s)) return {};
   return {
-    viperRolleTimer: s.viperRolleTimer || 0,
-    viperRolleRichtung: s.viperRolleRichtung || 0,
-    viperRolleCooldown: s.viperRolleCooldown || 0,
-    viperOverdriveLeiste: s.viperOverdriveLeiste || 0,
+    viperRollTimer: s.viperRollTimer || 0,
+    viperRollDirection: s.viperRollDirection || 0,
+    viperRollCooldown: s.viperRollCooldown || 0,
+    viperOverdriveStrip: s.viperOverdriveStrip || 0,
     viperOverdriveTimer: s.viperOverdriveTimer || 0,
-    viperKombo: s.viperKombo || 0,
-    viperKomboTimer: s.viperKomboTimer || 0,
+    viperCombo: s.viperCombo || 0,
+    viperComboTimer: s.viperComboTimer || 0,
   };
 }
 
 // Von der Gleve weggeschleuderte Geschosse (fehlend = false)
-function harmlosFlag(o) {
-  return o.harmlos ? { harmlos: true } : {};
+function harmlessFlag(o) {
+  return o.harmless ? { harmless: true } : {};
 }
 
 export function serializeGameState() {
@@ -835,92 +823,92 @@ export function serializeGameState() {
     p1: {
       x: state.x,
       y: state.y,
-      rotate: state.drehung || 0,
-      leben: state.leben,
-      energie: state.energie,
-      maxEnergie: state.maxEnergie,
-      schildStufe: state.schildStufe,
-      laserStufe: state.laserStufe,
-      raketenStufe: state.raketenStufe,
-      bombenStufe: state.bombenStufe,
+      rotate: state.rotation || 0,
+      lives: state.lives,
+      energy: state.energy,
+      maxEnergy: state.maxEnergy,
+      shieldTier: state.shieldTier,
+      laserTier: state.laserTier,
+      missileTier: state.missileTier,
+      bombTier: state.bombTier,
       // HUD-Flags nur senden, wenn aktiv (spart Bandbreite, fehlend = false)
-      ...(state.laserDurchschlag ? { laserDurchschlag: true } : {}),
-      ...(state.autolaserAktiv ? { autolaserAktiv: true } : {}),
-      raketenCooldown: state.raketenCooldown,
-      bombenCooldown: state.bombenCooldown,
-      laserSchiesst: state.laserSchiesst,
+      ...(state.laserPierce ? { laserPierce: true } : {}),
+      ...(state.autolaserActive ? { autolaserActive: true } : {}),
+      missileCooldown: state.missileCooldown,
+      bombCooldown: state.bombCooldown,
+      laserShoots: state.laserShoots,
       isDead: state.isDead,
       // Viper-Splitter und Phantom-Schildladung fuer das HUD des Clients
-      splitterRot: state.splitterRot || 0,
-      splitterWeiss: state.splitterWeiss || 0,
-      phantomSchildRegenTimer: state.phantomSchildRegenTimer || 0,
-      phantomSchildRegenMax: state.phantomSchildRegenMax || 900,
+      splitterRed: state.splitterRed || 0,
+      splitterWhite: state.splitterWhite || 0,
+      phantomShieldRegenTimer: state.phantomShieldRegenTimer || 0,
+      phantomShieldRegenMax: state.phantomShieldRegenMax || 900,
       hacks: state.hacks || [],
-      ...gleveZustand(state),
-      ...viperZustand(state),
-      ...Sniper.netzZustand(state),
+      ...gleveStatus(state),
+      ...viperStatus(state),
+      ...Sniper.networkStatus(state),
     },
     p2: state.p2
       ? {
           x: state.p2.x,
           y: state.p2.y,
           rotate: state.p2.rotate || 0,
-          leben: state.p2.leben,
-          energie: state.p2.energie,
-          maxEnergie: state.p2.maxEnergie,
-          schildStufe: state.p2.schildStufe,
-          laserStufe: state.p2.laserStufe,
-          raketenStufe: state.p2.raketenStufe,
-          bombenStufe: state.p2.bombenStufe,
+          lives: state.p2.lives,
+          energy: state.p2.energy,
+          maxEnergy: state.p2.maxEnergy,
+          shieldTier: state.p2.shieldTier,
+          laserTier: state.p2.laserTier,
+          missileTier: state.p2.missileTier,
+          bombTier: state.p2.bombTier,
           // HUD-Flags nur senden, wenn aktiv (spart Bandbreite, fehlend = false)
-          ...(state.p2.laserDurchschlag ? { laserDurchschlag: true } : {}),
-          ...(state.p2.autolaserAktiv ? { autolaserAktiv: true } : {}),
-          raketenCooldown: state.p2.raketenCooldown,
-          bombenCooldown: state.p2.bombenCooldown,
-          laserSchiesst: state.p2.laserSchiesst,
+          ...(state.p2.laserPierce ? { laserPierce: true } : {}),
+          ...(state.p2.autolaserActive ? { autolaserActive: true } : {}),
+          missileCooldown: state.p2.missileCooldown,
+          bombCooldown: state.p2.bombCooldown,
+          laserShoots: state.p2.laserShoots,
           isDead: state.p2.isDead,
           // Viper-Splitter und Phantom-Schildladung fuer das HUD des Clients
-          splitterRot: state.p2.splitterRot || 0,
-          splitterWeiss: state.p2.splitterWeiss || 0,
-          phantomSchildRegenTimer: state.p2.phantomSchildRegenTimer || 0,
-          phantomSchildRegenMax: state.p2.phantomSchildRegenMax || 900,
+          splitterRed: state.p2.splitterRed || 0,
+          splitterWhite: state.p2.splitterWhite || 0,
+          phantomShieldRegenTimer: state.p2.phantomShieldRegenTimer || 0,
+          phantomShieldRegenMax: state.p2.phantomShieldRegenMax || 900,
           hacks: state.p2.hacks || [],
-          ...gleveZustand(state.p2),
-          ...viperZustand(state.p2),
-          ...Sniper.netzZustand(state.p2),
+          ...gleveStatus(state.p2),
+          ...viperStatus(state.p2),
+          ...Sniper.networkStatus(state.p2),
         }
       : null,
     score: state.score,
     level: state.level,
-    bossAktiv: state.bossAktiv,
-    ...(state.bossWarningAktiv ? { bossWarningAktiv: true } : {}),
-    feinde: arrays.feinde.map(f => ({
+    bossActive: state.bossActive,
+    ...(state.bossWarningActive ? { bossWarningActive: true } : {}),
+    enemies: arrays.enemies.map(f => ({
       id: f.id,
       x: f.x,
       y: f.y,
       hp: f.hp,
       maxHp: f.maxHp,
-      groesse: f.groesse || 30,
+      size: f.size || 30,
       typ: f.typ || 1,
-      muster: f.muster || 'normal',
-      hatSchild: (f.schildHp || 0) > 0,
-      schildHp: f.schildHp || 0,
+      pattern: f.pattern || 'normal',
+      hasShield: (f.shieldHp || 0) > 0,
+      shieldHp: f.shieldHp || 0,
       ...(typeof f.rot === 'number' ? { rot: f.rot } : {}),
-      ...(f.offen !== undefined ? { offen: !!f.offen } : {}),
-      ...(f.betaeubt > 0 ? { betaeubt: f.betaeubt } : {}),
+      ...(f.open !== undefined ? { open: !!f.open } : {}),
+      ...(f.stunned > 0 ? { stunned: f.stunned } : {}),
     })),
-    asteroiden: arrays.asteroiden.map(a => ({
+    asteroids: arrays.asteroids.map(a => ({
       id: a.id,
       x: a.x,
       y: a.y,
-      groesse: a.groesse || 30,
-      istMagma: a.istMagma || a.istUnzerstoerbar || false,
-      istUnzerstoerbar: a.istUnzerstoerbar || false,
-      traegtPowerup: a.traegtPowerup || false,
-      farbe: a.farbe,
-      farbe2: a.farbe2,
-      form: a.form ? Entities.formAlsText(a.form) : null,
-      riss: a.riss,
+      size: a.size || 30,
+      isMagma: a.isMagma || a.isIndestructible || false,
+      isIndestructible: a.isIndestructible || false,
+      carriesPowerup: a.carriesPowerup || false,
+      color: a.color,
+      color2: a.color2,
+      form: a.form ? Entities.formAsText(a.form) : null,
+      crack: a.crack,
       rot: a.rot || 0,
       hp: a.hp,
       maxHp: a.maxHp || a.hp,
@@ -931,11 +919,11 @@ export function serializeGameState() {
       y: b.y,
       hp: b.hp,
       maxHp: b.maxHp,
-      groesse: b.groesse || 100,
+      size: b.size || 100,
       typ: b.bossTyp || b.typ || 1,
-      enrage: b.enragePhaseAktiv || false,
-      ...(b.offen !== undefined ? { offen: !!b.offen } : {}),
-      ...(b.betaeubt > 0 ? { betaeubt: b.betaeubt } : {}),
+      enrage: b.enragePhaseActive || false,
+      ...(b.open !== undefined ? { open: !!b.open } : {}),
+      ...(b.stunned > 0 ? { stunned: b.stunned } : {}),
     })),
     laser: arrays.laserArray.map(l => ({
       id: l.id,
@@ -945,54 +933,54 @@ export function serializeGameState() {
       vy: l.vy || 15,
       width: l.width || 4,
       height: l.height || 20,
-      color: l.farbe || (l.owner === 'p2' ? '#3498db' : '#00ffff'),
+      color: l.color || (l.owner === 'p2' ? '#3498db' : '#00ffff'),
       owner: l.owner || 'p1',
     })),
-    raketen: arrays.raketenArray.map(r => ({
+    missiles: arrays.missileArray.map(r => ({
       id: r.id,
       x: r.x,
       y: r.y,
       rot: r.rot || (r.vy ? (Math.atan2(-r.vy, r.vx || 0.0001) * 180) / Math.PI + 90 : 0),
       owner: r.owner || 'p1',
       homing: r.homing || false,
-      stufe: (r.owner === 'p2' ? state.p2 && state.p2.raketenStufe : state.raketenStufe) || 1,
+      tier: (r.owner === 'p2' ? state.p2 && state.p2.missileTier : state.missileTier) || 1,
     })),
-    bomben: arrays.bombenArray.map(b => ({
+    bombs: arrays.bombArray.map(b => ({
       id: b.id,
       x: b.x,
       y: b.y,
       rot: b.rot || 0,
       owner: b.owner || 'p1',
-      stufe: b.stufe || 1,
+      tier: b.tier || 1,
       isMini: b.isMini || false,
     })),
     // Sniper-Granaten im Flug (ohne Sniper leer, wie gleveWellen)
-    sniperGranaten: Sniper.netzGranatenListe(),
+    sniperGrenades: Sniper.networkGrenadeList(),
     // Sniper-Haftminen (ohne Sniper leer)
-    sniperMinen: Sniper.netzMinenListe(),
+    sniperMines: Sniper.networkMineList(),
     // Felssegmente (Fels-Level): Hoehe und Profil als Text
-    fels: Fels.netzListe(),
-    gleveWellen: arrays.gleveWellen.map(w => ({
+    rock: Rock.networkList(),
+    gleveWaves: arrays.gleveWaves.map(w => ({
       id: w.id,
       x: w.x,
       y: w.y,
-      breite: w.breite,
+      width: w.width,
       owner: w.owner,
     })),
-    hackProjektile: arrays.hackProjektilArray.map(hp => ({
+    hackProjectiles: arrays.hackProjectileArray.map(hp => ({
       id: hp.id,
       x: hp.x,
       y: hp.y,
-      ...harmlosFlag(hp),
+      ...harmlessFlag(hp),
     })),
-    feindLaser: arrays.feindLaserArray.map(fl => ({
+    enemyLaser: arrays.enemyLaserArray.map(fl => ({
       id: fl.id,
       x: fl.x,
       y: fl.y,
       vx: fl.vx || 0,
       vy: fl.vy || 7,
       ...(fl.spore ? { spore: true } : {}),
-      ...harmlosFlag(fl),
+      ...harmlessFlag(fl),
     })),
     bossLaser: arrays.bossLaserArray.map(bl => ({
       id: bl.id,
@@ -1002,9 +990,9 @@ export function serializeGameState() {
       vy: bl.vy || 6,
       width: bl.width || 8,
       height: bl.height || 25,
-      ...harmlosFlag(bl),
+      ...harmlessFlag(bl),
     })),
-    bossRaketen: arrays.bossRaketenArray.map(br => ({
+    bossMissiles: arrays.bossMissileArray.map(br => ({
       id: br.id,
       x: br.x,
       y: br.y,
@@ -1012,11 +1000,11 @@ export function serializeGameState() {
       vy: br.vy || 2,
       rot: (Math.atan2(br.vy || 2, br.vx || 0) * 180) / Math.PI + 90,
     })),
-    bossBomben: arrays.bossBombenArray.map(bb => ({
+    bossBombs: arrays.bossBombArray.map(bb => ({
       id: bb.id,
       x: bb.x,
       y: bb.y,
-      groesse: bb.groesse || 26,
+      size: bb.size || 26,
     })),
     powerups: arrays.powerups.map(p => ({
       id: p.id,
@@ -1031,109 +1019,101 @@ export function serializeGameState() {
 
 // Gleicht eine Client-Liste per id mit den Snapshot-Daten ab: bestehende Elemente werden
 // wiederverwendet und aktualisiert, neue erzeugt, verschwundene entfernt.
-function synchronisiereListe(liste, datenListe, erzeuge, aktualisiere) {
-  if (!datenListe) return;
-  const vorhanden = new Map();
-  liste.forEach(obj => {
-    if (obj.id !== undefined) vorhanden.set(obj.id, obj);
+function syncList(list, payloadList, create, update) {
+  if (!payloadList) return;
+  const present = new Map();
+  list.forEach(obj => {
+    if (obj.id !== undefined) present.set(obj.id, obj);
   });
-  const neueListe = [];
-  datenListe.forEach(daten => {
-    const obj = vorhanden.get(daten.id);
+  const newList = [];
+  payloadList.forEach(payload => {
+    const obj = present.get(payload.id);
     if (obj) {
-      vorhanden.delete(daten.id);
-      aktualisiere(obj, daten);
-      neueListe.push(obj);
+      present.delete(payload.id);
+      update(obj, payload);
+      newList.push(obj);
     } else {
-      neueListe.push(erzeuge(daten));
+      newList.push(create(payload));
     }
   });
-  liste.forEach(obj => {
-    if (obj.id === undefined || vorhanden.get(obj.id) === obj) {
-      Anzeige.entferne(obj);
+  list.forEach(obj => {
+    if (obj.id === undefined || present.get(obj.id) === obj) {
+      Display.remove(obj);
     }
   });
-  liste.length = 0;
-  neueListe.forEach(obj => liste.push(obj));
+  list.length = 0;
+  newList.forEach(obj => list.push(obj));
 }
 
 // Betaeubung (Sniper-Granate) aus dem Snapshot uebernehmen (die Anzeige zeigt betaeubt > 0)
-function zeigeBetaeubung(obj, daten) {
-  obj.betaeubt = daten.betaeubt > 0 ? daten.betaeubt : 0;
+function showStun(obj, payload) {
+  obj.stunned = payload.stunned > 0 ? payload.stunned : 0;
 }
 
 // Von der Gleve weggeschleudert: orange einfaerben und in Flugrichtung drehen (einmalig)
-function uebernehmeHarmlos(obj, daten) {
-  if (!daten.harmlos || obj.harmlos) return;
-  obj.harmlos = true;
-  Gleve.zeigePariert(obj, daten.vx, daten.vy);
+function applyHarmless(obj, payload) {
+  if (!payload.harmless || obj.harmless) return;
+  obj.harmless = true;
+  Gleve.showParried(obj, payload.vx, payload.vy);
 }
 
 // Max-Cooldown fuer den Raketen-HUD-Balken (Gleve: Dash-Cooldown)
-function maxRaketenCooldown(s) {
-  if (Gleve.istGleve(s)) return Gleve.dashCooldown(s);
-  if (Sniper.istSniper(s)) return Sniper.granatenCooldown(s);
-  if (s.raketenStufe >= 4) return 120;
-  if (s.raketenStufe >= 2) return 150;
+function maxMissileCooldown(s) {
+  if (Gleve.isGleve(s)) return Gleve.dashCooldown(s);
+  if (Sniper.isSniper(s)) return Sniper.grenadeCooldown(s);
+  if (s.missileTier >= 4) return 120;
+  if (s.missileTier >= 2) return 150;
   return 180;
 }
 
 // Ab welcher Energie die Primaerwaffe bereit ist (Gleve: Sweep-Kosten), fuer die Balkenfarbe
-function zuendSchwelle(s) {
-  return Gleve.istGleve(s) ? Gleve.sweepKosten(s) : s.minZuendEnergie || 15;
+function fuseThreshold(s) {
+  return Gleve.isGleve(s) ? Gleve.sweepCost(s) : s.minFuseEnergy || 15;
 }
 
 // Waffenstufen und HUD-Flags eines Spielers aus dem Snapshot uebernehmen (fehlende Stufen bleiben)
-function uebernehmeWaffenStufen(ziel, daten) {
-  if (daten.laserStufe !== undefined) ziel.laserStufe = daten.laserStufe;
-  if (daten.raketenStufe !== undefined) ziel.raketenStufe = daten.raketenStufe;
-  if (daten.bombenStufe !== undefined) ziel.bombenStufe = daten.bombenStufe;
-  ziel.laserDurchschlag = Boolean(daten.laserDurchschlag);
-  ziel.autolaserAktiv = Boolean(daten.autolaserAktiv);
+function applyWeaponTiers(target, payload) {
+  if (payload.laserTier !== undefined) target.laserTier = payload.laserTier;
+  if (payload.missileTier !== undefined) target.missileTier = payload.missileTier;
+  if (payload.bombTier !== undefined) target.bombTier = payload.bombTier;
+  target.laserPierce = Boolean(payload.laserPierce);
+  target.autolaserActive = Boolean(payload.autolaserActive);
   // Viper-Splitter und Phantom-Schildladung (fehlende Werte bleiben)
-  if (daten.splitterRot !== undefined) ziel.splitterRot = daten.splitterRot;
-  if (daten.splitterWeiss !== undefined) ziel.splitterWeiss = daten.splitterWeiss;
-  if (daten.phantomSchildRegenTimer !== undefined) ziel.phantomSchildRegenTimer = daten.phantomSchildRegenTimer;
-  if (daten.phantomSchildRegenMax !== undefined) ziel.phantomSchildRegenMax = daten.phantomSchildRegenMax;
+  if (payload.splitterRed !== undefined) target.splitterRed = payload.splitterRed;
+  if (payload.splitterWhite !== undefined) target.splitterWhite = payload.splitterWhite;
+  if (payload.phantomShieldRegenTimer !== undefined) target.phantomShieldRegenTimer = payload.phantomShieldRegenTimer;
+  if (payload.phantomShieldRegenMax !== undefined) target.phantomShieldRegenMax = payload.phantomShieldRegenMax;
 }
 
 // Alles, was das Powerup-HUD anzeigt; nur bei Aenderung neu zeichnen.
 // Die Phantom-Schildladung zeichnet der Host alle 6 Schritte neu, der Client ebenso grob.
-function hudSignatur(s) {
-  const ladung = Math.floor((s.phantomSchildRegenTimer || 0) / 6);
-  return [
-    s.laserStufe,
-    s.raketenStufe,
-    s.bombenStufe,
-    s.laserDurchschlag,
-    s.schildStufe,
-    s.autolaserAktiv,
-    ladung,
-  ].join('|');
+function hudSignature(s) {
+  const charge = Math.floor((s.phantomShieldRegenTimer || 0) / 6);
+  return [s.laserTier, s.missileTier, s.bombTier, s.laserPierce, s.shieldTier, s.autolaserActive, charge].join('|');
 }
-function splitterSignatur(s) {
-  return [s.splitterRot || 0, s.splitterWeiss || 0, s.selectedShipModel].join('|');
+function splitterSignature(s) {
+  return [s.splitterRed || 0, s.splitterWhite || 0, s.selectedShipModel].join('|');
 }
-let letzteHudSignaturP1 = null;
-let letzteHudSignaturP2 = null;
-let letzteSplitterSignaturP1 = null;
-let letzteSplitterSignaturP2 = null;
+let lastHudSignatureP1 = null;
+let lastHudSignatureP2 = null;
+let lastSplitterSignatureP1 = null;
+let lastSplitterSignatureP2 = null;
 
 export function applyGameStateSnapshot(snapshot) {
   if (!snapshot) return;
 
-  const spielfeld = dom.spielfeld || document.getElementById('spielfeld');
-  if (!spielfeld) return;
+  const playfield = dom.playfield || document.getElementById('spielfeld');
+  if (!playfield) return;
 
-  snapshotEmpfangen();
+  snapshotReceived();
 
   // 0. Boss-Warnung des Hosts anzeigen (Alarm nur beim Einblenden)
   if (dom.warningOverlay) {
-    const warnungAngezeigt = dom.warningOverlay.style.display === 'flex';
-    if (snapshot.bossWarningAktiv && !warnungAngezeigt) {
+    const warningShown = dom.warningOverlay.style.display === 'flex';
+    if (snapshot.bossWarningActive && !warningShown) {
       dom.warningOverlay.style.display = 'flex';
       Audio.playBossAlert();
-    } else if (!snapshot.bossWarningAktiv && warnungAngezeigt) {
+    } else if (!snapshot.bossWarningActive && warningShown) {
       dom.warningOverlay.style.display = 'none';
     }
   }
@@ -1142,131 +1122,131 @@ export function applyGameStateSnapshot(snapshot) {
   if (snapshot.p1) {
     state.x = snapshot.p1.x;
     state.y = snapshot.p1.y;
-    state.leben = snapshot.p1.leben;
-    state.energie = snapshot.p1.energie;
-    state.maxEnergie = snapshot.p1.maxEnergie || state.maxEnergie;
-    state.schildStufe = snapshot.p1.schildStufe || 0;
-    uebernehmeWaffenStufen(state, snapshot.p1);
+    state.lives = snapshot.p1.lives;
+    state.energy = snapshot.p1.energy;
+    state.maxEnergy = snapshot.p1.maxEnergy || state.maxEnergy;
+    state.shieldTier = snapshot.p1.shieldTier || 0;
+    applyWeaponTiers(state, snapshot.p1);
     state.isDead = snapshot.p1.isDead || false;
     state.hacks = snapshot.p1.hacks || [];
     // Gleve des Hosts: Dash/Abprall/Sweep nur darstellen (clientSchritt zeichnet)
-    Gleve.uebernehmeSnapshot(state, snapshot.p1, false);
-    Viper.uebernehmeSnapshot(state, snapshot.p1, false);
-    Sniper.uebernehmeSnapshot(state, snapshot.p1, 'p1', false);
+    Gleve.applySnapshot(state, snapshot.p1, false);
+    Viper.applySnapshot(state, snapshot.p1, false);
+    Sniper.applySnapshot(state, snapshot.p1, 'p1', false);
 
-    setzeInterpolationsZiel(p1Anzeige, state.x, state.y);
-    uebernehmeP1Anzeige();
-    state.schiffSichtbar = !state.isDead;
-    state.drehung = snapshot.p1.rotate || 0;
+    setInterpolationTarget(p1Display, state.x, state.y);
+    applyP1Display();
+    state.shipVisible = !state.isDead;
+    state.rotation = snapshot.p1.rotate || 0;
 
-    if (dom.energieBalken) {
-      dom.energieBalken.style.width = (state.energie / (state.absMaxEnergie || 100)) * 100 + '%';
-      if (state.unbegrenzteEnergie) {
-        dom.energieBalken.style.backgroundColor = '#f1c40f';
+    if (dom.energyBar) {
+      dom.energyBar.style.width = (state.energy / (state.absMaxEnergy || 100)) * 100 + '%';
+      if (state.unlimitedEnergy) {
+        dom.energyBar.style.backgroundColor = '#f1c40f';
       } else {
-        dom.energieBalken.style.backgroundColor =
-          state.energie < zuendSchwelle(state) && !state.laserSchiesst ? '#e67e22' : '#1abc9c';
+        dom.energyBar.style.backgroundColor =
+          state.energy < fuseThreshold(state) && !state.laserShoots ? '#e67e22' : '#1abc9c';
       }
     }
-    if (snapshot.p1.raketenCooldown !== undefined) {
-      state.raketenCooldown = snapshot.p1.raketenCooldown;
-      const raketenCdBalken = document.getElementById('raketen-cd-balken');
-      if (raketenCdBalken) {
-        const maxRaketenCd = maxRaketenCooldown(state);
-        let pctR = Math.max(0, 100 - (state.raketenCooldown / maxRaketenCd) * 100);
-        raketenCdBalken.style.width = pctR + '%';
-        raketenCdBalken.style.backgroundColor = state.raketenCooldown <= 0 ? '#2ecc71' : '#e74c3c';
+    if (snapshot.p1.missileCooldown !== undefined) {
+      state.missileCooldown = snapshot.p1.missileCooldown;
+      const missileCdBar = document.getElementById('raketen-cd-balken');
+      if (missileCdBar) {
+        const maxMissileCd = maxMissileCooldown(state);
+        let pctR = Math.max(0, 100 - (state.missileCooldown / maxMissileCd) * 100);
+        missileCdBar.style.width = pctR + '%';
+        missileCdBar.style.backgroundColor = state.missileCooldown <= 0 ? '#2ecc71' : '#e74c3c';
       }
-      if (Gleve.istGleve(state) && snapshot.p1.gleveDashLadungen !== undefined) {
-        state.gleveDashLadungen = snapshot.p1.gleveDashLadungen;
-        Gleve.zeigeDashHud('p1', state);
+      if (Gleve.isGleve(state) && snapshot.p1.gleveDashCharges !== undefined) {
+        state.gleveDashCharges = snapshot.p1.gleveDashCharges;
+        Gleve.showDashHud('p1', state);
       }
-      if (Sniper.istSniper(state) && snapshot.p1.sniperGranatenLadungen !== undefined) {
-        state.sniperGranatenLadungen = snapshot.p1.sniperGranatenLadungen;
-        Sniper.zeigeGranatenHud('p1', state);
-      }
-    }
-    if (snapshot.p1.bombenCooldown !== undefined) {
-      state.bombenCooldown = snapshot.p1.bombenCooldown;
-      const bombenCdBalken = document.getElementById('bomben-cd-balken');
-      if (bombenCdBalken) {
-        let maxBombenCd = 2400 - (state.bombenStufe || 1) * 240;
-        let pctB = Math.max(0, 100 - (state.bombenCooldown / maxBombenCd) * 100);
-        bombenCdBalken.style.width = pctB + '%';
-        bombenCdBalken.style.backgroundColor = state.bombenCooldown <= 0 ? '#2ecc71' : '#f39c12';
+      if (Sniper.isSniper(state) && snapshot.p1.sniperGrenadeCharges !== undefined) {
+        state.sniperGrenadeCharges = snapshot.p1.sniperGrenadeCharges;
+        Sniper.showGrenadeHud('p1', state);
       }
     }
-    const sigP1 = hudSignatur(state);
-    if (sigP1 !== letzteHudSignaturP1) {
-      letzteHudSignaturP1 = sigP1;
-      Utils.updateAktivePowerupsUI();
+    if (snapshot.p1.bombCooldown !== undefined) {
+      state.bombCooldown = snapshot.p1.bombCooldown;
+      const bombCdBar = document.getElementById('bomben-cd-balken');
+      if (bombCdBar) {
+        let maxBombCd = 2400 - (state.bombTier || 1) * 240;
+        let pctB = Math.max(0, 100 - (state.bombCooldown / maxBombCd) * 100);
+        bombCdBar.style.width = pctB + '%';
+        bombCdBar.style.backgroundColor = state.bombCooldown <= 0 ? '#2ecc71' : '#f39c12';
+      }
     }
-    const splitterP1 = splitterSignatur(state);
-    if (splitterP1 !== letzteSplitterSignaturP1) {
-      letzteSplitterSignaturP1 = splitterP1;
+    const sigP1 = hudSignature(state);
+    if (sigP1 !== lastHudSignatureP1) {
+      lastHudSignatureP1 = sigP1;
+      Utils.updateActivePowerupsUi();
+    }
+    const splitterP1 = splitterSignature(state);
+    if (splitterP1 !== lastSplitterSignatureP1) {
+      lastSplitterSignatureP1 = splitterP1;
       Utils.updateSplitterUI();
     }
   }
 
   // 2. Sync P2 stats
   if (snapshot.p2 && state.p2) {
-    state.p2.leben = snapshot.p2.leben;
+    state.p2.lives = snapshot.p2.lives;
     state.p2.hacks = snapshot.p2.hacks || [];
-    state.p2.energie = snapshot.p2.energie;
-    state.p2.maxEnergie = snapshot.p2.maxEnergie || state.p2.maxEnergie;
-    state.p2.schildStufe = snapshot.p2.schildStufe || 0;
-    uebernehmeWaffenStufen(state.p2, snapshot.p2);
+    state.p2.energy = snapshot.p2.energy;
+    state.p2.maxEnergy = snapshot.p2.maxEnergy || state.p2.maxEnergy;
+    state.p2.shieldTier = snapshot.p2.shieldTier || 0;
+    applyWeaponTiers(state.p2, snapshot.p2);
     state.p2.isDead = snapshot.p2.isDead || false;
     // Eigene Gleve: Dash sagt client.js voraus, Abprall und Sweep kommen vom Host
-    Gleve.uebernehmeSnapshot(state.p2, snapshot.p2, true);
-    Viper.uebernehmeSnapshot(state.p2, snapshot.p2, true);
-    Sniper.uebernehmeSnapshot(state.p2, snapshot.p2, 'p2', true);
+    Gleve.applySnapshot(state.p2, snapshot.p2, true);
+    Viper.applySnapshot(state.p2, snapshot.p2, true);
+    Sniper.applySnapshot(state.p2, snapshot.p2, 'p2', true);
 
-    state.p2.schiffSichtbar = !state.p2.isDead;
+    state.p2.shipVisible = !state.p2.isDead;
 
-    if (dom.energieBalkenP2) {
-      dom.energieBalkenP2.style.width = (state.p2.energie / (state.p2.absMaxEnergie || 100)) * 100 + '%';
-      dom.energieBalkenP2.style.backgroundColor =
-        state.p2.energie < zuendSchwelle(state.p2) && !state.p2.laserSchiesst ? '#e67e22' : '#3498db';
+    if (dom.energyBarP2) {
+      dom.energyBarP2.style.width = (state.p2.energy / (state.p2.absMaxEnergy || 100)) * 100 + '%';
+      dom.energyBarP2.style.backgroundColor =
+        state.p2.energy < fuseThreshold(state.p2) && !state.p2.laserShoots ? '#e67e22' : '#3498db';
     }
-    if (snapshot.p2.raketenCooldown !== undefined) {
-      state.p2.raketenCooldown = snapshot.p2.raketenCooldown;
-      const raketenCdBalkenP2 = document.getElementById('raketen-cd-balken-p2');
-      if (raketenCdBalkenP2) {
-        const maxRaketenCd = maxRaketenCooldown(state.p2);
-        let pctR = Math.max(0, 100 - (state.p2.raketenCooldown / maxRaketenCd) * 100);
-        raketenCdBalkenP2.style.width = pctR + '%';
-        raketenCdBalkenP2.style.backgroundColor = state.p2.raketenCooldown <= 0 ? '#2ecc71' : '#e74c3c';
+    if (snapshot.p2.missileCooldown !== undefined) {
+      state.p2.missileCooldown = snapshot.p2.missileCooldown;
+      const missileCdBarP2 = document.getElementById('raketen-cd-balken-p2');
+      if (missileCdBarP2) {
+        const maxMissileCd = maxMissileCooldown(state.p2);
+        let pctR = Math.max(0, 100 - (state.p2.missileCooldown / maxMissileCd) * 100);
+        missileCdBarP2.style.width = pctR + '%';
+        missileCdBarP2.style.backgroundColor = state.p2.missileCooldown <= 0 ? '#2ecc71' : '#e74c3c';
       }
-      if (Gleve.istGleve(state.p2) && snapshot.p2.gleveDashLadungen !== undefined) {
-        state.p2.gleveDashLadungen = snapshot.p2.gleveDashLadungen;
-        Gleve.zeigeDashHud('p2', state.p2);
+      if (Gleve.isGleve(state.p2) && snapshot.p2.gleveDashCharges !== undefined) {
+        state.p2.gleveDashCharges = snapshot.p2.gleveDashCharges;
+        Gleve.showDashHud('p2', state.p2);
       }
-      if (Sniper.istSniper(state.p2) && snapshot.p2.sniperGranatenLadungen !== undefined) {
-        state.p2.sniperGranatenLadungen = snapshot.p2.sniperGranatenLadungen;
-        Sniper.zeigeGranatenHud('p2', state.p2);
-      }
-    }
-    if (snapshot.p2.bombenCooldown !== undefined) {
-      state.p2.bombenCooldown = snapshot.p2.bombenCooldown;
-      const bombenCdBalkenP2 = document.getElementById('bomben-cd-balken-p2');
-      if (bombenCdBalkenP2) {
-        let maxBombenCd = 2400 - (state.p2.bombenStufe || 1) * 240;
-        let pctB = Math.max(0, 100 - (state.p2.bombenCooldown / maxBombenCd) * 100);
-        bombenCdBalkenP2.style.width = pctB + '%';
-        bombenCdBalkenP2.style.backgroundColor = state.p2.bombenCooldown <= 0 ? '#2ecc71' : '#f39c12';
+      if (Sniper.isSniper(state.p2) && snapshot.p2.sniperGrenadeCharges !== undefined) {
+        state.p2.sniperGrenadeCharges = snapshot.p2.sniperGrenadeCharges;
+        Sniper.showGrenadeHud('p2', state.p2);
       }
     }
-    Utils.updateLebenP2UI();
-    Utils.updateMaxEnergieMarkerP2();
-    const sigP2 = hudSignatur(state.p2);
-    if (sigP2 !== letzteHudSignaturP2) {
-      letzteHudSignaturP2 = sigP2;
-      Utils.updateAktivePowerupsP2UI();
+    if (snapshot.p2.bombCooldown !== undefined) {
+      state.p2.bombCooldown = snapshot.p2.bombCooldown;
+      const bombCdBarP2 = document.getElementById('bomben-cd-balken-p2');
+      if (bombCdBarP2) {
+        let maxBombCd = 2400 - (state.p2.bombTier || 1) * 240;
+        let pctB = Math.max(0, 100 - (state.p2.bombCooldown / maxBombCd) * 100);
+        bombCdBarP2.style.width = pctB + '%';
+        bombCdBarP2.style.backgroundColor = state.p2.bombCooldown <= 0 ? '#2ecc71' : '#f39c12';
+      }
     }
-    const splitterP2 = splitterSignatur(state.p2);
-    if (splitterP2 !== letzteSplitterSignaturP2) {
-      letzteSplitterSignaturP2 = splitterP2;
+    Utils.updateLivesP2Ui();
+    Utils.updateMaxEnergyMarkerP2();
+    const sigP2 = hudSignature(state.p2);
+    if (sigP2 !== lastHudSignatureP2) {
+      lastHudSignatureP2 = sigP2;
+      Utils.updateActivePowerupsP2Ui();
+    }
+    const splitterP2 = splitterSignature(state.p2);
+    if (splitterP2 !== lastSplitterSignatureP2) {
+      lastSplitterSignatureP2 = splitterP2;
       Utils.updateSplitterP2UI();
     }
   }
@@ -1274,8 +1254,8 @@ export function applyGameStateSnapshot(snapshot) {
   // 3. HUD (Score, Level, Boss-HP)
   if (snapshot.score !== undefined) {
     state.score = snapshot.score;
-    if (dom.scoreAnzeige) {
-      dom.scoreAnzeige.textContent = String(state.score).padStart(5, '0');
+    if (dom.scoreDisplay) {
+      dom.scoreDisplay.textContent = String(state.score).padStart(5, '0');
     }
   }
 
@@ -1284,121 +1264,119 @@ export function applyGameStateSnapshot(snapshot) {
     Utils.updateLevelUI();
   }
 
-  Utils.updateLebenUI();
-  Utils.updateMaxEnergieMarker();
+  Utils.updateLivesUi();
+  Utils.updateMaxEnergyMarker();
 
   // 4. Boss HP
   if (snapshot.bosses && snapshot.bosses.length > 0) {
-    state.bossAktiv = true;
+    state.bossActive = true;
     // Summe ueber alle Bossteile (ein Boss: dessen HP)
     const b = snapshot.bosses[0];
     const hp = snapshot.bosses.reduce((s, t) => s + t.hp, 0);
     const maxHp = snapshot.bosses.reduce((s, t) => s + (t.maxHp || 400), 0);
     if (dom.bossHpContainer) dom.bossHpContainer.style.display = 'block';
-    if (dom.bossHpBalken) {
+    if (dom.bossHpBar) {
       const pct = Math.max(0, Math.min(100, (hp / maxHp) * 100));
-      dom.bossHpBalken.style.width = pct + '%';
-      dom.bossHpBalken.style.backgroundColor = b.enrage ? '#e74c3c' : '#e67e22';
+      dom.bossHpBar.style.width = pct + '%';
+      dom.bossHpBar.style.backgroundColor = b.enrage ? '#e74c3c' : '#e67e22';
     }
   } else {
-    state.bossAktiv = false;
+    state.bossActive = false;
     if (dom.bossHpContainer) dom.bossHpContainer.style.display = 'none';
   }
 
   // 5. Replicate Enemies with full SVGs
-  if (snapshot.feinde) {
+  if (snapshot.enemies) {
     const currentIds = new Set();
-    snapshot.feinde.forEach(fData => {
+    snapshot.enemies.forEach(fData => {
       currentIds.add(fData.id);
-      let existing = arrays.feinde.find(f => f.id === fData.id);
+      let existing = arrays.enemies.find(f => f.id === fData.id);
       if (!existing) {
-        const muster = fData.muster || 'normal';
-        existing = Anzeige.erzeuge(
+        const pattern = fData.pattern || 'normal';
+        existing = Display.create(
           {
             id: fData.id,
             x: fData.x,
             y: fData.y,
             hp: fData.hp,
             maxHp: fData.maxHp,
-            groesse: fData.groesse || 30,
+            size: fData.size || 30,
             typ: fData.typ || 1,
-            muster,
-            hatSchild: fData.hatSchild || false,
-            schildHp: fData.schildHp || 0,
-            farbe: Entities.getFeindColor(muster),
+            pattern,
+            hasShield: fData.hasShield || false,
+            shieldHp: fData.shieldHp || 0,
+            color: Entities.getEnemyColor(pattern),
             ...(typeof fData.rot === 'number' ? { rot: fData.rot } : {}),
-            ...(fData.offen !== undefined ? { offen: !!fData.offen } : {}),
+            ...(fData.open !== undefined ? { open: !!fData.open } : {}),
           },
-          'feind',
+          'enemy',
         );
-        setzeInterpolationsZiel(existing, fData.x, fData.y);
-        arrays.feinde.push(existing);
+        setInterpolationTarget(existing, fData.x, fData.y);
+        arrays.enemies.push(existing);
       } else {
         existing.x = fData.x;
         existing.y = fData.y;
         existing.hp = fData.hp;
-        existing.schildHp = fData.schildHp || 0;
+        existing.shieldHp = fData.shieldHp || 0;
         if (typeof fData.rot === 'number') existing.rot = fData.rot;
-        if (fData.offen !== undefined) existing.offen = !!fData.offen;
-        setzeInterpolationsZiel(existing, fData.x, fData.y);
+        if (fData.open !== undefined) existing.open = !!fData.open;
+        setInterpolationTarget(existing, fData.x, fData.y);
       }
-      zeigeBetaeubung(existing, fData);
+      showStun(existing, fData);
     });
-    for (let i = arrays.feinde.length - 1; i >= 0; i--) {
-      if (!currentIds.has(arrays.feinde[i].id)) {
-        Anzeige.entferne(arrays.feinde[i]);
-        arrays.feinde.splice(i, 1);
+    for (let i = arrays.enemies.length - 1; i >= 0; i--) {
+      if (!currentIds.has(arrays.enemies[i].id)) {
+        Display.remove(arrays.enemies[i]);
+        arrays.enemies.splice(i, 1);
       }
     }
   }
 
   // 6. Replicate Asteroids with clipPath & styles
-  if (snapshot.asteroiden) {
+  if (snapshot.asteroids) {
     const currentIds = new Set();
-    snapshot.asteroiden.forEach(aData => {
+    snapshot.asteroids.forEach(aData => {
       currentIds.add(aData.id);
-      let existing = arrays.asteroiden.find(a => a.id === aData.id);
+      let existing = arrays.asteroids.find(a => a.id === aData.id);
       if (!existing) {
         // Fehlende Optikdaten (aeltere Snapshots in Tests) mit den Grundfarben auffuellen
-        const grund = aData.istMagma
-          ? config.magmaBasisFarben[0]
-          : { a: config.asteroidenBasisFarben[0], b: '#2c3e50' };
-        existing = Anzeige.erzeuge(
+        const reason = aData.isMagma ? config.magmaBasisColors[0] : { a: config.asteroidsBasisColors[0], b: '#2c3e50' };
+        existing = Display.create(
           {
             id: aData.id,
             x: aData.x,
             y: aData.y,
-            groesse: aData.groesse || 30,
-            istMagma: aData.istMagma,
-            istUnzerstoerbar: aData.istUnzerstoerbar,
-            traegtPowerup: aData.traegtPowerup,
-            farbe: aData.farbe || grund.a,
-            farbe2: aData.farbe2 || grund.b,
-            form: aData.form ? Entities.formAusText(aData.form) : Entities.generiereAsteroidForm(),
-            riss: aData.riss || 0,
+            size: aData.size || 30,
+            isMagma: aData.isMagma,
+            isIndestructible: aData.isIndestructible,
+            carriesPowerup: aData.carriesPowerup,
+            color: aData.color || reason.a,
+            color2: aData.color2 || reason.b,
+            form: aData.form ? Entities.formFromText(aData.form) : Entities.generateAsteroidForm(),
+            crack: aData.crack || 0,
             hp: aData.hp,
             maxHp: aData.maxHp,
             rot: aData.rot || 0,
           },
           'asteroid',
         );
-        setzeInterpolationsZiel(existing, aData.x, aData.y);
-        arrays.asteroiden.push(existing);
+        setInterpolationTarget(existing, aData.x, aData.y);
+        arrays.asteroids.push(existing);
       } else {
         existing.x = aData.x;
         existing.y = aData.y;
         existing.hp = aData.hp;
         existing.maxHp = aData.maxHp;
-        setzeInterpolationsZiel(existing, aData.x, aData.y);
+        setInterpolationTarget(existing, aData.x, aData.y);
         if (aData.rot) existing.rot = aData.rot;
-        existing.istUnzerstoerbar = aData.istUnzerstoerbar;
-        existing.traegtPowerup = aData.traegtPowerup;
+        existing.isIndestructible = aData.isIndestructible;
+        existing.carriesPowerup = aData.carriesPowerup;
       }
     });
-    for (let i = arrays.asteroiden.length - 1; i >= 0; i--) {
-      if (!currentIds.has(arrays.asteroiden[i].id)) {
-        Anzeige.entferne(arrays.asteroiden[i]);
-        arrays.asteroiden.splice(i, 1);
+    for (let i = arrays.asteroids.length - 1; i >= 0; i--) {
+      if (!currentIds.has(arrays.asteroids[i].id)) {
+        Display.remove(arrays.asteroids[i]);
+        arrays.asteroids.splice(i, 1);
       }
     }
   }
@@ -1410,46 +1388,46 @@ export function applyGameStateSnapshot(snapshot) {
       currentIds.add(bData.id);
       let existing = arrays.bosses.find(b => b.id === bData.id);
       if (!existing) {
-        existing = Anzeige.erzeuge(
+        existing = Display.create(
           {
             id: bData.id,
             x: bData.x,
             y: bData.y,
             hp: bData.hp,
             maxHp: bData.maxHp,
-            groesse: bData.groesse || 100,
+            size: bData.size || 100,
             typ: bData.typ || 1,
             bossTyp: bData.typ || 1,
-            leuchtFarbe: Entities.getBossColor(state.level),
-            ...(bData.offen !== undefined ? { offen: !!bData.offen } : {}),
+            glowColor: Entities.getBossColor(state.level),
+            ...(bData.open !== undefined ? { open: !!bData.open } : {}),
           },
           'boss',
         );
-        setzeInterpolationsZiel(existing, bData.x, bData.y);
+        setInterpolationTarget(existing, bData.x, bData.y);
         arrays.bosses.push(existing);
       } else {
         existing.x = bData.x;
         existing.y = bData.y;
         existing.hp = bData.hp;
-        if (bData.offen !== undefined) existing.offen = !!bData.offen;
-        setzeInterpolationsZiel(existing, bData.x, bData.y);
+        if (bData.open !== undefined) existing.open = !!bData.open;
+        setInterpolationTarget(existing, bData.x, bData.y);
       }
-      zeigeBetaeubung(existing, bData);
+      showStun(existing, bData);
     });
     for (let i = arrays.bosses.length - 1; i >= 0; i--) {
       if (!currentIds.has(arrays.bosses[i].id)) {
-        Anzeige.entferne(arrays.bosses[i]);
+        Display.remove(arrays.bosses[i]);
         arrays.bosses.splice(i, 1);
       }
     }
   }
 
   // 8. Replicate Lasers
-  synchronisiereListe(
+  syncList(
     arrays.laserArray,
     snapshot.laser,
     lData => {
-      return Anzeige.erzeuge(
+      return Display.create(
         {
           id: lData.id,
           x: lData.x,
@@ -1458,7 +1436,7 @@ export function applyGameStateSnapshot(snapshot) {
           vy: lData.vy || 15,
           width: lData.width || 4,
           height: lData.height || 20,
-          farbe: lData.color || (lData.owner === 'p2' ? '#3498db' : '#00ffff'),
+          color: lData.color || (lData.owner === 'p2' ? '#3498db' : '#00ffff'),
           rot: lData.vx ? (Math.atan2(-15, lData.vx) * 180) / Math.PI + 90 : undefined,
           owner: lData.owner,
         },
@@ -1475,27 +1453,27 @@ export function applyGameStateSnapshot(snapshot) {
   );
 
   // 9. Replicate Rockets
-  synchronisiereListe(
-    arrays.raketenArray,
-    snapshot.raketen,
+  syncList(
+    arrays.missileArray,
+    snapshot.missiles,
     rData => {
-      return Anzeige.erzeuge(
+      return Display.create(
         {
           id: rData.id,
           x: rData.x,
           y: rData.y,
           rot: rData.rot || 0,
           owner: rData.owner,
-          stufe: rData.stufe || 1,
+          tier: rData.tier || 1,
           homing: rData.homing || false,
           snapX: rData.x,
           snapY: rData.y,
         },
-        'rakete',
+        'missile',
       );
     },
     (obj, rData) => {
-      leiteGeschwindigkeitAb(obj, rData.x, rData.y);
+      deriveSpeed(obj, rData.x, rData.y);
       obj.x = rData.x;
       obj.y = rData.y;
       obj.rot = rData.rot || 0;
@@ -1503,27 +1481,27 @@ export function applyGameStateSnapshot(snapshot) {
   );
 
   // 10. Replicate Bombs
-  synchronisiereListe(
-    arrays.bombenArray,
-    snapshot.bomben,
+  syncList(
+    arrays.bombArray,
+    snapshot.bombs,
     bData => {
-      return Anzeige.erzeuge(
+      return Display.create(
         {
           id: bData.id,
           x: bData.x,
           y: bData.y,
           rot: bData.rot || 0,
           owner: bData.owner,
-          stufe: bData.stufe || 1,
+          tier: bData.tier || 1,
           isMini: bData.isMini || false,
           snapX: bData.x,
           snapY: bData.y,
         },
-        'bombe',
+        'bomb',
       );
     },
     (obj, bData) => {
-      leiteGeschwindigkeitAb(obj, bData.x, bData.y);
+      deriveSpeed(obj, bData.x, bData.y);
       obj.x = bData.x;
       obj.y = bData.y;
       obj.rot = bData.rot || 0;
@@ -1531,22 +1509,22 @@ export function applyGameStateSnapshot(snapshot) {
   );
 
   // Klingenwellen der Gleve (keine Extrapolation, kommen mit jedem Snapshot)
-  synchronisiereListe(
-    arrays.gleveWellen,
-    snapshot.gleveWellen,
+  syncList(
+    arrays.gleveWaves,
+    snapshot.gleveWaves,
     wData => {
-      return Anzeige.erzeuge(
+      return Display.create(
         {
           id: wData.id,
           x: wData.x,
           y: wData.y,
           startY: wData.y,
-          breite: wData.breite,
-          hoehe: Gleve.WELLE_HOEHE,
+          width: wData.width,
+          height: Gleve.WAVE_HEIGHT,
           owner: wData.owner,
-          farbe: Gleve.welleFarbe(wData.owner),
+          color: Gleve.waveColor(wData.owner),
         },
-        'gleveWelle',
+        'gleveWave',
       );
     },
     (obj, wData) => {
@@ -1556,16 +1534,16 @@ export function applyGameStateSnapshot(snapshot) {
   );
 
   // Granaten des Sniper-Hosts/-Clients im Flug
-  Sniper.synchronisiereGranaten(snapshot.sniperGranaten);
-  Sniper.synchronisiereMinen(snapshot.sniperMinen);
-  Fels.synchronisiere(snapshot.fels);
+  Sniper.syncGrenades(snapshot.sniperGrenades);
+  Sniper.syncMines(snapshot.sniperMines);
+  Rock.sync(snapshot.rock);
 
   // 11. Replicate Enemy Lasers
-  synchronisiereListe(
-    arrays.feindLaserArray,
-    snapshot.feindLaser,
+  syncList(
+    arrays.enemyLaserArray,
+    snapshot.enemyLaser,
     flData => {
-      const obj = Anzeige.erzeuge(
+      const obj = Display.create(
         {
           id: flData.id,
           x: flData.x,
@@ -1575,9 +1553,9 @@ export function applyGameStateSnapshot(snapshot) {
           rot: flData.vx ? (Math.atan2(flData.vy || 7, flData.vx) * 180) / Math.PI - 90 : undefined,
           ...(flData.spore ? { spore: true, width: 10, height: 10 } : {}),
         },
-        'feindLaser',
+        'enemyLaser',
       );
-      uebernehmeHarmlos(obj, flData);
+      applyHarmless(obj, flData);
       return obj;
     },
     (obj, flData) => {
@@ -1586,16 +1564,16 @@ export function applyGameStateSnapshot(snapshot) {
       obj.vx = flData.vx;
       obj.vy = flData.vy;
       if (flData.vx && flData.vx !== 0) obj.rot = (Math.atan2(flData.vy || 7, flData.vx) * 180) / Math.PI - 90;
-      uebernehmeHarmlos(obj, flData);
+      applyHarmless(obj, flData);
     },
   );
 
   // 11b. Replicate Hack-Projektile
-  synchronisiereListe(
-    arrays.hackProjektilArray,
-    snapshot.hackProjektile,
+  syncList(
+    arrays.hackProjectileArray,
+    snapshot.hackProjectiles,
     hpData => {
-      const obj = Anzeige.erzeuge(
+      const obj = Display.create(
         {
           id: hpData.id,
           x: hpData.x,
@@ -1607,25 +1585,25 @@ export function applyGameStateSnapshot(snapshot) {
           snapX: hpData.x,
           snapY: hpData.y,
         },
-        'hackProjektil',
+        'hackProjectile',
       );
-      uebernehmeHarmlos(obj, hpData);
+      applyHarmless(obj, hpData);
       return obj;
     },
     (obj, hpData) => {
-      leiteGeschwindigkeitAb(obj, hpData.x, hpData.y);
+      deriveSpeed(obj, hpData.x, hpData.y);
       obj.x = hpData.x;
       obj.y = hpData.y;
-      uebernehmeHarmlos(obj, hpData);
+      applyHarmless(obj, hpData);
     },
   );
 
   // 12. Replicate Boss Lasers
-  synchronisiereListe(
+  syncList(
     arrays.bossLaserArray,
     snapshot.bossLaser,
     blData => {
-      const obj = Anzeige.erzeuge(
+      const obj = Display.create(
         {
           id: blData.id,
           x: blData.x,
@@ -1636,7 +1614,7 @@ export function applyGameStateSnapshot(snapshot) {
         },
         'bossLaser',
       );
-      uebernehmeHarmlos(obj, blData);
+      applyHarmless(obj, blData);
       return obj;
     },
     (obj, blData) => {
@@ -1645,16 +1623,16 @@ export function applyGameStateSnapshot(snapshot) {
       obj.vx = blData.vx;
       obj.vy = blData.vy;
       if (blData.vx && blData.vx !== 0) obj.rot = (Math.atan2(blData.vy || 6, blData.vx) * 180) / Math.PI - 90;
-      uebernehmeHarmlos(obj, blData);
+      applyHarmless(obj, blData);
     },
   );
 
   // 13. Replicate Boss Rockets
-  synchronisiereListe(
-    arrays.bossRaketenArray,
-    snapshot.bossRaketen,
+  syncList(
+    arrays.bossMissileArray,
+    snapshot.bossMissiles,
     brData => {
-      return Anzeige.erzeuge(
+      return Display.create(
         {
           id: brData.id,
           x: brData.x,
@@ -1663,7 +1641,7 @@ export function applyGameStateSnapshot(snapshot) {
           vy: brData.vy || 0,
           rot: brData.rot || 0,
         },
-        'bossRakete',
+        'bossMissile',
       );
     },
     (obj, brData) => {
@@ -1676,24 +1654,24 @@ export function applyGameStateSnapshot(snapshot) {
   );
 
   // 14. Replicate Boss Bombs
-  synchronisiereListe(
-    arrays.bossBombenArray,
-    snapshot.bossBomben,
+  syncList(
+    arrays.bossBombArray,
+    snapshot.bossBombs,
     bbData => {
-      return Anzeige.erzeuge(
+      return Display.create(
         {
           id: bbData.id,
           x: bbData.x,
           y: bbData.y,
-          groesse: bbData.groesse || 26,
+          size: bbData.size || 26,
           snapX: bbData.x,
           snapY: bbData.y,
         },
-        'bossBombe',
+        'bossBomb',
       );
     },
     (obj, bbData) => {
-      leiteGeschwindigkeitAb(obj, bbData.x, bbData.y);
+      deriveSpeed(obj, bbData.x, bbData.y);
       obj.x = bbData.x;
       obj.y = bbData.y;
     },
@@ -1706,55 +1684,57 @@ export function applyGameStateSnapshot(snapshot) {
       currentIds.add(pData.id);
       let existing = arrays.powerups.find(p => p.id === pData.id);
       if (!existing) {
-        existing = Anzeige.erzeuge(
+        existing = Display.create(
           {
             id: pData.id,
             x: pData.x,
             y: pData.y,
-            groesse: 24,
+            size: 24,
             type: pData.type,
-            farbe: Entities.powerupFarbe(pData.type),
+            color: Entities.powerupColor(pData.type),
             owner: pData.owner,
             towedBy: null,
           },
           'powerup',
         );
-        setzeInterpolationsZiel(existing, pData.x, pData.y);
+        setInterpolationTarget(existing, pData.x, pData.y);
         arrays.powerups.push(existing);
       } else {
         existing.x = pData.x;
         existing.y = pData.y;
-        setzeInterpolationsZiel(existing, pData.x, pData.y);
+        setInterpolationTarget(existing, pData.x, pData.y);
       }
       // Schlepp-Zustand des Hosts uebernehmen; Strahl-Start setzt clientSchritt, zeichnen tut die Anzeige
       existing.towedBy = pData.towedBy || null;
     });
     for (let i = arrays.powerups.length - 1; i >= 0; i--) {
       if (!currentIds.has(arrays.powerups[i].id)) {
-        Anzeige.entferne(arrays.powerups[i]);
+        Display.remove(arrays.powerups[i]);
         arrays.powerups.splice(i, 1);
       }
     }
   }
 
   // Uebernommene Positionen sofort zeigen (zwischen den Snapshots zeichnet simulationsSchritt)
-  Anzeige.zeichneWelt();
+  Display.drawWorld();
 }
 
 export function serializePlayerInput() {
-  const keys = state.tastenGedrueckt;
+  const keys = state.keysPressed;
   // Sniper: Lade-Knopf (Handy) zaehlt wie die Laser-Taste; der Joystick feuert dagegen Normalschuesse ohne Laden (auto)
-  const sniper = state.p2 && Sniper.istSniper(state.p2);
-  const isLaser = Boolean(keys.l || keys.b || (sniper && state.sniperLadeKnopf));
-  const sniperAuto = Boolean(sniper && state.joystick && state.joystick.feuert && !state.sniperLadeKnopf && !keys.b);
-  const isRakete = Boolean(keys.k || keys.v);
-  const isBombe = Boolean(keys[' '] || keys.c || keys.enter);
+  const sniper = state.p2 && Sniper.isSniper(state.p2);
+  const isLaser = Boolean(keys.l || keys.b || (sniper && state.sniperChargingButton));
+  const sniperAuto = Boolean(
+    sniper && state.joystick && state.joystick.fires && !state.sniperChargingButton && !keys.b,
+  );
+  const isMissile = Boolean(keys.k || keys.v);
+  const isBomb = Boolean(keys[' '] || keys.c || keys.enter);
   // Gleve: Steuerrichtung fuer den Dash; waehrend des vorhergesagten Dashs Startposition und Dash-Richtung
   const gleve =
-    state.p2 && Gleve.istGleve(state.p2) ? Gleve.netzEingabe(state.p2, state.p2.clientSteuerRichtung) : null;
+    state.p2 && Gleve.isGleve(state.p2) ? Gleve.networkInput(state.p2, state.p2.clientControlDirection) : null;
 
   // Viper: im Startschritt der Rolle Startposition und Richtung (ro), der Host rollt von dort aus
-  const viper = state.p2 && Viper.istViper(state.p2) ? Viper.netzEingabe(state.p2) : null;
+  const viper = state.p2 && Viper.isViper(state.p2) ? Viper.networkInput(state.p2) : null;
   const start = gleve || viper;
 
   return {
@@ -1764,8 +1744,8 @@ export function serializePlayerInput() {
     ...(viper ? { ro: viper.ro } : {}),
     rotate: state.p2 ? state.p2.rotate || 0 : state.rotate || 0,
     laser: isLaser,
-    rakete: isRakete,
-    bombe: isBombe,
+    missile: isMissile,
+    bomb: isBomb,
     ...(sniperAuto ? { auto: true } : {}),
   };
 }
@@ -1776,53 +1756,53 @@ export function applyPlayerInput(input) {
   // Client-Werte nicht vertrauen: nur endliche Zahlen, begrenzt auf das Spielfeld.
   // Waehrend Gleve-Dash/-Abprall bewegt der Host das Schiff selbst (Treffer und Abprall sind Host-Sache).
   // Dasselbe gilt fuer die Viper-Rolle (laeuft oder ist angefragt, aber noch nicht gestartet).
-  const dashAktiv =
-    (Gleve.istGleve(state.p2) && Gleve.istDashAktiv(state.p2)) ||
-    (Viper.istViper(state.p2) && (Viper.istRolleAktiv(state.p2) || Boolean(state.p2.netzRolleAnfrage)));
-  if (Number.isFinite(input.x) && !dashAktiv) {
-    state.p2.x = Math.min(Math.max(input.x, 0), config.spielfeldBreite - config.spielerGroesse);
+  const dashActive =
+    (Gleve.isGleve(state.p2) && Gleve.isDashActive(state.p2)) ||
+    (Viper.isViper(state.p2) && (Viper.isRollActive(state.p2) || Boolean(state.p2.networkRollRequest)));
+  if (Number.isFinite(input.x) && !dashActive) {
+    state.p2.x = Math.min(Math.max(input.x, 0), config.playfieldWidth - config.playerSize);
   }
-  if (Number.isFinite(input.y) && !dashAktiv) {
-    state.p2.y = Math.min(Math.max(input.y, 0), config.spielfeldHoehe - config.spielerGroesse);
+  if (Number.isFinite(input.y) && !dashActive) {
+    state.p2.y = Math.min(Math.max(input.y, 0), config.playfieldHeight - config.playerSize);
   }
   state.p2.rotate = input.rotate || 0;
 
   // Gleve: Dash-Richtung des Clients (Betrag hoechstens 1)
   if (Number.isFinite(input.rx) && Number.isFinite(input.ry)) {
-    const laenge = Math.hypot(input.rx, input.ry);
-    const f = laenge > 1 ? 1 / laenge : 1;
-    state.p2.netzRichtung = { dx: input.rx * f, dy: input.ry * f };
+    const length = Math.hypot(input.rx, input.ry);
+    const f = length > 1 ? 1 / length : 1;
+    state.p2.networkDirection = { dx: input.rx * f, dy: input.ry * f };
   }
 
   // Viper: Client meldet den Start seiner Rolle (Richtung -1/+1); der Host prueft den Cooldown selbst
-  if ((input.ro === 1 || input.ro === -1) && Viper.istViper(state.p2)) state.p2.netzRolleAnfrage = input.ro;
+  if ((input.ro === 1 || input.ro === -1) && Viper.isViper(state.p2)) state.p2.networkRollRequest = input.ro;
 
   if (input.laser !== undefined) {
     // Sniper: neuer Druck bleibt gemerkt, auch wenn das Loslassen im selben Host-Schritt ankommt (kurzer Tipp = ein Schuss)
-    if (input.laser && !state.p2.laserInputRequested && Sniper.istSniper(state.p2)) state.p2.netzLaserAnfrage = true;
+    if (input.laser && !state.p2.laserInputRequested && Sniper.isSniper(state.p2)) state.p2.networkLaserRequest = true;
     state.p2.laserInputRequested = Boolean(input.laser);
   }
   state.p2.sniperAutoInput = Boolean(input.auto);
 
   // Gehaltene Tasten gelten bis zum naechsten Paket (waffen.js feuert damit wie bei
   // einem true in jedem Schritt); ein kurzer Druck bleibt wie bisher bis zum Schuss gemerkt
-  if (input.rakete !== undefined) {
+  if (input.missile !== undefined) {
     // Neuer Druck bleibt fuer den Gleve-Dash gemerkt, auch wenn das Loslassen im selben Host-Schritt ankommt
-    if (input.rakete && !state.p2.raketeGehalten) {
-      state.p2.netzDashAnfrage = true;
-      state.p2.netzGranatenAnfrage = true; // Sniper: kurzer Tipp geht nicht verloren
+    if (input.missile && !state.p2.missileHeld) {
+      state.p2.networkDashRequest = true;
+      state.p2.networkGrenadeRequest = true; // Sniper: kurzer Tipp geht nicht verloren
     }
-    state.p2.raketeGehalten = Boolean(input.rakete);
+    state.p2.missileHeld = Boolean(input.missile);
   }
-  if (input.bombe !== undefined) state.p2.bombeGehalten = Boolean(input.bombe);
+  if (input.bomb !== undefined) state.p2.bombHeld = Boolean(input.bomb);
 
-  if (input.rakete && !Sniper.istSniper(state.p2)) {
-    state.p2.networkFireRakete = true;
-  }
-
-  if (input.bombe) {
-    state.p2.networkFireBombe = true;
+  if (input.missile && !Sniper.isSniper(state.p2)) {
+    state.p2.networkFireMissile = true;
   }
 
-  state.p2.drehung = state.p2.rotate;
+  if (input.bomb) {
+    state.p2.networkFireBomb = true;
+  }
+
+  state.p2.rotation = state.p2.rotate;
 }

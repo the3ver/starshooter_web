@@ -2,7 +2,7 @@ import { state, dom, config, arrays, shipModels } from './state.js';
 import * as Utils from './utils.js';
 import * as Audio from './audio.js';
 import * as Network from './network.js';
-import * as Anzeige from './anzeige.js';
+import * as Display from './anzeige.js';
 
 let cutsceneContainer = null;
 let cutsceneAnimationId = null;
@@ -31,7 +31,7 @@ function clearAllTimers() {
   }
 }
 
-export function getFreighterSVG() {
+export function getFreighterSvg() {
   return `
       <!-- Main armored hull -->
       <rect x="6" y="6" width="36" height="22" rx="4" fill="#34495e" stroke="#2c3e50" stroke-width="1.5"/>
@@ -50,7 +50,7 @@ export function getFreighterSVG() {
     `;
 }
 
-export function getHospitalShipSVG() {
+export function getHospitalShipSvg() {
   return `
       <!-- Medical Hull -->
       <path d="M6 10 Q24 4 44 10 L48 15 L44 20 Q24 26 6 20 Z" fill="#ecf0f1" stroke="#bdc3c7" stroke-width="1.5"/>
@@ -67,7 +67,7 @@ export function getHospitalShipSVG() {
     `;
 }
 
-export function getDestroyerSVG() {
+export function getDestroyerSvg() {
   return `
       <!-- Heavy Destroyer Battle Prow & Hull -->
       <path d="M6 9 L40 5 L64 16 L40 27 L6 23 Z" fill="#2c3e50" stroke="#1a252f" stroke-width="1.5"/>
@@ -88,7 +88,7 @@ export function getDestroyerSVG() {
     `;
 }
 
-export function getEscortFighterSVG() {
+export function getEscortFighterSvg() {
   return `
       <!-- Sleek Wingman Fighter -->
       <path d="M22 12 L4 2 L8 12 L4 22 Z" fill="#2980b9"/>
@@ -104,7 +104,7 @@ export function startCutscene(callback) {
   onCompleteCallback = callback;
 
   // Ab Spielstart gilt die Breite des gewaehlten Modus (im Menue bleibt sie fest)
-  Utils.wendeSpielfeldBreiteAn(state.gameMode);
+  Utils.applyPlayfieldWidth(state.gameMode);
 
   try {
     if (typeof window !== 'undefined' && localStorage.getItem('starshooter_skip_cutscene') === 'true') {
@@ -114,24 +114,24 @@ export function startCutscene(callback) {
   } catch (e) {}
 
   cutsceneActive = true;
-  state.cutsceneAktiv = true;
-  state.spielLaeuft = false;
+  state.cutsceneActive = true;
+  state.gameRunning = false;
 
-  const spielfeld = dom.spielfeld || document.getElementById('spielfeld');
-  if (!spielfeld) return;
+  const playfield = dom.playfield || document.getElementById('spielfeld');
+  if (!playfield) return;
 
-  state.schiffSichtbar = false;
-  Anzeige.zeichneSpieler();
+  state.shipVisible = false;
+  Display.drawPlayer();
   const orphanSelectors =
     '.boss-rakete, .boss-bombe, .boss-laser, .feind-laser, .laser, .rakete, .bombe, .powerup, .feind, .asteroid, .boss, .partikel, .werfer-abgeworfen, .shockwave, .schockwelle, .cutscene-fireball, .cutscene-shockwave, .cutscene-debris';
-  spielfeld.querySelectorAll(orphanSelectors).forEach(el => el.remove());
+  playfield.querySelectorAll(orphanSelectors).forEach(el => el.remove());
 
   // Cutscene DOM Container
   cutsceneContainer = document.getElementById('cutscene-container');
   if (!cutsceneContainer) {
     cutsceneContainer = document.createElement('div');
     cutsceneContainer.id = 'cutscene-container';
-    spielfeld.appendChild(cutsceneContainer);
+    playfield.appendChild(cutsceneContainer);
   }
   cutsceneContainer.innerHTML = '';
   cutsceneContainer.style.display = 'block';
@@ -233,25 +233,25 @@ export function startCutscene(callback) {
   const targetOffset = isCoop ? 80 : 0;
 
   // 1. Destroyer (Center-Rear / Heavy)
-  createShipElement('destroyer', 'ship-destroyer', 66, 32, -190, 110 + targetOffset, 250, getDestroyerSVG());
+  createShipElement('destroyer', 'ship-destroyer', 66, 32, -190, 110 + targetOffset, 250, getDestroyerSvg());
 
   // 2. Freighter (Upper Convoy)
-  createShipElement('freighter', 'ship-freighter', 54, 34, -140, 160 + targetOffset, 155, getFreighterSVG());
+  createShipElement('freighter', 'ship-freighter', 54, 34, -140, 160 + targetOffset, 155, getFreighterSvg());
 
   // 3. Hospital Ship (Lower Convoy)
-  createShipElement('hospital', 'ship-hospital', 50, 30, -150, 150 + targetOffset, 345, getHospitalShipSVG());
+  createShipElement('hospital', 'ship-hospital', 50, 30, -150, 150 + targetOffset, 345, getHospitalShipSvg());
 
   // 4. Escort Fighter 1 (Top flank)
-  createShipElement('escort', 'ship-escort', 24, 24, -90, 220 + targetOffset, 95, getEscortFighterSVG());
+  createShipElement('escort', 'ship-escort', 24, 24, -90, 220 + targetOffset, 95, getEscortFighterSvg());
 
   // 5. Escort Fighter 2 (Bottom flank)
-  createShipElement('escort', 'ship-escort', 24, 24, -100, 210 + targetOffset, 415, getEscortFighterSVG());
+  createShipElement('escort', 'ship-escort', 24, 24, -100, 210 + targetOffset, 415, getEscortFighterSvg());
 
   // Player Ships (Center Escort/Lead position)
   const playerShips = [];
   const playerModel = state.selectedShipModel || 'viper';
   const playerColor = state.selectedShipColor || 'red';
-  const playerSvg = Utils.getShipSVGContent(playerModel, playerColor);
+  const playerSvg = Utils.getShipSvgContent(playerModel, playerColor);
 
   if (isCoop) {
     // Spieler 1 (Upper Center Lead)
@@ -271,7 +271,7 @@ export function startCutscene(callback) {
     // Spieler 2 (Lower Center Lead)
     const p2Model = (state.p2 && state.p2.selectedShipModel) || 'phantom';
     const p2Color = (state.p2 && state.p2.selectedShipColor) || 'blue';
-    const p2Svg = Utils.getShipSVGContent(p2Model, p2Color);
+    const p2Svg = Utils.getShipSvgContent(p2Model, p2Color);
     const p2Ship = createShipElement(
       'player',
       'ship-player ship-player-p2',
@@ -320,14 +320,14 @@ export function startCutscene(callback) {
     });
 
     // Fast horizontal star movement simulates high-speed camera tracking alongside convoy
-    arrays.sterne.forEach(stern => {
-      stern.x -= stern.speed * 2.5 * (dt / 16.6);
-      if (stern.x < -10) {
-        stern.x = config.spielfeldBreite + 10;
-        stern.y = Math.random() * config.spielfeldHoehe;
+    arrays.stars.forEach(star => {
+      star.x -= star.speed * 2.5 * (dt / 16.6);
+      if (star.x < -10) {
+        star.x = config.playfieldWidth + 10;
+        star.y = Math.random() * config.playfieldHeight;
       }
-      stern.el.style.left = stern.x + 'px';
-      stern.el.style.top = stern.y + 'px';
+      star.el.style.left = star.x + 'px';
+      star.el.style.top = star.y + 'px';
     });
 
     // Update cutscene flying debris fragments
@@ -444,8 +444,8 @@ export function startCutscene(callback) {
     Audio.playLightBeamWhoosh();
 
     // Screen subtle flash
-    if (dom.spielfeld) {
-      dom.spielfeld.style.boxShadow = 'inset 0 0 50px rgba(52, 152, 219, 0.6)';
+    if (dom.playfield) {
+      dom.playfield.style.boxShadow = 'inset 0 0 50px rgba(52, 152, 219, 0.6)';
     }
 
     // Rotate player ships upwards
@@ -483,7 +483,7 @@ export function startCutscene(callback) {
 
         // Boost particles
         for (let i = 0; i < 15; i++) {
-          Utils.erzeugeAntriebsRauch(pShip.x + 15, pShip.y + 30, 4);
+          Utils.createDriveSmoke(pShip.x + 15, pShip.y + 30, 4);
         }
       });
     }, 1300);
@@ -582,7 +582,7 @@ function fireInvisibleCannonAt(ship) {
   // Red/purple heavy tracer blast line
   const tracer = document.createElement('div');
   tracer.className = 'cutscene-cannon-blast';
-  const startX = Math.random() < 0.5 ? -30 : config.spielfeldBreite + 30;
+  const startX = Math.random() < 0.5 ? -30 : config.playfieldWidth + 30;
   const startY = Math.random() * 200;
   tracer.style.left = `${startX}px`;
   tracer.style.top = `${startY}px`;
@@ -640,9 +640,9 @@ function fireInvisibleCannonAt(ship) {
       }
 
       // Screen shake
-      if (dom.spielfeld) {
-        dom.spielfeld.classList.add('screen-shake');
-        setTimeout(() => dom.spielfeld.classList.remove('screen-shake'), 300);
+      if (dom.playfield) {
+        dom.playfield.classList.add('screen-shake');
+        setTimeout(() => dom.playfield.classList.remove('screen-shake'), 300);
       }
 
       setTimeout(() => ship.el.remove(), 100);
@@ -661,12 +661,12 @@ export function skipCutscene(isRemote = false) {
 function endCutsceneAndStartGame(instant = false) {
   clearAllTimers();
   cutsceneActive = false;
-  state.cutsceneAktiv = false;
+  state.cutsceneActive = false;
 
   // Reset styles
-  if (dom.spielfeld) {
-    dom.spielfeld.style.boxShadow = '';
-    dom.spielfeld.classList.remove('screen-shake');
+  if (dom.playfield) {
+    dom.playfield.style.boxShadow = '';
+    dom.playfield.classList.remove('screen-shake');
   }
 
   // Clean up cutscene DOM container
@@ -676,7 +676,7 @@ function endCutsceneAndStartGame(instant = false) {
   }
 
   // Handover to actual game
-  state.spielLaeuft = true;
+  state.gameRunning = true;
   let startScreen = document.getElementById('start-screen');
   if (startScreen) startScreen.style.display = 'none';
   Utils.updateMobileControlsVisibility();
@@ -687,26 +687,26 @@ function endCutsceneAndStartGame(instant = false) {
   // Apply ship model perks
   const currentShip = shipModels && shipModels[state.selectedShipModel || 'viper'];
   if (currentShip && currentShip.startShield > 0) {
-    state.schildStufe = currentShip.startShield;
-    Utils.updateAktivePowerupsUI();
+    state.shieldTier = currentShip.startShield;
+    Utils.updateActivePowerupsUi();
   }
 
   state.isDead = false;
   state.x = isCoop ? 200 : 185;
-  state.schiffSichtbar = true;
-  state.drehung = 0;
+  state.shipVisible = true;
+  state.rotation = 0;
 
   // P2 Setup
-  if (isCoop && dom.spieler2 && state.p2) {
+  if (isCoop && dom.player2 && state.p2) {
     state.p2.isDead = false;
     const p2Ship = shipModels && shipModels[state.p2.selectedShipModel || 'phantom'];
     if (p2Ship && p2Ship.startShield > 0) {
-      state.p2.schildStufe = p2Ship.startShield;
+      state.p2.shieldTier = p2Ship.startShield;
     }
     state.p2.x = 370;
-    state.p2.y = instant ? 285 : config.spielfeldHoehe + 40;
-    state.p2.schiffSichtbar = true;
-    state.p2.drehung = 0;
+    state.p2.y = instant ? 285 : config.playfieldHeight + 40;
+    state.p2.shipVisible = true;
+    state.p2.rotation = 0;
 
     const tagP1 = /** @type {HTMLElement} */ (document.querySelector('.tag-p1'));
     if (tagP1) tagP1.style.display = 'block';
@@ -714,7 +714,7 @@ function endCutsceneAndStartGame(instant = false) {
     if (dom.uiContainerP2) dom.uiContainerP2.style.display = 'flex';
     Utils.updateP2UI();
   } else {
-    if (state.p2) state.p2.schiffSichtbar = false;
+    if (state.p2) state.p2.shipVisible = false;
     if (dom.uiContainerP2) dom.uiContainerP2.style.display = 'none';
     const tagP1 = /** @type {HTMLElement} */ (document.querySelector('.tag-p1'));
     if (tagP1) tagP1.style.display = 'none';
@@ -722,21 +722,21 @@ function endCutsceneAndStartGame(instant = false) {
 
   if (instant) {
     state.y = 285;
-    if (isCoop && state.p2 && dom.spieler2) {
+    if (isCoop && state.p2 && dom.player2) {
       state.p2.y = 285;
     }
   } else {
     // Smooth entry: Player ship enters from bottom into play position
-    state.y = config.spielfeldHoehe + 40;
-    if (isCoop && state.p2 && dom.spieler2) {
-      state.p2.y = config.spielfeldHoehe + 40;
+    state.y = config.playfieldHeight + 40;
+    if (isCoop && state.p2 && dom.player2) {
+      state.p2.y = config.playfieldHeight + 40;
     }
 
-    let entryY = config.spielfeldHoehe + 40;
+    let entryY = config.playfieldHeight + 40;
     const targetY = 285;
     let flyInLastTime = null;
     function flyInStep(time) {
-      if (!state.spielLaeuft || state.gameOverAktiv) return;
+      if (!state.gameRunning || state.gameOverActive) return;
       if (entryY > targetY) {
         // Zeitbasiert: 6px pro 16.6ms, unabhaengig von der Bildrate
         const dt = flyInLastTime === null ? 16.6 : Math.max(0, Math.min(32, time - flyInLastTime));
@@ -744,10 +744,10 @@ function endCutsceneAndStartGame(instant = false) {
         entryY -= 6 * (dt / 16.6);
         if (entryY < targetY) entryY = targetY;
         state.y = entryY;
-        Utils.erzeugeAntriebsRauch(state.x + 15, state.y + 30, 2);
-        if (isCoop && state.p2 && dom.spieler2 && !state.p2.isDead) {
+        Utils.createDriveSmoke(state.x + 15, state.y + 30, 2);
+        if (isCoop && state.p2 && dom.player2 && !state.p2.isDead) {
           state.p2.y = entryY;
-          Utils.erzeugeAntriebsRauch(state.p2.x + 15, state.p2.y + 30, 2);
+          Utils.createDriveSmoke(state.p2.x + 15, state.p2.y + 30, 2);
         }
         requestAnimationFrame(flyInStep);
       }
@@ -755,17 +755,17 @@ function endCutsceneAndStartGame(instant = false) {
     requestAnimationFrame(flyInStep);
   }
 
-  Anzeige.zeichneSpieler();
+  Display.drawPlayer();
 
   // Clear initial keypresses
-  state.tastenGedrueckt[' '] = false;
-  state.tastenGedrueckt.k = false;
-  state.tastenGedrueckt.l = false;
-  state.tastenGedrueckt.b = false;
-  state.tastenGedrueckt.v = false;
-  state.tastenGedrueckt.c = false;
-  state.tastenGedrueckt.ä = false;
-  state.tastenGedrueckt.ö = false;
+  state.keysPressed[' '] = false;
+  state.keysPressed.k = false;
+  state.keysPressed.l = false;
+  state.keysPressed.b = false;
+  state.keysPressed.v = false;
+  state.keysPressed.c = false;
+  state.keysPressed.ä = false;
+  state.keysPressed.ö = false;
 
   if (typeof onCompleteCallback === 'function') {
     onCompleteCallback();

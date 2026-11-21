@@ -1,5 +1,5 @@
 const { test, expect } = require('@playwright/test');
-const { setzeSpielstand, installiereUhr, haltUhrAn } = require('./helfer');
+const { setGameState, installClock, pauseClock } = require('./helfer');
 
 const TRYSTERO_URL = 'https://cdn.jsdelivr.net/npm/@trystero-p2p/torrent/+esm';
 const ICE_SERVERS = [
@@ -19,20 +19,20 @@ export function joinRoom(config, id) {
   };
 }`;
 
-const HALLO_OK = "window.__game.Network.handleNetworkEvent({ type: 'hallo', protokoll: window.__protokoll }, 'peer')";
+const HELLO_OK = "window.__game.Network.handleNetworkEvent({ type: 'hallo', protocol: window.__protocol }, 'peer')";
 
 // Ein Tor, das ein Test von Node aus oeffnet (haelt Antworten an, bis die Phase geprueft ist)
-function tor() {
-  let oeffne;
-  const offen = new Promise(r => {
-    oeffne = r;
+function gate() {
+  let openUp;
+  const open = new Promise(r => {
+    openUp = r;
   });
-  return { offen, oeffne };
+  return { open, openUp };
 }
 
-async function routen(page, { turnStatus = 503, turnTor = null, modulTor = null } = {}) {
+async function routes(page, { turnStatus = 503, turnGate = null, moduleGate = null } = {}) {
   await page.route('**/api/turn*', async route => {
-    if (turnTor) await turnTor.offen;
+    if (turnGate) await turnGate.open;
     if (turnStatus === 200) {
       await route.fulfill({
         status: 200,
@@ -45,7 +45,7 @@ async function routen(page, { turnStatus = 503, turnTor = null, modulTor = null 
     }
   });
   await page.route(TRYSTERO_URL, async route => {
-    if (modulTor) await modulTor.offen;
+    if (moduleGate) await moduleGate.open;
     await route.fulfill({
       status: 200,
       contentType: 'application/javascript',
@@ -58,22 +58,22 @@ async function routen(page, { turnStatus = 503, turnTor = null, modulTor = null 
 // mitClock: Fake-Uhr angehalten, Seitenzeit vergeht nur per page.clock.fastForward.
 // Die Wartezeit-Anzeige rechnet mit Date.now() und einem 1-s-Intervall; fastForward springt die Uhr
 // und feuert das faellige Intervall einmal, ohne jeden Frame des Spiel-Loops einzeln zu simulieren.
-async function starte(page, { mitClock = false } = {}) {
-  if (mitClock) await installiereUhr(page);
+async function start(page, { withClock = false } = {}) {
+  if (withClock) await installClock(page);
   await page.goto('/');
   await page.waitForFunction(() => window.__game && window.__game.state, null, { polling: 50 });
   await page.evaluate(async () => {
-    window.__protokoll = (await import('./js/netzkodierung.js')).PROTOKOLL_VERSION;
+    window.__protocol = (await import('./js/netzkodierung.js')).PROTOCOL_VERSION;
   });
-  if (mitClock) await haltUhrAn(page);
+  if (withClock) await pauseClock(page);
 }
 
-const phase = page => page.evaluate(() => window.__game.state.network.verbindungsPhase);
-const verlauf = page => page.evaluate(() => window.__game.state.network.verbindungsVerlauf);
+const phase = page => page.evaluate(() => window.__game.state.network.connectionPhase);
+const history = page => page.evaluate(() => window.__game.state.network.connectionHistory);
 const statusText = page => page.evaluate(() => document.getElementById('online-status').textContent);
 
-async function warteAufPhase(page, nummer) {
-  await expect.poll(() => phase(page)).toBe(nummer);
+async function waitOnPhase(page, number) {
+  await expect.poll(() => phase(page)).toBe(number);
 }
 
 test.beforeEach(async ({ page }) => {
@@ -84,28 +84,28 @@ test.beforeEach(async ({ page }) => {
       body: JSON.stringify({ success: true, mode: 'single', highscores: [] }),
     }),
   );
-  await setzeSpielstand(page);
+  await setGameState(page);
 });
 
 test('Host: Phasen 1 bis 5 erscheinen der Reihe nach, Raum-Code bleibt in Schritt 3 sichtbar', async ({ page }) => {
-  const turnTor = tor();
-  const modulTor = tor();
-  await routen(page, { turnTor, modulTor });
-  await starte(page);
+  const turnGate = gate();
+  const moduleGate = gate();
+  await routes(page, { turnGate, moduleGate });
+  await start(page);
 
   await page.evaluate(() => {
-    window.__hostLauf = window.__game.Network.hostRoom('ABCDE');
+    window.__hostRun = window.__game.Network.hostRoom('ABCDE');
   });
-  await warteAufPhase(page, 1);
+  await waitOnPhase(page, 1);
   expect(await statusText(page)).toContain('1/5 VERBINDUNGSDATEN HOLEN');
 
-  turnTor.oeffne();
-  await warteAufPhase(page, 2);
+  turnGate.openUp();
+  await waitOnPhase(page, 2);
   expect(await statusText(page)).toContain('2/5 NETZWERK-MODUL LADEN');
   expect(await statusText(page)).toContain('ohne TURN');
 
-  modulTor.oeffne();
-  await warteAufPhase(page, 3);
+  moduleGate.openUp();
+  await waitOnPhase(page, 3);
   const text3 = await statusText(page);
   expect(text3).toContain('3/5 RAUM ABCDE GEÖFFNET, WARTE AUF MITSPIELER (0:00)');
   expect(text3).toContain('RAUM-CODE: ABCDE');
@@ -114,74 +114,74 @@ test('Host: Phasen 1 bis 5 erscheinen der Reihe nach, Raum-Code bleibt in Schrit
   expect(await phase(page)).toBe(4);
   expect(await statusText(page)).toContain('4/5 MITSPIELER VERBUNDEN, VERSIONEN ABGLEICHEN');
 
-  await page.evaluate(HALLO_OK);
+  await page.evaluate(HELLO_OK);
   expect(await phase(page)).toBe(5);
   expect(await statusText(page)).toContain('5/5 BEREIT, SPIEL STARTET');
-  expect(await verlauf(page)).toEqual([1, 2, 3, 4, 5]);
+  expect(await history(page)).toEqual([1, 2, 3, 4, 5]);
   // Fortschrittsbalken: 5 Segmente, alle gefuellt
   expect(await page.locator('#online-status .vp-balken span').count()).toBe(5);
   expect(await page.locator('#online-status .vp-balken span.aktiv').count()).toBe(5);
 });
 
 test('Client: Phasen 1 bis 5 mit "Suche Host" in Schritt 3', async ({ page }) => {
-  const turnTor = tor();
-  const modulTor = tor();
-  await routen(page, { turnTor, modulTor });
-  await starte(page);
+  const turnGate = gate();
+  const moduleGate = gate();
+  await routes(page, { turnGate, moduleGate });
+  await start(page);
 
   await page.evaluate(() => {
-    window.__clientLauf = window.__game.Network.joinOnlineRoom('fghjk');
+    window.__clientRun = window.__game.Network.joinOnlineRoom('fghjk');
   });
-  await warteAufPhase(page, 1);
+  await waitOnPhase(page, 1);
   expect(await statusText(page)).toContain('1/5 VERBINDUNGSDATEN HOLEN');
   expect(await statusText(page)).toContain('VERBINDE MIT RAUM FGHJK');
 
-  turnTor.oeffne();
-  await warteAufPhase(page, 2);
-  modulTor.oeffne();
-  await warteAufPhase(page, 3);
+  turnGate.openUp();
+  await waitOnPhase(page, 2);
+  moduleGate.openUp();
+  await waitOnPhase(page, 3);
   expect(await statusText(page)).toContain('3/5 SUCHE HOST IN RAUM FGHJK (0:00)');
 
   await page.evaluate(() => window.__peerJoin('host1'));
   expect(await phase(page)).toBe(4);
   expect(await statusText(page)).toContain('4/5 MITSPIELER VERBUNDEN, VERSIONEN ABGLEICHEN');
 
-  await page.evaluate(HALLO_OK);
+  await page.evaluate(HELLO_OK);
   expect(await phase(page)).toBe(5);
   expect(await statusText(page)).toContain('5/5 BEREIT, SPIEL STARTET');
-  expect(await verlauf(page)).toEqual([1, 2, 3, 4, 5]);
+  expect(await history(page)).toEqual([1, 2, 3, 4, 5]);
 });
 
 test('Host: Wartezeit zaehlt hoch, nur der Netzwerk-Hinweis erscheint nach 45 s', async ({ page }) => {
-  await routen(page);
-  await starte(page, { mitClock: true });
+  await routes(page);
+  await start(page, { withClock: true });
   await page.evaluate(() => {
     window.__game.Network.hostRoom('ABCDE');
   });
-  await warteAufPhase(page, 3);
+  await waitOnPhase(page, 3);
 
   await page.clock.fastForward(12000);
   expect(await statusText(page)).toContain('(0:12)');
   await page.clock.fastForward(10000);
   expect(await statusText(page)).toContain('(0:22)');
-  const nach22 = await statusText(page);
-  expect(nach22).not.toContain('Raum-Code prüfen');
-  expect(nach22).not.toContain('Manche Netzwerke');
+  const after22 = await statusText(page);
+  expect(after22).not.toContain('Raum-Code prüfen');
+  expect(after22).not.toContain('Manche Netzwerke');
 
   await page.clock.fastForward(25000);
-  const nach47 = await statusText(page);
-  expect(nach47).toContain('(0:47)');
-  expect(nach47).toContain('Manche Netzwerke blockieren direkte Verbindungen. Ggf. anderes Netz versuchen');
-  expect(nach47).not.toContain('Raum-Code prüfen');
+  const after47 = await statusText(page);
+  expect(after47).toContain('(0:47)');
+  expect(after47).toContain('Manche Netzwerke blockieren direkte Verbindungen. Ggf. anderes Netz versuchen');
+  expect(after47).not.toContain('Raum-Code prüfen');
 });
 
 test('Client: Hinweis zum Raum-Code nach 20 s, Netzwerk-Hinweis nach 45 s', async ({ page }) => {
-  await routen(page);
-  await starte(page, { mitClock: true });
+  await routes(page);
+  await start(page, { withClock: true });
   await page.evaluate(() => {
     window.__game.Network.joinOnlineRoom('FGHJK');
   });
-  await warteAufPhase(page, 3);
+  await waitOnPhase(page, 3);
 
   await page.clock.fastForward(19000);
   let text = await statusText(page);
@@ -202,33 +202,33 @@ test('Client: Hinweis zum Raum-Code nach 20 s, Netzwerk-Hinweis nach 45 s', asyn
 });
 
 test('TURN-Detail: "ohne TURN" bei 503, "TURN verfügbar" bei 200', async ({ page }) => {
-  await routen(page, { turnStatus: 503 });
-  await starte(page);
+  await routes(page, { turnStatus: 503 });
+  await start(page);
   await page.evaluate(() => window.__game.Network.hostRoom('ABCDE'));
   expect(await phase(page)).toBe(3);
   expect(await statusText(page)).toContain('ohne TURN');
   expect(await statusText(page)).not.toContain('TURN verfügbar');
 
-  const seite2 = await page.context().newPage();
-  await routen(seite2, { turnStatus: 200 });
-  await setzeSpielstand(seite2);
-  await seite2.route('**/api/highscores*', route =>
+  const side2 = await page.context().newPage();
+  await routes(side2, { turnStatus: 200 });
+  await setGameState(side2);
+  await side2.route('**/api/highscores*', route =>
     route.fulfill({
       status: 200,
       contentType: 'application/json',
       body: JSON.stringify({ success: true, mode: 'single', highscores: [] }),
     }),
   );
-  await starte(seite2);
-  await seite2.evaluate(() => window.__game.Network.joinOnlineRoom('FGHJK'));
-  expect(await phase(seite2)).toBe(3);
-  expect(await statusText(seite2)).toContain('TURN verfügbar');
-  expect(await seite2.evaluate(() => window.__joinConfigs[0].turnConfig.length)).toBe(2);
+  await start(side2);
+  await side2.evaluate(() => window.__game.Network.joinOnlineRoom('FGHJK'));
+  expect(await phase(side2)).toBe(3);
+  expect(await statusText(side2)).toContain('TURN verfügbar');
+  expect(await side2.evaluate(() => window.__joinConfigs[0].turnConfig.length)).toBe(2);
 });
 
 test('Fehler in Schritt 4 nennt den Schritt, Versionsabweichung behaelt ihre Meldung', async ({ page }) => {
-  await routen(page);
-  await starte(page);
+  await routes(page);
+  await start(page);
   await page.evaluate(() => window.__game.Network.hostRoom('ABCDE'));
   await page.evaluate(() => window.__peerJoin('peer1'));
   expect(await phase(page)).toBe(4);
@@ -241,8 +241,8 @@ test('Fehler in Schritt 4 nennt den Schritt, Versionsabweichung behaelt ihre Mel
 
   // Client: Host verlaesst den Raum waehrend Schritt 4
   const client = await page.context().newPage();
-  await routen(client);
-  await setzeSpielstand(client);
+  await routes(client);
+  await setGameState(client);
   await client.route('**/api/highscores*', route =>
     route.fulfill({
       status: 200,
@@ -250,7 +250,7 @@ test('Fehler in Schritt 4 nennt den Schritt, Versionsabweichung behaelt ihre Mel
       body: JSON.stringify({ success: true, mode: 'single', highscores: [] }),
     }),
   );
-  await starte(client);
+  await start(client);
   await client.evaluate(() => window.__game.Network.joinOnlineRoom('FGHJK'));
   await client.evaluate(() => window.__peerJoin('host1'));
   await client.evaluate(() => window.__peerLeave('host1'));
@@ -260,19 +260,19 @@ test('Fehler in Schritt 4 nennt den Schritt, Versionsabweichung behaelt ihre Mel
   await page.evaluate(() => window.__game.Network.hostRoom('ABCDE'));
   await page.evaluate(() => window.__peerJoin('peer2'));
   await page.evaluate(() =>
-    window.__game.Network.handleNetworkEvent({ type: 'hallo', protokoll: window.__protokoll - 1 }, 'peer'),
+    window.__game.Network.handleNetworkEvent({ type: 'hallo', protocol: window.__protocol - 1 }, 'peer'),
   );
   expect(await statusText(page)).toBe('Unterschiedliche Spielversionen, bitte Seite neu laden (Strg+F5)');
   expect(await phase(page)).toBe(0);
 });
 
 test('Schritt 3 bis 5: Timer laufen nach Raum verlassen und nach Schritt 5 nicht weiter', async ({ page }) => {
-  await routen(page);
-  await starte(page, { mitClock: true });
+  await routes(page);
+  await start(page, { withClock: true });
   await page.evaluate(() => {
     window.__game.Network.hostRoom('ABCDE');
   });
-  await warteAufPhase(page, 3);
+  await waitOnPhase(page, 3);
   await page.clock.fastForward(3000);
   expect(await statusText(page)).toContain('(0:03)');
 
@@ -286,9 +286,9 @@ test('Schritt 3 bis 5: Timer laufen nach Raum verlassen und nach Schritt 5 nicht
   await page.evaluate(() => {
     window.__game.Network.hostRoom('ABCDE');
   });
-  await warteAufPhase(page, 3);
+  await waitOnPhase(page, 3);
   await page.evaluate(() => window.__peerJoin('peer1'));
-  await page.evaluate(HALLO_OK);
+  await page.evaluate(HELLO_OK);
   expect(await phase(page)).toBe(5);
   const text5 = await statusText(page);
   await page.clock.fastForward(5000);
@@ -296,16 +296,16 @@ test('Schritt 3 bis 5: Timer laufen nach Raum verlassen und nach Schritt 5 nicht
 });
 
 test('Raum verlassen waehrend Schritt 1 bricht den Aufbau ab, es wird kein Raum betreten', async ({ page }) => {
-  const turnTor = tor();
-  await routen(page, { turnTor });
-  await starte(page);
+  const turnGate = gate();
+  await routes(page, { turnGate });
+  await start(page);
   await page.evaluate(() => {
-    window.__hostLauf = window.__game.Network.hostRoom('ABCDE');
+    window.__hostRun = window.__game.Network.hostRoom('ABCDE');
   });
-  await warteAufPhase(page, 1);
+  await waitOnPhase(page, 1);
   await page.evaluate(() => window.__game.Network.leaveOnlineRoom());
-  turnTor.oeffne();
-  await page.evaluate(() => window.__hostLauf);
+  turnGate.openUp();
+  await page.evaluate(() => window.__hostRun);
   expect(await page.evaluate(() => window.__joinConfigs || null)).toBeNull();
   expect(await phase(page)).toBe(0);
 });

@@ -4,12 +4,12 @@ import { config, shipColors } from './state.js';
 
 // Kettenglied (Vorwaerts = unten, wie bei den Jaegern): Panzerring mit Auge und seitlichen Stacheln;
 // der Kopf (groesser) laeuft vorne spitz zu
-function getKettenSVGHtml(istKopf) {
-  const stacheln = `<path d="M1 15 L-3 13 L1 11 Z M29 15 L33 13 L29 11 Z M2 21 L-2 21 L3 18 Z M28 21 L32 21 L27 18 Z" fill="#c9ced6"/>`;
-  if (istKopf) {
+function getChainSvgHtml(isHead) {
+  const spikes = `<path d="M1 15 L-3 13 L1 11 Z M29 15 L33 13 L29 11 Z M2 21 L-2 21 L3 18 Z M28 21 L32 21 L27 18 Z" fill="#c9ced6"/>`;
+  if (isHead) {
     return `
       <svg class="ketten-koerper" viewBox="0 0 30 30" style="position: absolute; width: 100%; height: 100%; overflow: visible;">
-          ${stacheln}
+          ${spikes}
           <path d="M3 8 Q15 0 27 8 L24 22 L15 31 L6 22 Z" fill="#8c4416"/>
           <path d="M6 9 Q15 3 24 9 L21 20 L15 27 L9 20 Z" fill="#d9822b"/>
           <path d="M11 20 L15 31 L19 20 Z" fill="#c9ced6"/>
@@ -20,7 +20,7 @@ function getKettenSVGHtml(istKopf) {
   }
   return `
     <svg class="ketten-koerper" viewBox="0 0 30 30" style="position: absolute; width: 100%; height: 100%; overflow: visible;">
-        ${stacheln}
+        ${spikes}
         <rect x="2" y="4" width="26" height="22" rx="9" fill="#7d8591"/>
         <rect x="4" y="6" width="22" height="18" rx="8" fill="#d9822b"/>
         <path d="M4 10 H26 M4 20 H26" stroke="#8c4416" stroke-width="2"/>
@@ -32,19 +32,19 @@ function getKettenSVGHtml(istKopf) {
 
 // Gewaechse (Vorwaerts = unten, Ansatz am Fels = oben): Tentakelbluete mit Kappe (zu) und leuchtendem Schlund
 // (Klasse offen), Hornroehre, Eierkapsel
-const GEWAECHS_SVG = {
-  bluete: () => {
-    let tentakel = '';
+const GROWTH_SVG = {
+  bloom: () => {
+    let tentacle = '';
     for (let i = 0; i < 12; i++) {
       const w = (i * Math.PI * 2) / 12;
       const x = (15 + Math.cos(w) * 12).toFixed(1);
       const y = (16 + Math.sin(w) * 12).toFixed(1);
-      tentakel += `<circle cx="${x}" cy="${y}" r="2.6" fill="#f1c40f" stroke="#8a5a00" stroke-width="0.8"/>`;
+      tentacle += `<circle cx="${x}" cy="${y}" r="2.6" fill="#f1c40f" stroke="#8a5a00" stroke-width="0.8"/>`;
     }
     return `
       <svg class="gewaechs" viewBox="0 0 30 30" style="position: absolute; width: 100%; height: 100%; overflow: visible;">
         <path d="M10 0 Q15 8 20 0 Z" fill="#5a3a2a"/>
-        ${tentakel}
+        ${tentacle}
         <circle cx="15" cy="16" r="10.5" fill="#a0391b"/>
         <circle class="bluete-mund" cx="15" cy="16" r="6" fill="#ffb347"/>
         <g class="bluete-kappe">
@@ -53,28 +53,28 @@ const GEWAECHS_SVG = {
       </svg>
     `;
   },
-  trichter: () => `
+  funnel: () => `
     <svg class="gewaechs" viewBox="0 0 30 30" style="position: absolute; width: 100%; height: 100%; overflow: visible;">
       <path d="M11 0 L19 0 L25 21 Q15 30 5 21 Z" fill="#d9822b" stroke="#7a3b12" stroke-width="1"/>
       <path d="M8 9 Q15 12 22 9 M7 14 Q15 17 23 14 M6 19 Q15 22 24 19" stroke="#7a3b12" stroke-width="1.4" fill="none"/>
       <ellipse class="trichter-mund" cx="15" cy="23" rx="9" ry="4.5" fill="#3a1a08" stroke="#f0b36a" stroke-width="1"/>
     </svg>
   `,
-  roehre: () => `
+  tube: () => `
     <svg class="gewaechs" viewBox="0 0 30 30" style="position: absolute; width: 100%; height: 100%; overflow: visible;">
       <path d="M9 0 L21 0 L26 20 Q15 31 4 20 Z" fill="#c0602a" stroke="#5a2410" stroke-width="1.2"/>
       <path d="M7 7 H23 M6 12 H24 M5 17 H25" stroke="#5a2410" stroke-width="1.6"/>
       <ellipse cx="15" cy="22" rx="10" ry="5" fill="#200a02" stroke="#f0b36a" stroke-width="1.2"/>
     </svg>
   `,
-  larve: () => `
+  larva: () => `
     <svg class="gewaechs" viewBox="0 0 30 30" style="position: absolute; width: 100%; height: 100%; overflow: visible;">
       <ellipse cx="15" cy="15" rx="9" ry="13" fill="#e8b04a" stroke="#7a4a10" stroke-width="1.2"/>
       <path d="M7 9 H23 M6 14 H24 M7 19 H23" stroke="#7a4a10" stroke-width="1.2"/>
       <circle cx="12" cy="25" r="1.6" fill="#200a02"/><circle cx="18" cy="25" r="1.6" fill="#200a02"/>
     </svg>
   `,
-  kapsel: () => `
+  capsule: () => `
     <svg class="gewaechs" viewBox="0 0 30 30" style="position: absolute; width: 100%; height: 100%; overflow: visible;">
       <ellipse cx="15" cy="16" rx="11" ry="13" fill="#b5a36a" stroke="#5e5230" stroke-width="1.4"/>
       <path d="M15 4 Q12 12 15 16 Q18 21 15 29" stroke="#5e5230" stroke-width="1" fill="none"/>
@@ -86,27 +86,27 @@ const GEWAECHS_SVG = {
 
 // Organische Gegner (Vorwaerts = unten): Stachelkette (gepanzert, Stacheln), Kugelkette (Blasenglieder, Glieder
 // mit Leuchtblase), Krabbe (Panzer, Scheren, Stielaugen, krabbelnde Beine), Tentakler (Schirm, wehende Tentakel)
-const STACHELN = Array.from({ length: 8 }, (_, i) => {
+const SPIKES = Array.from({ length: 8 }, (_, i) => {
   const w = (i * Math.PI) / 4;
   const p = (r, d) => `${(15 + Math.cos(w + d) * r).toFixed(1)},${(15 + Math.sin(w + d) * r).toFixed(1)}`;
   return `<polygon points="${p(10, -0.28)} ${p(16.5, 0)} ${p(10, 0.28)}" fill="#c8cfa6" stroke="#3c4628" stroke-width="0.8"/>`;
 }).join('');
 const BIO_SVG = {
-  stachelkette: istKopf => `
+  spikeChain: isHead => `
     <svg class="ketten-koerper" viewBox="0 0 30 30" style="position: absolute; width: 100%; height: 100%; overflow: visible;">
-      ${STACHELN}
+      ${SPIKES}
       <circle cx="15" cy="15" r="11" fill="#55633c" stroke="#2b3420" stroke-width="1.5"/>
       <path d="M6 12 Q15 7 24 12 M6 18 Q15 13 24 18" stroke="#8a9a64" stroke-width="2" fill="none"/>
-      ${istKopf ? '<path d="M9 22 L12 29 L14 22 Z M21 22 L18 29 L16 22 Z" fill="#e8e2c0"/><circle cx="11" cy="17" r="2.2" fill="#ffcf3a"/><circle cx="19" cy="17" r="2.2" fill="#ffcf3a"/>' : ''}
+      ${isHead ? '<path d="M9 22 L12 29 L14 22 Z M21 22 L18 29 L16 22 Z" fill="#e8e2c0"/><circle cx="11" cy="17" r="2.2" fill="#ffcf3a"/><circle cx="19" cy="17" r="2.2" fill="#ffcf3a"/>' : ''}
     </svg>`,
-  kugelkette: (istKopf, istPod) => `
+  ballChain: (isHead, isPod) => `
     <svg class="ketten-koerper" viewBox="0 0 30 30" style="position: absolute; width: 100%; height: 100%; overflow: visible;">
       <ellipse cx="15" cy="15" rx="13" ry="12" fill="#5e3a86" stroke="#2a1640" stroke-width="1.5"/>
       <ellipse cx="15" cy="13" rx="9" ry="6" fill="#8d62c0" opacity="0.8"/>
-      ${istPod ? '<circle class="kugel-blase" cx="15" cy="16" r="6.5" fill="#f4d8ff"/>' : ''}
-      ${istKopf ? '<path d="M8 22 Q15 32 22 22" fill="#2a1640"/><circle cx="10" cy="12" r="2.4" fill="#ffe680"/><circle cx="20" cy="12" r="2.4" fill="#ffe680"/>' : ''}
+      ${isPod ? '<circle class="kugel-blase" cx="15" cy="16" r="6.5" fill="#f4d8ff"/>' : ''}
+      ${isHead ? '<path d="M8 22 Q15 32 22 22" fill="#2a1640"/><circle cx="10" cy="12" r="2.4" fill="#ffe680"/><circle cx="20" cy="12" r="2.4" fill="#ffe680"/>' : ''}
     </svg>`,
-  krabbe: () => `
+  crab: () => `
     <svg viewBox="0 0 34 34" style="position: absolute; width: 100%; height: 100%; overflow: visible;">
       <g class="krabbe-beine" stroke="#7a2a10" stroke-width="2.2" stroke-linecap="round" fill="none">
         <path d="M8 12 L1 8 L-2 12 M7 17 L0 17 L-3 21 M8 22 L2 26 L0 31"/>
@@ -120,7 +120,7 @@ const BIO_SVG = {
       <circle cx="11" cy="30" r="2.6" fill="#fff6d8" stroke="#3a1206" stroke-width="0.8"/><circle cx="11" cy="30.6" r="1.2" fill="#1a0802"/>
       <circle cx="23" cy="30" r="2.6" fill="#fff6d8" stroke="#3a1206" stroke-width="0.8"/><circle cx="23" cy="30.6" r="1.2" fill="#1a0802"/>
     </svg>`,
-  tentakler: () => `
+  tentacler: () => `
     <svg viewBox="0 0 30 30" style="position: absolute; width: 100%; height: 100%; overflow: visible;">
       <g class="tentakel" stroke="#c48ae0" stroke-width="2" stroke-linecap="round" fill="none" opacity="0.9">
         <path d="M7 14 Q5 22 8 30 Q6 36 9 40"/><path d="M11 15 Q10 24 12 32"/><path d="M15 15 Q16 25 14 36"/>
@@ -132,15 +132,15 @@ const BIO_SVG = {
     </svg>`,
 };
 
-function getFeindSVGHtml(muster = 'normal', hatSchild = false, groesse = 30) {
-  let schildHtml = hatSchild ? '<div class="feind-schild"></div>' : '';
-  if (muster === 'kette') return getKettenSVGHtml(groesse >= 26);
-  if (muster === 'stachelkette') return BIO_SVG.stachelkette(groesse >= 26);
-  if (muster === 'kugelkette') return BIO_SVG.kugelkette(groesse >= 26, groesse === 24);
-  if (muster === 'krabbe' || muster === 'tentakler') return BIO_SVG[muster]();
-  if (GEWAECHS_SVG[muster]) return GEWAECHS_SVG[muster]();
+function getEnemySvgHtml(pattern = 'normal', hasShield = false, size = 30) {
+  let shieldHtml = hasShield ? '<div class="feind-schild"></div>' : '';
+  if (pattern === 'chain') return getChainSvgHtml(size >= 26);
+  if (pattern === 'spikeChain') return BIO_SVG.spikeChain(size >= 26);
+  if (pattern === 'ballChain') return BIO_SVG.ballChain(size >= 26, size === 24);
+  if (pattern === 'crab' || pattern === 'tentacler') return BIO_SVG[pattern]();
+  if (GROWTH_SVG[pattern]) return GROWTH_SVG[pattern]();
 
-  if (muster === 'normal' || muster === 'clingOn') {
+  if (pattern === 'normal' || pattern === 'clingOn') {
     return `
       <svg viewBox="0 0 30 30" style="position: absolute; width: 100%; height: 100%; z-index: 2;">
           <path d="M15 28 L2 10 L5 5 L15 8 L25 5 L28 10 Z" fill="#71368a"/>
@@ -149,9 +149,9 @@ function getFeindSVGHtml(muster = 'normal', hatSchild = false, groesse = 30) {
           <rect x="13" y="0" width="4" height="4" fill="#7f8c8d"/>
       </svg>
       <div class="feind-flame" style="left: 13px;"></div>
-      ${schildHtml}
+      ${shieldHtml}
     `;
-  } else if (muster === 'stopAndGo') {
+  } else if (pattern === 'stopAndGo') {
     return `
       <svg viewBox="0 0 30 30" style="position: absolute; width: 100%; height: 100%; z-index: 2;">
           <rect x="5" y="8" width="20" height="15" fill="#d35400"/>
@@ -162,9 +162,9 @@ function getFeindSVGHtml(muster = 'normal', hatSchild = false, groesse = 30) {
       </svg>
       <div class="feind-flame" style="left: 10px; width: 4px;"></div>
       <div class="feind-flame" style="left: 16px; width: 4px;"></div>
-      ${schildHtml}
+      ${shieldHtml}
     `;
-  } else if (muster === 'crossfire') {
+  } else if (pattern === 'crossfire') {
     return `
       <svg viewBox="0 0 30 30" style="position: absolute; width: 100%; height: 100%; z-index: 2;">
           <polygon points="15,30 0,10 10,10 15,0 20,10 30,10" fill="#1abc9c"/>
@@ -172,9 +172,9 @@ function getFeindSVGHtml(muster = 'normal', hatSchild = false, groesse = 30) {
           <polygon points="15,18 12,12 18,12" fill="#f1c40f"/>
       </svg>
       <div class="feind-flame" style="left: 13px;"></div>
-      ${schildHtml}
+      ${shieldHtml}
     `;
-  } else if (muster === 'swoop') {
+  } else if (pattern === 'swoop') {
     return `
       <svg viewBox="0 0 30 30" style="position: absolute; width: 100%; height: 100%; z-index: 2;">
           <path d="M15 30 L0 5 L15 15 L30 5 Z" fill="#2ecc71"/>
@@ -183,9 +183,9 @@ function getFeindSVGHtml(muster = 'normal', hatSchild = false, groesse = 30) {
           <rect x="13" y="0" width="4" height="6" fill="#7f8c8d"/>
       </svg>
       <div class="feind-flame" style="left: 13px;"></div>
-      ${schildHtml}
+      ${shieldHtml}
     `;
-  } else if (muster === 'hacker') {
+  } else if (pattern === 'hacker') {
     return `
       <svg viewBox="0 0 30 30" style="position: absolute; width: 100%; height: 100%; z-index: 2;">
           <polygon points="15,30 3,18 6,6 24,6 27,18" fill="#1e272e"/>
@@ -202,7 +202,7 @@ function getFeindSVGHtml(muster = 'normal', hatSchild = false, groesse = 30) {
 }
 
 // Auge des Insel-Bosses: Lid (zu) ueber Iris und Pupille, Klasse offen zieht das Lid weg
-const AUGE_SVG = `
+const EYE_SVG = `
   <svg viewBox="0 0 36 36" style="position: absolute; width: 100%; height: 100%; overflow: visible;">
     <ellipse cx="18" cy="18" rx="17" ry="14" fill="#5a2a12" stroke="#2b0f05" stroke-width="1.5"/>
     <ellipse cx="18" cy="18" rx="13" ry="10" fill="#f3e6c8"/>
@@ -213,11 +213,11 @@ const AUGE_SVG = `
   </svg>
 `;
 
-function getBossSVGHtml(bTyp, bossFarbe) {
-  if (bTyp === 'auge') return AUGE_SVG;
+function getBossSVGHtml(bTyp, bossColor) {
+  if (bTyp === 'eye') return EYE_SVG;
   let defs = `<defs>
-    <radialGradient id='gMet' cx='50%' cy='30%' r='60%'><stop offset='0%' stop-color='#ffffff'/><stop offset='20%' stop-color='${bossFarbe}'/><stop offset='100%' stop-color='#222222'/></radialGradient>
-    <radialGradient id='gSha' cx='50%' cy='20%' r='80%'><stop offset='0%' stop-color='${bossFarbe}'/><stop offset='70%' stop-color='#000000'/><stop offset='100%' stop-color='#000000'/></radialGradient>
+    <radialGradient id='gMet' cx='50%' cy='30%' r='60%'><stop offset='0%' stop-color='#ffffff'/><stop offset='20%' stop-color='${bossColor}'/><stop offset='100%' stop-color='#222222'/></radialGradient>
+    <radialGradient id='gSha' cx='50%' cy='20%' r='80%'><stop offset='0%' stop-color='${bossColor}'/><stop offset='70%' stop-color='#000000'/><stop offset='100%' stop-color='#000000'/></radialGradient>
     <filter id='glow' x='-50%' y='-50%' width='200%' height='200%'><feGaussianBlur stdDeviation='3' result='coloredBlur'/><feMerge><feMergeNode in='coloredBlur'/><feMergeNode in='SourceGraphic'/></feMerge></filter>
   </defs>`;
 
@@ -265,50 +265,50 @@ function getBossSVGHtml(bTyp, bossFarbe) {
 
 // Powerup: Rahmen und Leuchten in p.farbe (Spieldaten), Symbol je Typ, Splitter als Kristall
 const POWERUP_SYMBOL = {
-  leben: '&hearts;',
-  energie: 'E',
-  durchschlag: '&uarr;',
-  schild: 'O',
-  laserWaffe: 'L',
+  lives: '&hearts;',
+  energy: 'E',
+  pierce: '&uarr;',
+  shield: 'O',
+  laserWeapon: 'L',
   laser: 'L',
-  raketenWaffe: 'R',
-  rakete: 'R',
-  bombenWaffe: 'B',
-  bombe: 'B',
+  missileWeapon: 'R',
+  missile: 'R',
+  bombWeapon: 'B',
+  bomb: 'B',
   autolaser: 'A',
-  superWaffe: 'S',
-  schockwelle: 'Z',
+  superWeapon: 'S',
+  shockwave: 'Z',
 };
 
-function setupPowerupVisuals(el, type, owner, farbe) {
+function setupPowerupVisuals(el, type, owner, color) {
   el.className = 'powerup';
   if (owner) {
     el.classList.add(`pu-owner-${owner}`);
   }
-  const istSplitter = type === 'splitterRot' || type === 'splitterWeiss';
-  if (type === 'superWaffe') el.style.animation = 'superWaffePulse 0.3s infinite alternate';
-  if (type === 'schockwelle') el.classList.add('powerup-schockwelle');
-  if (istSplitter) el.classList.add('powerup-splitter', type === 'splitterRot' ? 'splitter-rot' : 'splitter-weiss');
+  const isSplitter = type === 'splitterRed' || type === 'splitterWhite';
+  if (type === 'superWeapon') el.style.animation = 'superWaffePulse 0.3s infinite alternate';
+  if (type === 'shockwave') el.classList.add('powerup-schockwelle');
+  if (isSplitter) el.classList.add('powerup-splitter', type === 'splitterRed' ? 'splitter-rot' : 'splitter-weiss');
 
-  if (!istSplitter) {
-    el.style.border = `2px solid ${farbe}`;
-    el.style.color = farbe;
-    el.style.boxShadow = `0 0 10px ${farbe}, inset 0 0 5px ${farbe}`;
+  if (!isSplitter) {
+    el.style.border = `2px solid ${color}`;
+    el.style.color = color;
+    el.style.boxShadow = `0 0 10px ${color}, inset 0 0 5px ${color}`;
   } else {
     el.style.border = 'none';
     el.style.boxShadow = 'none';
   }
 
   let innerHtml;
-  if (istSplitter) {
-    const isRot = type === 'splitterRot';
-    const fillFarbe = isRot ? '#ff4757' : '#ffffff';
-    const strokeFarbe = isRot ? '#ffa502' : '#70a1ff';
-    const facetFarbe = isRot ? 'rgba(255, 255, 255, 0.45)' : 'rgba(112, 161, 255, 0.5)';
+  if (isSplitter) {
+    const isRed = type === 'splitterRed';
+    const fillColor = isRed ? '#ff4757' : '#ffffff';
+    const strokeColor = isRed ? '#ffa502' : '#70a1ff';
+    const facetColor = isRed ? 'rgba(255, 255, 255, 0.45)' : 'rgba(112, 161, 255, 0.5)';
     innerHtml = `
       <svg viewBox="0 0 20 26" class="splitter-shard-svg">
-        <polygon points="2,22 17,2 8,25" fill="${fillFarbe}" stroke="${strokeFarbe}" stroke-width="1.2" stroke-linejoin="round"/>
-        <polygon points="17,2 8,25 6,14" fill="${facetFarbe}"/>
+        <polygon points="2,22 17,2 8,25" fill="${fillColor}" stroke="${strokeColor}" stroke-width="1.2" stroke-linejoin="round"/>
+        <polygon points="17,2 8,25 6,14" fill="${facetColor}"/>
       </svg>
     `;
   } else {
@@ -320,84 +320,84 @@ function setupPowerupVisuals(el, type, owner, farbe) {
   el.innerHTML = innerHtml;
 }
 
-function feindElement(f) {
+function enemyElement(f) {
   const el = document.createElement('div');
   el.classList.add('feind-schiff');
-  el.style.width = f.groesse + 'px';
-  el.style.height = f.groesse + 'px';
-  el.innerHTML = getFeindSVGHtml(f.muster, f.hatSchild, f.groesse);
-  if (['kette', 'stachelkette', 'kugelkette'].includes(f.muster)) {
+  el.style.width = f.size + 'px';
+  el.style.height = f.size + 'px';
+  el.innerHTML = getEnemySvgHtml(f.pattern, f.hasShield, f.size);
+  if (['chain', 'spikeChain', 'ballChain'].includes(f.pattern)) {
     // Puls-Phase aus der Id: aufeinanderfolgende Glieder pulsieren versetzt (Welle), Host und Client gleich
     const nr = parseInt(String(f.id).replace(/\D/g, ''), 10) || 0;
     el.style.setProperty('--puls-verzug', `${-(nr % 8) * 0.09}s`);
   }
-  el.dataset.baseColor = f.farbe;
+  el.dataset.baseColor = f.color;
   // Bis die Zustandsanzeige im Backend liegt, entfernt die Logik das Schild-Element ueber schildEl
-  f.schildEl = f.hatSchild ? el.querySelector('.feind-schild') : null;
+  f.shieldEl = f.hasShield ? el.querySelector('.feind-schild') : null;
   return el;
 }
 
 // Asteroid: Verlauf aus farbe/farbe2, Umriss aus form (Punkte in Prozent), Risse ausser bei Magma-Brocken
 // Oberflaeche aus der Id (Host und Client gleich): Krater mit Lichtkante und Koernung, bei Magma gluehende Adern
-function asteroidTextur(a) {
-  const zufall = felsZufall(a.id);
-  let inhalt = '';
-  if (a.istUnzerstoerbar || a.istMagma) {
-    const adern = 2 + Math.floor(zufall() * 3);
-    for (let i = 0; i < adern; i++) {
-      let x = 25 + zufall() * 50;
-      let y = 25 + zufall() * 50;
+function asteroidTexture(a) {
+  const random = rockRandom(a.id);
+  let content = '';
+  if (a.isIndestructible || a.isMagma) {
+    const veins = 2 + Math.floor(random() * 3);
+    for (let i = 0; i < veins; i++) {
+      let x = 25 + random() * 50;
+      let y = 25 + random() * 50;
       let d = `M${x.toFixed(1)} ${y.toFixed(1)}`;
-      const winkel = zufall() * Math.PI * 2;
+      const angle = random() * Math.PI * 2;
       for (let k = 0; k < 4; k++) {
-        const w = winkel + (zufall() - 0.5) * 1.6;
+        const w = angle + (random() - 0.5) * 1.6;
         x += Math.cos(w) * 9;
         y += Math.sin(w) * 9;
         d += ` L${x.toFixed(1)} ${y.toFixed(1)}`;
       }
-      inhalt += `<path d="${d}" class="magma-ader"/>`;
+      content += `<path d="${d}" class="magma-ader"/>`;
     }
   } else {
-    const krater = 2 + Math.floor(zufall() * 4);
-    for (let i = 0; i < krater; i++) {
-      const r = 5 + zufall() * 11;
-      const cx = 22 + zufall() * 56;
-      const cy = 22 + zufall() * 56;
-      inhalt +=
+    const crater = 2 + Math.floor(random() * 4);
+    for (let i = 0; i < crater; i++) {
+      const r = 5 + random() * 11;
+      const cx = 22 + random() * 56;
+      const cy = 22 + random() * 56;
+      content +=
         `<ellipse cx="${cx.toFixed(1)}" cy="${cy.toFixed(1)}" rx="${r.toFixed(1)}" ry="${(r * 0.85).toFixed(1)}" fill="rgba(0,0,0,0.3)"/>` +
         `<ellipse cx="${(cx + r * 0.18).toFixed(1)}" cy="${(cy + r * 0.2).toFixed(1)}" rx="${(r * 0.72).toFixed(1)}" ry="${(r * 0.6).toFixed(1)}" fill="rgba(0,0,0,0.25)"/>` +
         `<path d="M${(cx + r * 0.75).toFixed(1)} ${(cy + r * 0.3).toFixed(1)} A${r.toFixed(1)} ${(r * 0.85).toFixed(1)} 0 0 1 ${(cx - r * 0.3).toFixed(1)} ${(cy + r * 0.8).toFixed(1)}" stroke="rgba(255,255,255,0.22)" stroke-width="1.6" fill="none"/>`;
     }
-    const koerner = 6 + Math.floor(zufall() * 8);
-    for (let i = 0; i < koerner; i++) {
-      const hell = zufall() < 0.5;
-      inhalt += `<circle cx="${(10 + zufall() * 80).toFixed(1)}" cy="${(10 + zufall() * 80).toFixed(1)}" r="${(0.8 + zufall() * 1.4).toFixed(1)}" fill="${hell ? 'rgba(255,255,255,0.18)' : 'rgba(0,0,0,0.3)'}"/>`;
+    const grains = 6 + Math.floor(random() * 8);
+    for (let i = 0; i < grains; i++) {
+      const bright = random() < 0.5;
+      content += `<circle cx="${(10 + random() * 80).toFixed(1)}" cy="${(10 + random() * 80).toFixed(1)}" r="${(0.8 + random() * 1.4).toFixed(1)}" fill="${bright ? 'rgba(255,255,255,0.18)' : 'rgba(0,0,0,0.3)'}"/>`;
     }
   }
-  return `<svg class="asteroid-textur" viewBox="0 0 100 100" preserveAspectRatio="none">${inhalt}</svg>`;
+  return `<svg class="asteroid-textur" viewBox="0 0 100 100" preserveAspectRatio="none">${content}</svg>`;
 }
 
 function asteroidElement(a) {
   const el = document.createElement('div');
   el.classList.add('asteroid');
-  if (a.istUnzerstoerbar) el.classList.add('unzerstoerbar');
-  el.style.width = a.groesse + 'px';
-  el.style.height = a.groesse + 'px';
+  if (a.isIndestructible) el.classList.add('unzerstoerbar');
+  el.style.width = a.size + 'px';
+  el.style.height = a.size + 'px';
   // Licht oben links, Schattenseite unten rechts ueber dem Grundverlauf
   el.style.background =
     `radial-gradient(circle at 72% 78%, rgba(0, 0, 0, 0.42), transparent 58%), ` +
-    `radial-gradient(circle at 30% 28%, ${a.farbe}, ${a.farbe2})`;
-  el.dataset.baseColor = a.farbe;
+    `radial-gradient(circle at 30% 28%, ${a.color}, ${a.color2})`;
+  el.dataset.baseColor = a.color;
   el.style.clipPath = `polygon(${a.form.map(([px, py]) => `${px.toFixed(1)}% ${py.toFixed(1)}%`).join(', ')})`;
-  el.insertAdjacentHTML('beforeend', asteroidTextur(a));
-  a.rissEl = null;
-  if (!a.istUnzerstoerbar) {
-    const riss = document.createElement('div');
-    riss.classList.add('riss-layer');
-    riss.style.backgroundImage = `url("${config.rissMuster[a.riss || 0]}")`;
-    if (a.traegtPowerup) riss.style.opacity = '0.5';
-    el.appendChild(riss);
-    a.rissEl = riss;
+  el.insertAdjacentHTML('beforeend', asteroidTexture(a));
+  a.crackEl = null;
+  if (!a.isIndestructible) {
+    const crack = document.createElement('div');
+    crack.classList.add('riss-layer');
+    crack.style.backgroundImage = `url("${config.crackPattern[a.crack || 0]}")`;
+    if (a.carriesPowerup) crack.style.opacity = '0.5';
+    el.appendChild(crack);
+    a.crackEl = crack;
   }
   return el;
 }
@@ -406,17 +406,17 @@ function bossElement(b) {
   const el = document.createElement('div');
   el.classList.add('boss-schiff');
   // Augen des Insel-Bosses sitzen fest am Skelett (keine Schwebe-Animation)
-  if (b.bossTyp === 'auge') el.classList.add('boss-auge');
-  el.innerHTML = getBossSVGHtml(b.bossTyp, b.leuchtFarbe);
-  el.style.filter = `drop-shadow(0 10px 20px rgba(0,0,0,0.9)) drop-shadow(0 0 15px ${b.leuchtFarbe})`;
-  el.style.width = b.groesse + 'px';
-  el.style.height = b.groesse + 'px';
+  if (b.bossTyp === 'eye') el.classList.add('boss-auge');
+  el.innerHTML = getBossSVGHtml(b.bossTyp, b.glowColor);
+  el.style.filter = `drop-shadow(0 10px 20px rgba(0,0,0,0.9)) drop-shadow(0 0 15px ${b.glowColor})`;
+  el.style.width = b.size + 'px';
+  el.style.height = b.size + 'px';
   return el;
 }
 
 function powerupElement(p) {
   const el = document.createElement('div');
-  setupPowerupVisuals(el, p.type, p.owner, p.farbe);
+  setupPowerupVisuals(el, p.type, p.owner, p.color);
   return el;
 }
 
@@ -424,18 +424,18 @@ function laserElement(l) {
   const el = document.createElement('div');
   el.classList.add('laser-projektil');
   if (l.owner === 'p2') el.classList.add('laser-p2');
-  if (l.reflektiert) el.classList.add('gleve-reflektiert');
-  el.style.backgroundColor = l.farbe;
-  el.style.boxShadow = `0 0 10px ${l.farbe}`;
+  if (l.reflected) el.classList.add('gleve-reflektiert');
+  el.style.backgroundColor = l.color;
+  el.style.boxShadow = `0 0 10px ${l.color}`;
   el.style.width = l.width + 'px';
   el.style.height = l.height + 'px';
   return el;
 }
 
-function raketeElement(r) {
+function missileElement(r) {
   const el = document.createElement('div');
   el.classList.add('raketen-projektil');
-  if (r.stufe >= 2) el.classList.add('rakete-lvl-2');
+  if (r.tier >= 2) el.classList.add('rakete-lvl-2');
   if (r.homing) el.classList.add('rakete-homing');
   if (r.owner === 'p2') el.classList.add('rakete-p2');
   el.innerHTML = `
@@ -449,34 +449,34 @@ function raketeElement(r) {
 }
 
 // Spielerbombe; Mini-Bomben (Jericho, Stufe 5) mit enger stehenden Lichtern
-function bombeElement(b) {
+function bombElement(b) {
   const el = document.createElement('div');
-  el.classList.add('bomben-projektil', `bombe-lvl-${b.stufe}`);
+  el.classList.add('bomben-projektil', `bombe-lvl-${b.tier}`);
   if (b.isMini) el.classList.add('bombe-mini');
   if (b.owner === 'p2') el.classList.add('bombe-p2');
-  const lichter = b.isMini ? [3, 8, 13] : [4, 13, 22];
+  const lights = b.isMini ? [3, 8, 13] : [4, 13, 22];
   el.innerHTML = `
     <div class="bombe-aura"></div>
     <div class="bombe-body"></div>
-    ${lichter.map(top => `<div class="bombe-licht" style="top: ${top}px;"></div>`).join('')}
+    ${lights.map(top => `<div class="bombe-licht" style="top: ${top}px;"></div>`).join('')}
   `;
-  const takt = b.isMini ? '0.4s' : '1s';
+  const cadence = b.isMini ? '0.4s' : '1s';
   /** @type {NodeListOf<HTMLElement>} */ (el.querySelectorAll('.bombe-licht')).forEach(l => {
-    l.style.animation = `bombeBlink ${takt} infinite alternate`;
+    l.style.animation = `bombeBlink ${cadence} infinite alternate`;
   });
   return el;
 }
 
-function klassenElement(klasse, html = '') {
+function classesElement(cls, html = '') {
   return () => {
     const el = document.createElement('div');
-    el.classList.add(klasse);
+    el.classList.add(cls);
     el.innerHTML = html;
     return el;
   };
 }
 
-const BOSS_RAKETE_HTML = `
+const BOSS_MISSILE_HTML = `
   <svg viewBox="0 0 14 24" style="width: 100%; height: 100%;">
     <path d="M7 0 L12 8 L11 20 L3 20 L2 8 Z" fill="#c0392b" stroke="#e74c3c" stroke-width="1"/>
     <polygon points="7,1 11,8 3,8" fill="#e67e22"/>
@@ -487,34 +487,34 @@ const BOSS_RAKETE_HTML = `
   <div class="boss-rakete-flame"></div>
 `;
 
-const BOSS_BOMBE_HTML = `
+const BOSS_BOMB_HTML = `
   <div class="boss-bombe-aura"></div>
   <div class="boss-bombe-body"></div>
   <div class="boss-bombe-core"></div>
 `;
 
 // Gleve-Klingenwelle: weisse Sichel mit Glow in Schiffsfarbe
-function welleElement(w) {
+function waveElement(w) {
   const el = document.createElement('div');
   el.classList.add('gleve-welle');
-  el.style.width = w.breite + 'px';
-  el.style.height = w.hoehe + 'px';
-  el.style.boxShadow = `0 -2px 6px #ffffff, 0 -3px 12px ${w.farbe}`;
+  el.style.width = w.width + 'px';
+  el.style.height = w.height + 'px';
+  el.style.boxShadow = `0 -2px 6px #ffffff, 0 -3px 12px ${w.color}`;
   el.style.borderTopColor = '#ffffff';
-  el.style.filter = `drop-shadow(0 0 4px ${w.farbe})`;
+  el.style.filter = `drop-shadow(0 0 4px ${w.color})`;
   return el;
 }
 
-const PARTIKEL_KLASSE = {
-  funke: 'partikel',
-  gleveBlitz: 'gleve-blitz',
-  gleveNachbild: 'gleve-nachbild',
-  viperNachbild: 'viper-nachbild',
+const PARTICLE_CLASS = {
+  spark: 'particles',
+  gleveFlash: 'gleve-blitz',
+  gleveAfterimage: 'gleve-nachbild',
+  viperAfterimage: 'viper-nachbild',
   nearMissPlus: 'viper-nearmiss-plus',
 };
 
 // Abgeworfener Raketenwerfer (dreht sich weg)
-function werferElement() {
+function launcherElement() {
   const el = document.createElement('div');
   el.classList.add('werfer-pod', 'werfer-abgeworfen');
   el.style.position = 'absolute';
@@ -531,103 +531,103 @@ function werferElement() {
 }
 
 // Gleve: Kreissektor ueber dem Sweep-Ursprung (laenge = Radius, bogen in Grad)
-function faecherElement(p) {
+function fanElement(p) {
   const el = document.createElement('div');
   el.classList.add('gleve-faecher');
-  el.style.width = p.laenge * 2 + 'px';
-  el.style.height = p.laenge + 'px';
-  el.style.borderRadius = `${p.laenge}px ${p.laenge}px 0 0`;
-  el.style.background = `conic-gradient(from ${-p.bogen / 2}deg at 50% 100%, ${p.farbe}99 0deg, rgba(255, 255, 255, 0.6) ${p.bogen / 2}deg, ${p.farbe}99 ${p.bogen}deg, transparent ${p.bogen}deg)`;
+  el.style.width = p.length * 2 + 'px';
+  el.style.height = p.length + 'px';
+  el.style.borderRadius = `${p.length}px ${p.length}px 0 0`;
+  el.style.background = `conic-gradient(from ${-p.arc / 2}deg at 50% 100%, ${p.color}99 0deg, rgba(255, 255, 255, 0.6) ${p.arc / 2}deg, ${p.color}99 ${p.arc}deg, transparent ${p.arc}deg)`;
   return el;
 }
 
-function partikelElement(p) {
-  if (p.sorte === 'werfer') return werferElement();
-  if (p.sorte === 'gleveFaecher') return faecherElement(p);
+function particleElement(p) {
+  if (p.sort === 'launcher') return launcherElement();
+  if (p.sort === 'gleveFaecher') return fanElement(p);
   const el = document.createElement('div');
-  el.classList.add(PARTIKEL_KLASSE[p.sorte || 'funke']);
-  if (p.farbe) el.style.backgroundColor = p.farbe;
-  if (p.groesse) {
-    el.style.width = p.groesse + 'px';
-    el.style.height = p.groesse + 'px';
+  el.classList.add(PARTICLE_CLASS[p.sort || 'spark']);
+  if (p.color) el.style.backgroundColor = p.color;
+  if (p.size) {
+    el.style.width = p.size + 'px';
+    el.style.height = p.size + 'px';
   }
-  if (p.glow) el.style.boxShadow = `0 0 5px ${p.farbe}`;
-  if (p.sorte === 'nearMissPlus') el.textContent = '+';
+  if (p.glow) el.style.boxShadow = `0 0 5px ${p.color}`;
+  if (p.sort === 'nearMissPlus') el.textContent = '+';
   return el;
 }
 
 // Effekte mit Lebensdauer (arrays.effekte): Kreis um die Mitte, waechst bis skala und blendet aus
-const BOMBEN_WELLE_FARBE = {
+const BOMB_WAVE_COLOR = {
   '#00ffff': 'rgba(0, 255, 255, 0.4)',
   '#9b59b6': 'rgba(155, 89, 182, 0.4)',
   '#f1c40f': 'rgba(241, 196, 15, 0.45)',
 };
 
-export const EFFEKT_STIL = {
-  bombenWelle: {
-    hintergrund: e => BOMBEN_WELLE_FARBE[e.farbe] || 'rgba(231, 76, 60, 0.4)',
-    schatten: e => `0 0 45px ${e.farbe}`,
-    skala: 1.2,
+export const EFFECT_STYLE = {
+  bombWave: {
+    background: e => BOMB_WAVE_COLOR[e.color] || 'rgba(231, 76, 60, 0.4)',
+    shadow: e => `0 0 45px ${e.color}`,
+    scale: 1.2,
   },
-  bombenWelle2: { hintergrund: () => 'rgba(155, 89, 182, 0.3)', schatten: () => '0 0 30px #9b59b6', skala: 1.3 },
-  raketenWelle: {
-    klasse: 'schockwelle',
-    hintergrund: () => 'rgba(231, 76, 60, 0.4)',
-    schatten: () => '0 0 20px #e74c3c',
-    skala: 1.2,
+  bombWave2: { background: () => 'rgba(155, 89, 182, 0.3)', shadow: () => '0 0 30px #9b59b6', scale: 1.3 },
+  missileWave: {
+    cls: 'schockwelle',
+    background: () => 'rgba(231, 76, 60, 0.4)',
+    shadow: () => '0 0 20px #e74c3c',
+    scale: 1.2,
   },
-  bossWelle: {
-    klasse: 'boss-shockwave',
-    hintergrund: () => 'rgba(231, 76, 60, 0.45)',
-    schatten: () => '0 0 30px #e74c3c',
-    skala: 1.25,
+  bossWave: {
+    cls: 'boss-shockwave',
+    background: () => 'rgba(231, 76, 60, 0.45)',
+    shadow: () => '0 0 30px #e74c3c',
+    scale: 1.25,
   },
 };
 
 // Sniper-Effekte: Klasse (Aussehen in style.css), Groesse und Deckkraft rechnet zeichneEffekt je Art
-const SNIPER_EFFEKT_KLASSE = {
-  sniperStrahl: 'sniper-strahl',
-  sniperDruckwelle: 'sniper-druckwelle',
-  sniperMinenExplosion: 'sniper-mine-explosion',
+const SNIPER_EFFECT_CLASS = {
+  sniperBeam: 'sniper-strahl',
+  sniperBlastWave: 'sniper-druckwelle',
+  sniperMineExplosion: 'sniper-mine-explosion',
   sniperEmp: 'sniper-emp',
-  schockwelle: 'schockwelle-ring',
+  shockwave: 'schockwelle-ring',
 };
 
 // Strahl: Hoehe = Laenge, Spitze an der Schiffsnase (x/y), Drehung um den Startpunkt, dreifacher Schein aus glow (0..1)
-function sniperStrahlElement(e) {
+function sniperBeamElement(e) {
   const el = document.createElement('div');
   el.classList.add('sniper-strahl');
-  el.style.height = e.laenge + 'px';
-  el.style.top = e.y - e.laenge + 'px';
-  el.style.width = e.breite + 'px';
-  el.style.left = e.x - e.breite / 2 + 'px';
-  el.style.transform = `rotate(${e.winkel}deg)`;
-  el.style.boxShadow = `0 0 ${4 + 6 * e.glow}px #ffffff, 0 0 ${8 + 10 * e.glow}px ${e.farbe}, 0 0 ${14 + 18 * e.glow}px ${e.farbe}`;
+  el.style.height = e.length + 'px';
+  el.style.top = e.y - e.length + 'px';
+  el.style.width = e.width + 'px';
+  el.style.left = e.x - e.width / 2 + 'px';
+  el.style.transform = `rotate(${e.angle}deg)`;
+  el.style.boxShadow = `0 0 ${4 + 6 * e.glow}px #ffffff, 0 0 ${8 + 10 * e.glow}px ${e.color}, 0 0 ${14 + 18 * e.glow}px ${e.color}`;
   return el;
 }
 
-function effektElement(e) {
-  if (e.art === 'sniperStrahl') return sniperStrahlElement(e);
-  if (SNIPER_EFFEKT_KLASSE[e.art]) {
+function effectElement(e) {
+  if (e.kind === 'sniperBeam') return sniperBeamElement(e);
+  if (SNIPER_EFFECT_CLASS[e.kind]) {
     const ring = document.createElement('div');
-    ring.classList.add(SNIPER_EFFEKT_KLASSE[e.art]);
+    ring.classList.add(SNIPER_EFFECT_CLASS[e.kind]);
     ring.style.left = e.x + 'px';
     ring.style.top = e.y + 'px';
     ring.style.width = '0px';
     ring.style.height = '0px';
     return ring;
   }
-  const stil = EFFEKT_STIL[e.art];
-  if (!stil) throw new Error(`Unbekannte Effektart fuer die Anzeige: ${e.art}`);
+  const style = EFFECT_STYLE[e.kind];
+  if (!style) throw new Error(`Unbekannte Effektart fuer die Anzeige: ${e.kind}`);
   const el = document.createElement('div');
-  if (stil.klasse) el.classList.add(stil.klasse);
+  if (style.cls) el.classList.add(style.cls);
   Object.assign(el.style, {
     position: 'absolute',
     width: e.radius * 2 + 'px',
     height: e.radius * 2 + 'px',
     borderRadius: '50%',
-    backgroundColor: stil.hintergrund(e),
-    boxShadow: stil.schatten(e),
+    backgroundColor: style.background(e),
+    boxShadow: style.shadow(e),
     zIndex: '9',
     pointerEvents: 'none',
   });
@@ -639,10 +639,10 @@ function effektElement(e) {
 // Das Plattenmuster liegt einmal unsichtbar im Dokument (#fels-defs, fill: url(#fels-steine)); Musterhoehe 40 =
 // SEGMENT_HOEHE, damit die Reihen ueber Segmentgrenzen fortlaufen. Alles Zufaellige (Kantenstufen, Loecher) kommt
 // aus der Segment-Id, damit Host und Online-Client dasselbe Bild zeichnen.
-const FELS_MUSTER_BREITE = 96;
-const FELS_REIHE = 20; // Plattenhoehe inklusive Fuge (zwei Reihen je Segment)
+const ROCK_PATTERN_WIDTH = 96;
+const ROCK_ROW = 20; // Plattenhoehe inklusive Fuge (zwei Reihen je Segment)
 // Platten je Reihe: [Start, Breite]; Reihen gegeneinander versetzt, Ueberlaeufe werden am Musterrand gespiegelt
-const FELS_REIHEN = [
+const ROCK_ROWS = [
   [
     [0, 41],
     [42, 31],
@@ -656,8 +656,8 @@ const FELS_REIHEN = [
 ];
 
 // Wulstige Platte: dunkler Sockel, Koerper, helle Oberseite mit Glanzstrich, Schatten an der Unterseite
-function felsPlatte(x, y, w) {
-  const h = FELS_REIHE - 1.5;
+function rockPlate(x, y, w) {
+  const h = ROCK_ROW - 1.5;
   return (
     `<rect x="${x}" y="${y + 1}" width="${w}" height="${h}" rx="8" fill="#45426a"/>` +
     `<rect x="${x}" y="${y}" width="${w}" height="${h - 2}" rx="8" fill="#7b78a2"/>` +
@@ -667,14 +667,14 @@ function felsPlatte(x, y, w) {
   );
 }
 
-function sichereFelsDefs() {
+function secureRockDefs() {
   if (document.getElementById('fels-defs')) return;
-  let platten = '';
-  FELS_REIHEN.forEach((reihe, k) => {
-    for (const [x, w] of reihe) {
-      for (const verschub of [0, -FELS_MUSTER_BREITE, FELS_MUSTER_BREITE]) {
-        const xs = x + verschub;
-        if (xs + w > 0 && xs < FELS_MUSTER_BREITE) platten += felsPlatte(xs, k * FELS_REIHE, w);
+  let plates = '';
+  ROCK_ROWS.forEach((row, k) => {
+    for (const [x, w] of row) {
+      for (const shift of [0, -ROCK_PATTERN_WIDTH, ROCK_PATTERN_WIDTH]) {
+        const xs = x + shift;
+        if (xs + w > 0 && xs < ROCK_PATTERN_WIDTH) plates += rockPlate(xs, k * ROCK_ROW, w);
       }
     }
   });
@@ -684,8 +684,8 @@ function sichereFelsDefs() {
   svg.setAttribute('height', '0');
   svg.style.position = 'absolute';
   svg.innerHTML = `<defs>
-    <pattern id="fels-steine" width="${FELS_MUSTER_BREITE}" height="40" patternUnits="userSpaceOnUse">
-      <rect width="${FELS_MUSTER_BREITE}" height="40" fill="#2a2740"/>${platten}
+    <pattern id="fels-steine" width="${ROCK_PATTERN_WIDTH}" height="40" patternUnits="userSpaceOnUse">
+      <rect width="${ROCK_PATTERN_WIDTH}" height="40" fill="#2a2740"/>${plates}
     </pattern>
     <radialGradient id="fels-ei" cx="35%" cy="30%" r="70%">
       <stop offset="0%" stop-color="#f0a860"/><stop offset="55%" stop-color="#b8602a"/><stop offset="100%" stop-color="#5a2208"/>
@@ -695,7 +695,7 @@ function sichereFelsDefs() {
 }
 
 // Deterministische Zufallszahlen aus der Segment-Id (mulberry32 auf einem einfachen Text-Hash)
-function felsZufall(id) {
+function rockRandom(id) {
   let a = 0;
   for (const c of String(id)) a = (Math.imul(a, 31) + c.charCodeAt(0)) | 0;
   return () => {
@@ -708,30 +708,30 @@ function felsZufall(id) {
 
 // Gestufte Kante: je Plattenreihe ein senkrechtes Stueck, um bis zu 6 px vor- oder zurueckversetzt (Plattenenden).
 // x0/x1 = Kante oben/unten, richtung = +1 wenn der Fels rechts der Kante liegt (Versatz zeigt dann nach links).
-function stufenKante(x0, x1, h, zufall, richtung) {
-  const punkte = [];
-  const reihen = 2;
-  for (let k = 0; k < reihen; k++) {
-    const yo = (k * h) / reihen;
-    const yu = ((k + 1) * h) / reihen;
-    const t = (k + 0.5) / reihen;
-    const x = x0 + (x1 - x0) * t - richtung * (zufall() - 0.5) * 12;
-    punkte.push([+x.toFixed(1), +yo.toFixed(1)], [+x.toFixed(1), +yu.toFixed(1)]);
+function tierEdge(x0, x1, h, random, direction) {
+  const points = [];
+  const rows = 2;
+  for (let k = 0; k < rows; k++) {
+    const yo = (k * h) / rows;
+    const yu = ((k + 1) * h) / rows;
+    const t = (k + 0.5) / rows;
+    const x = x0 + (x1 - x0) * t - direction * (random() - 0.5) * 12;
+    points.push([+x.toFixed(1), +yo.toFixed(1)], [+x.toFixed(1), +yu.toFixed(1)]);
   }
-  return punkte;
+  return points;
 }
 
 // Wurmloecher und Kugeln in einer Felsflaeche: links/rechts begrenzen den Bereich (ohne Kantenzone)
-function wurmloecher(links, rechts, h, zufall) {
-  const breite = rechts - links;
-  if (breite < 30) return '';
+function wormholes(left, right, h, random) {
+  const width = right - left;
+  if (width < 30) return '';
   let svg = '';
-  const anzahl = Math.floor(zufall() * (breite > 90 ? 3 : 2));
-  for (let i = 0; i < anzahl; i++) {
-    const r = 5 + zufall() * 3.5;
-    const cx = links + r + 2 + zufall() * (breite - 2 * r - 4);
-    const cy = 8 + zufall() * (h - 16);
-    if (zufall() < 0.65) {
+  const count = Math.floor(random() * (width > 90 ? 3 : 2));
+  for (let i = 0; i < count; i++) {
+    const r = 5 + random() * 3.5;
+    const cx = left + r + 2 + random() * (width - 2 * r - 4);
+    const cy = 8 + random() * (h - 16);
+    if (random() < 0.65) {
       // Roehrenoeffnung: dunkler Rand, oranger Wulst, schwarzes Loch mit Lichtkante
       svg +=
         `<circle cx="${cx.toFixed(1)}" cy="${cy.toFixed(1)}" r="${(r + 1.5).toFixed(1)}" fill="#3a1a08"/>` +
@@ -751,93 +751,93 @@ function wurmloecher(links, rechts, h, zufall) {
 // Felssegment: volle Feldbreite, Hoehe 41 px (1 px Ueberlappung gegen Naehte); Wand links/rechts und Insel
 // als Flaechen zwischen Profil oben (y = 0) und unten (y = 40). Fels mit gestufter Kante und Wurmloechern,
 // Knochen (Insel-Boss) glatt mit Rippe, Markstrang und Knotenkante.
-function felsElement(s) {
-  sichereFelsDefs();
-  const b = config.spielfeldBreite;
+function rockElement(s) {
+  secureRockDefs();
+  const b = config.playfieldWidth;
   const h = 41;
-  const { oben: o, unten: u } = s;
-  const zufall = felsZufall(s.id);
-  const pkt = punkte => punkte.map(p => p.join(',')).join(' ');
-  const knochen = !!(o.knochen || u.knochen);
-  const flaeche = punkte => `<polygon class="${knochen ? 'fels-knochen' : 'fels-wand'}" points="${pkt(punkte)}"/>`;
-  const kante = punkte =>
-    `<polyline class="fels-kante" points="${pkt(punkte)}"/>` +
-    (knochen ? `<polyline class="fels-knoten" points="${pkt(punkte)}"/>` : '');
+  const { top: o, bottom: u } = s;
+  const random = rockRandom(s.id);
+  const pts = points => points.map(p => p.join(',')).join(' ');
+  const bone = !!(o.bone || u.bone);
+  const area = points => `<polygon class="${bone ? 'fels-knochen' : 'fels-wand'}" points="${pts(points)}"/>`;
+  const edge = points =>
+    `<polyline class="fels-kante" points="${pts(points)}"/>` +
+    (bone ? `<polyline class="fels-knoten" points="${pts(points)}"/>` : '');
   // Kante von oben (x0) nach unten (x1): bei Fels gestuft, bei Knochen gerade
-  const kantenPunkte = (x0, x1, richtung) =>
-    knochen
+  const edgesPoints = (x0, x1, direction) =>
+    bone
       ? [
           [x0, 0],
           [x1, h],
         ]
-      : stufenKante(x0, x1, h, zufall, richtung);
+      : tierEdge(x0, x1, h, random, direction);
   let svg = '';
-  let deko = '';
+  let decor = '';
   if (o.l > 0 || u.l > 0) {
-    const k = kantenPunkte(o.l, u.l, -1);
-    svg += flaeche([[0, 0], ...k, [0, h]]) + kante(k);
-    if (!knochen) deko += wurmloecher(4, Math.min(o.l, u.l) - 10, h, zufall);
+    const k = edgesPoints(o.l, u.l, -1);
+    svg += area([[0, 0], ...k, [0, h]]) + edge(k);
+    if (!bone) decor += wormholes(4, Math.min(o.l, u.l) - 10, h, random);
   }
   if (o.r > 0 || u.r > 0) {
-    const k = kantenPunkte(b - o.r, b - u.r, 1);
-    svg += flaeche([[b, 0], ...k, [b, h]]) + kante(k);
-    if (!knochen) deko += wurmloecher(b - Math.min(o.r, u.r) + 10, b - 4, h, zufall);
+    const k = edgesPoints(b - o.r, b - u.r, 1);
+    svg += area([[b, 0], ...k, [b, h]]) + edge(k);
+    if (!bone) decor += wormholes(b - Math.min(o.r, u.r) + 10, b - 4, h, random);
   }
   if (o.ib > 0 || u.ib > 0) {
-    const links = kantenPunkte(o.im - o.ib / 2, u.im - u.ib / 2, 1);
-    const rechts = kantenPunkte(o.im + o.ib / 2, u.im + u.ib / 2, -1);
-    svg += flaeche([...links, ...rechts.slice().reverse()]) + kante(links) + kante(rechts);
-    if (knochen) {
+    const left = edgesPoints(o.inner - o.ib / 2, u.inner - u.ib / 2, 1);
+    const right = edgesPoints(o.inner + o.ib / 2, u.inner + u.ib / 2, -1);
+    svg += area([...left, ...right.slice().reverse()]) + edge(left) + edge(right);
+    if (bone) {
       const m = h / 2;
-      const ml = (links[0][0] + links.at(-1)[0]) / 2;
-      const mr = (rechts[0][0] + rechts.at(-1)[0]) / 2;
+      const ml = (left[0][0] + left.at(-1)[0]) / 2;
+      const mr = (right[0][0] + right.at(-1)[0]) / 2;
       svg += `<path class="knochen-rippe" d="M${ml + 4} ${m} Q${(ml + mr) / 2} ${m + 7} ${mr - 4} ${m}"/>`;
       // Markstrang in der Mitte der Wirbelsaeule (der Insel-Boss steht immer mittig), nicht in der Inselmitte
       svg += `<line class="knochen-mark" x1="${b / 2}" y1="0" x2="${b / 2}" y2="${h}"/>`;
     } else {
-      const innen = Math.max(o.im - o.ib / 2, u.im - u.ib / 2) + 10;
-      const aussen = Math.min(o.im + o.ib / 2, u.im + u.ib / 2) - 10;
-      deko += wurmloecher(innen, aussen, h, zufall);
+      const inside = Math.max(o.inner - o.ib / 2, u.inner - u.ib / 2) + 10;
+      const outside = Math.min(o.inner + o.ib / 2, u.inner + u.ib / 2) - 10;
+      decor += wormholes(inside, outside, h, random);
     }
   }
   const el = document.createElement('div');
   el.className = 'fels-segment';
   el.style.width = b + 'px';
   el.style.height = h + 'px';
-  el.innerHTML = `<svg width="${b}" height="${h}" viewBox="0 0 ${b} ${h}">${svg}${deko}</svg>`;
+  el.innerHTML = `<svg width="${b}" height="${h}" viewBox="0 0 ${b} ${h}">${svg}${decor}</svg>`;
   return el;
 }
 
-export const ERZEUGER = {
-  fels: felsElement,
-  partikel: partikelElement,
-  stern: s => {
+export const CREATOR = {
+  rock: rockElement,
+  particles: particleElement,
+  star: s => {
     const el = document.createElement('div');
     el.className = 'stern';
-    el.style.width = s.groesse + 'px';
-    el.style.height = s.groesse + 'px';
+    el.style.width = s.size + 'px';
+    el.style.height = s.size + 'px';
     return el;
   },
-  feind: feindElement,
+  enemy: enemyElement,
   asteroid: asteroidElement,
   boss: bossElement,
   powerup: powerupElement,
   laser: laserElement,
-  rakete: raketeElement,
-  bombe: bombeElement,
+  missile: missileElement,
+  bomb: bombElement,
   // Spore (Gewaechs): runde, leuchtende Kugel statt Laserstrich
-  feindLaser: l => {
+  enemyLaser: l => {
     const el = document.createElement('div');
     el.classList.add(l.spore ? 'spore' : 'feind-laser');
     return el;
   },
-  bossLaser: klassenElement('boss-laser'),
-  bossRakete: klassenElement('boss-rakete', BOSS_RAKETE_HTML),
-  bossBombe: klassenElement('boss-bombe', BOSS_BOMBE_HTML),
-  hackProjektil: klassenElement('hack-projektil'),
-  gleveWelle: welleElement,
-  effekt: effektElement,
-  sniperGranate: klassenElement('sniper-granate'),
+  bossLaser: classesElement('boss-laser'),
+  bossMissile: classesElement('boss-rakete', BOSS_MISSILE_HTML),
+  bossBomb: classesElement('boss-bombe', BOSS_BOMB_HTML),
+  hackProjectile: classesElement('hack-projektil'),
+  gleveWave: waveElement,
+  effect: effectElement,
+  sniperGrenade: classesElement('sniper-granate'),
   sniperMine: m => {
     const el = document.createElement('div');
     el.classList.add('sniper-mine', 'sniper-mine-' + m.pKey);
@@ -846,7 +846,7 @@ export const ERZEUGER = {
 };
 
 // Schiffs-SVG nach Modell und Farbe (Spiel, Hangar-Vorschau, Cutszene)
-export function getShipSVGContent(model, colorId) {
+export function getShipSvgContent(model, colorId) {
   const c = shipColors[colorId] || shipColors.red;
   if (model === 'phantom') {
     return `

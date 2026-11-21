@@ -1,5 +1,5 @@
 const { test, expect } = require('@playwright/test');
-const { setzeSpielstand } = require('./helfer');
+const { setGameState } = require('./helfer');
 
 test.beforeEach(async ({ page }) => {
   await page.route('**/api/highscores*', route =>
@@ -9,7 +9,7 @@ test.beforeEach(async ({ page }) => {
       body: JSON.stringify({ success: true, mode: 'single', highscores: [] }),
     }),
   );
-  await setzeSpielstand(page);
+  await setGameState(page);
   await page.goto('/');
 });
 
@@ -17,11 +17,11 @@ test('Raketen-Schockwelle erscheint an der Detonationsstelle', async ({ page }) 
   const r = await page.evaluate(async () => {
     const Utils = await import('./js/utils.js');
     const { dom } = await import('./js/state.js');
-    Utils.erzeugeRaketenDetonation(300, 200, 70);
-    const sw = dom.spielfeld.querySelector('.schockwelle');
+    Utils.createMissileDetonation(300, 200, 70);
+    const sw = dom.playfield.querySelector('.schockwelle');
     // Layout-Koordinaten relativ zum Spielfeld (unabhaengig von CSS-Skalierung)
     return {
-      parent: sw.offsetParent === dom.spielfeld,
+      parent: sw.offsetParent === dom.playfield,
       cx: sw.offsetLeft + sw.offsetWidth / 2,
       cy: sw.offsetTop + sw.offsetHeight / 2,
     };

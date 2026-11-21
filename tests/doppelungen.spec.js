@@ -1,5 +1,5 @@
 const { test, expect } = require('@playwright/test');
-const { setzeSpielstand } = require('./helfer');
+const { setGameState } = require('./helfer');
 
 test.beforeEach(async ({ page }) => {
   await page.route('**/api/highscores*', route =>
@@ -9,202 +9,202 @@ test.beforeEach(async ({ page }) => {
       body: JSON.stringify({ success: true, mode: 'single', highscores: [] }),
     }),
   );
-  await setzeSpielstand(page);
+  await setGameState(page);
   await page.goto('/');
 });
 
 // Ermittelt, welchen Spieler naechsterSpieler() fuer die Positionen liefert
-async function waehleSpieler(page, opts) {
+async function choosePlayer(page, opts) {
   return page.evaluate(async o => {
     const { state } = await import('./js/state.js');
-    const { naechsterSpieler, naechsterSpielerMitte } = await import('./js/gegner.js');
-    state.gameMode = o.modus;
-    state.isDead = !!o.p1Tot;
+    const { nextPlayer, nextPlayerMiddle } = await import('./js/gegner.js');
+    state.gameMode = o.mode;
+    state.isDead = !!o.p1Dead;
     state.x = o.p1[0];
     state.y = o.p1[1];
     state.p2.x = o.p2[0];
     state.p2.y = o.p2[1];
-    state.p2.isDead = !!o.p2Tot;
-    const ziel = naechsterSpieler(o.ref[0], o.ref[1]);
-    const mitte = naechsterSpielerMitte({ x: o.ref[0], y: o.ref[1] });
-    return { wer: ziel === state ? 'p1' : ziel === state.p2 ? 'p2' : '?', mitte };
+    state.p2.isDead = !!o.p2Dead;
+    const target = nextPlayer(o.ref[0], o.ref[1]);
+    const middle = nextPlayerMiddle({ x: o.ref[0], y: o.ref[1] });
+    return { who: target === state ? 'p1' : target === state.p2 ? 'p2' : '?', middle };
   }, opts);
 }
 
-test.describe('naechsterSpieler', () => {
+test.describe('nextPlayer', () => {
   test('Einzelspieler liefert immer P1, auch wenn P2 naeher waere', async ({ page }) => {
-    const r = await waehleSpieler(page, { modus: 'single', p1: [300, 500], p2: [100, 100], ref: [100, 100] });
-    expect(r.wer).toBe('p1');
+    const r = await choosePlayer(page, { mode: 'single', p1: [300, 500], p2: [100, 100], ref: [100, 100] });
+    expect(r.who).toBe('p1');
   });
 
   test('Coop: naeherer P2 wird gewaehlt', async ({ page }) => {
-    const r = await waehleSpieler(page, { modus: 'coop', p1: [300, 500], p2: [100, 100], ref: [110, 90] });
-    expect(r.wer).toBe('p2');
+    const r = await choosePlayer(page, { mode: 'coop', p1: [300, 500], p2: [100, 100], ref: [110, 90] });
+    expect(r.who).toBe('p2');
   });
 
   test('Online zaehlt als Coop', async ({ page }) => {
-    const r = await waehleSpieler(page, { modus: 'online', p1: [300, 500], p2: [100, 100], ref: [110, 90] });
-    expect(r.wer).toBe('p2');
+    const r = await choosePlayer(page, { mode: 'online', p1: [300, 500], p2: [100, 100], ref: [110, 90] });
+    expect(r.who).toBe('p2');
   });
 
   test('Coop: toter P1 fuehrt zu P2, auch wenn P1 naeher ist', async ({ page }) => {
-    const r = await waehleSpieler(page, {
-      modus: 'coop',
+    const r = await choosePlayer(page, {
+      mode: 'coop',
       p1: [100, 100],
       p2: [400, 500],
       ref: [100, 100],
-      p1Tot: true,
+      p1Dead: true,
     });
-    expect(r.wer).toBe('p2');
+    expect(r.who).toBe('p2');
   });
 
   test('Coop: toter P2 wird nie gewaehlt', async ({ page }) => {
-    const r = await waehleSpieler(page, {
-      modus: 'coop',
+    const r = await choosePlayer(page, {
+      mode: 'coop',
       p1: [400, 500],
       p2: [100, 100],
       ref: [100, 100],
-      p2Tot: true,
+      p2Dead: true,
     });
-    expect(r.wer).toBe('p1');
+    expect(r.who).toBe('p1');
   });
 
   test('Coop: gleicher Abstand behaelt P1', async ({ page }) => {
-    const r = await waehleSpieler(page, { modus: 'coop', p1: [100, 200], p2: [300, 200], ref: [200, 50] });
-    expect(r.wer).toBe('p1');
+    const r = await choosePlayer(page, { mode: 'coop', p1: [100, 200], p2: [300, 200], ref: [200, 50] });
+    expect(r.who).toBe('p1');
   });
 
   test('Abstand zaehlt von Spieler-Ecke zum Referenzpunkt, Mitte liefert Schiffsmitte', async ({ page }) => {
-    const h = await page.evaluate(async () => (await import('./js/state.js')).config.spielerGroesse / 2);
+    const h = await page.evaluate(async () => (await import('./js/state.js')).config.playerSize / 2);
     // Von der Spieler-Mitte aus waere P2 naeher, von der Spieler-Ecke aus ist P1 naeher
-    const r = await waehleSpieler(page, {
-      modus: 'coop',
+    const r = await choosePlayer(page, {
+      mode: 'coop',
       p1: [100, 100],
       p2: [100 - 2 * h - 2, 100],
       ref: [100 - h, 100],
     });
-    expect(r.wer).toBe('p1');
-    expect(r.mitte).toEqual({ x: 100 + h, y: 100 + h });
+    expect(r.who).toBe('p1');
+    expect(r.middle).toEqual({ x: 100 + h, y: 100 + h });
     // Gegenprobe: P2 knapp naeher an der Ecke
-    const r2 = await waehleSpieler(page, {
-      modus: 'coop',
+    const r2 = await choosePlayer(page, {
+      mode: 'coop',
       p1: [100, 100],
       p2: [100 - 2 * h + 2, 100],
       ref: [100 - h, 100],
     });
-    expect(r2.wer).toBe('p2');
-    expect(r2.mitte).toEqual({ x: 100 - 2 * h + 2 + h, y: 100 + h });
+    expect(r2.who).toBe('p2');
+    expect(r2.middle).toEqual({ x: 100 - 2 * h + 2 + h, y: 100 + h });
   });
 });
 
 // Struktur eines Anzeige-Containers: Kindelemente mit Klassen und sichtbarem Text (ohne Farben/Styles)
-async function uiVerlauf(page) {
+async function uiHistory(page) {
   return page.evaluate(async () => {
     const { state, dom } = await import('./js/state.js');
     const Utils = await import('./js/utils.js');
-    const struktur = el =>
+    const structure = el =>
       Array.from(el.children).map(c => ({
         cls: c.className.trim().split(/\s+/).sort(),
         text: c.textContent,
-        titel: c.getAttribute('title'),
+        title: c.getAttribute('title'),
       }));
     const normal = el => el.innerHTML.replace(/ (style|title)="[^"]*"/g, '');
-    const lese = (p1, p2) => ({
+    const read = (p1, p2) => ({
       p1: {
-        leben: struktur(dom.lebenAnzeige),
-        leben_n: normal(dom.lebenAnzeige),
-        pu: struktur(dom.aktivePowerupsContainer),
-        pu_n: normal(dom.aktivePowerupsContainer),
-        marker: dom.maxEnergieMarker.style.left,
+        lives: structure(dom.livesDisplay),
+        livesN: normal(dom.livesDisplay),
+        pu: structure(dom.activePowerupsContainer),
+        pu_n: normal(dom.activePowerupsContainer),
+        marker: dom.maxEnergyMarker.style.left,
         hud: [
           dom.splitterHudP1.style.display,
-          dom.splitterRotCountP1.textContent,
-          dom.splitterWeissCountP1.textContent,
+          dom.splitterRedCountP1.textContent,
+          dom.splitterWhiteCountP1.textContent,
         ],
       },
       p2: {
-        leben: struktur(dom.lebenAnzeigeP2),
-        leben_n: normal(dom.lebenAnzeigeP2),
-        pu: struktur(dom.aktivePowerupsContainerP2),
-        pu_n: normal(dom.aktivePowerupsContainerP2),
-        marker: dom.maxEnergieMarkerP2.style.left,
+        lives: structure(dom.livesDisplayP2),
+        livesN: normal(dom.livesDisplayP2),
+        pu: structure(dom.activePowerupsContainerP2),
+        pu_n: normal(dom.activePowerupsContainerP2),
+        marker: dom.maxEnergyMarkerP2.style.left,
         hud: [
           dom.splitterHudP2.style.display,
-          dom.splitterRotCountP2.textContent,
-          dom.splitterWeissCountP2.textContent,
+          dom.splitterRedCountP2.textContent,
+          dom.splitterWhiteCountP2.textContent,
         ],
       },
-      erwMarker: [(p1.maxEnergie / p1.absMaxEnergie) * 100 + '%', (p2.maxEnergie / p2.absMaxEnergie) * 100 + '%'],
+      erwMarker: [(p1.maxEnergy / p1.absMaxEnergy) * 100 + '%', (p2.maxEnergy / p2.absMaxEnergy) * 100 + '%'],
     });
-    const alle = () => {
-      Utils.updateLebenUI();
-      Utils.updateLebenP2UI();
-      Utils.updateAktivePowerupsUI();
-      Utils.updateAktivePowerupsP2UI();
-      Utils.updateMaxEnergieMarker();
-      Utils.updateMaxEnergieMarkerP2();
+    const all = () => {
+      Utils.updateLivesUi();
+      Utils.updateLivesP2Ui();
+      Utils.updateActivePowerupsUi();
+      Utils.updateActivePowerupsP2Ui();
+      Utils.updateMaxEnergyMarker();
+      Utils.updateMaxEnergyMarkerP2();
       Utils.updateSplitterUI();
       Utils.updateSplitterP2UI();
     };
     const p1 = state,
       p2 = state.p2;
     // Beide Spieler bekommen in jedem Schritt exakt denselben Zustand
-    const setze = z => {
+    const set = z => {
       for (const s of [p1, p2]) Object.assign(s, z);
     };
     const log = [];
     state.gameMode = 'coop';
-    setze({
-      leben: 3,
-      laserStufe: 1,
-      raketenStufe: 1,
-      bombenStufe: 1,
-      laserDurchschlag: false,
-      autolaserAktiv: false,
-      schildStufe: 0,
+    set({
+      lives: 3,
+      laserTier: 1,
+      missileTier: 1,
+      bombTier: 1,
+      laserPierce: false,
+      autolaserActive: false,
+      shieldTier: 0,
       selectedShipModel: 'viper',
-      maxEnergie: 50,
-      splitterRot: 0,
-      splitterWeiss: 0,
-      phantomSchildRegenTimer: 0,
+      maxEnergy: 50,
+      splitterRed: 0,
+      splitterWhite: 0,
+      phantomShieldRegenTimer: 0,
     });
-    alle();
-    log.push(lese(p1, p2));
+    all();
+    log.push(read(p1, p2));
 
-    setze({
-      leben: 1,
-      laserStufe: 3,
-      raketenStufe: 5,
-      bombenStufe: 2,
-      laserDurchschlag: true,
-      autolaserAktiv: true,
-      schildStufe: 2,
-      maxEnergie: 75,
-      splitterRot: 4,
-      splitterWeiss: 7,
+    set({
+      lives: 1,
+      laserTier: 3,
+      missileTier: 5,
+      bombTier: 2,
+      laserPierce: true,
+      autolaserActive: true,
+      shieldTier: 2,
+      maxEnergy: 75,
+      splitterRed: 4,
+      splitterWhite: 7,
     });
-    alle();
-    log.push(lese(p1, p2));
+    all();
+    log.push(read(p1, p2));
 
-    setze({
-      leben: 4,
-      laserStufe: 5,
-      raketenStufe: 2,
-      bombenStufe: 1,
-      laserDurchschlag: false,
-      autolaserAktiv: false,
-      schildStufe: 0,
+    set({
+      lives: 4,
+      laserTier: 5,
+      missileTier: 2,
+      bombTier: 1,
+      laserPierce: false,
+      autolaserActive: false,
+      shieldTier: 0,
       selectedShipModel: 'phantom',
-      phantomSchildRegenTimer: 300,
-      phantomSchildRegenMax: 600,
+      phantomShieldRegenTimer: 300,
+      phantomShieldRegenMax: 600,
     });
-    alle();
-    log.push(lese(p1, p2));
+    all();
+    log.push(read(p1, p2));
 
     state.gameMode = 'single';
-    setze({ selectedShipModel: 'viper', splitterRot: 0, splitterWeiss: 0, phantomSchildRegenTimer: 0 });
-    alle();
-    log.push(lese(p1, p2));
+    set({ selectedShipModel: 'viper', splitterRed: 0, splitterWhite: 0, phantomShieldRegenTimer: 0 });
+    all();
+    log.push(read(p1, p2));
     return log;
   });
 }
@@ -212,35 +212,35 @@ async function uiVerlauf(page) {
 test('P1/P2-UI-Funktionen zeigen Leben, Powerup-Stufen, Marker und Splitter-HUD fuer beide Spieler gleich', async ({
   page,
 }) => {
-  const [start, s1, s2, s3] = await uiVerlauf(page);
-  const aktiv = liste => liste.filter(e => !e.cls.includes('pu-anim-lost'));
-  const verloren = liste => liste.filter(e => e.cls.includes('pu-anim-lost'));
-  const texte = liste => liste.map(e => e.text);
+  const [start, s1, s2, s3] = await uiHistory(page);
+  const active = list => list.filter(e => !e.cls.includes('pu-anim-lost'));
+  const lost = list => list.filter(e => e.cls.includes('pu-anim-lost'));
+  const texts = list => list.map(e => e.text);
 
   for (const k of ['p1', 'p2']) {
     // Start: 3 Herzen, keine Powerup-Icons, kein Splitter-HUD ohne Splitter
-    expect(start[k].leben.length).toBe(3);
+    expect(start[k].lives.length).toBe(3);
     expect(start[k].pu).toEqual([]);
 
     // Schritt 1: Leben 1 (2 Verlust-Herzen), alle Powerups mit Stufen-Text in fester Reihenfolge
-    expect(aktiv(s1[k].leben).length).toBe(1);
-    expect(verloren(s1[k].leben).length).toBe(2);
-    expect(texte(aktiv(s1[k].pu))).toEqual(['L3', 'R5', 'B2', '↑', 'O2', 'A']);
-    expect(aktiv(s1[k].pu).every(e => e.cls.includes('active-pu-icon') && e.cls.includes('pu-anim-new'))).toBe(true);
+    expect(active(s1[k].lives).length).toBe(1);
+    expect(lost(s1[k].lives).length).toBe(2);
+    expect(texts(active(s1[k].pu))).toEqual(['L3', 'R5', 'B2', '↑', 'O2', 'A']);
+    expect(active(s1[k].pu).every(e => e.cls.includes('active-pu-icon') && e.cls.includes('pu-anim-new'))).toBe(true);
     expect(s1[k].hud).toEqual(['flex', '4', '7']);
 
     // Schritt 2: mehr Leben, Upgrade/Downgrade/Verlust, Phantom-Schild laedt auf
-    expect(aktiv(s2[k].leben).length).toBe(4);
+    expect(active(s2[k].lives).length).toBe(4);
     expect(s2[k].pu.find(e => e.text === 'L5').cls).toContain('pu-anim-upgrade');
     expect(s2[k].pu.find(e => e.text === 'R2').cls).toContain('pu-anim-downgrade');
-    const schild = s2[k].pu.find(e => e.cls.includes('pu-recharging-shield'));
-    expect(schild.text).toBe('O1');
-    expect(schild.titel).toMatch(/\d+%/);
-    expect(texte(verloren(s2[k].pu)).sort()).toEqual(['A', 'B2', '↑'].sort());
+    const shield = s2[k].pu.find(e => e.cls.includes('pu-recharging-shield'));
+    expect(shield.text).toBe('O1');
+    expect(shield.title).toMatch(/\d+%/);
+    expect(texts(lost(s2[k].pu)).sort()).toEqual(['A', 'B2', '↑'].sort());
     expect(s2[k].hud[0]).toBe('none'); // Phantom hat kein Splitter-HUD
 
     // Schritt 3: unveraenderte Lebenszahl, keine neuen Icons
-    expect(aktiv(s3[k].leben).length).toBe(4);
+    expect(active(s3[k].lives).length).toBe(4);
   }
   // Einzelspieler: nur P1 (Viper) zeigt das Splitter-HUD
   expect(s3.p1.hud[0]).toBe('flex');
@@ -255,7 +255,7 @@ test('P1/P2-UI-Funktionen zeigen Leben, Powerup-Stufen, Marker und Splitter-HUD 
 
   // Doppelungs-Abbau: bei gleichem Zustand liefern P1 und P2 dieselbe Struktur (ohne Styles/Titel)
   for (const s of [start, s1, s2]) {
-    expect(s.p2.leben_n).toBe(s.p1.leben_n);
+    expect(s.p2.livesN).toBe(s.p1.livesN);
     expect(s.p2.pu_n).toBe(s.p1.pu_n);
     expect(s.p2.hud).toEqual(s.p1.hud);
     expect(s.p2.marker).toBe(s.p1.marker);
@@ -263,123 +263,123 @@ test('P1/P2-UI-Funktionen zeigen Leben, Powerup-Stufen, Marker und Splitter-HUD 
 });
 
 // Bewegung und Energie fachlich pruefen: Richtung/Betrag aus dem Schiffsmodell, Randbegrenzung, Regeneration
-async function spielerVerhalten(page, modell) {
+async function playerBehavior(page, model) {
   return page.evaluate(async m => {
     const { state, config, arrays } = await import('./js/state.js');
-    const Spieler = await import('./js/spieler.js');
+    const Player = await import('./js/spieler.js');
     const mod = window.__game.shipModels[m];
-    const t = state.tastenGedrueckt;
+    const t = state.keysPressed;
     state.gameMode = 'coop';
     state.p2IsBot = false;
     state.isDead = false;
     state.p2.isDead = false;
-    state.unbegrenzteEnergie = false;
-    state.p2.unbegrenzteEnergie = false;
+    state.unlimitedEnergy = false;
+    state.p2.unlimitedEnergy = false;
     arrays.powerups.length = 0;
-    const spieler = {
-      p1: { s: state, tasten: { links: 'a', rechts: 'd', oben: 'w', unten: 's', feuer: 'b' } },
+    const player = {
+      p1: { s: state, keys: { left: 'a', right: 'd', top: 'w', bottom: 's', fire: 'b' } },
       p2: {
         s: state.p2,
-        tasten: { links: 'arrowleft', rechts: 'arrowright', oben: 'arrowup', unten: 'arrowdown', feuer: 'ä' },
+        keys: { left: 'arrowleft', right: 'arrowright', top: 'arrowup', bottom: 'arrowdown', fire: 'ä' },
       },
     };
     state.selectedShipModel = m;
     state.p2.selectedShipModel = m;
-    const maxX = config.spielfeldBreite - config.spielerGroesse;
-    const maxY = config.spielfeldHoehe - config.spielerGroesse;
-    const schritt = taste => {
+    const maxX = config.playfieldWidth - config.playerSize;
+    const maxY = config.playfieldHeight - config.playerSize;
+    const step = key => {
       Object.keys(t).forEach(k => {
         t[k] = false;
       });
-      if (taste) t[taste] = true;
-      Spieler.bewegeSpieler();
-      Spieler.aktualisiereEnergie();
+      if (key) t[key] = true;
+      Player.movePlayer();
+      Player.updateEnergy();
     };
-    const setzePos = (s, x, y) => {
+    const setPos = (s, x, y) => {
       s.x = x;
       s.y = y;
       s.prevX = x;
       s.prevY = y;
     };
     const out = { speed: mod.speed, regen: mod.energyRegen, maxX, maxY };
-    for (const [name, { s, tasten }] of Object.entries(spieler)) {
+    for (const [name, { s, keys }] of Object.entries(player)) {
       const r = {};
-      for (const richtung of ['links', 'rechts', 'oben', 'unten']) {
-        setzePos(state, 300, 300);
-        setzePos(state.p2, 300, 300);
-        schritt(tasten[richtung]);
-        r[richtung] = { dx: s.x - 300, dy: s.y - 300 };
+      for (const direction of ['left', 'right', 'top', 'bottom']) {
+        setPos(state, 300, 300);
+        setPos(state.p2, 300, 300);
+        step(keys[direction]);
+        r[direction] = { dx: s.x - 300, dy: s.y - 300 };
       }
-      setzePos(s, 300, 300);
-      schritt(null);
-      r.ruhe = { dx: s.x - 300, dy: s.y - 300 };
+      setPos(s, 300, 300);
+      step(null);
+      r.rest = { dx: s.x - 300, dy: s.y - 300 };
       // Randbegrenzung
-      setzePos(s, 1, 1);
-      schritt(tasten.links);
-      r.randLinks = s.x;
-      setzePos(s, 1, 1);
-      schritt(tasten.oben);
-      r.randOben = s.y;
-      setzePos(s, maxX - 1, 300);
-      schritt(tasten.rechts);
-      r.randRechts = s.x;
-      setzePos(s, 300, maxY - 1);
-      schritt(tasten.unten);
-      r.randUnten = s.y;
+      setPos(s, 1, 1);
+      step(keys.left);
+      r.edgeLeft = s.x;
+      setPos(s, 1, 1);
+      step(keys.top);
+      r.edgeTop = s.y;
+      setPos(s, maxX - 1, 300);
+      step(keys.right);
+      r.edgeRight = s.x;
+      setPos(s, 300, maxY - 1);
+      step(keys.bottom);
+      r.edgeBottom = s.y;
       // Energie: Feuern verbraucht, Nicht-Feuern laedt um energyRegen
-      s.maxEnergie = 100;
-      s.laserStufe = 1;
-      s.laserSchiesst = false;
-      s.energie = 50;
-      setzePos(s, 300, 300);
-      schritt(tasten.feuer);
-      r.feuer = { vorher: 50, nachher: s.energie, schiesst: s.laserSchiesst };
-      s.energie = 20;
-      s.laserSchiesst = false;
-      schritt(null);
-      r.regen = { vorher: 20, nachher: s.energie, schiesst: s.laserSchiesst };
-      s.energie = s.maxEnergie;
-      schritt(null);
-      r.voll = s.energie;
+      s.maxEnergy = 100;
+      s.laserTier = 1;
+      s.laserShoots = false;
+      s.energy = 50;
+      setPos(s, 300, 300);
+      step(keys.fire);
+      r.fire = { beforehand: 50, afterwards: s.energy, shoots: s.laserShoots };
+      s.energy = 20;
+      s.laserShoots = false;
+      step(null);
+      r.regen = { beforehand: 20, afterwards: s.energy, shoots: s.laserShoots };
+      s.energy = s.maxEnergy;
+      step(null);
+      r.full = s.energy;
       out[name] = r;
     }
     return out;
-  }, modell);
+  }, model);
 }
 
-for (const modell of ['viper', 'phantom']) {
-  test(`bewegeSpieler/aktualisiereEnergie: Richtung, Randbegrenzung und Energie fuer P1 und P2 (${modell})`, async ({
+for (const model of ['viper', 'phantom']) {
+  test(`bewegeSpieler/aktualisiereEnergie: Richtung, Randbegrenzung und Energie fuer P1 und P2 (${model})`, async ({
     page,
   }) => {
-    const o = await spielerVerhalten(page, modell);
+    const o = await playerBehavior(page, model);
     expect(o.speed).toBeGreaterThan(0);
     for (const k of ['p1', 'p2']) {
       const r = o[k];
       // Bewegung: richtige Richtung um die Geschwindigkeit des Schiffsmodells
-      expect(r.links.dx).toBeCloseTo(-o.speed, 5);
-      expect(r.links.dy).toBeCloseTo(0, 5);
-      expect(r.rechts.dx).toBeCloseTo(o.speed, 5);
-      expect(r.rechts.dy).toBeCloseTo(0, 5);
-      expect(r.oben.dy).toBeCloseTo(-o.speed, 5);
-      expect(r.oben.dx).toBeCloseTo(0, 5);
-      expect(r.unten.dy).toBeCloseTo(o.speed, 5);
-      expect(r.unten.dx).toBeCloseTo(0, 5);
-      expect(r.ruhe.dx).toBeCloseTo(0, 5);
-      expect(r.ruhe.dy).toBeCloseTo(0, 5);
+      expect(r.left.dx).toBeCloseTo(-o.speed, 5);
+      expect(r.left.dy).toBeCloseTo(0, 5);
+      expect(r.right.dx).toBeCloseTo(o.speed, 5);
+      expect(r.right.dy).toBeCloseTo(0, 5);
+      expect(r.top.dy).toBeCloseTo(-o.speed, 5);
+      expect(r.top.dx).toBeCloseTo(0, 5);
+      expect(r.bottom.dy).toBeCloseTo(o.speed, 5);
+      expect(r.bottom.dx).toBeCloseTo(0, 5);
+      expect(r.rest.dx).toBeCloseTo(0, 5);
+      expect(r.rest.dy).toBeCloseTo(0, 5);
       // Randbegrenzung
-      expect(r.randLinks).toBe(0);
-      expect(r.randOben).toBe(0);
-      expect(r.randRechts).toBeCloseTo(o.maxX, 5);
-      expect(r.randUnten).toBeCloseTo(o.maxY, 5);
+      expect(r.edgeLeft).toBe(0);
+      expect(r.edgeTop).toBe(0);
+      expect(r.edgeRight).toBeCloseTo(o.maxX, 5);
+      expect(r.edgeBottom).toBeCloseTo(o.maxY, 5);
       // Energie
-      expect(r.feuer.schiesst).toBe(true);
-      expect(r.feuer.nachher).toBeLessThan(r.feuer.vorher);
-      expect(r.regen.schiesst).toBe(false);
-      expect(r.regen.nachher).toBeCloseTo(r.regen.vorher + o.regen, 5);
-      expect(r.voll).toBeCloseTo(100, 5); // nie ueber maxEnergie
+      expect(r.fire.shoots).toBe(true);
+      expect(r.fire.afterwards).toBeLessThan(r.fire.beforehand);
+      expect(r.regen.shoots).toBe(false);
+      expect(r.regen.afterwards).toBeCloseTo(r.regen.beforehand + o.regen, 5);
+      expect(r.full).toBeCloseTo(100, 5); // nie ueber maxEnergie
     }
     // P1 und P2 verhalten sich gleich
-    expect(o.p2.feuer.nachher).toBeCloseTo(o.p1.feuer.nachher, 5);
-    expect(o.p2.regen.nachher).toBeCloseTo(o.p1.regen.nachher, 5);
+    expect(o.p2.fire.afterwards).toBeCloseTo(o.p1.fire.afterwards, 5);
+    expect(o.p2.regen.afterwards).toBeCloseTo(o.p1.regen.afterwards, 5);
   });
 }

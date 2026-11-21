@@ -2,84 +2,84 @@
 // #spielfeld, das Modell traegt sein Element in obj.el. Nur dieses Modul schreibt Position, Drehung,
 // Deckkraft und Zustandsanzeigen (Schild, Risse, Betaeubung, Schlepp-Strahl ...) der Weltobjekte ins DOM.
 import { arrays, dom, state, shipColors } from './state.js';
-import { MINE_GROESSE, istSniper, trefferRadius, radiusFaktor, istVoll, ladeAnteil, LADEN_AB } from './sniper.js';
+import { MINE_SIZE, isSniper, hitRadius, radiusFactor, isFull, chargeShare, CHARGE_FROM } from './sniper.js';
 import {
-  WELLE_TEMPO,
-  WELLE_SCHRITTE,
-  SWEEP_PARADE_FARBE,
-  istGleve,
-  istDashAktiv,
-  istSweepAktiv,
-  sweepUrsprung,
-  sweepLaenge,
+  WAVE_SPEED,
+  WAVE_STEPS,
+  SWEEP_PARRY_COLOR,
+  isGleve,
+  isDashActive,
+  isSweepActive,
+  sweepOrigin,
+  sweepLength,
 } from './gleve.js';
-import { istViper, istRolleAktiv, istOverdrive } from './viper.js';
-import { HACK_NAMEN, HACK_DAUER } from './hack.js';
-import { werferBelegung } from './utils.js';
-import { ERZEUGER, EFFEKT_STIL, getShipSVGContent } from './anzeige-dom-objekte.js';
+import { isViper, isRollActive, isOverdrive } from './viper.js';
+import { HACK_NAMES, HACK_DURATION } from './hack.js';
+import { launcherBinding } from './utils.js';
+import { CREATOR, EFFECT_STYLE, getShipSvgContent } from './anzeige-dom-objekte.js';
 
-function setzePosition(o) {
-  const x = o.anzeigeX !== undefined ? o.anzeigeX : o.x;
-  const y = o.anzeigeY !== undefined ? o.anzeigeY : o.y;
+function setPosition(o) {
+  const x = o.displayX !== undefined ? o.displayX : o.x;
+  const y = o.displayY !== undefined ? o.displayY : o.y;
   o.el.style.left = x + 'px';
   o.el.style.top = y + 'px';
 }
 
 // Position und, falls das Modell eine Drehung traegt, die Drehung
-function zeichneObjekt(o) {
-  setzePosition(o);
+function drawObject(o) {
+  setPosition(o);
   if (typeof o.rot === 'number') o.el.style.transform = `rotate(${o.rot}deg)`;
 }
 
-function zeigeBetaeubung(o) {
-  o.el.classList.toggle('betaeubt', o.betaeubt > 0);
+function showStun(o) {
+  o.el.classList.toggle('betaeubt', o.stunned > 0);
 }
 
 // Feind: Schild sichtbar solange schildHp > 0, Cling-on-Flammen erst nach dem Abloesen
-function zeichneFeind(f) {
-  zeichneObjekt(f);
-  zeigeBetaeubung(f);
-  if (f.offen !== undefined) f.el.classList.toggle('offen', !!f.offen);
-  if (f.schildEl && !(f.schildHp > 0)) {
-    f.schildEl.remove();
-    f.schildEl = null;
+function drawEnemy(f) {
+  drawObject(f);
+  showStun(f);
+  if (f.open !== undefined) f.el.classList.toggle('offen', !!f.open);
+  if (f.shieldEl && !(f.shieldHp > 0)) {
+    f.shieldEl.remove();
+    f.shieldEl = null;
   }
-  if (f.muster === 'clingOn') {
-    const flammen = f.phase === 'attached' ? 'none' : 'block';
-    if (f.el.dataset.flammen !== flammen) {
-      f.el.dataset.flammen = flammen;
+  if (f.pattern === 'clingOn') {
+    const flames = f.phase === 'attached' ? 'none' : 'block';
+    if (f.el.dataset.flames !== flames) {
+      f.el.dataset.flames = flames;
       f.el.querySelectorAll('.feind-flame').forEach(fl => {
-        fl.style.display = flammen;
+        fl.style.display = flames;
       });
     }
   }
 }
 
 // Asteroid: Magma-Klasse aus istUnzerstoerbar, Risse werden mit dem Schaden (hp/maxHp) sichtbar
-function zeichneAsteroid(a) {
-  zeichneObjekt(a);
-  a.el.classList.toggle('unzerstoerbar', !!a.istUnzerstoerbar);
-  if (a.istUnzerstoerbar) return;
-  if (!a.rissEl) {
+function drawAsteroid(a) {
+  drawObject(a);
+  a.el.classList.toggle('unzerstoerbar', !!a.isIndestructible);
+  if (a.isIndestructible) return;
+  if (!a.crackEl) {
     // Geknackter Magma-Brocken: Risse ohne Muster
-    a.rissEl = document.createElement('div');
-    a.rissEl.classList.add('riss-layer');
-    a.el.appendChild(a.rissEl);
+    a.crackEl = document.createElement('div');
+    a.crackEl.classList.add('riss-layer');
+    a.el.appendChild(a.crackEl);
   }
   if (a.maxHp) {
-    const basis = a.traegtPowerup ? 0.5 : 0;
-    a.rissEl.style.opacity = basis + (1 - basis) * (1 - Math.max(0, a.hp) / a.maxHp);
+    const basis = a.carriesPowerup ? 0.5 : 0;
+    a.crackEl.style.opacity = basis + (1 - basis) * (1 - Math.max(0, a.hp) / a.maxHp);
   }
 }
 
-function zeichneBoss(b) {
-  setzePosition(b);
-  zeigeBetaeubung(b);
-  b.el.classList.toggle('repulsor-aktiv', !!b.repulsorAktiv);
-  if (b.offen !== undefined) b.el.classList.toggle('offen', !!b.offen);
+function drawBoss(b) {
+  setPosition(b);
+  showStun(b);
+  b.el.classList.toggle('repulsor-aktiv', !!b.repulsorActive);
+  if (b.open !== undefined) b.el.classList.toggle('offen', !!b.open);
 }
 
-function entferneStrahl(p) {
+function removeBeam(p) {
   if (p.beamEl) {
     p.beamEl.remove();
     p.beamEl = null;
@@ -87,17 +87,17 @@ function entferneStrahl(p) {
 }
 
 // Traktorstrahl vom Schiff (strahlX/strahlY) zur Powerup-Mitte, Farbe nach Schlepper
-function zeichneStrahl(p) {
-  if (!p.towedBy || p.strahlX === undefined) {
-    entferneStrahl(p);
+function drawBeam(p) {
+  if (!p.towedBy || p.beamX === undefined) {
+    removeBeam(p);
     return;
   }
-  if (p.beamEl && p.beamEl.dataset.von !== p.towedBy) entferneStrahl(p);
+  if (p.beamEl && p.beamEl.dataset.fromEntry !== p.towedBy) removeBeam(p);
   if (!p.beamEl) {
     const ns = 'http://www.w3.org/2000/svg';
     const svg = document.createElementNS(ns, 'svg');
     svg.setAttribute('class', 'tractor-beam-svg');
-    svg.dataset.von = p.towedBy;
+    svg.dataset.fromEntry = p.towedBy;
     Object.assign(svg.style, {
       position: 'absolute',
       top: '0',
@@ -112,66 +112,66 @@ function zeichneStrahl(p) {
     glow.setAttribute('stroke', p.towedBy === 'p1' ? '#3498db' : '#2ecc71');
     glow.setAttribute('stroke-width', '4');
     glow.setAttribute('opacity', '0.45');
-    const kern = document.createElementNS(ns, 'line');
-    kern.setAttribute('class', 'tractor-beam-core');
-    kern.setAttribute('stroke', '#ffffff');
-    kern.setAttribute('stroke-width', '1.5');
-    kern.setAttribute('stroke-dasharray', '3 2');
+    const core = document.createElementNS(ns, 'line');
+    core.setAttribute('class', 'tractor-beam-core');
+    core.setAttribute('stroke', '#ffffff');
+    core.setAttribute('stroke-width', '1.5');
+    core.setAttribute('stroke-dasharray', '3 2');
     svg.appendChild(glow);
-    svg.appendChild(kern);
-    dom.spielfeld.appendChild(svg);
+    svg.appendChild(core);
+    dom.playfield.appendChild(svg);
     p.beamEl = svg;
   }
-  const g = p.groesse || 24;
-  const px = (p.anzeigeX !== undefined ? p.anzeigeX : p.x) + g / 2;
-  const py = (p.anzeigeY !== undefined ? p.anzeigeY : p.y) + g / 2;
+  const g = p.size || 24;
+  const px = (p.displayX !== undefined ? p.displayX : p.x) + g / 2;
+  const py = (p.displayY !== undefined ? p.displayY : p.y) + g / 2;
   p.beamEl.querySelectorAll('line').forEach(l => {
-    l.setAttribute('x1', p.strahlX);
-    l.setAttribute('y1', p.strahlY);
+    l.setAttribute('x1', p.beamX);
+    l.setAttribute('y1', p.beamY);
     l.setAttribute('x2', px);
     l.setAttribute('y2', py);
   });
 }
 
-function zeichnePowerup(p) {
-  setzePosition(p);
-  const schlepper = p.towedBy || '';
-  if (p.el.dataset.towedBy !== schlepper) {
-    p.el.dataset.towedBy = schlepper;
+function drawPowerup(p) {
+  setPosition(p);
+  const tug = p.towedBy || '';
+  if (p.el.dataset.towedBy !== tug) {
+    p.el.dataset.towedBy = tug;
     p.el.classList.remove('powerup-towed', 'powerup-towed-p1', 'powerup-towed-p2');
-    if (schlepper) p.el.classList.add('powerup-towed', `powerup-towed-${schlepper}`);
+    if (tug) p.el.classList.add('powerup-towed', `powerup-towed-${tug}`);
   }
-  zeichneStrahl(p);
+  drawBeam(p);
 }
 
-function setzeFarbe(o, farbe) {
-  if (o.el.dataset.farbe === farbe) return;
-  o.el.dataset.farbe = farbe;
-  o.el.style.backgroundColor = farbe;
-  o.el.style.boxShadow = `0 0 10px ${farbe}`;
+function setColor(o, color) {
+  if (o.el.dataset.color === color) return;
+  o.el.dataset.color = color;
+  o.el.style.backgroundColor = color;
+  o.el.style.boxShadow = `0 0 10px ${color}`;
 }
 
 // Spielerlaser: Farbe kann wechseln (Abpraller an Magma)
-function zeichneLaser(l) {
-  zeichneObjekt(l);
-  if (l.farbe) setzeFarbe(l, l.farbe);
+function drawLaser(l) {
+  drawObject(l);
+  if (l.color) setColor(l, l.color);
 }
 
 // Feindliche Geschosse: von der Gleve pariert (harmlos) orange
-function zeichneGeschoss(o) {
-  zeichneObjekt(o);
-  if (o.harmlos && !o.el.classList.contains('gleve-pariert')) {
+function drawProjectile(o) {
+  drawObject(o);
+  if (o.harmless && !o.el.classList.contains('gleve-pariert')) {
     o.el.classList.add('gleve-pariert');
-    setzeFarbe(o, SWEEP_PARADE_FARBE);
+    setColor(o, SWEEP_PARRY_COLOR);
   }
 }
 
 // Spielerbombe: Lichter und Aura pulsieren schneller, je naeher das Ziel (fortschritt 1 -> 0)
-function zeichneBombe(b) {
-  zeichneObjekt(b);
-  if (b.fortschritt === undefined) return;
-  const blink = Math.max(0.08, b.fortschritt) + 's';
-  const aura = Math.max(0.06, b.fortschritt * 0.8) + 's';
+function drawBomb(b) {
+  drawObject(b);
+  if (b.progress === undefined) return;
+  const blink = Math.max(0.08, b.progress) + 's';
+  const aura = Math.max(0.06, b.progress * 0.8) + 's';
   b.el.querySelectorAll('.bombe-licht').forEach(l => {
     l.style.animationDuration = blink;
   });
@@ -179,183 +179,183 @@ function zeichneBombe(b) {
   if (auraEl) auraEl.style.animationDuration = aura;
 }
 
-function zeichnePartikel(p) {
-  setzePosition(p);
-  p.el.style.opacity = p.leben;
-  p.el.style.transform = p.vRot ? `scale(${p.leben}) rotate(${p.rot || 0}deg)` : `scale(${p.leben})`;
+function drawParticles(p) {
+  setPosition(p);
+  p.el.style.opacity = p.lives;
+  p.el.style.transform = p.vRot ? `scale(${p.lives}) rotate(${p.rot || 0}deg)` : `scale(${p.lives})`;
 }
 
 // Gleve-Klingenwelle: verblasst mit der zurueckgelegten Strecke
-function zeichneWelle(w) {
-  setzePosition(w);
-  const strecke = Math.max(0, (w.startY === undefined ? w.y : w.startY) - w.y);
-  w.el.style.opacity = String(Math.max(0.2, 1 - (0.8 * strecke) / (WELLE_TEMPO * WELLE_SCHRITTE)));
+function drawWave(w) {
+  setPosition(w);
+  const travel = Math.max(0, (w.startY === undefined ? w.y : w.startY) - w.y);
+  w.el.style.opacity = String(Math.max(0.2, 1 - (0.8 * travel) / (WAVE_SPEED * WAVE_STEPS)));
 }
 
 // Sniper-Effekte, je Art eigene Rechnung aus t = 1 - rest / dauer. Ringe wachsen aus der Mitte (x/y) auf den Durchmesser d,
 // der Strahl bleibt stehen und blendet nur aus.
-function zeichneSniperRing(e, d, deckkraft) {
+function drawSniperRing(e, d, opacity) {
   e.el.style.width = d + 'px';
   e.el.style.height = d + 'px';
   e.el.style.left = e.x - d / 2 + 'px';
   e.el.style.top = e.y - d / 2 + 'px';
-  e.el.style.opacity = deckkraft;
+  e.el.style.opacity = opacity;
 }
 
-const SNIPER_EFFEKT_ZEICHNER = {
+const SNIPER_EFFECT_DRAWER = {
   // Powerup-Schockwelle: waechst linear bis radius (fernste Feldecke), verblasst nur teilweise
-  schockwelle: e => {
-    const t = 1 - e.rest / e.dauer;
-    zeichneSniperRing(e, e.radius * 2 * t, 1 - t * 0.6);
+  shockwave: e => {
+    const t = 1 - e.rest / e.duration;
+    drawSniperRing(e, e.radius * 2 * t, 1 - t * 0.6);
   },
-  sniperStrahl: e => {
-    e.el.style.opacity = e.rest / e.dauer;
+  sniperBeam: e => {
+    e.el.style.opacity = e.rest / e.duration;
   },
   // schnell am Anfang, gegen Ende auslaufend
-  sniperDruckwelle: e => {
-    const t = 1 - e.rest / e.dauer;
-    zeichneSniperRing(e, e.radius * 2 * Math.sqrt(t), 1 - t * 0.85);
+  sniperBlastWave: e => {
+    const t = 1 - e.rest / e.duration;
+    drawSniperRing(e, e.radius * 2 * Math.sqrt(t), 1 - t * 0.85);
   },
-  sniperMinenExplosion: e => {
-    const t = 1 - e.rest / e.dauer;
-    zeichneSniperRing(e, e.radius * 2 * Math.sqrt(t), 1 - t * 0.85);
+  sniperMineExplosion: e => {
+    const t = 1 - e.rest / e.duration;
+    drawSniperRing(e, e.radius * 2 * Math.sqrt(t), 1 - t * 0.85);
   },
   sniperEmp: e => {
-    const t = 1 - e.rest / e.dauer;
-    zeichneSniperRing(e, e.radius * 2 * t, 1 - t * 0.8);
+    const t = 1 - e.rest / e.duration;
+    drawSniperRing(e, e.radius * 2 * t, 1 - t * 0.8);
   },
 };
 
 // Effekt mit Lebensdauer: Fortschritt t aus rest/dauer (nach einer Verzoegerung unsichtbar), Mitte x/y,
 // Groesse waechst bis skala und die Deckkraft sinkt auf 0
-function zeichneEffekt(e) {
-  const sniper = SNIPER_EFFEKT_ZEICHNER[e.art];
+function drawEffect(e) {
+  const sniper = SNIPER_EFFECT_DRAWER[e.kind];
   if (sniper) {
     sniper(e);
     return;
   }
-  const stil = EFFEKT_STIL[e.art];
-  const verz = e.verzoegerung || 0;
-  const vergangen = e.dauer - e.rest;
-  const sichtbar = vergangen >= verz;
-  const t = sichtbar ? (vergangen - verz) / (e.dauer - verz) : 0;
+  const style = EFFECT_STYLE[e.kind];
+  const dir = e.delay || 0;
+  const elapsed = e.duration - e.rest;
+  const visible = elapsed >= dir;
+  const t = visible ? (elapsed - dir) / (e.duration - dir) : 0;
   e.el.style.left = e.x - e.radius + 'px';
   e.el.style.top = e.y - e.radius + 'px';
-  e.el.style.opacity = sichtbar ? String(1 - t) : '0';
-  e.el.style.transform = `scale(${1 + (stil.skala - 1) * t})`;
+  e.el.style.opacity = visible ? String(1 - t) : '0';
+  e.el.style.transform = `scale(${1 + (style.scale - 1) * t})`;
 }
 
 // Sniper-Granate im Flug: x/y = Mitte, 14 px gross, Drehung aus rot
-function zeichneSniperGranate(g) {
+function drawSniperGrenade(g) {
   g.el.style.left = g.x - 7 + 'px';
   g.el.style.top = g.y - 7 + 'px';
   g.el.style.transform = `rotate(${g.rot}deg)`;
 }
 
 // Haftmine: x/y = Mitte, 12 px gross (MINE_GROESSE), Klassen haftet/blinkt aus dem Modell
-function zeichneSniperMine(m) {
-  m.el.style.left = m.x - MINE_GROESSE / 2 + 'px';
-  m.el.style.top = m.y - MINE_GROESSE / 2 + 'px';
-  m.el.classList.toggle('haftet', !!m.haftet);
-  m.el.classList.toggle('blinkt', !!m.blinkt);
+function drawSniperMine(m) {
+  m.el.style.left = m.x - MINE_SIZE / 2 + 'px';
+  m.el.style.top = m.y - MINE_SIZE / 2 + 'px';
+  m.el.classList.toggle('haftet', !!m.sticks);
+  m.el.classList.toggle('blinkt', !!m.blinks);
 }
 
 // Zeichner je Objektart (beim Erzeugen) und je Liste (jeder Schritt).
-const ZEICHNER_JE_ART = {
-  stern: setzePosition,
-  feind: zeichneFeind,
-  asteroid: zeichneAsteroid,
-  boss: zeichneBoss,
-  powerup: zeichnePowerup,
-  laser: zeichneLaser,
-  rakete: zeichneObjekt,
-  bombe: zeichneBombe,
-  feindLaser: zeichneGeschoss,
-  bossLaser: zeichneGeschoss,
-  bossRakete: zeichneObjekt,
-  bossBombe: zeichneObjekt,
-  hackProjektil: zeichneGeschoss,
-  gleveWelle: zeichneWelle,
-  partikel: zeichnePartikel,
-  effekt: zeichneEffekt,
-  sniperGranate: zeichneSniperGranate,
-  sniperMine: zeichneSniperMine,
-  fels: setzePosition,
+const DRAWER_PER_KIND = {
+  star: setPosition,
+  enemy: drawEnemy,
+  asteroid: drawAsteroid,
+  boss: drawBoss,
+  powerup: drawPowerup,
+  laser: drawLaser,
+  missile: drawObject,
+  bomb: drawBomb,
+  enemyLaser: drawProjectile,
+  bossLaser: drawProjectile,
+  bossMissile: drawObject,
+  bossBomb: drawObject,
+  hackProjectile: drawProjectile,
+  gleveWave: drawWave,
+  particles: drawParticles,
+  effect: drawEffect,
+  sniperGrenade: drawSniperGrenade,
+  sniperMine: drawSniperMine,
+  rock: setPosition,
 };
 
-const ZEICHNER = {
-  sterne: setzePosition,
-  asteroiden: zeichneAsteroid,
-  feinde: zeichneFeind,
-  bosses: zeichneBoss,
-  powerups: zeichnePowerup,
-  laserArray: zeichneLaser,
-  raketenArray: zeichneObjekt,
-  bombenArray: zeichneBombe,
-  feindLaserArray: zeichneGeschoss,
-  bossLaserArray: zeichneGeschoss,
-  bossRaketenArray: zeichneObjekt,
-  bossBombenArray: zeichneObjekt,
-  hackProjektilArray: zeichneGeschoss,
-  partikelArray: zeichnePartikel,
-  gleveWellen: zeichneWelle,
-  effekte: zeichneEffekt,
-  sniperGranaten: zeichneSniperGranate,
-  sniperMinen: zeichneSniperMine,
-  fels: setzePosition,
+const DRAWER = {
+  stars: setPosition,
+  asteroids: drawAsteroid,
+  enemies: drawEnemy,
+  bosses: drawBoss,
+  powerups: drawPowerup,
+  laserArray: drawLaser,
+  missileArray: drawObject,
+  bombArray: drawBomb,
+  enemyLaserArray: drawProjectile,
+  bossLaserArray: drawProjectile,
+  bossMissileArray: drawObject,
+  bossBombArray: drawObject,
+  hackProjectileArray: drawProjectile,
+  particleArray: drawParticles,
+  gleveWaves: drawWave,
+  effects: drawEffect,
+  sniperGrenades: drawSniperGrenade,
+  sniperMines: drawSniperMine,
+  rock: setPosition,
 };
 
-export function erzeuge(obj, art) {
-  const baue = ERZEUGER[art];
-  if (!baue) throw new Error(`Unbekannte Objektart fuer die Anzeige: ${art}`);
-  obj.el = baue(obj);
-  dom.spielfeld.appendChild(obj.el);
-  ZEICHNER_JE_ART[art](obj);
+export function create(obj, kind) {
+  const build = CREATOR[kind];
+  if (!build) throw new Error(`Unbekannte Objektart fuer die Anzeige: ${kind}`);
+  obj.el = build(obj);
+  dom.playfield.appendChild(obj.el);
+  DRAWER_PER_KIND[kind](obj);
 }
 
 // Spielerschiffe: feste Elemente #spieler / #spieler-2 mit Triebwerksflammen
-const SCHIFFE = [
-  { pKey: 'p1', el: () => dom.spieler, zustand: () => state, flammen: ['flame-left', 'flame-right'] },
-  { pKey: 'p2', el: () => dom.spieler2, zustand: () => state.p2, flammen: ['flame-left-p2', 'flame-right-p2'] },
+const SHIPS = [
+  { pKey: 'p1', el: () => dom.player, status: () => state, flames: ['flame-left', 'flame-right'] },
+  { pKey: 'p2', el: () => dom.player2, status: () => state.p2, flames: ['flame-left-p2', 'flame-right-p2'] },
 ];
 
 // SVG nach Modell und Farbe; Gleve hat nur ein Mittel-Triebwerk (Flammen per Klasse zentriert)
-function zeichneAussehen(s, el) {
-  const modell = s.selectedShipModel || 'viper';
-  const farbe = s.selectedShipColor || 'red';
-  const schluessel = modell + '|' + farbe;
-  if (el.dataset.aussehen === schluessel) return;
-  el.dataset.aussehen = schluessel;
+function drawLook(s, el) {
+  const model = s.selectedShipModel || 'viper';
+  const color = s.selectedShipColor || 'red';
+  const key = model + '|' + color;
+  if (el.dataset.look === key) return;
+  el.dataset.look = key;
   const svg = el.querySelector('svg');
-  if (svg) svg.innerHTML = getShipSVGContent(modell, farbe);
-  el.classList.toggle('schiff-gleve', modell === 'gleve');
+  if (svg) svg.innerHTML = getShipSvgContent(model, color);
+  el.classList.toggle('schiff-gleve', model === 'gleve');
 }
 
 // Raketenwerfer-Pods nach Modell und Raketen-Stufe
-function zeichneWerfer(s, el) {
-  const belegung = werferBelegung(s);
-  const stufe = Math.min(5, Math.max(1, s.raketenStufe || 1));
-  const schluessel = [belegung.links, belegung.rechts, belegung.mitte, stufe].join('|');
-  if (el.dataset.werfer === schluessel) return;
-  el.dataset.werfer = schluessel;
+function drawLauncher(s, el) {
+  const binding = launcherBinding(s);
+  const tier = Math.min(5, Math.max(1, s.missileTier || 1));
+  const key = [binding.left, binding.right, binding.middle, tier].join('|');
+  if (el.dataset.launcher === key) return;
+  el.dataset.launcher = key;
   const pods = [
-    ['.werfer-links', belegung.links],
-    ['.werfer-rechts', belegung.rechts],
-    ['.werfer-center', belegung.mitte],
+    ['.werfer-links', binding.left],
+    ['.werfer-rechts', binding.right],
+    ['.werfer-center', binding.middle],
   ];
-  for (const [selektor, sichtbar] of pods) {
-    const pod = el.querySelector(selektor);
+  for (const [selector, visible] of pods) {
+    const pod = el.querySelector(selector);
     if (!pod) continue;
-    pod.style.display = sichtbar ? 'block' : 'none';
+    pod.style.display = visible ? 'block' : 'none';
     pod.classList.remove('werfer-lvl-1', 'werfer-lvl-2', 'werfer-lvl-3', 'werfer-lvl-4', 'werfer-lvl-5');
-    pod.classList.add(`werfer-lvl-${stufe}`);
+    pod.classList.add(`werfer-lvl-${tier}`);
   }
 }
 
 // Laufende Hacks: Label mit Namen und Restzeit ueber dem Schiff
-function zeichneHackLabel(s, pKey, aktiv) {
+function drawHackLabel(s, pKey, active) {
   let label = document.getElementById('hack-label-' + pKey);
-  if (!aktiv) {
+  if (!active) {
     if (label) label.style.display = 'none';
     return;
   }
@@ -365,13 +365,14 @@ function zeichneHackLabel(s, pKey, aktiv) {
     label.classList.add('hack-label');
     label.innerHTML =
       '<div class="hack-text"></div><div class="hack-restzeit-rahmen"><div class="hack-restzeit"></div></div>';
-    dom.spielfeld.appendChild(label);
+    dom.playfield.appendChild(label);
   }
-  const text = s.hacks.map(h => HACK_NAMEN[h.typ]).join(' + ');
+  const text = s.hacks.map(h => HACK_NAMES[h.typ]).join(' + ');
   const textEl = label.querySelector('.hack-text');
   if (textEl.textContent !== text) textEl.textContent = text;
   const restMax = Math.max(...s.hacks.map(h => h.timer));
-  /** @type {HTMLElement} */ (label.querySelector('.hack-restzeit')).style.width = (restMax / HACK_DAUER) * 100 + '%';
+  /** @type {HTMLElement} */ (label.querySelector('.hack-restzeit')).style.width =
+    (restMax / HACK_DURATION) * 100 + '%';
   label.style.display = 'block';
   label.style.left = s.x + 15 + 'px';
   label.style.top = s.y - 22 + 'px';
@@ -379,11 +380,11 @@ function zeichneHackLabel(s, pKey, aktiv) {
 
 // Sniper-Fadenkreuz (Kreis mit vier Strichen) samt Ladering aus sniperZielX/Y, Laser-Stufe, sniperLadung und sniperGehalten.
 // Sichtbar nur fuer lebende Sniper bei laufendem Spiel und gesetztem Ziel.
-function zeichneFadenkreuz(s, pKey) {
+function drawCrosshair(s, pKey) {
   const id = 'fadenkreuz-' + pKey;
   let el = document.getElementById(id);
-  const sichtbar = istSniper(s) && !s.isDead && state.spielLaeuft && s.sniperZielX != null;
-  if (!sichtbar) {
+  const visible = isSniper(s) && !s.isDead && state.gameRunning && s.sniperTargetX != null;
+  if (!visible) {
     if (el) el.remove();
     return;
   }
@@ -391,53 +392,53 @@ function zeichneFadenkreuz(s, pKey) {
     el = document.createElement('div');
     el.id = id;
     el.classList.add('sniper-fadenkreuz', 'sniper-fadenkreuz-' + pKey);
-    for (const seite of ['o', 'u', 'l', 'r']) {
-      const strich = document.createElement('i');
-      strich.classList.add('sniper-strich', 'sniper-strich-' + seite);
-      el.appendChild(strich);
+    for (const side of ['o', 'u', 'l', 'r']) {
+      const stroke = document.createElement('i');
+      stroke.classList.add('sniper-strich', 'sniper-strich-' + side);
+      el.appendChild(stroke);
     }
-    dom.spielfeld.appendChild(el);
+    dom.playfield.appendChild(el);
   }
-  const r = trefferRadius(s);
+  const r = hitRadius(s);
   const c = shipColors[s.selectedShipColor];
-  const farbe = c ? c.prim : '#ffffff';
-  zeichneLadering(el, s);
+  const color = c ? c.prim : '#ffffff';
+  drawChargeRing(el, s);
   el.style.width = r * 2 + 'px';
   el.style.height = r * 2 + 'px';
-  el.style.left = s.sniperZielX - r + 'px';
-  el.style.top = s.sniperZielY - r + 'px';
-  el.style.color = farbe;
-  el.style.borderColor = farbe;
-  el.style.boxShadow = `0 0 6px ${farbe}, inset 0 0 4px ${farbe}`;
+  el.style.left = s.sniperTargetX - r + 'px';
+  el.style.top = s.sniperTargetY - r + 'px';
+  el.style.color = color;
+  el.style.borderColor = color;
+  el.style.boxShadow = `0 0 6px ${color}, inset 0 0 4px ${color}`;
 }
 
 // Ladering im Fadenkreuz: zeigt den aktuellen Trefferkreis, waechst mit der Ladung, Klasse voll bei voller Ladung
-function zeichneLadering(el, s) {
+function drawChargeRing(el, s) {
   let ring = el.querySelector('.sniper-ladering');
   if (!ring) {
     ring = document.createElement('div');
     ring.classList.add('sniper-ladering');
     el.appendChild(ring);
   }
-  const ladung = s.sniperLadung || 0;
-  const sichtbar = !!s.sniperGehalten && ladung >= LADEN_AB;
-  ring.style.display = sichtbar ? 'block' : 'none';
-  ring.classList.toggle('voll', sichtbar && istVoll(ladung));
-  if (!sichtbar) return;
-  const d = trefferRadius(s) * 2 * radiusFaktor(ladung);
-  const anteil = ladeAnteil(ladung);
+  const charge = s.sniperCharge || 0;
+  const visible = !!s.sniperHeld && charge >= CHARGE_FROM;
+  ring.style.display = visible ? 'block' : 'none';
+  ring.classList.toggle('voll', visible && isFull(charge));
+  if (!visible) return;
+  const d = hitRadius(s) * 2 * radiusFactor(charge);
+  const share = chargeShare(charge);
   ring.style.width = d + 'px';
   ring.style.height = d + 'px';
-  ring.style.opacity = 0.45 + 0.55 * anteil;
-  ring.style.borderWidth = 1.5 + 2.5 * anteil + 'px';
+  ring.style.opacity = 0.45 + 0.55 * share;
+  ring.style.borderWidth = 1.5 + 2.5 * share + 'px';
 }
 
 // Gleve-Sweep-Klinge aus gleveSweepTimer, -Winkel und -Richtung; sichtbar nur fuer lebende Gleve mit laufendem Sweep.
 // Ursprung und Laenge kommen aus der Spiellogik (sweepUrsprung, sweepLaenge), Farbe aus der Schiffsfarbe.
-function zeichneKlinge(s, pKey) {
+function drawBlade(s, pKey) {
   const id = 'gleve-klinge-' + pKey;
   let el = document.getElementById(id);
-  if (!(istGleve(s) && !s.isDead && istSweepAktiv(s))) {
+  if (!(isGleve(s) && !s.isDead && isSweepActive(s))) {
     if (el) el.remove();
     return;
   }
@@ -445,102 +446,102 @@ function zeichneKlinge(s, pKey) {
     el = document.createElement('div');
     el.id = id;
     el.classList.add('gleve-klinge');
-    dom.spielfeld.appendChild(el);
+    dom.playfield.appendChild(el);
   }
-  const o = sweepUrsprung(s);
-  const laenge = sweepLaenge(s);
+  const o = sweepOrigin(s);
+  const length = sweepLength(s);
   const c = shipColors[s.selectedShipColor];
-  const farbe = c ? c.prim : '#ffffff';
-  el.style.height = laenge + 'px';
+  const color = c ? c.prim : '#ffffff';
+  el.style.height = length + 'px';
   el.style.left = o.x - 2 + 'px';
-  el.style.top = o.y - laenge + 'px';
-  el.style.boxShadow = `0 0 4px #ffffff, 0 0 8px ${farbe}, 0 0 14px ${farbe}`;
-  el.style.borderColor = farbe;
+  el.style.top = o.y - length + 'px';
+  el.style.boxShadow = `0 0 4px #ffffff, 0 0 8px ${color}, 0 0 14px ${color}`;
+  el.style.borderColor = color;
   // Leicht gebogen: Neigung gegen die Laufrichtung
-  el.style.borderRadius = (s.gleveSweepRichtung || 1) > 0 ? '0 100% 0 0 / 0 100% 0 0' : '100% 0 0 0 / 100% 0 0 0';
-  el.style.transform = `rotate(${s.gleveSweepWinkel}deg)`;
+  el.style.borderRadius = (s.gleveSweepDirection || 1) > 0 ? '0 100% 0 0 / 0 100% 0 0' : '100% 0 0 0 / 100% 0 0 0';
+  el.style.transform = `rotate(${s.gleveSweepAngle}deg)`;
 }
 
 // Ein Schiff aus seinem Zustand: Sichtbarkeit (schiffSichtbar), Position (anzeigeX/Y oder x/y), Neigung
 // (drehung), Flammen (flammenSkala), Blinken waehrend der Unverwundbarkeit, Schild-Ring je schildStufe
-function zeichneSchiff(s, el, flammenIds, pKey) {
-  zeichneAussehen(s, el);
-  zeichneWerfer(s, el);
-  const lebt = !s.isDead;
-  el.classList.toggle('gleve-dash', lebt && istGleve(s) && istDashAktiv(s));
-  el.classList.toggle('viper-rolle', lebt && istViper(s) && istRolleAktiv(s));
-  el.classList.toggle('viper-overdrive', lebt && istViper(s) && istOverdrive(s));
-  const gehackt = lebt && (s.hacks || []).length > 0;
-  el.classList.toggle('spieler-gehackt', gehackt);
-  zeichneHackLabel(s, pKey, gehackt);
-  zeichneFadenkreuz(s, pKey);
-  zeichneKlinge(s, pKey);
-  if (typeof s.schiffSichtbar === 'boolean') el.style.display = s.schiffSichtbar ? 'block' : 'none';
-  setzePosition({ el, x: s.x, y: s.y, anzeigeX: s.anzeigeX, anzeigeY: s.anzeigeY });
-  if (typeof s.drehung === 'number') el.style.transform = `rotate(${s.drehung}deg)`;
-  if (typeof s.flammenSkala === 'number') {
-    for (const id of flammenIds) {
-      const flamme = document.getElementById(id);
-      if (flamme) flamme.style.transform = `scaleY(${s.flammenSkala})`;
+function drawShip(s, el, flameIds, pKey) {
+  drawLook(s, el);
+  drawLauncher(s, el);
+  const alive = !s.isDead;
+  el.classList.toggle('gleve-dash', alive && isGleve(s) && isDashActive(s));
+  el.classList.toggle('viper-rolle', alive && isViper(s) && isRollActive(s));
+  el.classList.toggle('viper-overdrive', alive && isViper(s) && isOverdrive(s));
+  const hacked = alive && (s.hacks || []).length > 0;
+  el.classList.toggle('spieler-gehackt', hacked);
+  drawHackLabel(s, pKey, hacked);
+  drawCrosshair(s, pKey);
+  drawBlade(s, pKey);
+  if (typeof s.shipVisible === 'boolean') el.style.display = s.shipVisible ? 'block' : 'none';
+  setPosition({ el, x: s.x, y: s.y, displayX: s.displayX, displayY: s.displayY });
+  if (typeof s.rotation === 'number') el.style.transform = `rotate(${s.rotation}deg)`;
+  if (typeof s.flameScale === 'number') {
+    for (const id of flameIds) {
+      const flame = document.getElementById(id);
+      if (flame) flame.style.transform = `scaleY(${s.flameScale})`;
     }
   }
   el.classList.toggle('spieler-blink', s.invulnerableTimer > 0);
-  for (let stufe = 1; stufe <= 3; stufe++) el.classList.toggle(`schild-aktiv-${stufe}`, s.schildStufe === stufe);
+  for (let tier = 1; tier <= 3; tier++) el.classList.toggle(`schild-aktiv-${tier}`, s.shieldTier === tier);
 }
 
-export function zeichneSpieler() {
-  for (const schiff of SCHIFFE) {
-    const el = schiff.el();
-    const s = schiff.zustand();
-    if (el && s) zeichneSchiff(s, el, schiff.flammen, schiff.pKey);
+export function drawPlayer() {
+  for (const ship of SHIPS) {
+    const el = ship.el();
+    const s = ship.status();
+    if (el && s) drawShip(s, el, ship.flames, ship.pKey);
   }
-  zeichneStrahlen();
+  drawBeams();
 }
 
 // Autolaser (gedrehter Strahl zum Ziel) und Hitscan-Laser (senkrecht) des Spielers 1
-function zeichneStrahlen() {
-  const auto = state.autolaserStrahl;
+function drawBeams() {
+  const auto = state.autolaserBeam;
   if (dom.autolaserEl) {
     dom.autolaserEl.style.display = auto ? 'block' : 'none';
     if (auto) {
-      dom.autolaserEl.style.height = auto.laenge + 'px';
-      dom.autolaserEl.style.top = auto.y - auto.laenge + 'px';
+      dom.autolaserEl.style.height = auto.length + 'px';
+      dom.autolaserEl.style.top = auto.y - auto.length + 'px';
       dom.autolaserEl.style.left = auto.x - 2 + 'px';
-      dom.autolaserEl.style.transform = `rotate(${auto.winkel}deg)`;
+      dom.autolaserEl.style.transform = `rotate(${auto.angle}deg)`;
     }
   }
-  const hitscan = state.hitscanStrahl;
+  const hitscan = state.hitscanBeam;
   const hitscanEl = document.getElementById('hitscan-laser');
   if (hitscanEl) {
     hitscanEl.style.display = hitscan ? 'block' : 'none';
     if (hitscan) {
-      hitscanEl.style.height = hitscan.laenge + 'px';
-      hitscanEl.style.top = hitscan.y - hitscan.laenge + 'px';
+      hitscanEl.style.height = hitscan.length + 'px';
+      hitscanEl.style.top = hitscan.y - hitscan.length + 'px';
       hitscanEl.style.left = hitscan.x - 3 + 'px';
     }
   }
 }
 
-export function zeichneWelt() {
-  zeichneSpieler();
-  for (const name in ZEICHNER) {
-    const zeichne = ZEICHNER[name];
+export function drawWorld() {
+  drawPlayer();
+  for (const name in DRAWER) {
+    const draw = DRAWER[name];
     for (const o of arrays[name]) {
-      if (o.el) zeichne(o);
+      if (o.el) draw(o);
     }
   }
 }
 
-export function entferne(obj) {
-  entferneStrahl(obj);
+export function remove(obj) {
+  removeBeam(obj);
   if (obj.el) obj.el.remove();
 }
 
 // Kurzes Aufhellen bei einem Treffer (staerke = Helligkeitsfaktor), unabhaengig vom Simulationstakt
-export function blitze(obj, staerke) {
+export function flash(obj, strength) {
   const el = obj.el;
   if (!el) return;
-  el.style.filter = `brightness(${staerke})`;
+  el.style.filter = `brightness(${strength})`;
   setTimeout(() => {
     el.style.filter = '';
   }, 50);
@@ -548,10 +549,10 @@ export function blitze(obj, staerke) {
 
 // Bildschirm-Blitz: Spielfeldhintergrund kurz faerben, nach ms zurueck zur Grundfarbe. Jeder Blitz setzt seinen
 // eigenen Timer (wie bisher in der Logik): ein zweiter Blitz im ersten setzt die Grundfarbe beim Ablauf des ersten.
-export function blitzeSpielfeld(farbe, ms) {
-  const el = dom.spielfeld || document.getElementById('spielfeld');
+export function flashPlayfield(color, ms) {
+  const el = dom.playfield || document.getElementById('spielfeld');
   if (!el) return;
-  el.style.backgroundColor = farbe;
+  el.style.backgroundColor = color;
   setTimeout(() => {
     // zurueck zur Farbe aus dem Stylesheet (Thema-Klasse)
     el.style.backgroundColor = '';
@@ -559,8 +560,8 @@ export function blitzeSpielfeld(farbe, ms) {
 }
 
 // Thema als Klasse thema-<name> am Spielfeld; 'standard' = keine Klasse
-export function setzeThema(name) {
-  const el = dom.spielfeld || document.getElementById('spielfeld');
+export function setTheme(name) {
+  const el = dom.playfield || document.getElementById('spielfeld');
   if (!el) return;
   [...el.classList].filter(k => k.startsWith('thema-')).forEach(k => el.classList.remove(k));
   if (name && name !== 'standard') el.classList.add('thema-' + name);

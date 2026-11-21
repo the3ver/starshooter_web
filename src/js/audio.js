@@ -791,8 +791,8 @@ export function playDash(level = 1) {
 
 // Sniper-Schuss (Fadenkreuz-Laser): trockener, tiefer Knall mit kurzem hellem Zischen; hoehere Stufen klingen kraeftiger,
 // `ladung` (0-1) macht ihn laenger, lauter und tiefer
-export function playSniperSchuss(level = 1, ladung = 0) {
-  recordSound('sniperSchuss', { level, ladung });
+export function playSniperShot(level = 1, charge = 0) {
+  recordSound('sniperSchuss', { level, charge });
   if (isMuted) return;
   const ctx = getAudioContext();
   if (!ctx) return;
@@ -803,18 +803,18 @@ export function playSniperSchuss(level = 1, ladung = 0) {
   const gain = ctx.createGain();
   osc.type = 'square';
   osc.frequency.setValueAtTime(1400 + level * 120, now);
-  osc.frequency.exponentialRampToValueAtTime(60 - ladung * 25, now + 0.16 + ladung * 0.2);
-  gain.gain.setValueAtTime(0.12 + level * 0.02 + ladung * 0.08, now);
-  gain.gain.exponentialRampToValueAtTime(0.001, now + 0.16 + ladung * 0.2);
+  osc.frequency.exponentialRampToValueAtTime(60 - charge * 25, now + 0.16 + charge * 0.2);
+  gain.gain.setValueAtTime(0.12 + level * 0.02 + charge * 0.08, now);
+  gain.gain.exponentialRampToValueAtTime(0.001, now + 0.16 + charge * 0.2);
   osc.connect(gain);
   gain.connect(masterGain);
   osc.start(now);
-  osc.stop(now + 0.16 + ladung * 0.2);
+  osc.stop(now + 0.16 + charge * 0.2);
 }
 
 // Sniper: Ladung voll (einmal pro Ladevorgang), zwei helle steigende Toene
-export function playSniperVoll() {
-  recordSound('sniperVoll');
+export function playSniperFull() {
+  recordSound('sniperFull');
   if (isMuted) return;
   const ctx = getAudioContext();
   if (!ctx) return;
@@ -837,8 +837,8 @@ export function playSniperVoll() {
 }
 
 // Sniper-Granate: dumpfer Druckwellen-Knall (tiefer Sinus faellt ab) mit kurzem hellem Nachklang
-export function playGranate() {
-  recordSound('granate');
+export function playGrenade() {
+  recordSound('grenade');
   if (isMuted) return;
   const ctx = getAudioContext();
   if (!ctx) return;
@@ -871,7 +871,7 @@ export function playGranate() {
 }
 
 // Sniper-Mine legen: kurzes dumpfes Klicken
-export function playMineLegen() {
+export function playMinePut() {
   recordSound('mine_legen');
   if (isMuted) return;
   const ctx = getAudioContext();
@@ -893,7 +893,7 @@ export function playMineLegen() {
 }
 
 // Sniper-Mine haftet / zaehlt herunter: kurzer heller Piep
-export function playMinePiep() {
+export function playMineBeep() {
   recordSound('mine_piep');
   if (isMuted) return;
   const ctx = getAudioContext();
@@ -959,8 +959,8 @@ export function playSpore() {
 }
 
 // Schockwelle: tiefer Wumms mit abfallendem Rauschen-Sweep
-export function playSchockwelle() {
-  recordSound('schockwelle');
+export function playShockwave() {
+  recordSound('shockwave');
   if (isMuted) return;
   const ctx = getAudioContext();
   if (!ctx) return;
@@ -1026,8 +1026,8 @@ export function playEmp() {
 }
 
 // Viper-Ausweichrolle: kurzes, leichtes Wusch (Rauschen steigt und faellt) mit schnellem Sinus-Glissando
-export function playRolle() {
-  recordSound('rolle');
+export function playRoll() {
+  recordSound('roll');
   if (isMuted) return;
   const ctx = getAudioContext();
   if (!ctx) return;
@@ -1097,29 +1097,29 @@ export function playNearMiss() {
 }
 
 // Viper-Kill-Kombo erreicht 5/10/20: kurzer Doppelton, hoeher je Stufe (stufe 1..3)
-export function playKombo(stufe = 1) {
-  recordSound('kombo', { stufe });
+export function playCombo(tier = 1) {
+  recordSound('combo', { tier });
   if (isMuted) return;
   const ctx = getAudioContext();
   if (!ctx) return;
   if (ctx.state === 'suspended') ctx.resume().catch(() => {});
   const now = ctx.currentTime;
-  const basis = 520 * Math.pow(1.26, Math.max(1, stufe) - 1);
+  const basis = 520 * Math.pow(1.26, Math.max(1, tier) - 1);
   [
     [basis, 0],
     [basis * 1.5, 0.06],
-  ].forEach(([freq, versatz]) => {
+  ].forEach(([freq, offset]) => {
     const osc = ctx.createOscillator();
     const gain = ctx.createGain();
     osc.type = 'square';
-    osc.frequency.setValueAtTime(freq, now + versatz);
-    gain.gain.setValueAtTime(0.001, now + versatz);
-    gain.gain.linearRampToValueAtTime(0.05, now + versatz + 0.01);
-    gain.gain.exponentialRampToValueAtTime(0.001, now + versatz + 0.1);
+    osc.frequency.setValueAtTime(freq, now + offset);
+    gain.gain.setValueAtTime(0.001, now + offset);
+    gain.gain.linearRampToValueAtTime(0.05, now + offset + 0.01);
+    gain.gain.exponentialRampToValueAtTime(0.001, now + offset + 0.1);
     osc.connect(gain);
     gain.connect(masterGain);
-    osc.start(now + versatz);
-    osc.stop(now + versatz + 0.12);
+    osc.start(now + offset);
+    osc.stop(now + offset + 0.12);
   });
 }
 
@@ -1135,18 +1135,18 @@ export function playOverdrive() {
     [440, 0],
     [660, 0.07],
     [880, 0.14],
-  ].forEach(([freq, versatz]) => {
+  ].forEach(([freq, offset]) => {
     const osc = ctx.createOscillator();
     const gain = ctx.createGain();
     osc.type = 'triangle';
-    osc.frequency.setValueAtTime(freq, now + versatz);
-    gain.gain.setValueAtTime(0.001, now + versatz);
-    gain.gain.linearRampToValueAtTime(0.12, now + versatz + 0.02);
-    gain.gain.exponentialRampToValueAtTime(0.001, now + versatz + 0.3);
+    osc.frequency.setValueAtTime(freq, now + offset);
+    gain.gain.setValueAtTime(0.001, now + offset);
+    gain.gain.linearRampToValueAtTime(0.12, now + offset + 0.02);
+    gain.gain.exponentialRampToValueAtTime(0.001, now + offset + 0.3);
     osc.connect(gain);
     gain.connect(masterGain);
-    osc.start(now + versatz);
-    osc.stop(now + versatz + 0.32);
+    osc.start(now + offset);
+    osc.stop(now + offset + 0.32);
   });
 }
 
@@ -1189,13 +1189,13 @@ export function playSweep(level = 1) {
   } catch (e) {}
 
   // 2. Klinge: zwei leicht verstimmte Dreiecks-Toene, die nach oben gleiten
-  [0, 7].forEach(verstimmung => {
+  [0, 7].forEach(detune => {
     const osc = ctx.createOscillator();
     const gain = ctx.createGain();
     osc.type = 'triangle';
-    osc.frequency.setValueAtTime(600 + level * 50 + verstimmung, now);
-    osc.frequency.exponentialRampToValueAtTime(1400 + level * 80 + verstimmung, now + duration * 0.6);
-    osc.frequency.exponentialRampToValueAtTime(900 + verstimmung, now + duration);
+    osc.frequency.setValueAtTime(600 + level * 50 + detune, now);
+    osc.frequency.exponentialRampToValueAtTime(1400 + level * 80 + detune, now + duration * 0.6);
+    osc.frequency.exponentialRampToValueAtTime(900 + detune, now + duration);
     gain.gain.setValueAtTime(0.08, now);
     gain.gain.exponentialRampToValueAtTime(0.001, now + duration);
     osc.connect(gain);

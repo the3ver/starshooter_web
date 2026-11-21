@@ -1,5 +1,5 @@
 const { test, expect } = require('@playwright/test');
-const { setzeSpielstand, starteSpiel } = require('./helfer');
+const { setGameState, startGame } = require('./helfer');
 
 test.beforeEach(async ({ page }) => {
   await page.route('**/api/highscores*', route =>
@@ -9,20 +9,20 @@ test.beforeEach(async ({ page }) => {
       body: JSON.stringify({ success: true, mode: 'single', highscores: [] }),
     }),
   );
-  await setzeSpielstand(page);
+  await setGameState(page);
   await page.goto('/');
-  await starteSpiel(page);
-  await page.waitForFunction(() => window.__game.state.spielLaeuft);
+  await startGame(page);
+  await page.waitForFunction(() => window.__game.state.gameRunning);
   // Feld leeren, Spieler unten links, keine Zufalls-Spawns; Helfer in window.__sw
   await page.evaluate(async () => {
     const { state, arrays } = await import('./js/state.js');
-    const Anzeige = await import('./js/anzeige.js');
+    const Display = await import('./js/anzeige.js');
     for (const name of Object.keys(arrays)) {
-      if (name === 'sterne') continue;
-      arrays[name].forEach(o => o.el && Anzeige.entferne(o));
+      if (name === 'stars') continue;
+      arrays[name].forEach(o => o.el && Display.remove(o));
       arrays[name].length = 0;
     }
-    state.frameZaehler = 1;
+    state.frameCounter = 1;
     state.x = 0;
     state.y = 560;
     state.godMode = true;
@@ -43,22 +43,22 @@ test('Ring erfasst Feinde in Reihenfolge der Entfernung, nach WELLEN_DAUER Schri
 }) => {
   const r = await page.evaluate(() => {
     const { SW, Entities, Loop, arrays } = window.__sw;
-    Entities.erzeugeFeind(185, 500, 'swoop', 0, false); // nah
-    Entities.erzeugeFeind(185, 100, 'swoop', 0, false); // fern
-    const [nah, fern] = arrays.feinde;
-    nah.vy = fern.vy = 0;
-    SW.loeseAus(200, 560, 'p1');
-    let nahWeg = -1;
-    let fernWeg = -1;
-    for (let s = 1; s <= SW.WELLEN_DAUER; s++) {
-      Loop.simulationsSchritt();
-      if (nahWeg < 0 && !arrays.feinde.includes(nah)) nahWeg = s;
-      if (fernWeg < 0 && !arrays.feinde.includes(fern)) fernWeg = s;
+    Entities.createEnemy(185, 500, 'swoop', 0, false); // nah
+    Entities.createEnemy(185, 100, 'swoop', 0, false); // fern
+    const [near, remote] = arrays.enemies;
+    near.vy = remote.vy = 0;
+    SW.trigger(200, 560, 'p1');
+    let nearGone = -1;
+    let remoteGone = -1;
+    for (let s = 1; s <= SW.WAVE_DURATION; s++) {
+      Loop.simulationStep();
+      if (nearGone < 0 && !arrays.enemies.includes(near)) nearGone = s;
+      if (remoteGone < 0 && !arrays.enemies.includes(remote)) remoteGone = s;
     }
-    return { nahWeg, fernWeg, rest: arrays.feinde.length };
+    return { nearGone, remoteGone, rest: arrays.enemies.length };
   });
-  expect(r.nahWeg).toBeGreaterThan(0);
-  expect(r.fernWeg).toBeGreaterThan(r.nahWeg);
+  expect(r.nearGone).toBeGreaterThan(0);
+  expect(r.remoteGone).toBeGreaterThan(r.nearGone);
   expect(r.rest).toBe(0);
 });
 
@@ -67,72 +67,72 @@ test('Abschuesse zaehlen fuer den Sammler (Punkte), Asteroiden bleiben, Feindges
 }) => {
   const r = await page.evaluate(() => {
     const { SW, Entities, Loop, arrays, state } = window.__sw;
-    Entities.erzeugeFeind(100, 200, 'swoop', 0, false);
-    arrays.feinde[0].vy = 0;
-    Entities.erzeugeAsteroid(250, 200, 30, 0, 0, 0, true);
-    arrays.asteroiden[0].vy = 0;
-    Entities.erzeugeFeindLaser(300, 300);
+    Entities.createEnemy(100, 200, 'swoop', 0, false);
+    arrays.enemies[0].vy = 0;
+    Entities.createAsteroid(250, 200, 30, 0, 0, 0, true);
+    arrays.asteroids[0].vy = 0;
+    Entities.createEnemyLaser(300, 300);
     const score = state.score;
-    SW.loeseAus(200, 300, 'p1');
-    for (let s = 0; s < SW.WELLEN_DAUER; s++) Loop.simulationsSchritt();
+    SW.trigger(200, 300, 'p1');
+    for (let s = 0; s < SW.WAVE_DURATION; s++) Loop.simulationStep();
     return {
-      feinde: arrays.feinde.length,
-      asteroiden: arrays.asteroiden.length,
-      laser: arrays.feindLaserArray.length,
-      punkte: state.score - score,
+      enemies: arrays.enemies.length,
+      asteroids: arrays.asteroids.length,
+      laser: arrays.enemyLaserArray.length,
+      points: state.score - score,
     };
   });
-  expect(r).toMatchObject({ feinde: 0, asteroiden: 1, laser: 0 });
-  expect(r.punkte).toBeGreaterThanOrEqual(100);
+  expect(r).toMatchObject({ enemies: 0, asteroids: 1, laser: 0 });
+  expect(r.points).toBeGreaterThanOrEqual(100);
 });
 
 test('Boss verliert einmal 15 % der Max-HP und stirbt nicht', async ({ page }) => {
   const r = await page.evaluate(() => {
     const { SW, Entities, Loop, arrays, state } = window.__sw;
-    Entities.erzeugeBoss();
+    Entities.createBoss();
     const b = arrays.bosses[0];
     b.y = 50;
     b.vx = b.vy = 0;
     b.phase = 'kampf';
-    const voll = b.hp;
-    SW.loeseAus(200, 300, 'p1');
-    for (let s = 0; s < SW.WELLEN_DAUER; s++) Loop.simulationsSchritt();
-    const nachVoll = b.hp;
+    const full = b.hp;
+    SW.trigger(200, 300, 'p1');
+    for (let s = 0; s < SW.WAVE_DURATION; s++) Loop.simulationStep();
+    const afterFull = b.hp;
     // fast tot: bleibt bei 1 HP
     b.hp = 5;
-    SW.loeseAus(200, 300, 'p1');
-    for (let s = 0; s < SW.WELLEN_DAUER; s++) Loop.simulationsSchritt();
+    SW.trigger(200, 300, 'p1');
+    for (let s = 0; s < SW.WAVE_DURATION; s++) Loop.simulationStep();
     return {
-      verlust: voll - nachVoll,
-      erwartet: Math.ceil(b.maxHp * SW.BOSS_SCHADEN_ANTEIL),
-      fastTot: b.hp,
-      lebt: arrays.bosses.includes(b),
-      bossAktiv: state.bossAktiv,
+      loss: full - afterFull,
+      expected: Math.ceil(b.maxHp * SW.BOSS_DAMAGE_SHARE),
+      almostDead: b.hp,
+      alive: arrays.bosses.includes(b),
+      bossActive: state.bossActive,
     };
   });
-  expect(r.verlust).toBe(r.erwartet);
-  expect(r).toMatchObject({ fastTot: 1, lebt: true, bossAktiv: true });
+  expect(r.loss).toBe(r.expected);
+  expect(r).toMatchObject({ almostDead: 1, alive: true, bossActive: true });
 });
 
 test('Einsammeln loest Ring, Blitz und Ton aus (Powerup-Typ schockwelle)', async ({ page }) => {
   const r = await page.evaluate(() => {
     const { Entities, Loop, Audio, arrays, state } = window.__sw;
     Audio.clearAudioHistory();
-    Entities.erzeugePowerup(state.x + 3, state.y + 3, 'schockwelle');
+    Entities.createPowerup(state.x + 3, state.y + 3, 'shockwave');
     const p = arrays.powerups[0];
     p.vy = 0;
-    for (let s = 0; s < 3 && arrays.powerups.length; s++) Loop.simulationsSchritt();
-    const welle = arrays.effekte.find(e => e.art === 'schockwelle');
+    for (let s = 0; s < 3 && arrays.powerups.length; s++) Loop.simulationStep();
+    const wave = arrays.effects.find(e => e.kind === 'shockwave');
     return {
-      eingesammelt: arrays.powerups.length === 0,
-      welle: !!welle,
-      owner: welle && welle.owner,
-      ring: !!(welle && welle.el && welle.el.classList.contains('schockwelle-ring')),
-      ton: Audio.audioHistory.some(h => h.name === 'schockwelle'),
+      collected: arrays.powerups.length === 0,
+      wave: !!wave,
+      owner: wave && wave.owner,
+      ring: !!(wave && wave.el && wave.el.classList.contains('schockwelle-ring')),
+      tone: Audio.audioHistory.some(h => h.name === 'shockwave'),
       symbol: p.el.textContent.trim(),
     };
   });
-  expect(r).toEqual({ eingesammelt: true, welle: true, owner: 'p1', ring: true, ton: true, symbol: 'Z' });
+  expect(r).toEqual({ collected: true, wave: true, owner: 'p1', ring: true, tone: true, symbol: 'Z' });
 });
 
 test('Kettenbonus: Schockwelle mit Zufall, hoechstens eine pro Level, nie im Bosskampf', async ({ page }) => {
@@ -140,52 +140,52 @@ test('Kettenbonus: Schockwelle mit Zufall, hoechstens eine pro Level, nie im Bos
     const { arrays, state } = window.__sw;
     const K = await import('./js/kette.js');
     const Utils = await import('./js/utils.js');
-    const Anzeige = await import('./js/anzeige.js');
-    const bonus = (zufall, bossAktiv = false) => {
-      arrays.powerups.forEach(Anzeige.entferne);
+    const Display = await import('./js/anzeige.js');
+    const bonus = (random, bossActive = false) => {
+      arrays.powerups.forEach(Display.remove);
       arrays.powerups.length = 0;
-      state.bossAktiv = bossAktiv;
-      K.erzeugeKette('schlange', 2, 1);
-      const glieder = arrays.feinde.slice(-2);
+      state.bossActive = bossActive;
+      K.createChain('snake', 2, 1);
+      const chainLinks = arrays.enemies.slice(-2);
       const orig = Math.random;
-      Math.random = () => zufall;
+      Math.random = () => random;
       try {
-        glieder.forEach(g => Utils.zerstoereZiel(g));
+        chainLinks.forEach(g => Utils.destroyTarget(g));
       } finally {
         Math.random = orig;
       }
-      state.bossAktiv = false;
+      state.bossActive = false;
       return arrays.powerups.map(p => p.type);
     };
     state.level = 3;
-    state.schockwelleLevel = 0;
-    const ergebnis = {
-      imBoss: bonus(0.1, true),
-      ueberChance: bonus(window.__sw.SW.SCHOCKWELLE_CHANCE + 0.01),
-      ersteImLevel: bonus(0.1),
-      zweiteImLevel: bonus(0.1),
+    state.shockwaveLevel = 0;
+    const result = {
+      inBoss: bonus(0.1, true),
+      overChance: bonus(window.__sw.SW.SHOCKWAVE_CHANCE + 0.01),
+      firstInLevel: bonus(0.1),
+      secondInLevel: bonus(0.1),
     };
     state.level = 4;
-    ergebnis.naechstesLevel = bonus(0.1);
-    return ergebnis;
+    result.nextLevel = bonus(0.1);
+    return result;
   });
-  expect(r.imBoss).not.toContain('schockwelle');
-  expect(r.ueberChance).not.toContain('schockwelle');
-  expect(r.ersteImLevel).toEqual(['schockwelle']);
-  expect(r.zweiteImLevel).not.toContain('schockwelle');
-  expect(r.naechstesLevel).toEqual(['schockwelle']);
+  expect(r.inBoss).not.toContain('shockwave');
+  expect(r.overChance).not.toContain('shockwave');
+  expect(r.firstInLevel).toEqual(['shockwave']);
+  expect(r.secondInLevel).not.toContain('shockwave');
+  expect(r.nextLevel).toEqual(['shockwave']);
 });
 
 test('Neustart setzt die Schockwellen-Sperre zurueck und entfernt laufende Ringe', async ({ page }) => {
   const r = await page.evaluate(async () => {
     const { SW, arrays, state } = window.__sw;
     const Utils = await import('./js/utils.js');
-    state.schockwelleLevel = 3;
-    SW.loeseAus(200, 300, 'p1');
+    state.shockwaveLevel = 3;
+    SW.trigger(200, 300, 'p1');
     Utils.restartGame();
-    return { sperre: state.schockwelleLevel, ringe: arrays.effekte.filter(e => e.art === 'schockwelle').length };
+    return { lock: state.shockwaveLevel, rings: arrays.effects.filter(e => e.kind === 'shockwave').length };
   });
-  expect(r).toEqual({ sperre: 0, ringe: 0 });
+  expect(r).toEqual({ lock: 0, rings: 0 });
 });
 
 test('Bot nimmt die Schockwelle erst bei mindestens 4 Zielen im Bild oder kurz vor dem unteren Rand', async ({
@@ -194,21 +194,21 @@ test('Bot nimmt die Schockwelle erst bei mindestens 4 Zielen im Bild oder kurz v
   const r = await page.evaluate(async () => {
     const { Entities, arrays } = window.__sw;
     const Bot = await import('./js/bot.js');
-    Entities.erzeugePowerup(200, 200, 'schockwelle');
+    Entities.createPowerup(200, 200, 'shockwave');
     const p = arrays.powerups[0];
-    const lohnt = () => Bot.schockwelleLohnt(p);
-    const ergebnis = { leer: lohnt() };
-    for (let i = 0; i < Bot.SCHOCKWELLE_MIN_ZIELE - 1; i++) Entities.erzeugeFeind(40 * i + 20, 100, 'swoop', 0, false);
-    ergebnis.dreiZiele = lohnt();
-    Entities.erzeugeFeindLaser(300, 300);
-    ergebnis.vierZiele = lohnt();
-    arrays.feinde.length = 0;
-    arrays.feindLaserArray.length = 0;
+    const paysOff = () => Bot.shockwaveWorthIt(p);
+    const result = { empty: paysOff() };
+    for (let i = 0; i < Bot.SHOCKWAVE_MIN_TARGETS - 1; i++) Entities.createEnemy(40 * i + 20, 100, 'swoop', 0, false);
+    result.threeTargets = paysOff();
+    Entities.createEnemyLaser(300, 300);
+    result.fourTargets = paysOff();
+    arrays.enemies.length = 0;
+    arrays.enemyLaserArray.length = 0;
     p.y = 700;
-    ergebnis.untenRand = lohnt();
-    return ergebnis;
+    result.bottomEdge = paysOff();
+    return result;
   });
-  expect(r).toEqual({ leer: false, dreiZiele: false, vierZiele: true, untenRand: true });
+  expect(r).toEqual({ empty: false, threeTargets: false, fourTargets: true, bottomEdge: true });
 });
 
 test('Online: Host sendet das Ereignis, der Client zeigt nur Ring und Blitz ohne Trefferlogik', async ({ page }) => {
@@ -216,27 +216,27 @@ test('Online: Host sendet das Ereignis, der Client zeigt nur Ring und Blitz ohne
     const { SW, Entities, arrays, state } = window.__sw;
     const Network = await import('./js/network.js');
     state.gameMode = 'online';
-    SW.loeseAus(120, 340, 'p2');
-    const gesendet = { ...state.network.lastSentEvent };
-    arrays.effekte.forEach(e => e.el && e.el.remove());
-    arrays.effekte.length = 0;
+    SW.trigger(120, 340, 'p2');
+    const sent = { ...state.network.lastSentEvent };
+    arrays.effects.forEach(e => e.el && e.el.remove());
+    arrays.effects.length = 0;
 
     // Client: Ereignis anwenden, Ring ohne getroffen; ein Feind bleibt stehen
-    Entities.erzeugeFeind(110, 330, 'swoop', 0, false);
-    Network.handleNetworkEvent(gesendet);
-    const welle = arrays.effekte.find(e => e.art === 'schockwelle');
-    SW.aktualisiereSchockwellen();
+    Entities.createEnemy(110, 330, 'swoop', 0, false);
+    Network.handleNetworkEvent(sent);
+    const wave = arrays.effects.find(e => e.kind === 'shockwave');
+    SW.updateShockwaves();
     state.gameMode = 'single';
     return {
-      gesendet,
-      clientRing: !!welle && !!welle.el,
-      ohneLogik: !!welle && welle.getroffen === undefined,
-      feindLebt: arrays.feinde.length === 1,
+      sent,
+      clientRing: !!wave && !!wave.el,
+      withoutLogic: !!wave && wave.hit === undefined,
+      enemyAlive: arrays.enemies.length === 1,
     };
   });
-  expect(r.gesendet.type).toBe('schockwelle');
-  expect(r.gesendet.x).toBe(120);
-  expect(r.gesendet.y).toBe(340);
-  expect(r.gesendet.radius).toBeGreaterThan(300);
-  expect(r).toMatchObject({ clientRing: true, ohneLogik: true, feindLebt: true });
+  expect(r.sent.type).toBe('shockwave');
+  expect(r.sent.x).toBe(120);
+  expect(r.sent.y).toBe(340);
+  expect(r.sent.radius).toBeGreaterThan(300);
+  expect(r).toMatchObject({ clientRing: true, withoutLogic: true, enemyAlive: true });
 });

@@ -1,5 +1,5 @@
 const { test, expect } = require('@playwright/test');
-const { setzeSpielstand, starteSpiel } = require('./helfer');
+const { setGameState, startGame } = require('./helfer');
 
 test.beforeEach(async ({ page }) => {
   await page.route('**/api/highscores*', route =>
@@ -9,53 +9,53 @@ test.beforeEach(async ({ page }) => {
       body: JSON.stringify({ success: true, mode: 'single', highscores: [] }),
     }),
   );
-  await setzeSpielstand(page);
+  await setGameState(page);
   await page.goto('/');
-  await starteSpiel(page);
-  await page.waitForFunction(() => window.__game.state.spielLaeuft);
+  await startGame(page);
+  await page.waitForFunction(() => window.__game.state.gameRunning);
 });
 
 // Ein Simulationsschritt bei Level/Frame (frame = Zaehlerstand nach dem Schritt) auf leerem Feld.
 // Math.random = 0.99: kein Hacker, verwalteFeindSpawns erzeugt genau einen normalen Jaeger.
-async function schrittBei(page, level, frame, bossAktiv = false) {
+async function stepAt(page, level, frame, bossActive = false) {
   return page.evaluate(
-    async ({ level, frame, bossAktiv }) => {
+    async ({ level, frame, bossActive }) => {
       const { state, arrays } = await import('./js/state.js');
-      const { simulationsSchritt } = await import('./js/loop.js');
-      const Anzeige = await import('./js/anzeige.js');
-      const Gewaechse = await import('./js/gewaechse.js');
-      ['feinde', 'asteroiden', 'feindLaserArray', 'powerups'].forEach(name => {
-        arrays[name].forEach(Anzeige.entferne);
+      const { simulationStep } = await import('./js/loop.js');
+      const Display = await import('./js/anzeige.js');
+      const Growths = await import('./js/gewaechse.js');
+      ['enemies', 'asteroids', 'enemyLaserArray', 'powerups'].forEach(name => {
+        arrays[name].forEach(Display.remove);
         arrays[name].length = 0;
       });
       state.level = level;
-      state.bossAktiv = bossAktiv;
-      state.bossWarningAktiv = false;
-      state.frameZaehler = frame - 1;
+      state.bossActive = bossActive;
+      state.bossWarningActive = false;
+      state.frameCounter = frame - 1;
       const orig = Math.random;
       Math.random = () => 0.99;
       try {
-        simulationsSchritt();
+        simulationStep();
       } finally {
         Math.random = orig;
       }
       const r = {
-        asteroiden: arrays.asteroiden.length,
+        asteroids: arrays.asteroids.length,
         // nur Feinde aus dem Feind-Takt; Gewaechse (Fels-Level) wachsen nach eigenem Takt
-        feinde: arrays.feinde.filter(f => !Gewaechse.istGewaechs(f)).length,
-        bossWarnung: state.bossWarningAktiv,
+        enemies: arrays.enemies.filter(f => !Growths.isGrowth(f)).length,
+        bossWarning: state.bossWarningActive,
       };
-      state.bossWarningAktiv = false;
-      state.bossAktiv = false;
+      state.bossWarningActive = false;
+      state.bossActive = false;
       return r;
     },
-    { level, frame, bossAktiv },
+    { level, frame, bossActive },
   );
 }
 
 // Charakterisierung des Level-Ablaufs: Asteroiden-Takt in drei Phasen (bis 1200, bis 2400, danach),
 // Feinde ab einem Startframe im festen Takt, Boss-Warnung bei Frame 3600. Raten skalieren mit dem Level.
-const faelle = [
+const cases = [
   // [level, frame, asteroiden, feinde]
   [1, 120, 1, 0],
   [1, 121, 0, 0],
@@ -72,20 +72,20 @@ const faelle = [
   [12, 640, 1, 0],
 ];
 
-for (const [level, frame, asteroiden, feinde] of faelle) {
-  test(`Level ${level}, Frame ${frame}: ${asteroiden} Asteroid(en), ${feinde} Feind(e)`, async ({ page }) => {
-    const r = await schrittBei(page, level, frame);
-    expect(r).toEqual({ asteroiden, feinde, bossWarnung: false });
+for (const [level, frame, asteroids, enemies] of cases) {
+  test(`Level ${level}, Frame ${frame}: ${asteroids} Asteroid(en), ${enemies} Feind(e)`, async ({ page }) => {
+    const r = await stepAt(page, level, frame);
+    expect(r).toEqual({ asteroids, enemies, bossWarning: false });
   });
 }
 
 test('Boss-Warnung genau bei Frame 3600, nicht davor oder danach', async ({ page }) => {
-  expect((await schrittBei(page, 1, 3599)).bossWarnung).toBe(false);
-  expect((await schrittBei(page, 1, 3600)).bossWarnung).toBe(true);
-  expect((await schrittBei(page, 1, 3601)).bossWarnung).toBe(false);
+  expect((await stepAt(page, 1, 3599)).bossWarning).toBe(false);
+  expect((await stepAt(page, 1, 3600)).bossWarning).toBe(true);
+  expect((await stepAt(page, 1, 3601)).bossWarning).toBe(false);
 });
 
 test('Waehrend des Bosskampfs keine Spawns', async ({ page }) => {
-  const r = await schrittBei(page, 1, 1500, true);
-  expect(r).toEqual({ asteroiden: 0, feinde: 0, bossWarnung: false });
+  const r = await stepAt(page, 1, 1500, true);
+  expect(r).toEqual({ asteroids: 0, enemies: 0, bossWarning: false });
 });

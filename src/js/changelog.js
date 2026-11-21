@@ -1,6 +1,13 @@
-export const GAME_VERSION = '1.15.20';
+export const GAME_VERSION = '1.15.21';
 
 export const changelogData = {
+  '1.15.21': {
+    version: '1.15.21',
+    intro: 'Hey, es ist jetzt Version 1.15.21 rausgekommen, folgendes wurde aktualisiert:',
+    highlights: [
+      'Interne Umstellung des Programmcodes auf englische Namen. Online-Spiele gehen nur mit Version 1.15.21 auf beiden Seiten.',
+    ],
+  },
   '1.15.20': {
     version: '1.15.20',
     intro: 'Hey, es ist jetzt Version 1.15.20 rausgekommen, folgendes wurde aktualisiert:',

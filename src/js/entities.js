@@ -1,78 +1,78 @@
 import { state, dom, config, arrays, isCoopMode } from './state.js';
 import * as Audio from './audio.js';
-import * as Anzeige from './anzeige.js';
+import * as Display from './anzeige.js';
 
 // Stabile Objekt-IDs, damit der Online-Client DOM-Elemente zwischen Snapshots wiederverwenden kann
-let idZaehler = 0;
-export function neueId(praefix) {
-  return `${praefix}_${++idZaehler}`;
+let idCounter = 0;
+export function newId(prefix) {
+  return `${prefix}_${++idCounter}`;
 }
 
 // Zufaelliger Asteroiden-Umriss: Eckpunkte [x, y] in Prozent der Groesse (eine Nachkommastelle)
 // Umriss in Prozent der Kantenlaenge: 8-13 Ecken mit unregelmaessigem Radius, gelegentlich gestreckt
 // (Faktor 0,72-1 entlang einer zufaelligen Achse) und mit einer tiefen Einbuchtung (Abplatzung)
-export function generiereAsteroidForm() {
-  const punkte = [];
-  const anzahlEcken = Math.floor(Math.random() * 6) + 8;
-  const streckung = Math.random() < 0.45 ? 0.72 + Math.random() * 0.28 : 1;
-  const achse = Math.random() * Math.PI;
-  const kerbe = Math.random() < 0.35 ? Math.floor(Math.random() * anzahlEcken) : -1;
-  const versatz = Math.random() * Math.PI * 2;
-  for (let i = 0; i < anzahlEcken; i++) {
-    const winkel = versatz + (i / anzahlEcken) * Math.PI * 2;
-    let radius = i === kerbe ? 0.5 + Math.random() * 0.12 : 0.74 + Math.random() * 0.26;
+export function generateAsteroidForm() {
+  const points = [];
+  const countCorners = Math.floor(Math.random() * 6) + 8;
+  const stretch = Math.random() < 0.45 ? 0.72 + Math.random() * 0.28 : 1;
+  const axis = Math.random() * Math.PI;
+  const notch = Math.random() < 0.35 ? Math.floor(Math.random() * countCorners) : -1;
+  const offset = Math.random() * Math.PI * 2;
+  for (let i = 0; i < countCorners; i++) {
+    const angle = offset + (i / countCorners) * Math.PI * 2;
+    let radius = i === notch ? 0.5 + Math.random() * 0.12 : 0.74 + Math.random() * 0.26;
     // Streckung: Anteil entlang der Achse bleibt, quer dazu schrumpft er
-    const quer = Math.sin(winkel - achse);
-    radius *= Math.sqrt(1 - (1 - streckung * streckung) * quer * quer);
-    const px = 50 + Math.cos(winkel) * 50 * radius;
-    const py = 50 + Math.sin(winkel) * 50 * radius;
-    punkte.push([Math.round(px * 10) / 10, Math.round(py * 10) / 10]);
+    const across = Math.sin(angle - axis);
+    radius *= Math.sqrt(1 - (1 - stretch * stretch) * across * across);
+    const px = 50 + Math.cos(angle) * 50 * radius;
+    const py = 50 + Math.sin(angle) * 50 * radius;
+    points.push([Math.round(px * 10) / 10, Math.round(py * 10) / 10]);
   }
-  return punkte;
+  return points;
 }
 
 // Umriss fuer das Netz: "x y,x y,..." und zurueck
-export function formAlsText(form) {
+export function formAsText(form) {
   return form.map(([px, py]) => `${px} ${py}`).join(',');
 }
-export function formAusText(text) {
-  return text.split(',').map(paar => paar.split(' ').map(Number));
+export function formFromText(text) {
+  return text.split(',').map(pair => pair.split(' ').map(Number));
 }
 
 // Leuchtfarbe eines Powerups (Rahmen, Bildschirm-Blitz beim Einsammeln)
-const POWERUP_FARBEN = {
-  leben: '#e74c3c',
-  energie: '#f1c40f',
-  durchschlag: '#00ffff',
-  schild: '#3498db',
-  laserWaffe: '#9b59b6',
+const POWERUP_COLORS = {
+  lives: '#e74c3c',
+  energy: '#f1c40f',
+  pierce: '#00ffff',
+  shield: '#3498db',
+  laserWeapon: '#9b59b6',
   laser: '#9b59b6',
-  raketenWaffe: '#e67e22',
-  rakete: '#e67e22',
-  bombenWaffe: '#c0392b',
-  bombe: '#c0392b',
+  missileWeapon: '#e67e22',
+  missile: '#e67e22',
+  bombWeapon: '#c0392b',
+  bomb: '#c0392b',
   autolaser: '#f39c12',
-  superWaffe: '#ffffff',
-  splitterRot: '#e74c3c',
-  splitterWeiss: '#ffffff',
-  schockwelle: '#7fffd4',
+  superWeapon: '#ffffff',
+  splitterRed: '#e74c3c',
+  splitterWhite: '#ffffff',
+  shockwave: '#7fffd4',
 };
-export function powerupFarbe(type) {
-  return POWERUP_FARBEN[type] || '#f1c40f';
+export function powerupColor(type) {
+  return POWERUP_COLORS[type] || '#f1c40f';
 }
 
 let nextCoopLootOwner = 'p1';
 
-export function erzeugePowerup(px, py, forceType = null, forceOwner = null) {
-  const puTypes = ['leben', 'energie', 'durchschlag', 'schild', 'laserWaffe', 'raketenWaffe', 'bombenWaffe'];
-  if (state.laserStufe >= 5) puTypes.push('autolaser');
+export function createPowerup(px, py, forceType = null, forceOwner = null) {
+  const puTypes = ['lives', 'energy', 'pierce', 'shield', 'laserWeapon', 'missileWeapon', 'bombWeapon'];
+  if (state.laserTier >= 5) puTypes.push('autolaser');
   let rawType = forceType ? forceType : puTypes[Math.floor(Math.random() * puTypes.length)];
 
   // Normalisiere Kurzbezeichnungen
   let type = rawType;
-  if (rawType === 'laser') type = 'laserWaffe';
-  else if (rawType === 'rakete') type = 'raketenWaffe';
-  else if (rawType === 'bombe') type = 'bombenWaffe';
+  if (rawType === 'laser') type = 'laserWeapon';
+  else if (rawType === 'missile') type = 'missileWeapon';
+  else if (rawType === 'bomb') type = 'bombWeapon';
 
   let owner = null;
   if (isCoopMode()) {
@@ -89,86 +89,86 @@ export function erzeugePowerup(px, py, forceType = null, forceOwner = null) {
   }
 
   arrays.powerups.push(
-    Anzeige.erzeuge(
+    Display.create(
       {
-        id: neueId('pu'),
+        id: newId('pu'),
         x: px,
         y: py,
-        groesse: 24,
+        size: 24,
         vy: 2,
         type: type,
-        farbe: powerupFarbe(type),
+        color: powerupColor(type),
         owner: owner,
       },
       'powerup',
     ),
   );
 }
-export function erzeugeAsteroid(
+export function createAsteroid(
   startX,
   startY,
-  startGroesse,
+  startSize,
   startVx,
   startVy,
-  immunFrames = 0,
+  immuneFrames = 0,
   forceDestructible = false,
 ) {
-  const groesse = startGroesse !== undefined ? startGroesse : Math.random() * 30 + 15;
-  let istMagma = false;
-  let istUnzerstoerbar = false;
-  let traegtPowerup = false;
+  const size = startSize !== undefined ? startSize : Math.random() * 30 + 15;
+  let isMagma = false;
+  let isIndestructible = false;
+  let carriesPowerup = false;
   if (!forceDestructible && Math.random() < 0.2) {
-    istMagma = true;
+    isMagma = true;
     if (Math.random() < 0.3) {
-      traegtPowerup = true;
-      istUnzerstoerbar = false;
+      carriesPowerup = true;
+      isIndestructible = false;
     } else {
-      istUnzerstoerbar = true;
+      isIndestructible = true;
     }
   }
   // Farbverlauf (farbe -> farbe2), Umriss und Rissmuster sind Modelldaten; die Anzeige zeichnet daraus
-  let farbe, farbe2;
-  if (istMagma) {
-    let c = config.magmaBasisFarben[Math.floor(Math.random() * config.magmaBasisFarben.length)];
-    farbe = c.a;
-    farbe2 = c.b;
+  let color, color2;
+  if (isMagma) {
+    let c = config.magmaBasisColors[Math.floor(Math.random() * config.magmaBasisColors.length)];
+    color = c.a;
+    color2 = c.b;
   } else {
-    const palette = config.asteroidenPaletten[Math.floor(Math.random() * config.asteroidenPaletten.length)];
-    farbe = palette.a;
-    farbe2 = palette.b;
+    const palette = config.asteroidsPalettes[Math.floor(Math.random() * config.asteroidsPalettes.length)];
+    color = palette.a;
+    color2 = palette.b;
   }
-  const form = generiereAsteroidForm();
-  const finalX = startX !== undefined ? startX : Math.random() * (config.spielfeldBreite - groesse);
-  const finalY = startY !== undefined ? startY : -groesse;
-  const riss = istUnzerstoerbar ? null : Math.floor(Math.random() * config.rissMuster.length);
-  let startHp = groesse * 1.2;
-  if (traegtPowerup) startHp *= 3;
-  let berechnetVx = startVx !== undefined ? startVx : (Math.random() - 0.5) * 4;
+  const form = generateAsteroidForm();
+  const finalX = startX !== undefined ? startX : Math.random() * (config.playfieldWidth - size);
+  const finalY = startY !== undefined ? startY : -size;
+  const crack = isIndestructible ? null : Math.floor(Math.random() * config.crackPattern.length);
+  let startHp = size * 1.2;
+  if (carriesPowerup) startHp *= 3;
+  let computedVx = startVx !== undefined ? startVx : (Math.random() - 0.5) * 4;
   // LANGSAMERE SKALIERUNG: Asteroiden fallen in höheren Leveln nur dezent schneller
-  let berechnetVy = startVy !== undefined ? startVy : Math.random() * 1.5 + 1.0 + state.level * 0.1;
-  if (traegtPowerup && startVx === undefined) berechnetVx = Math.random() - 0.5;
+  let computedVy = startVy !== undefined ? startVy : Math.random() * 1.5 + 1.0 + state.level * 0.1;
+  if (carriesPowerup && startVx === undefined) computedVx = Math.random() - 0.5;
   let startRot = Math.random() * 360;
   let vRot = (Math.random() - 0.5) * 3;
-  arrays.asteroiden.push(
-    Anzeige.erzeuge(
+  arrays.asteroids.push(
+    Display.create(
       {
-        id: neueId('a'),
+        id: newId('a'),
         x: finalX,
         y: finalY,
-        groesse: groesse,
-        vx: berechnetVx,
-        vy: berechnetVy,
-        immune: immunFrames,
+        size: size,
+        vx: computedVx,
+        vy: computedVy,
+        immune: immuneFrames,
         hp: startHp,
         maxHp: startHp,
-        istMagma: istMagma,
-        istUnzerstoerbar: istUnzerstoerbar,
-        traegtPowerup: traegtPowerup,
-        farbe,
-        farbe2,
+        isMagma: isMagma,
+        isIndestructible: isIndestructible,
+        carriesPowerup: carriesPowerup,
+        color,
+        color2,
         form,
-        riss,
-        istFeind: false,
+        crack,
+        isEnemy: false,
         rot: startRot,
         vRot: vRot,
       },
@@ -176,127 +176,127 @@ export function erzeugeAsteroid(
     ),
   );
 }
-export function getFeindColor(muster = 'normal') {
-  if (muster === 'stopAndGo') return '#e67e22';
-  if (muster === 'crossfire') return '#1abc9c';
-  if (muster === 'swoop') return '#2ecc71';
-  if (muster === 'hacker') return '#39ff14';
-  if (muster === 'kette') return '#d9822b';
-  if (muster === 'stachelkette') return '#7d8f5a';
-  if (muster === 'kugelkette') return '#9b6ad0';
-  if (muster === 'krabbe') return '#d0532a';
-  if (muster === 'tentakler') return '#b06ad8';
+export function getEnemyColor(pattern = 'normal') {
+  if (pattern === 'stopAndGo') return '#e67e22';
+  if (pattern === 'crossfire') return '#1abc9c';
+  if (pattern === 'swoop') return '#2ecc71';
+  if (pattern === 'hacker') return '#39ff14';
+  if (pattern === 'chain') return '#d9822b';
+  if (pattern === 'spikeChain') return '#7d8f5a';
+  if (pattern === 'ballChain') return '#9b6ad0';
+  if (pattern === 'crab') return '#d0532a';
+  if (pattern === 'tentacler') return '#b06ad8';
   return '#9b59b6';
 }
 
-export function erzeugeFeind(sX, sY, forceMuster = null, forceVx = 0, forceShield = null) {
-  let muster = forceMuster !== null ? forceMuster : 'normal';
+export function createEnemy(sX, sY, forcePattern = null, forceVx = 0, forceShield = null) {
+  let pattern = forcePattern !== null ? forcePattern : 'normal';
   let stopY = 0;
-  if (forceMuster === null && state.level >= 1 && Math.random() < Math.min(0.6, state.level * 0.2)) {
-    muster = 'stopAndGo';
+  if (forcePattern === null && state.level >= 1 && Math.random() < Math.min(0.6, state.level * 0.2)) {
+    pattern = 'stopAndGo';
   }
-  if (muster === 'stopAndGo') {
+  if (pattern === 'stopAndGo') {
     stopY = 80 + Math.random() * 120;
-  } else if (muster === 'hacker') {
+  } else if (pattern === 'hacker') {
     stopY = 100 + Math.random() * 100;
   }
 
-  let hatSchild = false;
-  if (muster === 'hacker') {
-    hatSchild = false;
+  let hasShield = false;
+  if (pattern === 'hacker') {
+    hasShield = false;
   } else if (forceShield !== null) {
-    hatSchild = forceShield;
+    hasShield = forceShield;
   } else if (state.level >= 3 && Math.random() < Math.min(0.5, (state.level - 2) * 0.15)) {
-    hatSchild = true;
+    hasShield = true;
   }
 
-  const startX = sX !== undefined ? sX : Math.random() * (config.spielfeldBreite - 30);
+  const startX = sX !== undefined ? sX : Math.random() * (config.playfieldWidth - 30);
   const startY = sY !== undefined ? sY : -30;
-  let schussBasis = Math.max(25, 60 - (state.level - 1) * 8);
-  const feindHpMult = isCoopMode() ? 1.25 : 1.0;
-  const feindHp = Math.round(20 * feindHpMult);
-  const feindSchildHp = hatSchild ? Math.round(20 * feindHpMult) : 0;
-  arrays.feinde.push(
-    Anzeige.erzeuge(
+  let shotBasis = Math.max(25, 60 - (state.level - 1) * 8);
+  const enemyHpMult = isCoopMode() ? 1.25 : 1.0;
+  const enemyHp = Math.round(20 * enemyHpMult);
+  const enemyShieldHp = hasShield ? Math.round(20 * enemyHpMult) : 0;
+  arrays.enemies.push(
+    Display.create(
       {
-        id: neueId('f'),
+        id: newId('f'),
         x: startX,
         y: startY,
-        groesse: 30,
-        hp: feindHp,
-        maxHp: feindHp,
-        schildHp: feindSchildHp,
-        maxSchildHp: feindSchildHp,
-        hatSchild: hatSchild,
-        farbe: getFeindColor(muster),
+        size: 30,
+        hp: enemyHp,
+        maxHp: enemyHp,
+        shieldHp: enemyShieldHp,
+        maxShieldHp: enemyShieldHp,
+        hasShield: hasShield,
+        color: getEnemyColor(pattern),
         vy: 1.2,
         vx: forceVx,
         basisX: startX,
-        zeit: 0,
-        schussTimer: Math.random() * schussBasis + schussBasis,
+        time: 0,
+        shotTimer: Math.random() * shotBasis + shotBasis,
         burstCount: 0,
         burstTimer: 0,
-        istFeind: true,
-        istUnzerstoerbar: false,
-        traegtPowerup: Math.random() < (muster === 'hacker' ? 0.4 : 0.2),
-        muster: muster,
+        isEnemy: true,
+        isIndestructible: false,
+        carriesPowerup: Math.random() < (pattern === 'hacker' ? 0.4 : 0.2),
+        pattern: pattern,
         phase: 'anflug',
         stopTimer: 0,
         stopY: stopY,
-        lauerTimer: 0,
+        lurkTimer: 0,
         hackTimer: 0,
-        hackSchuesse: 0,
-        hackGelandet: false,
+        hackShots: 0,
+        hackLanded: false,
       },
-      'feind',
+      'enemy',
     ),
   );
 }
 
-export function erzeugeClingOnFeind() {
-  let groesse = Math.random() * 20 + 30; // 30-50
+export function createClingOnEnemy() {
+  let size = Math.random() * 20 + 30; // 30-50
   // Erzeuge garantiert zerstörbaren (grauen) Asteroiden
-  erzeugeAsteroid(undefined, undefined, groesse, undefined, undefined, 0, true);
-  let ast = arrays.asteroiden[arrays.asteroiden.length - 1]; // Zuletzt erstellter Asteroid
+  createAsteroid(undefined, undefined, size, undefined, undefined, 0, true);
+  let ast = arrays.asteroids[arrays.asteroids.length - 1]; // Zuletzt erstellter Asteroid
 
   // Erzeuge den Feind auf der Position des Asteroiden
-  erzeugeFeind(ast.x, ast.y, 'clingOn', 0);
-  let f = arrays.feinde[arrays.feinde.length - 1];
+  createEnemy(ast.x, ast.y, 'clingOn', 0);
+  let f = arrays.enemies[arrays.enemies.length - 1];
   f.attachedAsteroid = ast;
   f.phase = 'attached';
-  f.schussTimer = 9999; // Schießt nicht, während er haftet
+  f.shotTimer = 9999; // Schießt nicht, während er haftet
 }
-export function erzeugeHackProjektil(fx, fy, zielX, zielY, quelle = null) {
+export function createHackProjectile(fx, fy, targetX, targetY, source = null) {
   const speed = 3;
-  let dx = zielX - fx;
-  let dy = zielY - fy;
+  let dx = targetX - fx;
+  let dy = targetY - fy;
   let dist = Math.hypot(dx, dy) || 1;
-  arrays.hackProjektilArray.push(
-    Anzeige.erzeuge(
+  arrays.hackProjectileArray.push(
+    Display.create(
       {
-        id: neueId('hp'),
+        id: newId('hp'),
         x: fx,
         y: fy,
         vx: (dx / dist) * speed,
         vy: (dy / dist) * speed,
         width: 12,
         height: 12,
-        quelle: quelle,
-        lenkZeit: 90, // 1,5 s Zielsuche, danach geradeaus
+        source: source,
+        steerTime: 90, // 1,5 s Zielsuche, danach geradeaus
       },
-      'hackProjektil',
+      'hackProjectile',
     ),
   );
 }
 
-export function erzeugeFeindLaser(fx, fy, zielX = null, zielY = null) {
+export function createEnemyLaser(fx, fy, targetX = null, targetY = null) {
   Audio.playEnemyLaser();
   let vx = 0;
   let vy = 7;
   let rot;
-  if (zielX !== null && zielY !== null) {
-    let dx = zielX - fx;
-    let dy = zielY - fy;
+  if (targetX !== null && targetY !== null) {
+    let dx = targetX - fx;
+    let dy = targetY - fy;
     let dist = Math.sqrt(dx * dx + dy * dy);
     if (dist > 0) {
       vx = (dx / dist) * 7;
@@ -304,10 +304,10 @@ export function erzeugeFeindLaser(fx, fy, zielX = null, zielY = null) {
     }
     rot = (Math.atan2(dy, dx) * 180) / Math.PI - 90;
   }
-  arrays.feindLaserArray.push(
-    Anzeige.erzeuge(
+  arrays.enemyLaserArray.push(
+    Display.create(
       {
-        id: neueId('fl'),
+        id: newId('fl'),
         x: fx,
         y: fy,
         vx: vx,
@@ -316,67 +316,67 @@ export function erzeugeFeindLaser(fx, fy, zielX = null, zielY = null) {
         height: 15,
         rot,
       },
-      'feindLaser',
+      'enemyLaser',
     ),
   );
 }
 
 // --- BOSS SKALIERUNG & OPTIK ---
 export function getBossColor(level = 1) {
-  return config.bossFarben[(level - 1) % config.bossFarben.length];
+  return config.bossColors[(level - 1) % config.bossColors.length];
 }
 
-export function erzeugeBoss() {
-  state.bossAktiv = true;
+export function createBoss() {
+  state.bossActive = true;
   dom.bossHpContainer.style.display = 'block';
-  dom.bossHpBalken.style.width = '100%';
-  dom.bossHpBalken.style.backgroundColor = '#e74c3c';
+  dom.bossHpBar.style.width = '100%';
+  dom.bossHpBar.style.backgroundColor = '#e74c3c';
 
   // Bestimme Boss Typ basierend auf Level
   let bTyp = state.level % 4;
   if (bTyp === 0) bTyp = 4; // 1, 2, 3, 4, 1, 2, ...
 
-  let bossGroesse = 100 + (state.level - 1) * 10;
-  bossGroesse = Math.min(bossGroesse, 160); // Maximale Größe deckeln
-  let startX = config.spielfeldBreite / 2 - bossGroesse / 2;
+  let bossSize = 100 + (state.level - 1) * 10;
+  bossSize = Math.min(bossSize, 160); // Maximale Größe deckeln
+  let startX = config.playfieldWidth / 2 - bossSize / 2;
 
   // SKALIERUNG: HP wachsen im Co-op Modus moderat (+40%), im Solomodus Standard
   const bossHpMult = isCoopMode() ? 1.4 : 1.0;
   let bossHp = Math.round((400 + (state.level - 1) * 350) * bossHpMult);
   let bossVx = 2 + (state.level - 1) * 0.2;
-  let schussRhythmus = Math.max(45, 90 - (state.level - 1) * 10);
+  let shotRhythmus = Math.max(45, 90 - (state.level - 1) * 10);
   arrays.bosses.push(
-    Anzeige.erzeuge(
+    Display.create(
       {
-        id: neueId('boss'),
+        id: newId('boss'),
         x: startX,
         y: -150,
-        groesse: bossGroesse,
+        size: bossSize,
         hp: bossHp,
         maxHp: bossHp,
         vx: bossVx,
         vy: 1,
         phase: 'einzug',
-        schussTimer: 60,
-        baseSchussRate: schussRhythmus,
-        istFeind: false,
-        istBoss: true,
-        istUnzerstoerbar: false,
+        shotTimer: 60,
+        baseShotRate: shotRhythmus,
+        isEnemy: false,
+        isBoss: true,
+        isIndestructible: false,
         bossTyp: bTyp,
-        leuchtFarbe: getBossColor(state.level),
-        enragePhaseAktiv: false,
+        glowColor: getBossColor(state.level),
+        enragePhaseActive: false,
         hackTimer: 180, // erster Hack-Orb nach 3 s Kampf (ab Level 5)
       },
       'boss',
     ),
   );
 }
-export function erzeugeBossLaser(fx, fy, vx = 0, vy = 6) {
+export function createBossLaser(fx, fy, vx = 0, vy = 6) {
   Audio.playBossLaser();
   arrays.bossLaserArray.push(
-    Anzeige.erzeuge(
+    Display.create(
       {
-        id: neueId('bl'),
+        id: newId('bl'),
         rot: vx !== 0 ? (Math.atan2(vy, vx) * 180) / Math.PI - 90 : undefined,
         x: fx,
         y: fy,
@@ -390,17 +390,17 @@ export function erzeugeBossLaser(fx, fy, vx = 0, vy = 6) {
   );
 }
 
-export function erzeugeBossBombe(bx, by) {
+export function createBossBomb(bx, by) {
   Audio.playBossBombLaunch();
 
   let bHp = 20 + state.level * 5;
-  arrays.bossBombenArray.push(
-    Anzeige.erzeuge(
+  arrays.bossBombArray.push(
+    Display.create(
       {
-        id: neueId('bb'),
+        id: newId('bb'),
         x: bx,
         y: by,
-        groesse: 26,
+        size: 26,
         hp: bHp,
         maxHp: bHp,
         vx: (Math.random() - 0.5) * 0.8,
@@ -409,27 +409,27 @@ export function erzeugeBossBombe(bx, by) {
         maxTimer: 180,
         beepTimer: 999,
         radius: 90,
-        istBossBombe: true,
-        istUnzerstoerbar: false,
+        isBossBomb: true,
+        isIndestructible: false,
         immune: 0,
       },
-      'bossBombe',
+      'bossBomb',
     ),
   );
 }
 
-export function erzeugeBossRakete(bx, by, sideDirection = 1) {
+export function createBossMissile(bx, by, sideDirection = 1) {
   Audio.playBossRocketLaunch();
   let initVx = sideDirection * (3.0 + Math.random() * 1.0);
   let initVy = 0.8 + Math.random() * 0.4;
   let rHp = 15;
-  arrays.bossRaketenArray.push(
-    Anzeige.erzeuge(
+  arrays.bossMissileArray.push(
+    Display.create(
       {
-        id: neueId('br'),
+        id: newId('br'),
         x: bx,
         y: by,
-        groesse: 18,
+        size: 18,
         width: 14,
         height: 24,
         hp: rHp,
@@ -439,11 +439,11 @@ export function erzeugeBossRakete(bx, by, sideDirection = 1) {
         turnRate: 0.045,
         speed: 2.3,
         age: 0,
-        istBossRakete: true,
-        istUnzerstoerbar: false,
+        isBossMissile: true,
+        isIndestructible: false,
         immune: 0,
       },
-      'bossRakete',
+      'bossMissile',
     ),
   );
 }

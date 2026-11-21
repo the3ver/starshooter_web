@@ -3,7 +3,7 @@ import * as Gleve from './gleve.js';
 import * as Viper from './viper.js';
 import * as Sniper from './sniper.js';
 import * as Hack from './hack.js';
-import * as Fels from './fels.js';
+import * as Rock from './fels.js';
 
 // --- Bot-Schwierigkeitsstufen ---
 const BOT_DIFFICULTY = {
@@ -16,11 +16,11 @@ let reactionCounter = 0;
 let lastDecision = { moveX: 0, moveY: 0 };
 
 // Abstand zum Spielfeldrand, den der Bot beim Zielen und Ausweichen einhaelt
-const RAND_ABSTAND = 50;
+const EDGE_DISTANCE = 50;
 
 // Gleve-Bot: Mindestabstand zwischen zwei Dashs (Schritte), damit er nicht dauernd dasht
 const GLEVE_DASH_PAUSE = 40;
-let gleveDashSperre = 0;
+let gleveDashLock = 0;
 
 // --- Hilfsfunktionen ---
 
@@ -32,24 +32,24 @@ function distanceSq(ax, ay, bx, by) {
 
 function findNearestDanger(p2, diff) {
   const dangers = [];
-  const halfSize = config.spielerGroesse / 2;
+  const halfSize = config.playerSize / 2;
   const cx = p2.x + halfSize;
   const cy = p2.y + halfSize;
   const dodgeRadiusSq = diff.dodgeRadius * diff.dodgeRadius;
 
   // Asteroiden
-  for (const ast of arrays.asteroiden) {
-    const ax = ast.x + (ast.groesse || 30) / 2;
-    const ay = ast.y + (ast.groesse || 30) / 2;
+  for (const ast of arrays.asteroids) {
+    const ax = ast.x + (ast.size || 30) / 2;
+    const ay = ast.y + (ast.size || 30) / 2;
     const dSq = distanceSq(cx, cy, ax, ay);
     if (dSq < dodgeRadiusSq) {
-      dangers.push({ x: ax, y: ay, dSq, vy: ast.geschwindigkeit || 2 });
+      dangers.push({ x: ax, y: ay, dSq, vy: ast.speed || 2 });
     }
   }
 
   // Feindliche Projektile (Laser + Bomben + Raketen)
-  for (const fl of arrays.feindLaserArray) {
-    if (fl.harmlos) continue; // von der Gleve weggeschleudert
+  for (const fl of arrays.enemyLaserArray) {
+    if (fl.harmless) continue; // von der Gleve weggeschleudert
     const fx = fl.x + 2;
     const fy = fl.y + 5;
     const dSq = distanceSq(cx, cy, fx, fy);
@@ -58,7 +58,7 @@ function findNearestDanger(p2, diff) {
     }
   }
   for (const bl of arrays.bossLaserArray) {
-    if (bl.harmlos) continue; // von der Gleve weggeschleudert
+    if (bl.harmless) continue; // von der Gleve weggeschleudert
     const bx = bl.x + 3;
     const by = bl.y + 5;
     const dSq = distanceSq(cx, cy, bx, by);
@@ -66,7 +66,7 @@ function findNearestDanger(p2, diff) {
       dangers.push({ x: bx, y: by, dSq, vy: bl.vy || 4 });
     }
   }
-  for (const bb of arrays.bossBombenArray) {
+  for (const bb of arrays.bossBombArray) {
     const bx = bb.x + 8;
     const by = bb.y + 8;
     const dSq = distanceSq(cx, cy, bx, by);
@@ -74,7 +74,7 @@ function findNearestDanger(p2, diff) {
       dangers.push({ x: bx, y: by, dSq, vy: bb.vy || 2 });
     }
   }
-  for (const br of arrays.bossRaketenArray) {
+  for (const br of arrays.bossMissileArray) {
     const bx = br.x + 5;
     const by = br.y + 8;
     const dSq = distanceSq(cx, cy, bx, by);
@@ -84,13 +84,13 @@ function findNearestDanger(p2, diff) {
   }
 
   // Feinde direkt
-  for (const feind of arrays.feinde) {
-    const halb = (feind.groesse || 30) / 2;
-    const fx = feind.x + halb;
-    const fy = feind.y + halb;
+  for (const enemy of arrays.enemies) {
+    const half = (enemy.size || 30) / 2;
+    const fx = enemy.x + half;
+    const fy = enemy.y + half;
     const dSq = distanceSq(cx, cy, fx, fy);
     if (dSq < dodgeRadiusSq) {
-      dangers.push({ x: fx, y: fy, dSq, vy: feind.geschwindigkeit || 2 });
+      dangers.push({ x: fx, y: fy, dSq, vy: enemy.speed || 2 });
     }
   }
 
@@ -100,16 +100,16 @@ function findNearestDanger(p2, diff) {
 }
 
 // Schockwelle erst einsammeln, wenn genug im Bild ist (Feinde und Geschosse), oder bevor sie unten verschwindet
-export const SCHOCKWELLE_MIN_ZIELE = 4;
-export function schockwelleLohnt(p) {
-  if (p.y > config.spielfeldHoehe - 150) return true;
-  const imBild = o => o.y > 0 && o.y < config.spielfeldHoehe;
-  const ziele = arrays.feinde.filter(imBild).length + arrays.feindLaserArray.filter(imBild).length;
-  return ziele >= SCHOCKWELLE_MIN_ZIELE;
+export const SHOCKWAVE_MIN_TARGETS = 4;
+export function shockwaveWorthIt(p) {
+  if (p.y > config.playfieldHeight - 150) return true;
+  const inImage = o => o.y > 0 && o.y < config.playfieldHeight;
+  const targets = arrays.enemies.filter(inImage).length + arrays.enemyLaserArray.filter(inImage).length;
+  return targets >= SHOCKWAVE_MIN_TARGETS;
 }
 
 function findNearestPowerup(p2, diff) {
-  const halfSize = config.spielerGroesse / 2;
+  const halfSize = config.playerSize / 2;
   const cx = p2.x + halfSize;
   const cy = p2.y + halfSize;
   const rangeSq = diff.powerupRange * diff.powerupRange;
@@ -118,9 +118,9 @@ function findNearestPowerup(p2, diff) {
 
   for (const p of arrays.powerups) {
     if (p.towedBy) continue; // Schon gezogen
-    if (p.type === 'schockwelle' && !schockwelleLohnt(p)) continue;
-    const px = p.x + (p.groesse || 16) / 2;
-    const py = p.y + (p.groesse || 16) / 2;
+    if (p.type === 'shockwave' && !shockwaveWorthIt(p)) continue;
+    const px = p.x + (p.size || 16) / 2;
+    const py = p.y + (p.size || 16) / 2;
     const dSq = distanceSq(cx, cy, px, py);
     if (dSq < rangeSq && dSq < nearestDSq) {
       nearest = { x: px, y: py, dSq };
@@ -131,27 +131,27 @@ function findNearestPowerup(p2, diff) {
 }
 
 // Boss-Mitte: Bosse sind quadratisch mit Kantenlaenge groesse
-function bossMitte(boss) {
-  const g = boss.groesse || 100;
+function bossMiddle(boss) {
+  const g = boss.size || 100;
   return { x: boss.x + g / 2, y: boss.y + g / 2 };
 }
 
 // Kann der Bot diesen Asteroiden zerstoeren? Magma nur mit dem Gleve-Dash ab Raketen-Stufe 5
-function kannAsteroidZerstoeren(p2, ast) {
-  if (!ast.istUnzerstoerbar) return true;
-  return Gleve.istGleve(p2) && Gleve.dashKnacktMagma(p2);
+function canAsteroidDestroy(p2, ast) {
+  if (!ast.isIndestructible) return true;
+  return Gleve.isGleve(p2) && Gleve.dashCracksMagma(p2);
 }
 
 export function findBestTarget(p2, diff) {
-  const halfSize = config.spielerGroesse / 2;
+  const halfSize = config.playerSize / 2;
   const cx = p2.x + halfSize;
   let bestTarget = null;
   let bestDSq = Infinity;
 
   // Bosse und Feindschiffe: naechstes Ziel ueber dem Bot
   for (const boss of arrays.bosses) {
-    if (boss.hp <= 0 || boss.istUnzerstoerbar) continue; // geschlossenes Auge
-    const m = bossMitte(boss);
+    if (boss.hp <= 0 || boss.isIndestructible) continue; // geschlossenes Auge
+    const m = bossMiddle(boss);
     const dSq = distanceSq(cx, p2.y, m.x, m.y);
     if (m.y < p2.y && dSq < bestDSq) {
       // Nur Ziele über dem Bot
@@ -160,19 +160,19 @@ export function findBestTarget(p2, diff) {
         y: m.y,
         dSq,
         isBoss: true,
-        unten: boss.y + (boss.groesse || 100),
-        groesse: boss.groesse || 100,
+        bottom: boss.y + (boss.size || 100),
+        size: boss.size || 100,
       };
       bestDSq = dSq;
     }
   }
 
-  for (const feind of arrays.feinde) {
-    if (feind.kettenT < 0) continue; // Kettenglied wartet noch ausserhalb des Felds
-    if (feind.istUnzerstoerbar) continue; // geschlossene Bluete: Laser prallen ab
-    const halb = (feind.groesse || 30) / 2;
-    const fx = feind.x + halb;
-    const fy = feind.y + halb;
+  for (const enemy of arrays.enemies) {
+    if (enemy.chainT < 0) continue; // Kettenglied wartet noch ausserhalb des Felds
+    if (enemy.isIndestructible) continue; // geschlossene Bluete: Laser prallen ab
+    const half = (enemy.size || 30) / 2;
+    const fx = enemy.x + half;
+    const fy = enemy.y + half;
     const dSq = distanceSq(cx, p2.y, fx, fy);
     if (fy < p2.y && dSq < bestDSq) {
       bestTarget = { x: fx, y: fy, dSq, isBoss: false };
@@ -182,10 +182,10 @@ export function findBestTarget(p2, diff) {
   if (bestTarget) return bestTarget;
 
   // Asteroiden nur ohne Gegnerschiff, und nur solche, die der Bot zerstoeren kann
-  for (const ast of arrays.asteroiden) {
-    if (!kannAsteroidZerstoeren(p2, ast)) continue;
-    const ax = ast.x + (ast.groesse || 30) / 2;
-    const ay = ast.y + (ast.groesse || 30) / 2;
+  for (const ast of arrays.asteroids) {
+    if (!canAsteroidDestroy(p2, ast)) continue;
+    const ax = ast.x + (ast.size || 30) / 2;
+    const ay = ast.y + (ast.size || 30) / 2;
     const dSq = distanceSq(cx, p2.y, ax, ay);
     if (ay < p2.y && dSq < bestDSq) {
       bestTarget = { x: ax, y: ay, dSq, isBoss: false };
@@ -197,14 +197,14 @@ export function findBestTarget(p2, diff) {
 }
 
 function computeMovement(p2, target, danger, powerup, diff) {
-  const halfSize = config.spielerGroesse / 2;
+  const halfSize = config.playerSize / 2;
   const cx = p2.x + halfSize;
   const cy = p2.y + halfSize;
   let moveX = 0;
   let moveY = 0;
 
   // Menschliche Taktik: Basis-Position im unteren Viertel (y: 480-520 auf 600px Feld)
-  const baselineY = config.spielfeldHoehe - 90;
+  const baselineY = config.playfieldHeight - 90;
 
   // Priorität 1: Gefahren ausweichen
   if (danger) {
@@ -214,16 +214,16 @@ function computeMovement(p2, target, danger, powerup, diff) {
     // Weg von der Gefahr bewegen
     moveX = (dx / dist) * 1.5;
     moveY = (dy / dist) * 1.2;
-    const raumLinks = cx;
-    const raumRechts = config.spielfeldBreite - cx;
+    const roomLeft = cx;
+    const roomRight = config.playfieldWidth - cx;
     // Gleve mit bereitem Sweep (laeuft oder genug Energie) pariert Gefahren im Bogen, statt seitlich aus ihm herauszufliegen
-    const pariert =
-      Gleve.istGleve(p2) && (Gleve.istSweepAktiv(p2) || sweepBereit(p2)) && imSweepBogen(p2, danger.x, danger.y);
+    const parried =
+      Gleve.isGleve(p2) && (Gleve.isSweepActive(p2) || sweepReady(p2)) && inSweepArc(p2, danger.x, danger.y);
     // Gefahr fast genau ueber dem Bot: seitlich zur freieren Seite ausweichen statt nur nach unten
-    if (!pariert && Math.abs(dx) < 20 && dy > 0) moveX = (raumRechts >= raumLinks ? 1 : -1) * 1.5;
+    if (!parried && Math.abs(dx) < 20 && dy > 0) moveX = (roomRight >= roomLeft ? 1 : -1) * 1.5;
     // Nicht in die Wand ausweichen, sondern zur Mitte hin
-    if ((moveX < 0 && raumLinks < RAND_ABSTAND) || (moveX > 0 && raumRechts < RAND_ABSTAND)) moveX = -moveX;
-    if (moveY > 0 && cy > config.spielfeldHoehe - RAND_ABSTAND) moveY = 0;
+    if ((moveX < 0 && roomLeft < EDGE_DISTANCE) || (moveX > 0 && roomRight < EDGE_DISTANCE)) moveX = -moveX;
+    if (moveY > 0 && cy > config.playfieldHeight - EDGE_DISTANCE) moveY = 0;
     return { moveX, moveY };
   }
 
@@ -240,21 +240,21 @@ function computeMovement(p2, target, danger, powerup, diff) {
   // Priorität 3: Auf Ziel ausrichten (horizontal) und aus der Distanz (unteres Viertel) beschießen
   if (target) {
     // Nicht bis an den Rand jagen (der Jaeger-Boss folgt dem Bot sonst bis in die Ecke)
-    const zielX = Math.max(RAND_ABSTAND, Math.min(config.spielfeldBreite - RAND_ABSTAND, target.x));
-    const dx = zielX - cx;
+    const targetX = Math.max(EDGE_DISTANCE, Math.min(config.playfieldWidth - EDGE_DISTANCE, target.x));
+    const dx = targetX - cx;
     if (Math.abs(dx) > diff.aimCorridor / 2) {
       moveX = dx > 0 ? 0.8 : -0.8;
     }
     // Vertikal: Bleibe im unteren Viertel (Grundlinie), um Feinde/Bosse aus sicherer Distanz zu beschießen.
     // Die Gleve (Nahkampf) haelt sich knapp ausserhalb der Dash-Reichweite unter normalen Feinden.
     let idealY = target.isBoss ? baselineY : Math.max(baselineY, target.y + 250);
-    if (Gleve.istGleve(p2) && !target.isBoss) idealY = Math.min(baselineY, target.y + Gleve.dashReichweite(p2) * 0.8);
+    if (Gleve.isGleve(p2) && !target.isBoss) idealY = Math.min(baselineY, target.y + Gleve.dashRange(p2) * 0.8);
     // Gegen Bosse geht die Gleve in Sweep-Reichweite unter die Boss-Unterkante (mit Abstand zum Koerper, Kollision schadet)
-    if (Gleve.istGleve(p2) && target.isBoss) {
-      const bossUnten = target.unten;
-      idealY = Math.min(baselineY, bossUnten + 0.6 * Gleve.sweepLaenge(p2));
+    if (Gleve.isGleve(p2) && target.isBoss) {
+      const bossBottom = target.bottom;
+      idealY = Math.min(baselineY, bossBottom + 0.6 * Gleve.sweepLength(p2));
     }
-    if (Sniper.istSniper(p2)) return sniperBewegung(p2, target, cx, cy, zielX);
+    if (Sniper.isSniper(p2)) return sniperMovement(p2, target, cx, cy, targetX);
     const dy = idealY - cy;
     if (Math.abs(dy) > 15) {
       moveY = dy > 0 ? 0.5 : -0.5;
@@ -266,7 +266,7 @@ function computeMovement(p2, target, danger, powerup, diff) {
   const p1x = state.x + halfSize;
   const p1y = state.y + halfSize;
   const formationTargetX = p1x + 50; // Rechts versetzt
-  const formationTargetY = Math.max(baselineY - 40, Math.min(config.spielfeldHoehe - 60, p1y));
+  const formationTargetY = Math.max(baselineY - 40, Math.min(config.playfieldHeight - 60, p1y));
   const fdx = formationTargetX - cx;
   const fdy = formationTargetY - cy;
   if (Math.abs(fdx) > 15) moveX = fdx > 0 ? 0.4 : -0.4;
@@ -277,79 +277,79 @@ function computeMovement(p2, target, danger, powerup, diff) {
 
 // --- Sniper: Fadenkreuz (Grundposition 220 px ueber dem Schiff) auf das Ziel bringen, tippen/laden, Granate ---
 
-const SNIPER_TOLERANZ = 6;
-let sniperModus = null; // null (Taste oben) | 'tipp' | 'laden'
-let sniperHaltedauer = 0;
-let sniperTippRest = 0; // verbleibende Schritte des Granaten-/EMP-Tippens (botFireRakete true)
-let sniperTippPause = 0; // Pause nach dem Tippen, damit das Loslassen verarbeitet wird, bevor ein neuer Tipp beginnt
-let sniperMinenHalt = false; // Raketen-Taste wird zum Minenlegen gehalten
-let sniperMinenSchritte = 0; // bisherige Haltedauer fuer die Minen
-const sniperVorDist = new WeakMap(); // letzter Abstand von Feinden/Asteroiden zum Schiff (Annaeherung erkennen)
+const SNIPER_TOLERANCE = 6;
+let sniperMode = null; // null (Taste oben) | 'tipp' | 'laden'
+let sniperHoldTime = 0;
+let sniperTapRest = 0; // verbleibende Schritte des Granaten-/EMP-Tippens (botFireRakete true)
+let sniperTapPause = 0; // Pause nach dem Tippen, damit das Loslassen verarbeitet wird, bevor ein neuer Tipp beginnt
+let sniperMineStop = false; // Raketen-Taste wird zum Minenlegen gehalten
+let sniperMineSteps = 0; // bisherige Haltedauer fuer die Minen
+const sniperBeforeDist = new WeakMap(); // letzter Abstand von Feinden/Asteroiden zum Schiff (Annaeherung erkennen)
 
 // Unter dem Ziel stehen, sodass das Fadenkreuz auf dem Ziel liegt (Bosse: knapp ueber der Unterkante, ihre Box ist gross)
-function sniperBewegung(p2, target, cx, cy, zielX) {
+function sniperMovement(p2, target, cx, cy, targetX) {
   let moveX = 0;
   let moveY = 0;
-  const dx = zielX - cx;
-  if (Math.abs(dx) > SNIPER_TOLERANZ) moveX = dx > 0 ? 0.8 : -0.8;
-  const kreuzY = target.isBoss ? target.unten - 0.3 * target.groesse : target.y;
-  const halfSize = config.spielerGroesse / 2;
+  const dx = targetX - cx;
+  if (Math.abs(dx) > SNIPER_TOLERANCE) moveX = dx > 0 ? 0.8 : -0.8;
+  const crossY = target.isBoss ? target.bottom - 0.3 * target.size : target.y;
+  const halfSize = config.playerSize / 2;
   // Schiffsoberkante = Mitte - halfSize; Fadenkreuz liegt FADENKREUZ_ABSTAND darueber (oben bei 0 begrenzt)
   const idealCy = Math.max(
-    Sniper.FADENKREUZ_ABSTAND + halfSize,
-    Math.min(config.spielfeldHoehe - halfSize, kreuzY + Sniper.FADENKREUZ_ABSTAND + halfSize),
+    Sniper.CROSSHAIR_DISTANCE + halfSize,
+    Math.min(config.playfieldHeight - halfSize, crossY + Sniper.CROSSHAIR_DISTANCE + halfSize),
   );
   const dy = idealCy - cy;
-  if (Math.abs(dy) > SNIPER_TOLERANZ) moveY = dy > 0 ? 0.8 : -0.8;
+  if (Math.abs(dy) > SNIPER_TOLERANCE) moveY = dy > 0 ? 0.8 : -0.8;
   return { moveX, moveY };
 }
 
-function sniperKreuz(p2) {
-  if (p2.sniperZielX != null && p2.sniperZielY != null) return { x: p2.sniperZielX, y: p2.sniperZielY };
-  return Sniper.grundPosition(p2);
+function sniperCross(p2) {
+  if (p2.sniperTargetX != null && p2.sniperTargetY != null) return { x: p2.sniperTargetX, y: p2.sniperTargetY };
+  return Sniper.basePosition(p2);
 }
 
-function sniperGranateLohnt(p2, kreuz, imKreis) {
-  if (arrays.bosses.some(b => b.hp > 0 && imKreis.includes(b))) return true;
-  const r = Sniper.granatenRadius(p2);
-  let feinde = 0;
-  for (const f of arrays.feinde) {
+function sniperGrenadePaysOff(p2, cross, inCircle) {
+  if (arrays.bosses.some(b => b.hp > 0 && inCircle.includes(b))) return true;
+  const r = Sniper.grenadeRadius(p2);
+  let enemies = 0;
+  for (const f of arrays.enemies) {
     if (f.hp <= 0) continue;
-    const g = f.groesse || 30;
-    if (Math.hypot(f.x + g / 2 - kreuz.x, f.y + g / 2 - kreuz.y) <= r) feinde++;
+    const g = f.size || 30;
+    if (Math.hypot(f.x + g / 2 - cross.x, f.y + g / 2 - cross.y) <= r) enemies++;
   }
-  if (feinde >= 2) return true;
+  if (enemies >= 2) return true;
   // Stufe 5 loescht Geschosse im Radius: Geschoss, das nach der Flugzeit (30 Schritte) am Kreuz ankommt und aufs Schiff zielt
-  if ((p2.raketenStufe || 1) >= 5) {
-    const cx = p2.x + config.spielerGroesse / 2;
+  if ((p2.missileTier || 1) >= 5) {
+    const cx = p2.x + config.playerSize / 2;
     for (const g of [
-      ...arrays.feindLaserArray,
+      ...arrays.enemyLaserArray,
       ...arrays.bossLaserArray,
-      ...arrays.hackProjektilArray,
-      ...arrays.bossRaketenArray,
+      ...arrays.hackProjectileArray,
+      ...arrays.bossMissileArray,
     ]) {
-      if (g.harmlos || Math.abs(g.x - cx) > 50 || g.y > p2.y) continue;
-      const py = g.y + (g.vy || 4) * Sniper.GRANATE_FLUG;
-      if (Math.hypot(g.x - kreuz.x, py - kreuz.y) <= r * 0.8) return true;
+      if (g.harmless || Math.abs(g.x - cx) > 50 || g.y > p2.y) continue;
+      const py = g.y + (g.vy || 4) * Sniper.GRENADE_FLIGHT;
+      if (Math.hypot(g.x - cross.x, py - cross.y) <= r * 0.8) return true;
     }
   }
   return false;
 }
 
 // Feindliches Geschoss (v. a. Boss-Rakete) naeher als 80 px am Schiffsmittelpunkt: das EMP loest es auf
-function sniperEmpLohnt(p2) {
-  const cx = p2.x + config.spielerGroesse / 2;
-  const cy = p2.y + config.spielerGroesse / 2;
+function sniperEmpPaysOff(p2) {
+  const cx = p2.x + config.playerSize / 2;
+  const cy = p2.y + config.playerSize / 2;
   const r = Math.min(80, Sniper.empRadius(p2));
   for (const g of [
-    ...arrays.feindLaserArray,
+    ...arrays.enemyLaserArray,
     ...arrays.bossLaserArray,
-    ...arrays.hackProjektilArray,
-    ...arrays.bossRaketenArray,
+    ...arrays.hackProjectileArray,
+    ...arrays.bossMissileArray,
   ]) {
-    if (g.harmlos) continue;
-    const w = g.width || g.groesse || 4;
-    const h = g.height || g.groesse || 4;
+    if (g.harmless) continue;
+    const w = g.width || g.size || 4;
+    const h = g.height || g.size || 4;
     const nx = Math.max(g.x, Math.min(cx, g.x + w));
     const ny = Math.max(g.y, Math.min(cy, g.y + h));
     if (Math.hypot(nx - cx, ny - cy) < r) return true;
@@ -358,129 +358,129 @@ function sniperEmpLohnt(p2) {
 }
 
 // Feind oder Asteroid (nicht Magma) naeher als 150 px am Schiffsmittelpunkt und im Annaehern: Minen legen
-function sniperMinenLohnt(p2) {
-  const cx = p2.x + config.spielerGroesse / 2;
-  const cy = p2.y + config.spielerGroesse / 2;
-  let lohnt = false;
-  for (const z of [...arrays.feinde, ...arrays.asteroiden]) {
-    if (z.istUnzerstoerbar || (z.hp !== undefined && z.hp <= 0)) continue;
-    const g = z.groesse || 30;
+function sniperMinePaysOff(p2) {
+  const cx = p2.x + config.playerSize / 2;
+  const cy = p2.y + config.playerSize / 2;
+  let paysOff = false;
+  for (const z of [...arrays.enemies, ...arrays.asteroids]) {
+    if (z.isIndestructible || (z.hp !== undefined && z.hp <= 0)) continue;
+    const g = z.size || 30;
     const dist = Math.hypot(z.x + g / 2 - cx, z.y + g / 2 - cy);
-    const vorher = sniperVorDist.get(z);
-    sniperVorDist.set(z, dist);
-    if (dist < 150 && vorher !== undefined && dist < vorher - 0.01) lohnt = true;
+    const beforehand = sniperBeforeDist.get(z);
+    sniperBeforeDist.set(z, dist);
+    if (dist < 150 && beforehand !== undefined && dist < beforehand - 0.01) paysOff = true;
   }
-  return lohnt;
+  return paysOff;
 }
 
 // Jeden Schritt: Laser-Taste (Tippen/Laden: Halten und Loslassen brauchen den Schrittakt) und Granate/EMP (kurzer Tipp)
-function updateSniperWaffen(p2) {
-  p2.botFireRakete = false;
-  const offline = Hack.hatHack(p2, 'waffenOffline');
-  const kreuz = sniperKreuz(p2);
-  const radius = Sniper.trefferRadius(p2);
-  const imKreis = Sniper.zieleImKreis(kreuz.x, kreuz.y, radius);
-  const bossImKreis = imKreis.some(z => arrays.bosses.includes(z));
-  const normalImKreis = imKreis.some(z => !arrays.bosses.includes(z));
-  const energie = p2.unbegrenzteEnergie ? 999 : p2.energie;
-  const ladeEnergie = Math.min(Sniper.SCHUSS_ENERGIE + Sniper.LADE_ENERGIE + 1, p2.maxEnergie || 50);
+function updateSniperWeapons(p2) {
+  p2.botFireMissile = false;
+  const offline = Hack.hasHack(p2, 'weaponOffline');
+  const cross = sniperCross(p2);
+  const radius = Sniper.hitRadius(p2);
+  const inCircle = Sniper.targetInCircle(cross.x, cross.y, radius);
+  const bossInCircle = inCircle.some(z => arrays.bosses.includes(z));
+  const normalInCircle = inCircle.some(z => !arrays.bosses.includes(z));
+  const energy = p2.unlimitedEnergy ? 999 : p2.energy;
+  const chargingEnergy = Math.min(Sniper.SHOT_ENERGY + Sniper.CHARGING_ENERGY + 1, p2.maxEnergy || 50);
 
-  if (sniperModus) {
-    sniperHaltedauer++;
-    let loslassen = offline || sniperModus === 'tipp';
-    if (sniperModus === 'laden') {
-      const bossNah =
-        bossImKreis ||
-        Sniper.zieleImKreis(kreuz.x, kreuz.y, radius * Sniper.MAX_RADIUSFAKTOR).some(z => arrays.bosses.includes(z));
+  if (sniperMode) {
+    sniperHoldTime++;
+    let release = offline || sniperMode === 'tap';
+    if (sniperMode === 'charge') {
+      const bossNear =
+        bossInCircle ||
+        Sniper.targetInCircle(cross.x, cross.y, radius * Sniper.MAX_RADIUS_FACTOR).some(z => arrays.bosses.includes(z));
       // Voll geladen (oder Energie bis auf den Schuss aufgebraucht) oder Boss weg: loslassen
       if (
-        p2.sniperVoll ||
-        (p2.sniperLadung || 0) >= Sniper.LADUNG_VOLL ||
-        !bossNah ||
-        sniperHaltedauer > Sniper.LADUNG_VOLL + 15 ||
-        energie < Sniper.SCHUSS_ENERGIE + 1
+        p2.sniperFull ||
+        (p2.sniperCharge || 0) >= Sniper.CHARGE_FULL ||
+        !bossNear ||
+        sniperHoldTime > Sniper.CHARGE_FULL + 15 ||
+        energy < Sniper.SHOT_ENERGY + 1
       )
-        loslassen = true;
+        release = true;
     }
-    if (loslassen) {
+    if (release) {
       p2.botFireLaser = false;
-      sniperModus = null;
-      sniperHaltedauer = 0;
+      sniperMode = null;
+      sniperHoldTime = 0;
     } else p2.botFireLaser = true;
   } else {
     p2.botFireLaser = false;
     if (!offline && p2.sniperCooldown <= 0) {
-      if (bossImKreis) {
-        if (energie >= ladeEnergie) {
-          sniperModus = 'laden';
-          sniperHaltedauer = 0;
+      if (bossInCircle) {
+        if (energy >= chargingEnergy) {
+          sniperMode = 'charge';
+          sniperHoldTime = 0;
           p2.botFireLaser = true;
         }
-      } else if (normalImKreis && energie >= 8) {
-        sniperModus = 'tipp';
-        sniperHaltedauer = 0;
+      } else if (normalInCircle && energy >= 8) {
+        sniperMode = 'tap';
+        sniperHoldTime = 0;
         p2.botFireLaser = true;
       }
     }
   }
 
   // Raketen-Taste: Minen (gehalten, solange ein Feind heranfliegt; mindestens 10 Schritte, damit es kein Tipp wird; max. 5 Minen)
-  const minenLohnt = sniperMinenLohnt(p2);
-  if (sniperMinenHalt) {
-    sniperMinenSchritte++;
-    const fertig =
-      (p2.granateMinen || 0) >= 5 ||
-      !minenLohnt ||
+  const minePaysOff = sniperMinePaysOff(p2);
+  if (sniperMineStop) {
+    sniperMineSteps++;
+    const done =
+      (p2.grenadeMines || 0) >= 5 ||
+      !minePaysOff ||
       offline ||
-      ((p2.granateMinen || 0) === 0 && (p2.sniperGranatenLadungen || 0) < 1);
-    if (fertig && (sniperMinenSchritte > 10 || offline)) {
-      sniperMinenHalt = false;
-      sniperMinenSchritte = 0;
-      sniperTippPause = 3;
+      ((p2.grenadeMines || 0) === 0 && (p2.sniperGrenadeCharges || 0) < 1);
+    if (done && (sniperMineSteps > 10 || offline)) {
+      sniperMineStop = false;
+      sniperMineSteps = 0;
+      sniperTapPause = 3;
     } else {
-      p2.botFireRakete = true;
+      p2.botFireMissile = true;
     }
     return;
   }
   // Raketen-Taste als kurzer Tipp (2 Schritte), danach Pause; EMP gegen nahe Geschosse hat Vorrang vor dem Granaten-Zielen
-  if (sniperTippRest > 0) {
-    p2.botFireRakete = true;
-    sniperTippRest--;
-    if (sniperTippRest === 0) sniperTippPause = 3;
-  } else if (sniperTippPause > 0) {
-    sniperTippPause--;
+  if (sniperTapRest > 0) {
+    p2.botFireMissile = true;
+    sniperTapRest--;
+    if (sniperTapRest === 0) sniperTapPause = 3;
+  } else if (sniperTapPause > 0) {
+    sniperTapPause--;
   } else if (
     !offline &&
-    (p2.sniperGranatenLadungen || 0) >= 1 &&
-    (sniperEmpLohnt(p2) || sniperGranateLohnt(p2, kreuz, imKreis))
+    (p2.sniperGrenadeCharges || 0) >= 1 &&
+    (sniperEmpPaysOff(p2) || sniperGrenadePaysOff(p2, cross, inCircle))
   ) {
-    sniperTippRest = 1;
-    p2.botFireRakete = true;
-  } else if (!offline && (p2.sniperGranatenLadungen || 0) >= 1 && minenLohnt) {
-    sniperMinenHalt = true;
-    sniperMinenSchritte = 1;
-    p2.botFireRakete = true;
+    sniperTapRest = 1;
+    p2.botFireMissile = true;
+  } else if (!offline && (p2.sniperGrenadeCharges || 0) >= 1 && minePaysOff) {
+    sniperMineStop = true;
+    sniperMineSteps = 1;
+    p2.botFireMissile = true;
   }
 }
 
 // --- Gleve: Dash (Raketen-Taste) auf nahe Feinde, Sweep (Laser-Taste) gegen Geschosse und Gegner im Bogen ---
 
-function boxVon(z) {
-  const g = z.groesse || 20;
+function boxFrom(z) {
+  const g = z.size || 20;
   return { x: z.x, y: z.y, w: z.width || g, h: z.height || g };
 }
 
 // Wuerde der Dash vom Schiff aus in Richtung (dx, dy) einen Boss oder (unter Raketen-Stufe 5) Magma streifen?
-function dashWegBlockiert(p2, dx, dy) {
-  const s = config.spielerGroesse;
-  const reichweite = Gleve.dashReichweite(p2);
-  const hindernisse = [...arrays.bosses];
-  if (!Gleve.dashKnacktMagma(p2)) hindernisse.push(...arrays.asteroiden.filter(a => a.istUnzerstoerbar));
+function dashGoneBlocked(p2, dx, dy) {
+  const s = config.playerSize;
+  const range = Gleve.dashRange(p2);
+  const obstacles = [...arrays.bosses];
+  if (!Gleve.dashCracksMagma(p2)) obstacles.push(...arrays.asteroids.filter(a => a.isIndestructible));
   for (let i = 1; i <= Gleve.DASH_FRAMES; i++) {
-    const x = p2.x + (dx * reichweite * i) / Gleve.DASH_FRAMES;
-    const y = p2.y + (dy * reichweite * i) / Gleve.DASH_FRAMES;
-    for (const h of hindernisse) {
-      const b = boxVon(h);
+    const x = p2.x + (dx * range * i) / Gleve.DASH_FRAMES;
+    const y = p2.y + (dy * range * i) / Gleve.DASH_FRAMES;
+    for (const h of obstacles) {
+      const b = boxFrom(h);
       if (x < b.x + b.w && x + s > b.x && y < b.y + b.h && y + s > b.y) return true;
     }
   }
@@ -488,138 +488,139 @@ function dashWegBlockiert(p2, dx, dy) {
 }
 
 // Boss in Dash-Reichweite oberhalb des Schiffs: Dash-Richtung auf seine Unterkante (der Dash prallt ab und macht Schaden)
-function findeBossDashZiel(p2) {
-  const s = config.spielerGroesse;
+function findBossDashTarget(p2) {
+  const s = config.playerSize;
   const cx = p2.x + s / 2;
   const cy = p2.y + s / 2;
-  const reichweite = Gleve.dashReichweite(p2);
+  const range = Gleve.dashRange(p2);
   for (const boss of arrays.bosses) {
     if (boss.hp <= 0 || boss.phase !== 'kampf') continue;
-    const b = boxVon(boss);
+    const b = boxFrom(boss);
     const pad = b.w * 0.15;
     const zx = Math.max(b.x + pad, Math.min(b.x + b.w - pad, cx));
     const zy = b.y + b.h - pad;
     if (zy >= cy) continue;
     const d = Math.hypot(zx - cx, zy - cy);
-    if (d > reichweite || d < 1) continue;
+    if (d > range || d < 1) continue;
     return { dx: (zx - cx) / d, dy: (zy - cy) / d };
   }
   return null;
 }
 
 // Naechster normaler Feind in Dash-Reichweite mit freiem Weg; liefert die Dash-Richtung oder null
-function findeDashZiel(p2) {
-  const halfSize = config.spielerGroesse / 2;
+function findDashTarget(p2) {
+  const halfSize = config.playerSize / 2;
   const cx = p2.x + halfSize;
   const cy = p2.y + halfSize;
-  const reichweite = Gleve.dashReichweite(p2);
-  let beste = null;
-  let besteDSq = Infinity;
+  const range = Gleve.dashRange(p2);
+  let best = null;
+  let bestEnemyDSq = Infinity;
   // Feindschiffe zuerst, Asteroiden nur ohne Feind
-  const kandidaten =
-    arrays.feinde.length > 0
-      ? arrays.feinde
-      : arrays.asteroiden.filter(a => !a.traegtPowerup && kannAsteroidZerstoeren(p2, a));
-  for (const f of kandidaten) {
-    const b = boxVon(f);
+  const candidates =
+    arrays.enemies.length > 0
+      ? arrays.enemies
+      : arrays.asteroids.filter(a => !a.carriesPowerup && canAsteroidDestroy(p2, a));
+  for (const f of candidates) {
+    const b = boxFrom(f);
     const fx = b.x + b.w / 2;
     const fy = b.y + b.h / 2;
     const dSq = distanceSq(cx, cy, fx, fy);
     // Ziel muss vollstaendig erreichbar sein (Mitte innerhalb der Reichweite)
-    if (dSq > reichweite * reichweite || dSq >= besteDSq || dSq < 1) continue;
+    if (dSq > range * range || dSq >= bestEnemyDSq || dSq < 1) continue;
     const d = Math.sqrt(dSq);
     const dx = (fx - cx) / d;
     const dy = (fy - cy) / d;
-    if (dashWegBlockiert(p2, dx, dy)) continue;
-    beste = { dx, dy };
-    besteDSq = dSq;
+    if (dashGoneBlocked(p2, dx, dy)) continue;
+    best = { dx, dy };
+    bestEnemyDSq = dSq;
   }
-  return beste;
+  return best;
 }
 
 // Liegt der Punkt im Sweep-Bogen der aktuellen Stufe (halber Winkel links und rechts der Senkrechten) bis zur Sweep-Laenge?
-function imSweepBogen(p2, px, py) {
-  const ox = p2.x + config.spielerGroesse / 2;
+function inSweepArc(p2, px, py) {
+  const ox = p2.x + config.playerSize / 2;
   const oy = p2.y + 5;
   const dx = px - ox;
   const dy = py - oy;
   const dist = Math.hypot(dx, dy);
-  if (dist > Gleve.sweepLaenge(p2) || dy > 0) return false;
-  return Math.abs((Math.atan2(dx, -dy) * 180) / Math.PI) <= Gleve.sweepBogen(p2) / 2;
+  if (dist > Gleve.sweepLength(p2) || dy > 0) return false;
+  return Math.abs((Math.atan2(dx, -dy) * 180) / Math.PI) <= Gleve.sweepArc(p2) / 2;
 }
 
 // Reicht die Energie fuer den naechsten Sweep (Superwaffe: immer)?
-function sweepBereit(p2) {
-  return p2.unbegrenzteEnergie || p2.energie >= Gleve.sweepKosten(p2);
+function sweepReady(p2) {
+  return p2.unlimitedEnergy || p2.energy >= Gleve.sweepCost(p2);
 }
 
-function sweepLohntSich(p2) {
-  const geschosse = [...arrays.feindLaserArray, ...arrays.hackProjektilArray, ...arrays.bossLaserArray];
-  for (const p of geschosse) {
-    if (p.harmlos) continue;
-    const b = boxVon(p);
-    if (imSweepBogen(p2, b.x + b.w / 2, b.y + b.h / 2)) return true;
+function sweepPaysOffSelf(p2) {
+  const projectiles = [...arrays.enemyLaserArray, ...arrays.hackProjectileArray, ...arrays.bossLaserArray];
+  for (const p of projectiles) {
+    if (p.harmless) continue;
+    const b = boxFrom(p);
+    if (inSweepArc(p2, b.x + b.w / 2, b.y + b.h / 2)) return true;
   }
-  const ziele = [
-    ...arrays.feinde,
-    ...arrays.asteroiden.filter(a => !a.istUnzerstoerbar),
+  const targets = [
+    ...arrays.enemies,
+    ...arrays.asteroids.filter(a => !a.isIndestructible),
     ...arrays.bosses,
-    ...arrays.bossRaketenArray,
+    ...arrays.bossMissileArray,
   ];
-  for (const z of ziele) {
-    const b = boxVon(z);
+  for (const z of targets) {
+    const b = boxFrom(z);
     // Mitte oder untere Kante (grosse Ziele wie Bosse)
-    if (imSweepBogen(p2, b.x + b.w / 2, b.y + b.h / 2) || imSweepBogen(p2, b.x + b.w / 2, b.y + b.h)) return true;
+    if (inSweepArc(p2, b.x + b.w / 2, b.y + b.h / 2) || inSweepArc(p2, b.x + b.w / 2, b.y + b.h)) return true;
   }
   return false;
 }
 
-function updateGleveWaffen(p2) {
+function updateGleveWeapons(p2) {
   // Dash (Raketen-Taste): ein Schritt Druck (Flanke), nur ohne Cooldown, ohne Waffen-Hack und nicht dauernd
-  p2.botFireRakete = false;
+  p2.botFireMissile = false;
   if (
-    gleveDashSperre <= 0 &&
-    (p2.gleveDashLadungen || 0) >= 1 &&
-    !Gleve.istDashAktiv(p2) &&
-    !Hack.hatHack(p2, 'waffenOffline')
+    gleveDashLock <= 0 &&
+    (p2.gleveDashCharges || 0) >= 1 &&
+    !Gleve.isDashActive(p2) &&
+    !Hack.hasHack(p2, 'weaponOffline')
   ) {
-    let ziel = findeDashZiel(p2);
+    let aimTarget = findDashTarget(p2);
     // Bosse: nur mit mindestens 2 Ladungen (eine bleibt als Reserve)
-    if (!ziel && arrays.feinde.length === 0 && (p2.gleveDashLadungen || 0) >= 2) ziel = findeBossDashZiel(p2);
-    if (ziel) {
-      p2.botDashRichtung = ziel;
-      p2.botFireRakete = true;
-      gleveDashSperre = GLEVE_DASH_PAUSE;
+    if (!aimTarget && arrays.enemies.length === 0 && (p2.gleveDashCharges || 0) >= 2)
+      aimTarget = findBossDashTarget(p2);
+    if (aimTarget) {
+      p2.botDashDirection = aimTarget;
+      p2.botFireMissile = true;
+      gleveDashLock = GLEVE_DASH_PAUSE;
     }
   }
 
   // Sweep (Laser-Taste) halten, solange Feindgeschosse oder Gegner im Bogen sind (sonst Energie sparen)
-  p2.botFireLaser = sweepLohntSich(p2);
+  p2.botFireLaser = sweepPaysOffSelf(p2);
 }
 
 function updateBotWeapons(p2, diff, target) {
-  const halfSize = config.spielerGroesse / 2;
+  const halfSize = config.playerSize / 2;
   const cx = p2.x + halfSize;
 
-  if (Gleve.istGleve(p2)) {
-    updateGleveWaffen(p2);
-  } else if (Sniper.istSniper(p2)) {
+  if (Gleve.isGleve(p2)) {
+    updateGleveWeapons(p2);
+  } else if (Sniper.isSniper(p2)) {
     // Laser/Granate laufen jeden Schritt in updateBot (updateSniperWaffen)
   } else {
-    updateStandardWaffen(p2, diff, target, cx);
+    updateStandardWeapons(p2, diff, target, cx);
   }
 
   // Bomben: Sehr selektiv — nur wenn ≥3 Feinde sichtbar + Cooldown voll abgelaufen
-  p2.botFireBombe = false;
-  if (p2.bombenCooldown <= 0) {
-    const sichtbareFeinde = arrays.feinde.length + arrays.bosses.filter(b => b.hp > 0).length;
-    if (sichtbareFeinde >= 3) {
-      p2.botFireBombe = true;
+  p2.botFireBomb = false;
+  if (p2.bombCooldown <= 0) {
+    const visibleEnemies = arrays.enemies.length + arrays.bosses.filter(b => b.hp > 0).length;
+    if (visibleEnemies >= 3) {
+      p2.botFireBomb = true;
     }
   }
 }
 
-function updateStandardWaffen(p2, diff, target, cx) {
+function updateStandardWeapons(p2, diff, target, cx) {
   // Laser: Feuern wenn Ziel im Aim-Korridor
   p2.botFireLaser = false;
   if (target && Math.abs(target.x - cx) <= diff.aimCorridor) {
@@ -627,76 +628,76 @@ function updateStandardWaffen(p2, diff, target, cx) {
   }
 
   // Raketen: Feuern wenn Ziel im Schussfeld (bei Bossen immer wenn grob ausgerichtet, bei Feinden bis 350px)
-  p2.botFireRakete = false;
-  if (target && p2.raketenCooldown <= 0) {
+  p2.botFireMissile = false;
+  if (target && p2.missileCooldown <= 0) {
     const isAligned = Math.abs(target.x - cx) <= diff.aimCorridor * 1.5;
     if (target.isBoss && isAligned) {
-      p2.botFireRakete = true;
+      p2.botFireMissile = true;
     } else if (isAligned && target.dSq < 350 * 350) {
-      p2.botFireRakete = true;
+      p2.botFireMissile = true;
     }
   }
 }
 
 // --- Viper: Ausweichrolle, wenn eine Gefahr sehr nah ist und normales Ausweichen zu spaet kaeme ---
-const ROLLE_GEFAHR_NAH = 40;
+const ROLL_DANGER_NEAR = 40;
 
 // Wie frei ist die Seite fuer eine Rolle: Platz bis zum Rand (hoechstens Rollweite), Abzug je Hindernis im Rollweg
-function seitenFreiheit(p2, richtung, cx, cy) {
-  const platz = richtung > 0 ? config.spielfeldBreite - config.spielerGroesse - p2.x : p2.x;
-  let wert = Math.min(platz, Viper.ROLLE_DISTANZ);
-  const x1 = cx + richtung * (Viper.ROLLE_DISTANZ + 15);
+function sidesFreedom(p2, direction, cx, cy) {
+  const spot = direction > 0 ? config.playfieldWidth - config.playerSize - p2.x : p2.x;
+  let value = Math.min(spot, Viper.ROLL_DISTANCE);
+  const x1 = cx + direction * (Viper.ROLL_DISTANCE + 15);
   const lo = Math.min(cx, x1) - 8;
   const hi = Math.max(cx, x1) + 8;
-  const hindernisse = [
-    ...arrays.asteroiden,
-    ...arrays.feinde,
-    ...arrays.feindLaserArray,
+  const obstacles = [
+    ...arrays.asteroids,
+    ...arrays.enemies,
+    ...arrays.enemyLaserArray,
     ...arrays.bossLaserArray,
-    ...arrays.hackProjektilArray,
-    ...arrays.bossBombenArray,
-    ...arrays.bossRaketenArray,
+    ...arrays.hackProjectileArray,
+    ...arrays.bossBombArray,
+    ...arrays.bossMissileArray,
   ];
-  for (const h of hindernisse) {
-    if (h.harmlos) continue;
-    const hx = h.x + (h.groesse || h.width || 4) / 2;
-    const hy = h.y + (h.groesse || h.height || 10) / 2;
-    if (hx > lo && hx < hi && Math.abs(hy - cy) < 45) wert -= 100;
+  for (const h of obstacles) {
+    if (h.harmless) continue;
+    const hx = h.x + (h.size || h.width || 4) / 2;
+    const hy = h.y + (h.size || h.height || 10) / 2;
+    if (hx > lo && hx < hi && Math.abs(hy - cy) < 45) value -= 100;
   }
-  return wert;
+  return value;
 }
 
-function pruefeViperRolle(p2, danger) {
-  p2.botRolleAnfrage = 0;
-  if (!Viper.istViper(p2) || !danger || Viper.istRolleAktiv(p2) || (p2.viperRolleCooldown || 0) > 0) return;
-  const cx = p2.x + config.spielerGroesse / 2;
-  const cy = p2.y + config.spielerGroesse / 2;
+function checkViperRoll(p2, danger) {
+  p2.botRollRequest = 0;
+  if (!Viper.isViper(p2) || !danger || Viper.isRollActive(p2) || (p2.viperRollCooldown || 0) > 0) return;
+  const cx = p2.x + config.playerSize / 2;
+  const cy = p2.y + config.playerSize / 2;
   // Nur wenn die Gefahr fast auf dem Schiff liegt und von oben kommt (nicht schon vorbei)
-  if (danger.dSq >= ROLLE_GEFAHR_NAH * ROLLE_GEFAHR_NAH) return;
-  if (Math.abs(danger.x - cx) > config.spielerGroesse * 0.75 || danger.y > cy + 10) return;
-  const links = seitenFreiheit(p2, -1, cx, cy);
-  const rechts = seitenFreiheit(p2, 1, cx, cy);
-  if (links === rechts) p2.botRolleAnfrage = danger.x > cx ? -1 : 1;
-  else p2.botRolleAnfrage = links > rechts ? -1 : 1;
+  if (danger.dSq >= ROLL_DANGER_NEAR * ROLL_DANGER_NEAR) return;
+  if (Math.abs(danger.x - cx) > config.playerSize * 0.75 || danger.y > cy + 10) return;
+  const left = sidesFreedom(p2, -1, cx, cy);
+  const right = sidesFreedom(p2, 1, cx, cy);
+  if (left === right) p2.botRollRequest = danger.x > cx ? -1 : 1;
+  else p2.botRollRequest = left > right ? -1 : 1;
 }
 
 // Fels: Abstand zu Waenden und Inseln halten. Geprueft wird auch etwas oberhalb des Schiffs, weil der Fels
 // nach unten scrollt. Liefert eine zusaetzliche Seitwaertsbewegung (-1..1) Richtung Mitte des freien Bereichs.
-export const FELS_ABSTAND = 25;
-export function felsAusweichen(p2) {
-  if (!arrays.fels.length) return 0;
-  const g = config.spielerGroesse;
+export const ROCK_DISTANCE = 25;
+export function dodgeRock(p2) {
+  if (!arrays.rock.length) return 0;
+  const g = config.playerSize;
   const cx = p2.x + g / 2;
-  let links = 0;
-  let rechts = config.spielfeldBreite;
+  let left = 0;
+  let right = config.playfieldWidth;
   for (const y of [p2.y - 40, p2.y, p2.y + g]) {
-    const f = Fels.freierBereich(y, cx);
-    links = Math.max(links, f.links);
-    rechts = Math.min(rechts, f.rechts);
+    const f = Rock.freeRange(y, cx);
+    left = Math.max(left, f.left);
+    right = Math.min(right, f.right);
   }
-  if (p2.x - links < FELS_ABSTAND && rechts - (p2.x + g) < FELS_ABSTAND) return 0;
-  if (p2.x - links < FELS_ABSTAND) return 1;
-  if (rechts - (p2.x + g) < FELS_ABSTAND) return -1;
+  if (p2.x - left < ROCK_DISTANCE && right - (p2.x + g) < ROCK_DISTANCE) return 0;
+  if (p2.x - left < ROCK_DISTANCE) return 1;
+  if (right - (p2.x + g) < ROCK_DISTANCE) return -1;
   return 0;
 }
 
@@ -706,9 +707,9 @@ export function updateBot() {
   if (!p2 || p2.isDead) return;
 
   const diff = BOT_DIFFICULTY[state.p2BotDifficulty || 'normal'];
-  if (gleveDashSperre > 0) gleveDashSperre--;
+  if (gleveDashLock > 0) gleveDashLock--;
   // Gleve-Dash ist eine Flanke: der Druck gilt nur bis zum naechsten Schritt
-  if (Gleve.istGleve(p2)) p2.botFireRakete = false;
+  if (Gleve.isGleve(p2)) p2.botFireMissile = false;
 
   // Reaktionszeit: Entscheidung nur alle N Frames aktualisieren
   reactionCounter++;
@@ -720,35 +721,35 @@ export function updateBot() {
     const target = findBestTarget(p2, diff);
 
     lastDecision = computeMovement(p2, target, danger, powerup, diff);
-    pruefeViperRolle(p2, danger);
+    checkViperRoll(p2, danger);
     updateBotWeapons(p2, diff, target);
   }
 
-  if (Sniper.istSniper(p2)) updateSniperWaffen(p2);
+  if (Sniper.isSniper(p2)) updateSniperWeapons(p2);
 
   // Smooth Bewegung anwenden
   const p2Ship = shipModels && shipModels[p2.selectedShipModel || 'phantom'];
-  const speed = p2Ship?.speed || config.geschwindigkeit;
+  const speed = p2Ship?.speed || config.speed;
 
-  p2.x += (lastDecision.moveX + felsAusweichen(p2)) * speed;
+  p2.x += (lastDecision.moveX + dodgeRock(p2)) * speed;
   p2.y += lastDecision.moveY * speed;
 
   // Bounds-Clamping
   if (p2.x < 0) p2.x = 0;
   if (p2.y < 0) p2.y = 0;
-  if (p2.x > config.spielfeldBreite - config.spielerGroesse) p2.x = config.spielfeldBreite - config.spielerGroesse;
-  if (p2.y > config.spielfeldHoehe - config.spielerGroesse) p2.y = config.spielfeldHoehe - config.spielerGroesse;
+  if (p2.x > config.playfieldWidth - config.playerSize) p2.x = config.playfieldWidth - config.playerSize;
+  if (p2.y > config.playfieldHeight - config.playerSize) p2.y = config.playfieldHeight - config.playerSize;
 }
 
 // Reset bei Neustart
 export function resetBot() {
   reactionCounter = 0;
   lastDecision = { moveX: 0, moveY: 0 };
-  gleveDashSperre = 0;
-  sniperModus = null;
-  sniperTippRest = 0;
-  sniperTippPause = 0;
-  sniperMinenHalt = false;
-  sniperMinenSchritte = 0;
-  sniperHaltedauer = 0;
+  gleveDashLock = 0;
+  sniperMode = null;
+  sniperTapRest = 0;
+  sniperTapPause = 0;
+  sniperMineStop = false;
+  sniperMineSteps = 0;
+  sniperHoldTime = 0;
 }

@@ -1,10 +1,10 @@
 import { config, arrays, isCoopMode } from './state.js';
-import * as Anzeige from './anzeige.js';
-import * as Fels from './fels.js';
-import * as Kette from './kette.js';
-import * as Gewaechse from './gewaechse.js';
-import { neueId, getFeindColor } from './entities.js';
-import { naechsterSpielerMitte } from './gegner.js';
+import * as Display from './anzeige.js';
+import * as Rock from './fels.js';
+import * as Chain from './kette.js';
+import * as Growths from './gewaechse.js';
+import { newId, getEnemyColor } from './entities.js';
+import { nextPlayerMiddle } from './gegner.js';
 
 // Organische Einzelwesen und Gegnermix der Fels-Level (Biozone). Statt klassischer Jaeger kommen hier Ketten
 // (Kopfschuetze, Stachelkette als Hindernis, Kugelkette) und Einzelwesen:
@@ -15,160 +15,160 @@ import { naechsterSpielerMitte } from './gegner.js';
 // - tentakler: Quallenschirm mit Tentakeln, schwebt pendelnd herab und stoesst Kugelringe aus
 // Kugeln sind Sporen (Feindgeschosse mit spore = true).
 
-export const WESEN = ['krabbe', 'tentakler'];
-export const GROESSE = { krabbe: 34, tentakler: 30 };
-export const KRABBE_SCHUSS = 100;
-export const KRABBE_DAUER = 600;
-export const WAND_MIN = 22; // Wandbreite, an der eine Krabbe entlanglaufen kann
-export const WAND_TEMPO = 0.8; // Laufen an der Kante, zusaetzlich zum Felstempo
-export const SPRUNG_DAUER = 24;
-export const TENTAKLER_SCHUSS = 140;
-export const TENTAKLER_RING = 6;
-export const KUGEL_TEMPO = 2.4;
+export const CREATURE = ['crab', 'tentacler'];
+export const SIZE = { crab: 34, tentacler: 30 };
+export const CRAB_SHOT = 100;
+export const CRAB_DURATION = 600;
+export const WALL_MIN = 22; // Wandbreite, an der eine Krabbe entlanglaufen kann
+export const WALL_SPEED = 0.8; // Laufen an der Kante, zusaetzlich zum Felstempo
+export const JUMP_DURATION = 24;
+export const TENTACLER_SHOT = 140;
+export const TENTACLER_RING = 6;
+export const BALL_SPEED = 2.4;
 
 // Gewichte des Bio-Spawners (Summe 1)
 /** @type {Array<[string, number]>} */
 export const BIO_MIX = [
-  ['kette', 0.2],
-  ['stachelkette', 0.2],
-  ['kugelkette', 0.2],
-  ['krabbe', 0.25],
-  ['tentakler', 0.15],
+  ['chain', 0.2],
+  ['spikeChain', 0.2],
+  ['ballChain', 0.2],
+  ['crab', 0.25],
+  ['tentacler', 0.15],
 ];
 
-export function istWesen(f) {
-  return WESEN.includes(f.muster);
+export function isCreature(f) {
+  return CREATURE.includes(f.pattern);
 }
 
-function grundWerte(muster, x, y, hp) {
+function baseValues(pattern, x, y, hp) {
   const h = Math.round(hp * (isCoopMode() ? 1.25 : 1));
   return {
-    id: neueId('f'),
+    id: newId('f'),
     x,
     y,
-    groesse: GROESSE[muster],
+    size: SIZE[pattern],
     hp: h,
     maxHp: h,
-    schildHp: 0,
-    maxSchildHp: 0,
-    hatSchild: false,
-    farbe: getFeindColor(muster),
-    explosionsFarbe: getFeindColor(muster),
+    shieldHp: 0,
+    maxShieldHp: 0,
+    hasShield: false,
+    color: getEnemyColor(pattern),
+    explosionsColor: getEnemyColor(pattern),
     vx: 0,
     vy: 0,
-    zeit: 0,
-    schussTimer: 9999,
+    time: 0,
+    shotTimer: 9999,
     burstCount: 0,
     burstTimer: 0,
-    istFeind: true,
-    istUnzerstoerbar: false,
-    traegtPowerup: Math.random() < 0.15,
-    muster,
+    isEnemy: true,
+    isIndestructible: false,
+    carriesPowerup: Math.random() < 0.15,
+    pattern,
   };
 }
 
 // Freier Bereich auf Hoehe y (ohne Fels: ganzes Feld)
-function freiBei(y, x) {
-  return Fels.freierBereich(y, x);
+function freeAt(y, x) {
+  return Rock.freeRange(y, x);
 }
 
 function startX(g) {
-  const b = config.spielfeldBreite;
+  const b = config.playfieldWidth;
   const x = 20 + Math.random() * (b - 40 - g);
-  const frei = freiBei(0, x + g / 2);
-  return Math.max(frei.links + 4, Math.min(frei.rechts - g - 4, x));
+  const free = freeAt(0, x + g / 2);
+  return Math.max(free.left + 4, Math.min(free.right - g - 4, x));
 }
 
 // Wand mit Platz an der Oberkante: 'l', 'r' oder null (breitere Seite zuerst)
-function wandOben() {
-  const p = Fels.profilBei(10);
+function wallTop() {
+  const p = Rock.profileAt(10);
   if (!p) return null;
-  const seiten = [
+  const sides = [
     ['l', p.l],
     ['r', p.r],
-  ].filter(([, w]) => w >= WAND_MIN);
-  if (!seiten.length) return null;
-  seiten.sort((a, b) => b[1] - a[1]);
-  return seiten[0][0];
+  ].filter(([, w]) => w >= WALL_MIN);
+  if (!sides.length) return null;
+  sides.sort((a, b) => b[1] - a[1]);
+  return sides[0][0];
 }
 
 // Lage an der Wandkante auf Hoehe der Krabbenmitte; ein Viertel steckt im Fels, Blick in den Gang
-function setzeAnWand(f) {
-  const g = f.groesse;
-  const p = Fels.profilBei(f.y + g / 2);
+function setAnWall(f) {
+  const g = f.size;
+  const p = Rock.profileAt(f.y + g / 2);
   if (!p) return false;
-  const kante = f.wand === 'l' ? p.l : config.spielfeldBreite - p.r;
-  f.x = f.wand === 'l' ? kante - g * 0.25 : kante - g * 0.75;
-  f.rot = f.wand === 'l' ? -90 : 90;
+  const edge = f.wall === 'l' ? p.l : config.playfieldWidth - p.r;
+  f.x = f.wall === 'l' ? edge - g * 0.25 : edge - g * 0.75;
+  f.rot = f.wall === 'l' ? -90 : 90;
   return true;
 }
 
-export function erzeugeKrabbe(x = null) {
-  const g = GROESSE.krabbe;
-  const wand = x === null ? wandOben() : null;
+export function createCrab(x = null) {
+  const g = SIZE.crab;
+  const wall = x === null ? wallTop() : null;
   const f = {
-    ...grundWerte('krabbe', x ?? startX(g), wand ? 0 : -g, 40),
-    phase: wand ? 'wand' : 'anflug',
-    wand,
-    wandZeit: 90 + Math.floor(Math.random() * 120),
-    zielY: 60 + Math.random() * 110,
+    ...baseValues('crab', x ?? startX(g), wall ? 0 : -g, 40),
+    phase: wall ? 'wall' : 'anflug',
+    wall,
+    wallTime: 90 + Math.floor(Math.random() * 120),
+    targetY: 60 + Math.random() * 110,
     vx: (Math.random() < 0.5 ? -1 : 1) * (1.2 + Math.random() * 0.6),
     vy: 1.6,
-    schussTakt: KRABBE_SCHUSS,
-    lebensZeit: 0,
+    shotCadence: CRAB_SHOT,
+    lifeTime: 0,
   };
-  if (wand) setzeAnWand(f);
-  arrays.feinde.push(Anzeige.erzeuge(f, 'feind'));
+  if (wall) setAnWall(f);
+  arrays.enemies.push(Display.create(f, 'enemy'));
   return f;
 }
 
-export function erzeugeTentakler(x = null) {
-  const g = GROESSE.tentakler;
+export function createTentacler(x = null) {
+  const g = SIZE.tentacler;
   const sx = x ?? startX(g);
   const f = {
-    ...grundWerte('tentakler', sx, -g, 30),
+    ...baseValues('tentacler', sx, -g, 30),
     basisX: sx,
     vy: 0.9,
-    zeit: Math.random() * Math.PI * 2,
-    schussTakt: 60 + Math.floor(Math.random() * TENTAKLER_SCHUSS),
+    time: Math.random() * Math.PI * 2,
+    shotCadence: 60 + Math.floor(Math.random() * TENTACLER_SHOT),
   };
-  arrays.feinde.push(Anzeige.erzeuge(f, 'feind'));
+  arrays.enemies.push(Display.create(f, 'enemy'));
   return f;
 }
 
-function mitte(f) {
-  return { x: f.x + f.groesse / 2, y: f.y + f.groesse / 2 };
+function middle(f) {
+  return { x: f.x + f.size / 2, y: f.y + f.size / 2 };
 }
 
-function schiesseGezielt(f, streuung) {
-  const m = mitte(f);
-  const ziel = naechsterSpielerMitte(f);
-  const w = Math.atan2(ziel.y - m.y, ziel.x - m.x);
-  for (const d of streuung) {
-    Gewaechse.erzeugeSporeZu(m.x, m.y + f.groesse / 2, Math.cos(w + d) * KUGEL_TEMPO, Math.sin(w + d) * KUGEL_TEMPO);
+function shootAimed(f, spread) {
+  const m = middle(f);
+  const target = nextPlayerMiddle(f);
+  const w = Math.atan2(target.y - m.y, target.x - m.x);
+  for (const d of spread) {
+    Growths.createSporeClosed(m.x, m.y + f.size / 2, Math.cos(w + d) * BALL_SPEED, Math.sin(w + d) * BALL_SPEED);
   }
 }
 
-function aktualisiereKrabbe(f) {
-  f.lebensZeit++;
-  if (f.phase === 'wand') {
-    f.y += Fels.holeTempo() + WAND_TEMPO;
-    f.wandZeit--;
+function updateCrab(f) {
+  f.lifeTime++;
+  if (f.phase === 'wall') {
+    f.y += Rock.getSpeed() + WALL_SPEED;
+    f.wallTime--;
     // Ende der Wand oder Zeit um: abspringen in den Gang
-    if (f.wandZeit <= 0 || !setzeAnWand(f) || !wandAufHoehe(f)) {
-      f.phase = 'sprung';
-      f.sprungZeit = SPRUNG_DAUER;
-      f.vx = (f.wand === 'l' ? 1 : -1) * (1.2 + Math.random() * 0.6);
+    if (f.wallTime <= 0 || !setAnWall(f) || !wallOnHeight(f)) {
+      f.phase = 'jump';
+      f.jumpTime = JUMP_DURATION;
+      f.vx = (f.wall === 'l' ? 1 : -1) * (1.2 + Math.random() * 0.6);
     }
     return;
   }
-  if (f.phase === 'sprung') {
+  if (f.phase === 'jump') {
     // Satz in den Gang: schnell zur Seite, Drehung zurueck in Blickrichtung unten
     f.x += f.vx * 2.2;
-    f.y += Fels.holeTempo() * 0.5;
-    f.sprungZeit--;
-    f.rot = (f.rot || 0) * (f.sprungZeit / SPRUNG_DAUER);
-    if (f.sprungZeit <= 0) {
+    f.y += Rock.getSpeed() * 0.5;
+    f.jumpTime--;
+    f.rot = (f.rot || 0) * (f.jumpTime / JUMP_DURATION);
+    if (f.jumpTime <= 0) {
       f.rot = 0;
       f.phase = 'krabbeln';
     }
@@ -176,73 +176,73 @@ function aktualisiereKrabbe(f) {
   }
   if (f.phase === 'anflug') {
     f.y += f.vy;
-    if (f.y >= f.zielY) f.phase = 'krabbeln';
+    if (f.y >= f.targetY) f.phase = 'krabbeln';
     return;
   }
   if (f.phase === 'krabbeln') {
-    f.y += Fels.holeTempo() * 0.5; // bleibt ungefaehr auf Hoehe, waehrend der Fels vorbeizieht
-    const frei = freiBei(f.y + f.groesse / 2, f.x + f.groesse / 2);
+    f.y += Rock.getSpeed() * 0.5; // bleibt ungefaehr auf Hoehe, waehrend der Fels vorbeizieht
+    const free = freeAt(f.y + f.size / 2, f.x + f.size / 2);
     f.x += f.vx;
-    if (f.x < frei.links + 4) {
-      f.x = frei.links + 4;
+    if (f.x < free.left + 4) {
+      f.x = free.left + 4;
       f.vx = Math.abs(f.vx);
-    } else if (f.x + f.groesse > frei.rechts - 4) {
-      f.x = frei.rechts - 4 - f.groesse;
+    } else if (f.x + f.size > free.right - 4) {
+      f.x = free.right - 4 - f.size;
       f.vx = -Math.abs(f.vx);
     }
-    f.schussTakt--;
-    if (f.schussTakt <= 0) {
-      schiesseGezielt(f, [-0.15, 0.15]);
-      f.schussTakt = KRABBE_SCHUSS;
+    f.shotCadence--;
+    if (f.shotCadence <= 0) {
+      shootAimed(f, [-0.15, 0.15]);
+      f.shotCadence = CRAB_SHOT;
     }
-    if (f.lebensZeit > KRABBE_DAUER) f.phase = 'abzug';
+    if (f.lifeTime > CRAB_DURATION) f.phase = 'abzug';
     return;
   }
   f.y += 2; // abzug
 }
 
-function wandAufHoehe(f) {
-  const p = Fels.profilBei(f.y + f.groesse / 2);
-  return !!p && (f.wand === 'l' ? p.l : p.r) >= WAND_MIN;
+function wallOnHeight(f) {
+  const p = Rock.profileAt(f.y + f.size / 2);
+  return !!p && (f.wall === 'l' ? p.l : p.r) >= WALL_MIN;
 }
 
-function aktualisiereTentakler(f) {
-  f.zeit += 0.04;
+function updateTentacler(f) {
+  f.time += 0.04;
   f.y += f.vy;
-  f.x = f.basisX + Math.sin(f.zeit) * 35;
+  f.x = f.basisX + Math.sin(f.time) * 35;
   if (f.y < 20) return;
-  f.schussTakt--;
-  if (f.schussTakt <= 0) {
-    const m = mitte(f);
-    for (let i = 0; i < TENTAKLER_RING; i++) {
-      const w = (i / TENTAKLER_RING) * Math.PI * 2 + f.zeit;
-      Gewaechse.erzeugeSporeZu(m.x, m.y, Math.cos(w) * KUGEL_TEMPO * 0.8, Math.sin(w) * KUGEL_TEMPO * 0.8);
+  f.shotCadence--;
+  if (f.shotCadence <= 0) {
+    const m = middle(f);
+    for (let i = 0; i < TENTACLER_RING; i++) {
+      const w = (i / TENTACLER_RING) * Math.PI * 2 + f.time;
+      Growths.createSporeClosed(m.x, m.y, Math.cos(w) * BALL_SPEED * 0.8, Math.sin(w) * BALL_SPEED * 0.8);
     }
-    f.schussTakt = TENTAKLER_SCHUSS;
+    f.shotCadence = TENTACLER_SHOT;
   }
 }
 
 // Jeder Schritt aus aktualisiereFeinde
-export function aktualisiere(f) {
-  f.schussTimer = 9999; // kein Standard-Schuss nach unten
-  if (f.muster === 'krabbe') aktualisiereKrabbe(f);
-  else aktualisiereTentakler(f);
+export function update(f) {
+  f.shotTimer = 9999; // kein Standard-Schuss nach unten
+  if (f.pattern === 'crab') updateCrab(f);
+  else updateTentacler(f);
 }
 
 // Gegner-Spawner der Fels-Level (levelPlan.spawner = 'bio')
-export function verwalteBioSpawns() {
+export function manageBioSpawns() {
   let r = Math.random();
-  let wahl = BIO_MIX[BIO_MIX.length - 1][0];
-  for (const [art, anteil] of BIO_MIX) {
-    if (r < anteil) {
-      wahl = art;
+  let choice = BIO_MIX[BIO_MIX.length - 1][0];
+  for (const [kind, share] of BIO_MIX) {
+    if (r < share) {
+      choice = kind;
       break;
     }
-    r -= anteil;
+    r -= share;
   }
-  if (wahl === 'krabbe') return erzeugeKrabbe();
-  if (wahl === 'tentakler') return erzeugeTentakler();
-  const bahn = Kette.KETTEN_BAHNEN[Math.floor(Math.random() * Kette.KETTEN_BAHNEN.length)];
-  const anzahl = 6 + Math.floor(Math.random() * 7);
-  return Kette.erzeugeKette(bahn, anzahl, Math.random() < 0.5 ? 1 : -1, wahl);
+  if (choice === 'crab') return createCrab();
+  if (choice === 'tentacler') return createTentacler();
+  const lane = Chain.CHAIN_LANES[Math.floor(Math.random() * Chain.CHAIN_LANES.length)];
+  const count = 6 + Math.floor(Math.random() * 7);
+  return Chain.createChain(lane, count, Math.random() < 0.5 ? 1 : -1, choice);
 }

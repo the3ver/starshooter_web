@@ -6,118 +6,118 @@ import * as Hack from './hack.js';
 import * as Gleve from './gleve.js';
 import * as Viper from './viper.js';
 import * as Sniper from './sniper.js';
-import { erzeugePartikel } from './partikel.js';
+import { createParticles } from './partikel.js';
 
 // Laser-Taste von P1 (bei der Gleve: Sweep)
-function laserTasteP1() {
+function laserKeyP1() {
   const isDualHumanCoop = state.gameMode === 'coop' && !state.p2IsBot;
-  return isDualHumanCoop ? state.tastenGedrueckt.b : state.tastenGedrueckt.l || state.tastenGedrueckt.b;
+  return isDualHumanCoop ? state.keysPressed.b : state.keysPressed.l || state.keysPressed.b;
 }
 
 // Raketen-Taste von P1 (bei der Gleve: Dash)
-function raketenTasteP1() {
+function missileKeyP1() {
   const isDualHumanCoop = state.gameMode === 'coop' && !state.p2IsBot;
-  return isDualHumanCoop ? state.tastenGedrueckt.v : state.tastenGedrueckt.k || state.tastenGedrueckt.v;
+  return isDualHumanCoop ? state.keysPressed.v : state.keysPressed.k || state.keysPressed.v;
 }
 
-function istOnlineHost() {
+function isOnlineHost() {
   return Boolean(state.network && state.network.isOnline && state.network.isHost);
 }
 
 // Laser-Taste von P2 (Online-Host: gehaltene Client-Eingabe, Bot: KI-Entscheidung)
-function laserTasteP2() {
-  if (istOnlineHost()) {
+function laserKeyP2() {
+  if (isOnlineHost()) {
     // Sniper: ein Druck zaehlt mindestens einen Schritt, auch wenn Loslassen im selben Host-Schritt ankommt (kurzer Tipp = ein Schuss)
-    if (state.p2 && state.p2.netzLaserAnfrage) {
-      state.p2.netzLaserAnfrage = false;
+    if (state.p2 && state.p2.networkLaserRequest) {
+      state.p2.networkLaserRequest = false;
       return true;
     }
     return Boolean(state.p2 && state.p2.laserInputRequested);
   }
   if (state.p2IsBot) return state.p2.botFireLaser || false;
-  return state.tastenGedrueckt.ä || state.tastenGedrueckt.numpad1 || state.tastenGedrueckt['.'];
+  return state.keysPressed.ä || state.keysPressed.numpad1 || state.keysPressed['.'];
 }
 
 // Dash-Taste von P2 = Raketen-Taste (Online-Host: gehaltene Client-Eingabe plus gemerkter kurzer Druck,
 // falls Druck und Loslassen im selben Host-Schritt ankommen; Bot: KI-Entscheidung als Flanke)
-function dashTasteP2() {
-  if (istOnlineHost()) {
-    if (state.p2.netzDashAnfrage) {
-      state.p2.netzDashAnfrage = false;
+function dashKeyP2() {
+  if (isOnlineHost()) {
+    if (state.p2.networkDashRequest) {
+      state.p2.networkDashRequest = false;
       // Jede Anfrage ist ein neuer Druck: ein verpasstes Loslassen nachholen, damit er als Flanke zaehlt
-      state.p2.gleveDashTasteGehalten = false;
+      state.p2.gleveDashKeyHeld = false;
       return true;
     }
-    return Boolean(state.p2.raketeGehalten);
+    return Boolean(state.p2.missileHeld);
   }
-  if (state.p2IsBot) return state.p2.botFireRakete || false;
-  return state.tastenGedrueckt.ö || state.tastenGedrueckt.numpad2 || state.tastenGedrueckt[','];
+  if (state.p2IsBot) return state.p2.botFireMissile || false;
+  return state.keysPressed.ö || state.keysPressed.numpad2 || state.keysPressed[','];
 }
 
 // Links/Rechts-Tasten von P1 (im lokalen Zwei-Spieler-Coop gehoeren die Pfeiltasten P2)
-function linksP1() {
-  const t = state.tastenGedrueckt;
+function leftP1() {
+  const t = state.keysPressed;
   return t.a || (!(state.gameMode === 'coop' && !state.p2IsBot) && t.arrowleft);
 }
 
-function rechtsP1() {
-  const t = state.tastenGedrueckt;
+function rightP1() {
+  const t = state.keysPressed;
   return t.d || (!(state.gameMode === 'coop' && !state.p2IsBot) && t.arrowright);
 }
 
 // Rollenwunsch von P2: lokaler Coop (Pfeiltasten) als Eingabe, Bot und Online-Host als fertige Richtung
-function viperEingabeP2() {
+function viperInputP2() {
   if (state.gameMode === 'coop' && !state.p2IsBot) {
-    return Viper.eingabeVonTasten(state.tastenGedrueckt.arrowleft, state.tastenGedrueckt.arrowright, null);
+    return Viper.inputFromKeys(state.keysPressed.arrowleft, state.keysPressed.arrowright, null);
   }
   return null;
 }
 
-function viperAnfrageP2() {
+function viperRequestP2() {
   const p2 = state.p2;
-  let anfrage = 0;
-  if (state.p2IsBot) anfrage = Viper.richtungNachHack(p2, p2.botRolleAnfrage || 0);
-  else if (istOnlineHost()) anfrage = p2.netzRolleAnfrage || 0;
-  p2.botRolleAnfrage = 0;
-  p2.netzRolleAnfrage = 0;
-  return anfrage;
+  let request = 0;
+  if (state.p2IsBot) request = Viper.directionAfterHack(p2, p2.botRollRequest || 0);
+  else if (isOnlineHost()) request = p2.networkRollRequest || 0;
+  p2.botRollRequest = 0;
+  p2.networkRollRequest = 0;
+  return request;
 }
 
 // Aktuelle Steuerrichtung von P1 (Joystick oder Tasten, Hacks angewendet)
-function steuerRichtungP1() {
+function controlDirectionP1() {
   if (state.joystick && state.joystick.active) {
     const mag = Math.sqrt(state.joystick.x * state.joystick.x + state.joystick.y * state.joystick.y);
     if (mag <= 0.1) return { dx: 0, dy: 0 };
-    return Hack.hackeBewegung(state, state.joystick.x / mag, state.joystick.y / mag);
+    return Hack.hackMovement(state, state.joystick.x / mag, state.joystick.y / mag);
   }
   const isDualHumanCoop = state.gameMode === 'coop' && !state.p2IsBot;
-  const t = state.tastenGedrueckt;
+  const t = state.keysPressed;
   const up = t.w || (!isDualHumanCoop && t.arrowup);
   const down = t.s || (!isDualHumanCoop && t.arrowdown);
   const left = t.a || (!isDualHumanCoop && t.arrowleft);
   const right = t.d || (!isDualHumanCoop && t.arrowright);
-  return Hack.hackeBewegung(state, (right ? 1 : 0) - (left ? 1 : 0), (down ? 1 : 0) - (up ? 1 : 0));
+  return Hack.hackMovement(state, (right ? 1 : 0) - (left ? 1 : 0), (down ? 1 : 0) - (up ? 1 : 0));
 }
 
 // Aktuelle Steuerrichtung von P2: lokal die Pfeiltasten, online die vom Client gemeldete Richtung
 // (Hacks dort bereits angewendet), beim Bot die gewaehlte Dash-Richtung, sonst die letzte Bewegung
-function steuerRichtungP2() {
+function controlDirectionP2() {
   if (state.gameMode === 'coop' && !state.p2IsBot) {
-    const t = state.tastenGedrueckt;
-    return Hack.hackeBewegung(
+    const t = state.keysPressed;
+    return Hack.hackMovement(
       state.p2,
       (t.arrowright ? 1 : 0) - (t.arrowleft ? 1 : 0),
       (t.arrowdown ? 1 : 0) - (t.arrowup ? 1 : 0),
     );
   }
-  if (istOnlineHost() && state.p2.netzRichtung) return state.p2.netzRichtung;
-  if (state.p2IsBot && state.p2.botDashRichtung) {
-    return Hack.hackeBewegung(state.p2, state.p2.botDashRichtung.dx, state.p2.botDashRichtung.dy);
+  if (isOnlineHost() && state.p2.networkDirection) return state.p2.networkDirection;
+  if (state.p2IsBot && state.p2.botDashDirection) {
+    return Hack.hackMovement(state.p2, state.p2.botDashDirection.dx, state.p2.botDashDirection.dy);
   }
-  return { dx: state.p2.spielerVx || 0, dy: -(state.p2.spielerVy || 0) };
+  return { dx: state.p2.playerVx || 0, dy: -(state.p2.playerVy || 0) };
 }
 
-export function aktualisiereUnverwundbarkeit() {
+export function updateInvulnerability() {
   if (state.invulnerableTimer > 0) {
     state.invulnerableTimer--;
   }
@@ -125,16 +125,16 @@ export function aktualisiereUnverwundbarkeit() {
 
 // Bewegung per Richtung (b.dx/b.dy aus hackeBewegung) mit fester Geschwindigkeit;
 // liefert Flammen-Skalierung und Ziel-Rotation
-function bewegeInRichtung(s, b, speed) {
-  let flamme = 1.0;
+function moveInDirection(s, b, speed) {
+  let flame = 1.0;
   let rotation = 0;
   if (b.dy < 0) {
     s.y -= speed;
-    flamme = 1.8;
+    flame = 1.8;
   }
   if (b.dy > 0) {
     s.y += speed;
-    flamme = 0.4;
+    flame = 0.4;
   }
   if (b.dx < 0) {
     s.x -= speed;
@@ -144,70 +144,67 @@ function bewegeInRichtung(s, b, speed) {
     s.x += speed;
     rotation = 15;
   }
-  return { flamme, rotation };
+  return { flame, rotation };
 }
 
 // Auf das Spielfeld begrenzen, Geschwindigkeit aus der Vorposition ableiten
-function begrenzeUndMerkePosition(s) {
+function clampAndRememberPosition(s) {
   if (s.x < 0) s.x = 0;
   if (s.y < 0) s.y = 0;
-  if (s.x > config.spielfeldBreite - config.spielerGroesse) s.x = config.spielfeldBreite - config.spielerGroesse;
-  if (s.y > config.spielfeldHoehe - config.spielerGroesse) s.y = config.spielfeldHoehe - config.spielerGroesse;
-  s.spielerVx = s.x - (s.prevX !== undefined ? s.prevX : s.x);
-  s.spielerVy = (s.prevY !== undefined ? s.prevY : s.y) - s.y;
+  if (s.x > config.playfieldWidth - config.playerSize) s.x = config.playfieldWidth - config.playerSize;
+  if (s.y > config.playfieldHeight - config.playerSize) s.y = config.playfieldHeight - config.playerSize;
+  s.playerVx = s.x - (s.prevX !== undefined ? s.prevX : s.x);
+  s.playerVy = (s.prevY !== undefined ? s.prevY : s.y) - s.y;
   s.prevX = s.x;
   s.prevY = s.y;
 }
 
 // Angezeigte Neigung weich zur Ziel-Rotation fuehren und Triebwerksflammen setzen (Modellfelder
 // drehung/flammenSkala, die Anzeige zeichnet das Schiff daraus)
-function setzeSchiffZustand(s, targetRotate, flammenSkala) {
-  const aktuell = s.drehung || 0;
-  s.drehung = aktuell + (targetRotate - aktuell) * 0.15; // Smooth rotation
-  s.flammenSkala = flammenSkala;
+function setShipStatus(s, targetRotate, flameScale) {
+  const current = s.rotation || 0;
+  s.rotation = current + (targetRotate - current) * 0.15; // Smooth rotation
+  s.flameScale = flameScale;
 }
 
 // Abgas-Partikel hinter dem Schiff (zufällig eine der beiden Farben)
-function erzeugeAbgas(s, flammenScale, farbe1, farbe2) {
-  if (flammenScale > 0.5 && Math.random() < (flammenScale > 1.0 ? 0.6 : 0.2)) {
-    const farbe = Math.random() < 0.5 ? farbe1 : farbe2;
-    erzeugePartikel({
-      farbe,
+function createExhaust(s, exhaustScale, color1, color2) {
+  if (exhaustScale > 0.5 && Math.random() < (exhaustScale > 1.0 ? 0.6 : 0.2)) {
+    const color = Math.random() < 0.5 ? color1 : color2;
+    createParticles({
+      color,
       x: s.x + 15 + (Math.random() * 8 - 4),
       y: s.y + 28,
       vx: (Math.random() - 0.5) * 0.5,
-      vy: 1 + Math.random() * flammenScale,
-      leben: 1.0,
-      zerfall: 0.05,
+      vy: 1 + Math.random() * exhaustScale,
+      lives: 1.0,
+      decay: 0.05,
     });
   }
 }
 
-export function bewegeSpieler() {
+export function movePlayer() {
   let baseFlameScale = 1.0;
   let targetRotate = 0;
   const towedCountP1 = isCoopMode() ? arrays.powerups.filter(p => p.towedBy === 'p1').length : 0;
   const speedMultP1 = Math.max(0.1, 1.0 - 0.1 * towedCountP1);
-  const currentSpeed =
-    ((shipModels && shipModels[state.selectedShipModel]?.speed) || config.geschwindigkeit) * speedMultP1;
+  const currentSpeed = ((shipModels && shipModels[state.selectedShipModel]?.speed) || config.speed) * speedMultP1;
 
   // Gleve: Dash/Abprall ersetzt in diesem Schritt die normale Steuerung
-  const gleveDashP1 =
-    Gleve.istGleve(state) && Gleve.aktualisiereGleve(state, 'p1', raketenTasteP1(), steuerRichtungP1());
+  const gleveDashP1 = Gleve.isGleve(state) && Gleve.updateGleve(state, 'p1', missileKeyP1(), controlDirectionP1());
 
   // Viper: Ausweichrolle (Doppeltipp links/rechts oder Wisch) ersetzt die Steuerung
-  const viperRolleP1 =
-    Viper.istViper(state) &&
-    Viper.aktualisiereViper(state, 'p1', Viper.eingabeVonTasten(linksP1(), rechtsP1(), state.joystick));
+  const viperRollP1 =
+    Viper.isViper(state) && Viper.updateViper(state, 'p1', Viper.inputFromKeys(leftP1(), rightP1(), state.joystick));
 
   if (gleveDashP1) {
     baseFlameScale = 2.2;
-  } else if (viperRolleP1) {
+  } else if (viperRollP1) {
     baseFlameScale = 1.0;
   } else if (state.joystick && state.joystick.active) {
     let mag = Math.sqrt(state.joystick.x * state.joystick.x + state.joystick.y * state.joystick.y);
     if (mag > 0.1) {
-      const b = Hack.hackeBewegung(state, state.joystick.x / mag, state.joystick.y / mag);
+      const b = Hack.hackMovement(state, state.joystick.x / mag, state.joystick.y / mag);
       state.x += b.dx * currentSpeed;
       state.y += b.dy * currentSpeed;
     }
@@ -219,21 +216,21 @@ export function bewegeSpieler() {
     else if (state.joystick.x > 0.2) targetRotate = 15;
   } else if (!state.isDead) {
     const isDualHumanCoop = state.gameMode === 'coop' && !state.p2IsBot;
-    const upRaw = state.tastenGedrueckt.w || (!isDualHumanCoop && state.tastenGedrueckt.arrowup);
-    const downRaw = state.tastenGedrueckt.s || (!isDualHumanCoop && state.tastenGedrueckt.arrowdown);
-    const leftRaw = state.tastenGedrueckt.a || (!isDualHumanCoop && state.tastenGedrueckt.arrowleft);
-    const rightRaw = state.tastenGedrueckt.d || (!isDualHumanCoop && state.tastenGedrueckt.arrowright);
-    const b = Hack.hackeBewegung(state, (rightRaw ? 1 : 0) - (leftRaw ? 1 : 0), (downRaw ? 1 : 0) - (upRaw ? 1 : 0));
-    ({ flamme: baseFlameScale, rotation: targetRotate } = bewegeInRichtung(state, b, currentSpeed));
+    const upRaw = state.keysPressed.w || (!isDualHumanCoop && state.keysPressed.arrowup);
+    const downRaw = state.keysPressed.s || (!isDualHumanCoop && state.keysPressed.arrowdown);
+    const leftRaw = state.keysPressed.a || (!isDualHumanCoop && state.keysPressed.arrowleft);
+    const rightRaw = state.keysPressed.d || (!isDualHumanCoop && state.keysPressed.arrowright);
+    const b = Hack.hackMovement(state, (rightRaw ? 1 : 0) - (leftRaw ? 1 : 0), (downRaw ? 1 : 0) - (upRaw ? 1 : 0));
+    ({ flame: baseFlameScale, rotation: targetRotate } = moveInDirection(state, b, currentSpeed));
   }
-  begrenzeUndMerkePosition(state);
-  setzeSchiffZustand(state, targetRotate, baseFlameScale);
-  Viper.zeigeRollenHud('p1', state);
+  clampAndRememberPosition(state);
+  setShipStatus(state, targetRotate, baseFlameScale);
+  Viper.showRollHud('p1', state);
 
-  if (!state.isDead) erzeugeAbgas(state, baseFlameScale, '#f1c40f', '#e74c3c');
+  if (!state.isDead) createExhaust(state, baseFlameScale, '#f1c40f', '#e74c3c');
 
   // --- 9.1b SPIELER 2 BEWEGUNG (Co-op) ---
-  if (isCoopMode() && state.p2 && dom.spieler2) {
+  if (isCoopMode() && state.p2 && dom.player2) {
     if (state.p2.invulnerableTimer > 0) {
       state.p2.invulnerableTimer--;
     }
@@ -243,19 +240,18 @@ export function bewegeSpieler() {
       let targetRotateP2 = 0;
       const towedCountP2 = arrays.powerups.filter(p => p.towedBy === 'p2').length;
       const speedMultP2 = Math.max(0.1, 1.0 - 0.1 * towedCountP2);
-      const p2Speed =
-        ((shipModels && shipModels[state.p2.selectedShipModel]?.speed) || config.geschwindigkeit) * speedMultP2;
+      const p2Speed = ((shipModels && shipModels[state.p2.selectedShipModel]?.speed) || config.speed) * speedMultP2;
 
       const gleveDashP2 =
-        Gleve.istGleve(state.p2) && Gleve.aktualisiereGleve(state.p2, 'p2', dashTasteP2(), steuerRichtungP2());
+        Gleve.isGleve(state.p2) && Gleve.updateGleve(state.p2, 'p2', dashKeyP2(), controlDirectionP2());
 
-      const viperRolleP2 =
-        Viper.istViper(state.p2) && Viper.aktualisiereViper(state.p2, 'p2', viperEingabeP2(), viperAnfrageP2());
+      const viperRollP2 =
+        Viper.isViper(state.p2) && Viper.updateViper(state.p2, 'p2', viperInputP2(), viperRequestP2());
 
       if (gleveDashP2) {
         // Gleve-Dash/Abprall uebernimmt die Bewegung
         baseFlameScaleP2 = 2.2;
-      } else if (viperRolleP2) {
+      } else if (viperRollP2) {
         // Viper-Rolle uebernimmt die Bewegung
         baseFlameScaleP2 = 1.0;
       } else if (state.p2IsBot) {
@@ -264,7 +260,7 @@ export function bewegeSpieler() {
         const prevBotY = state.p2.y;
         Bot.updateBot();
         // Hacks wirken auch auf die Bewegung des Bots
-        const botB = Hack.hackeBewegung(state.p2, state.p2.x - prevBotX, state.p2.y - prevBotY);
+        const botB = Hack.hackMovement(state.p2, state.p2.x - prevBotX, state.p2.y - prevBotY);
         state.p2.x = prevBotX + botB.dx;
         state.p2.y = prevBotY + botB.dy;
         // Flammen/Rotation aus Bot-Bewegung ableiten
@@ -276,158 +272,162 @@ export function bewegeSpieler() {
         else if (botDx > 0.5) targetRotateP2 = 15;
       } else if (state.gameMode === 'coop') {
         // Menschliche Steuerung via Arrow-Keys im lokalen Coop
-        const t = state.tastenGedrueckt;
-        const b2 = Hack.hackeBewegung(
+        const t = state.keysPressed;
+        const b2 = Hack.hackMovement(
           state.p2,
           (t.arrowright ? 1 : 0) - (t.arrowleft ? 1 : 0),
           (t.arrowdown ? 1 : 0) - (t.arrowup ? 1 : 0),
         );
-        ({ flamme: baseFlameScaleP2, rotation: targetRotateP2 } = bewegeInRichtung(state.p2, b2, p2Speed));
+        ({ flame: baseFlameScaleP2, rotation: targetRotateP2 } = moveInDirection(state.p2, b2, p2Speed));
       }
 
-      begrenzeUndMerkePosition(state.p2);
-      setzeSchiffZustand(state.p2, targetRotateP2, baseFlameScaleP2);
-      Viper.zeigeRollenHud('p2', state.p2);
-      erzeugeAbgas(state.p2, baseFlameScaleP2, '#74b9ff', '#0984e3');
+      clampAndRememberPosition(state.p2);
+      setShipStatus(state.p2, targetRotateP2, baseFlameScaleP2);
+      Viper.showRollHud('p2', state.p2);
+      createExhaust(state.p2, baseFlameScaleP2, '#74b9ff', '#0984e3');
     }
   }
 }
 
 // Laser zünden, solange die Taste gedrückt ist und genug Energie da ist
-function steuereLaserZuendung(s, gedrueckt) {
-  if (gedrueckt) {
-    if (!s.laserSchiesst && s.energie >= s.minZuendEnergie) s.laserSchiesst = true;
-    if (s.energie <= 0) s.laserSchiesst = false;
+function controlLaserIgnition(s, pressed) {
+  if (pressed) {
+    if (!s.laserShoots && s.energy >= s.minFuseEnergy) s.laserShoots = true;
+    if (s.energy <= 0) s.laserShoots = false;
   } else {
-    s.laserSchiesst = false;
+    s.laserShoots = false;
   }
 }
 
 // Energie nach Schiffsmodell regenerieren, solange unter maxEnergie
-function ladeEnergie(s) {
+function chargingEnergy(s) {
   const regenRate = (shipModels && shipModels[s.selectedShipModel]?.energyRegen) || 0.4;
-  if (s.energie < s.maxEnergie) s.energie += regenRate;
+  if (s.energy < s.maxEnergy) s.energy += regenRate;
 }
 
-function begrenzeEnergie(s) {
-  if (s.energie < 0) s.energie = 0;
-  if (s.energie > s.maxEnergie) s.energie = s.maxEnergie;
+function clampEnergy(s) {
+  if (s.energy < 0) s.energy = 0;
+  if (s.energy > s.maxEnergy) s.energy = s.maxEnergy;
 }
 
 // Ab welcher Energie die Primärwaffe wieder einsatzbereit ist (Gleve: Sweep-Kosten)
-function zuendSchwelle(s) {
-  return Gleve.istGleve(s) ? Gleve.sweepKosten(s) : s.minZuendEnergie;
+function fuseThreshold(s) {
+  return Gleve.isGleve(s) ? Gleve.sweepCost(s) : s.minFuseEnergy;
 }
 
 // Gleve: kein Laser, die gehaltene Laser-Taste startet im Takt Sweeps (Kosten zieht gleve.js beim Start ab).
 // Wie beim Laser lädt die Energie nicht, solange die Taste gehalten wird oder ein Sweep läuft.
-function steuereGleveSweep(s, pKey, gehalten) {
-  s.laserSchiesst = false;
-  Gleve.steuereSweep(s, pKey, gehalten);
-  if (!gehalten && !Gleve.istSweepAktiv(s)) ladeEnergie(s);
+function controlGleveSweep(s, pKey, held) {
+  s.laserShoots = false;
+  Gleve.controlSweep(s, pKey, held);
+  if (!held && !Gleve.isSweepActive(s)) chargingEnergy(s);
 }
 
 // Sniper: kein Laser; die Laser-Taste laedt (Druck) und feuert beim Loslassen (sniper.js). `auto`: Joystick-Autofeuer
 // (Normalschuesse im Schussabstand, kein Laden). Waehrend des Ladens regeneriert die Energie nicht.
-function steuereSniper(s, pKey, gehalten, auto = false) {
-  s.laserSchiesst = false;
-  Sniper.aktualisiereSniper(s, pKey, gehalten, auto);
-  if (!Sniper.laedt(s)) ladeEnergie(s);
+function controlSniper(s, pKey, held, auto = false) {
+  s.laserShoots = false;
+  Sniper.updateSniper(s, pKey, held, auto);
+  if (!Sniper.isCharging(s)) chargingEnergy(s);
 }
 
 // Joystick-Autofeuer von P1 (Handy): Taste L kommt vom Joystick und nicht von der Tastatur, B oder dem Lade-Knopf
-function sniperAutofeuerP1() {
-  return Boolean(state.joystick && state.joystick.feuert) && !state.sniperLadeKnopf && !state.tastenGedrueckt.b;
+function sniperAutofireP1() {
+  return Boolean(state.joystick && state.joystick.fires) && !state.sniperChargingButton && !state.keysPressed.b;
 }
 
-export function aktualisiereEnergie() {
-  let laserAktiv = false;
-  if (Sniper.istSniper(state)) {
-    steuereSniper(state, 'p1', Boolean(laserTasteP1() || state.sniperLadeKnopf) && !state.isDead, sniperAutofeuerP1());
-  } else if (Gleve.istGleve(state)) {
-    steuereGleveSweep(state, 'p1', laserTasteP1() && !state.isDead);
+export function updateEnergy() {
+  let laserActive = false;
+  if (Sniper.isSniper(state)) {
+    controlSniper(
+      state,
+      'p1',
+      Boolean(laserKeyP1() || state.sniperChargingButton) && !state.isDead,
+      sniperAutofireP1(),
+    );
+  } else if (Gleve.isGleve(state)) {
+    controlGleveSweep(state, 'p1', laserKeyP1() && !state.isDead);
   } else {
-    steuereLaserZuendung(state, laserTasteP1() && !state.isDead);
-    laserAktiv = state.laserSchiesst && state.energie > 0 && !state.isDead && !Hack.hatHack(state, 'waffenOffline');
-    if (laserAktiv) {
-      if (!state.unbegrenzteEnergie) {
-        state.energie -= 0.8 + Math.min(state.laserStufe, 5) * 0.1;
+    controlLaserIgnition(state, laserKeyP1() && !state.isDead);
+    laserActive = state.laserShoots && state.energy > 0 && !state.isDead && !Hack.hasHack(state, 'weaponOffline');
+    if (laserActive) {
+      if (!state.unlimitedEnergy) {
+        state.energy -= 0.8 + Math.min(state.laserTier, 5) * 0.1;
       }
     } else {
-      ladeEnergie(state);
+      chargingEnergy(state);
     }
   }
-  begrenzeEnergie(state);
-  if (dom.energieBalken) {
-    dom.energieBalken.style.width = (state.energie / state.absMaxEnergie) * 100 + '%';
-    if (state.unbegrenzteEnergie) {
-      dom.energieBalken.style.backgroundColor = '#f1c40f';
+  clampEnergy(state);
+  if (dom.energyBar) {
+    dom.energyBar.style.width = (state.energy / state.absMaxEnergy) * 100 + '%';
+    if (state.unlimitedEnergy) {
+      dom.energyBar.style.backgroundColor = '#f1c40f';
     } else {
-      dom.energieBalken.style.backgroundColor =
-        state.energie < zuendSchwelle(state) && !state.laserSchiesst ? '#e67e22' : '#1abc9c';
+      dom.energyBar.style.backgroundColor =
+        state.energy < fuseThreshold(state) && !state.laserShoots ? '#e67e22' : '#1abc9c';
     }
   }
 
   // --- 9.4 ENERGIE SPIELER 2 (Co-op) ---
-  let laserAktivP2 = false;
-  if (Sniper.istSniper(state.p2) && (!isCoopMode() || state.p2.isDead))
-    Sniper.aktualisiereSniper(state.p2, 'p2', false); // Fadenkreuz entfernen
+  let laserActiveP2 = false;
+  if (Sniper.isSniper(state.p2) && (!isCoopMode() || state.p2.isDead)) Sniper.updateSniper(state.p2, 'p2', false); // Fadenkreuz entfernen
   if (isCoopMode() && state.p2 && !state.p2.isDead) {
-    if (Sniper.istSniper(state.p2)) {
+    if (Sniper.isSniper(state.p2)) {
       // Online-Client mit Joystick-Autofeuer (Handy): Normalschuesse ohne Laden
-      steuereSniper(state.p2, 'p2', Boolean(laserTasteP2()), istOnlineHost() && Boolean(state.p2.sniperAutoInput));
-    } else if (Gleve.istGleve(state.p2)) {
-      steuereGleveSweep(state.p2, 'p2', Boolean(laserTasteP2()));
+      controlSniper(state.p2, 'p2', Boolean(laserKeyP2()), isOnlineHost() && Boolean(state.p2.sniperAutoInput));
+    } else if (Gleve.isGleve(state.p2)) {
+      controlGleveSweep(state.p2, 'p2', Boolean(laserKeyP2()));
     } else {
-      steuereLaserZuendung(state.p2, laserTasteP2());
-      laserAktivP2 = state.p2.laserSchiesst && state.p2.energie > 0 && !Hack.hatHack(state.p2, 'waffenOffline');
-      if (laserAktivP2) {
-        state.p2.energie -= 0.8 + Math.min(state.p2.laserStufe, 5) * 0.1;
+      controlLaserIgnition(state.p2, laserKeyP2());
+      laserActiveP2 = state.p2.laserShoots && state.p2.energy > 0 && !Hack.hasHack(state.p2, 'weaponOffline');
+      if (laserActiveP2) {
+        state.p2.energy -= 0.8 + Math.min(state.p2.laserTier, 5) * 0.1;
       } else {
-        ladeEnergie(state.p2);
+        chargingEnergy(state.p2);
       }
     }
-    begrenzeEnergie(state.p2);
-    if (dom.energieBalkenP2) {
-      dom.energieBalkenP2.style.width = (state.p2.energie / state.p2.absMaxEnergie) * 100 + '%';
-      dom.energieBalkenP2.style.backgroundColor =
-        state.p2.energie < zuendSchwelle(state.p2) && !state.p2.laserSchiesst ? '#e67e22' : '#3498db';
+    clampEnergy(state.p2);
+    if (dom.energyBarP2) {
+      dom.energyBarP2.style.width = (state.p2.energy / state.p2.absMaxEnergy) * 100 + '%';
+      dom.energyBarP2.style.backgroundColor =
+        state.p2.energy < fuseThreshold(state.p2) && !state.p2.laserShoots ? '#e67e22' : '#3498db';
     }
 
     // P2 Schild Regen (Phantom-NX)
     const p2Ship = shipModels && shipModels[state.p2.selectedShipModel || 'phantom'];
-    if (p2Ship && p2Ship.shieldRegen && state.p2.schildStufe === 0 && state.p2.leben > 0 && !state.gameOverAktiv) {
-      const maxRegen = state.p2.phantomSchildRegenMax || p2Ship.shieldRegenMax || 900;
-      state.p2.phantomSchildRegenTimer = (state.p2.phantomSchildRegenTimer || 0) + 1;
-      if (state.p2.phantomSchildRegenTimer % 6 === 0) {
-        Utils.updateAktivePowerupsP2UI();
+    if (p2Ship && p2Ship.shieldRegen && state.p2.shieldTier === 0 && state.p2.lives > 0 && !state.gameOverActive) {
+      const maxRegen = state.p2.phantomShieldRegenMax || p2Ship.shieldRegenMax || 900;
+      state.p2.phantomShieldRegenTimer = (state.p2.phantomShieldRegenTimer || 0) + 1;
+      if (state.p2.phantomShieldRegenTimer % 6 === 0) {
+        Utils.updateActivePowerupsP2Ui();
       }
-      if (state.p2.phantomSchildRegenTimer >= maxRegen) {
-        state.p2.schildStufe = 1;
-        state.p2.phantomSchildRegenTimer = 0;
+      if (state.p2.phantomShieldRegenTimer >= maxRegen) {
+        state.p2.shieldTier = 1;
+        state.p2.phantomShieldRegenTimer = 0;
         Audio.playShieldRegen();
-        Utils.updateAktivePowerupsP2UI();
+        Utils.updateActivePowerupsP2Ui();
       }
     }
   }
-  return { laserAktiv, laserAktivP2 };
+  return { laserActive, laserActiveP2 };
 }
 
-export function regeneriereSchild() {
+export function regenerateShield() {
   const activeShip = shipModels && shipModels[state.selectedShipModel || 'viper'];
-  if (activeShip && activeShip.shieldRegen && state.schildStufe === 0 && state.leben > 0 && !state.gameOverAktiv) {
-    const maxRegen = state.phantomSchildRegenMax || activeShip.shieldRegenMax || 900;
-    state.phantomSchildRegenTimer = (state.phantomSchildRegenTimer || 0) + 1;
-    if (state.phantomSchildRegenTimer % 6 === 0) {
-      Utils.updateAktivePowerupsUI();
+  if (activeShip && activeShip.shieldRegen && state.shieldTier === 0 && state.lives > 0 && !state.gameOverActive) {
+    const maxRegen = state.phantomShieldRegenMax || activeShip.shieldRegenMax || 900;
+    state.phantomShieldRegenTimer = (state.phantomShieldRegenTimer || 0) + 1;
+    if (state.phantomShieldRegenTimer % 6 === 0) {
+      Utils.updateActivePowerupsUi();
     }
-    if (state.phantomSchildRegenTimer >= maxRegen) {
-      state.schildStufe = 1;
-      state.phantomSchildRegenTimer = 0;
+    if (state.phantomShieldRegenTimer >= maxRegen) {
+      state.shieldTier = 1;
+      state.phantomShieldRegenTimer = 0;
       Audio.playShieldRegen();
-      Utils.updateAktivePowerupsUI();
+      Utils.updateActivePowerupsUi();
     }
-  } else if (state.schildStufe > 0 && state.phantomSchildRegenTimer > 0) {
-    state.phantomSchildRegenTimer = 0;
+  } else if (state.shieldTier > 0 && state.phantomShieldRegenTimer > 0) {
+    state.phantomShieldRegenTimer = 0;
   }
 }

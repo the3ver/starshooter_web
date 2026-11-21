@@ -1,6 +1,6 @@
 import { state, dom, config, arrays, shipModels } from './state.js';
 import { setupInput } from './input.js';
-import { gameLoop, simulationsSchritt, berechneSchritte } from './loop.js';
+import { gameLoop, simulationStep, computeSteps } from './loop.js';
 import * as Audio from './audio.js';
 import * as Utils from './utils.js';
 import * as Entities from './entities.js';
@@ -9,7 +9,7 @@ import * as Network from './network.js';
 import * as Cutscene from './cutscene.js';
 import * as Gleve from './gleve.js';
 import * as Sniper from './sniper.js';
-import * as Anzeige from './anzeige.js';
+import * as Display from './anzeige.js';
 
 export { state, dom, config, arrays, shipModels, Utils, Entities, Audio, Network, Cutscene };
 
@@ -25,7 +25,7 @@ window.__game = {
   Audio,
   Network,
   Cutscene,
-  Loop: { gameLoop, simulationsSchritt, berechneSchritte },
+  Loop: { gameLoop, simulationStep, computeSteps },
 };
 
 document.addEventListener('DOMContentLoaded', () => {
@@ -43,32 +43,32 @@ document.addEventListener('DOMContentLoaded', () => {
 
   Network.onNetworkState(snapshot => {
     if (state.network.isClient) {
-      Network.empfangeSnapshotPaket(snapshot);
+      Network.receiveSnapshotPacket(snapshot);
     }
   });
 
   Network.onNetworkInput(input => {
     if (state.network.isHost) {
-      Network.empfangeEingabePaket(input);
+      Network.receiveInputPacket(input);
     }
   });
 
   // Initialisiere Sterne
   for (let i = 0; i < 60; i++) {
-    let x = Math.random() * config.spielfeldBreite;
-    let y = Math.random() * config.spielfeldHoehe;
+    let x = Math.random() * config.playfieldWidth;
+    let y = Math.random() * config.playfieldHeight;
     let size = Math.random() * 2 + 1;
     let speed = Math.random() * 2 + 0.5;
 
-    arrays.sterne.push(
-      Anzeige.erzeuge(
+    arrays.stars.push(
+      Display.create(
         {
           x: x,
           y: y,
-          groesse: size,
+          size: size,
           speed: speed,
         },
-        'stern',
+        'star',
       ),
     );
   }
@@ -85,7 +85,7 @@ document.addEventListener('DOMContentLoaded', () => {
     let availableHeight = window.innerHeight * 0.95 - controlsHeight;
     let scale = availableHeight / 600;
 
-    let width = config.spielfeldBreite || 400;
+    let width = config.playfieldWidth || 400;
     let availableWidth = window.innerWidth * 0.95;
     if (width * scale > availableWidth) {
       scale = availableWidth / width;
@@ -93,9 +93,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
     if (scale < 0.5) scale = 0.5;
 
-    if (dom.spielfeld) {
-      dom.spielfeld.style.transform = `scale(${scale})`;
-      dom.spielfeld.style.width = width + 'px';
+    if (dom.playfield) {
+      dom.playfield.style.transform = `scale(${scale})`;
+      dom.playfield.style.width = width + 'px';
     }
 
     let container = document.getElementById('spielfeld-container');
@@ -113,16 +113,16 @@ document.addEventListener('DOMContentLoaded', () => {
   window.resizeGame = resizeGame;
   resizeGame();
 
-  state.spielLaeuft = false;
-  state.schiffSichtbar = false;
-  state.p2.schiffSichtbar = false;
+  state.gameRunning = false;
+  state.shipVisible = false;
+  state.p2.shipVisible = false;
 
   // UI & Hangar initialisieren
-  Utils.updateMaxEnergieMarker();
-  Utils.updateLebenUI();
-  Utils.updateAktivePowerupsUI();
+  Utils.updateMaxEnergyMarker();
+  Utils.updateLivesUi();
+  Utils.updateActivePowerupsUi();
   Utils.updatePlayerShipVisuals();
-  Anzeige.zeichneSpieler();
+  Display.drawPlayer();
 
   // Gamemode Selection Event Listeners
   const btnSingle = document.getElementById('gamemode-btn-single');
@@ -205,10 +205,10 @@ document.addEventListener('DOMContentLoaded', () => {
           state.p2.selectedShipModel = model;
         }
       }
-      Gleve.setzeDashLadungenVoll(state);
-      if (state.p2) Gleve.setzeDashLadungenVoll(state.p2);
-      Sniper.setzeGranatenLadungenVoll(state);
-      if (state.p2) Sniper.setzeGranatenLadungenVoll(state.p2);
+      Gleve.setDashChargeFull(state);
+      if (state.p2) Gleve.setDashChargeFull(state.p2);
+      Sniper.setGrenadeChargeFull(state);
+      if (state.p2) Sniper.setGrenadeChargeFull(state.p2);
       Utils.updatePlayerShipVisuals();
       if (state.network && state.network.isOnline && state.network.isClient && state.network.connected) {
         Network.sendNetworkEvent({
@@ -253,7 +253,7 @@ document.addEventListener('DOMContentLoaded', () => {
       if (diffPanel) diffPanel.style.display = state.p2IsBot ? 'flex' : 'none';
       btnBotToggle.classList.toggle('active', state.p2IsBot);
       btnBotToggle.textContent = state.p2IsBot ? '🤖 BOT AKTIV' : '🤖 BOT';
-      Utils.updateSteuerungInfo();
+      Utils.updateControlsInfo();
     });
   }
   document.querySelectorAll('.bot-diff-btn').forEach(btn => {
@@ -283,39 +283,39 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   }
 
-  Utils.updateSteuerungInfo();
+  Utils.updateControlsInfo();
 
   // Steuerungs-Overlay (Knopf im Menue, ESC und SCHLIESSEN schliessen)
-  const steuerungOverlay = document.getElementById('steuerung-overlay');
-  const btnOpenSteuerung = document.getElementById('btn-open-steuerung');
-  if (steuerungOverlay && btnOpenSteuerung) {
-    btnOpenSteuerung.addEventListener('click', e => {
+  const controlsOverlay = document.getElementById('steuerung-overlay');
+  const btnOpenControls = document.getElementById('btn-open-steuerung');
+  if (controlsOverlay && btnOpenControls) {
+    btnOpenControls.addEventListener('click', e => {
       e.stopPropagation();
-      Utils.updateSteuerungInfo();
-      steuerungOverlay.style.display = 'flex';
+      Utils.updateControlsInfo();
+      controlsOverlay.style.display = 'flex';
     });
-    const btnCloseSteuerung = document.getElementById('btn-close-steuerung');
-    if (btnCloseSteuerung)
-      btnCloseSteuerung.addEventListener('click', e => {
+    const btnCloseControls = document.getElementById('btn-close-steuerung');
+    if (btnCloseControls)
+      btnCloseControls.addEventListener('click', e => {
         e.stopPropagation();
-        steuerungOverlay.style.display = 'none';
+        controlsOverlay.style.display = 'none';
       });
   }
 
   // Perk-Chips im Hangar: Ueberfahren bzw. Antippen zeigt die Beschreibung
-  const perkListe = document.getElementById('hangar-ship-perks');
-  if (perkListe) {
+  const perkList = document.getElementById('hangar-ship-perks');
+  if (perkList) {
     const perkIndex = e => {
       const chip = e.target.closest('.hangar-perk-chip');
       return chip ? Number(chip.dataset.perk) : null;
     };
-    perkListe.addEventListener('mouseover', e => {
+    perkList.addEventListener('mouseover', e => {
       const i = perkIndex(e);
-      if (i !== null) Utils.zeigePerkDetail(i);
+      if (i !== null) Utils.showPerkDetail(i);
     });
-    perkListe.addEventListener('click', e => {
+    perkList.addEventListener('click', e => {
       const i = perkIndex(e);
-      if (i !== null) Utils.zeigePerkDetail(i);
+      if (i !== null) Utils.showPerkDetail(i);
     });
   }
 
@@ -329,7 +329,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
         return;
       }
-      if (!state.spielLaeuft && !state.cutsceneAktiv && !state.gameOverAktiv) {
+      if (!state.gameRunning && !state.cutsceneActive && !state.gameOverActive) {
         const startScreen = document.getElementById('start-screen');
         if (startScreen) startScreen.style.display = 'none';
         Cutscene.startCutscene();

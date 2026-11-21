@@ -1,5 +1,5 @@
 const { test, expect } = require('@playwright/test');
-const { setzeSpielstand } = require('./helfer');
+const { setGameState } = require('./helfer');
 
 const TRYSTERO_URL = 'https://cdn.jsdelivr.net/npm/@trystero-p2p/torrent/+esm';
 const ICE_SERVERS = [
@@ -19,7 +19,7 @@ export function joinRoom(config, id) {
   };
 }`;
 
-function turnAntwort(status, body) {
+function turnResponse(status, body) {
   return route =>
     route.fulfill({
       status,
@@ -45,18 +45,18 @@ test.beforeEach(async ({ page }) => {
       body: FAKE_TRYSTERO,
     }),
   );
-  await setzeSpielstand(page);
+  await setGameState(page);
   await page.goto('/');
 });
 
-function holeConfig(page, timeoutMs) {
+function getConfig(page, timeoutMs) {
   return page.evaluate(async ms => {
     const Network = await import('./js/network.js');
-    return Network.holeTurnConfig(ms);
+    return Network.getTurnConfig(ms);
   }, timeoutMs);
 }
 
-function betreteRaeume(page) {
+function enterClear(page) {
   return page.evaluate(async () => {
     const Network = await import('./js/network.js');
     await Network.hostRoom('ABCDE');
@@ -66,23 +66,23 @@ function betreteRaeume(page) {
 }
 
 test('holeTurnConfig liefert die iceServers bei Antwort 200', async ({ page }) => {
-  await page.route('**/api/turn*', turnAntwort(200, { success: true, iceServers: ICE_SERVERS }));
-  expect(await holeConfig(page)).toEqual(ICE_SERVERS);
+  await page.route('**/api/turn*', turnResponse(200, { success: true, iceServers: ICE_SERVERS }));
+  expect(await getConfig(page)).toEqual(ICE_SERVERS);
 });
 
 test('holeTurnConfig liefert null bei 503', async ({ page }) => {
-  await page.route('**/api/turn*', turnAntwort(503, { success: false, error: 'TURN nicht konfiguriert' }));
-  expect(await holeConfig(page)).toBeNull();
+  await page.route('**/api/turn*', turnResponse(503, { success: false, error: 'TURN nicht konfiguriert' }));
+  expect(await getConfig(page)).toBeNull();
 });
 
 test('holeTurnConfig liefert null bei ungueltigem JSON', async ({ page }) => {
-  await page.route('**/api/turn*', turnAntwort(200, 'das ist kein json'));
-  expect(await holeConfig(page)).toBeNull();
+  await page.route('**/api/turn*', turnResponse(200, 'das ist kein json'));
+  expect(await getConfig(page)).toBeNull();
 });
 
 test('holeTurnConfig liefert null bei leerer iceServers-Liste', async ({ page }) => {
-  await page.route('**/api/turn*', turnAntwort(200, { success: true, iceServers: [] }));
-  expect(await holeConfig(page)).toBeNull();
+  await page.route('**/api/turn*', turnResponse(200, { success: true, iceServers: [] }));
+  expect(await getConfig(page)).toBeNull();
 });
 
 test('holeTurnConfig liefert null nach Timeout', async ({ page }) => {
@@ -92,16 +92,16 @@ test('holeTurnConfig liefert null nach Timeout', async ({ page }) => {
   const r = await page.evaluate(async () => {
     const Network = await import('./js/network.js');
     const start = performance.now();
-    const ergebnis = await Network.holeTurnConfig(200);
-    return { ergebnis, ms: performance.now() - start };
+    const result = await Network.getTurnConfig(200);
+    return { result, ms: performance.now() - start };
   });
-  expect(r.ergebnis).toBeNull();
+  expect(r.result).toBeNull();
   expect(r.ms).toBeLessThan(2000);
 });
 
 test('hostRoom und joinOnlineRoom reichen turnConfig an joinRoom weiter', async ({ page }) => {
-  await page.route('**/api/turn*', turnAntwort(200, { success: true, iceServers: ICE_SERVERS }));
-  const configs = await betreteRaeume(page);
+  await page.route('**/api/turn*', turnResponse(200, { success: true, iceServers: ICE_SERVERS }));
+  const configs = await enterClear(page);
   expect(configs).toHaveLength(2);
   for (const c of configs) {
     expect(c.appId).toBe('starshooter-p2p');
@@ -110,8 +110,8 @@ test('hostRoom und joinOnlineRoom reichen turnConfig an joinRoom weiter', async 
 });
 
 test('hostRoom und joinOnlineRoom laufen ohne turnConfig weiter, wenn TURN fehlt', async ({ page }) => {
-  await page.route('**/api/turn*', turnAntwort(503, { success: false, error: 'TURN nicht konfiguriert' }));
-  const configs = await betreteRaeume(page);
+  await page.route('**/api/turn*', turnResponse(503, { success: false, error: 'TURN nicht konfiguriert' }));
+  const configs = await enterClear(page);
   expect(configs).toHaveLength(2);
   for (const c of configs) {
     expect(c).toEqual({ appId: 'starshooter-p2p' });

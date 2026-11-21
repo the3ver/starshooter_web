@@ -10,22 +10,22 @@ if (!/^\d+\.\d+\.\d+$/.test(version || '')) {
   process.exit(1);
 }
 
-function ersetze(datei, muster, ersatz) {
-  const alt = readFileSync(datei, 'utf8');
-  const neu = alt.replace(muster, ersatz);
-  if (neu === alt && !alt.includes(version)) throw new Error(`Versionsstelle in ${datei} nicht gefunden`);
-  writeFileSync(datei, neu);
+function replace(file, pattern, replacement) {
+  const old = readFileSync(file, 'utf8');
+  const fresh = old.replace(pattern, replacement);
+  if (fresh === old && !old.includes(version)) throw new Error(`Versionsstelle in ${file} nicht gefunden`);
+  writeFileSync(file, fresh);
 }
 
 execSync(`npm version ${version} --no-git-tag-version --allow-same-version`, { stdio: 'ignore' });
-ersetze('src/index.html', /(<div id="version-anzeige">V )[\d.]+(<\/div>)/, `$1${version}$2`);
-ersetze('README.md', /(badge\/version-)[\d.]+(-blue)/, `$1${version}$2`);
-ersetze('src/js/changelog.js', /(export const GAME_VERSION = ')[\d.]+(')/, `$1${version}$2`);
+replace('src/index.html', /(<div id="version-anzeige">V )[\d.]+(<\/div>)/, `$1${version}$2`);
+replace('README.md', /(badge\/version-)[\d.]+(-blue)/, `$1${version}$2`);
+replace('src/js/changelog.js', /(export const GAME_VERSION = ')[\d.]+(')/, `$1${version}$2`);
 
 const changelog = readFileSync('src/js/changelog.js', 'utf8');
 if (!changelog.includes(`'${version}': {`)) {
-  const zeilenende = changelog.includes('\r\n') ? '\r\n' : '\n';
-  const eintrag = [
+  const lineEnd = changelog.includes('\r\n') ? '\r\n' : '\n';
+  const entry = [
     `  '${version}': {`,
     `    version: '${version}',`,
     `    intro: 'Hey, es ist jetzt Version ${version} rausgekommen, folgendes wurde aktualisiert:',`,
@@ -33,12 +33,12 @@ if (!changelog.includes(`'${version}': {`)) {
     `      'TODO'`,
     `    ]`,
     `  },`,
-  ].join(zeilenende);
+  ].join(lineEnd);
   writeFileSync(
     'src/js/changelog.js',
     changelog.replace(
-      `export const changelogData = {${zeilenende}`,
-      `export const changelogData = {${zeilenende}${eintrag}${zeilenende}`,
+      `export const changelogData = {${lineEnd}`,
+      `export const changelogData = {${lineEnd}${entry}${lineEnd}`,
     ),
   );
   console.log(`Version ${version} gesetzt, Highlights in src/js/changelog.js eintragen (TODO)`);

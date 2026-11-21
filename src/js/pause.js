@@ -7,194 +7,191 @@ import * as Utils from './utils.js';
 // bleibt die Pause ein einfacher Schalter ohne Zeitlimit und ohne Events.
 
 export const PAUSE_MAX_MS = 60000;
-const HINWEIS_MS = 2500;
-let hinweisBis = 0;
-let abfrageOffen = false;
+const HINT_MS = 2500;
+let hintUntil = 0;
+let queryOpen = false;
 
-function zeigeEl(id, sichtbar) {
+function showEl(id, visible) {
   const el = document.getElementById(id);
-  if (el) el.style.display = sichtbar ? (id === 'pause-knoepfe' || id === 'pause-abfrage' ? 'flex' : 'block') : 'none';
+  if (el) el.style.display = visible ? (id === 'pause-knoepfe' || id === 'pause-abfrage' ? 'flex' : 'block') : 'none';
 }
 
 // Knoepfe nur bei lokaler Pause (Single, Coop, Bot); online bleibt es beim Text
-function aktualisiereMenue() {
-  const lokal = state.pausiert && !state.pauseVon && !istOnlineModus();
-  if (!lokal) abfrageOffen = false;
-  zeigeEl('pause-menue', lokal);
-  zeigeEl('pause-knoepfe', lokal && !abfrageOffen);
-  zeigeEl('pause-abfrage', lokal && abfrageOffen);
-  zeigeEl('pause-abfrage-text', lokal && abfrageOffen);
+function updateMenu() {
+  const local = state.paused && !state.pauseFrom && !isOnlineMode();
+  if (!local) queryOpen = false;
+  showEl('pause-menue', local);
+  showEl('pause-knoepfe', local && !queryOpen);
+  showEl('pause-abfrage', local && queryOpen);
+  showEl('pause-abfrage-text', local && queryOpen);
 }
 
-export function istAbfrageOffen() {
-  return abfrageOffen;
+export function isQueryOpen() {
+  return queryOpen;
 }
 
-export function oeffneAbfrage() {
-  if (!state.pausiert || state.pauseVon || istOnlineModus()) return;
-  abfrageOffen = true;
-  aktualisiereMenue();
+export function openQuery() {
+  if (!state.paused || state.pauseFrom || isOnlineMode()) return;
+  queryOpen = true;
+  updateMenu();
 }
 
-export function schliesseAbfrage() {
-  abfrageOffen = false;
-  aktualisiereMenue();
+export function closeQuery() {
+  queryOpen = false;
+  updateMenu();
 }
 
 // Pause beenden (WEITER bzw. Taste P)
-export function weiter() {
-  schaltePause();
+export function resume() {
+  togglePause();
 }
 
 // Laufendes Spiel verwerfen und zurueck zum Startbildschirm (kein Highscore, kein Game-Over)
-export function beendeSpielZumHauptmenue() {
-  if (!state.pausiert || state.pauseVon || istOnlineModus()) return;
-  abfrageOffen = false;
+export function endGameToMainMenu() {
+  if (!state.paused || state.pauseFrom || isOnlineMode()) return;
+  queryOpen = false;
   Utils.restartGame();
-  aktualisiereMenue();
+  updateMenu();
 }
 
 // ESC waehrend der Pause: Abfrage oeffnen bzw. abbrechen. true = Taste verbraucht.
-export function behandleEscape() {
-  if (!state.pausiert || state.pauseVon || istOnlineModus()) return false;
-  if (abfrageOffen) schliesseAbfrage();
-  else oeffneAbfrage();
+export function handleEscape() {
+  if (!state.paused || state.pauseFrom || isOnlineMode()) return false;
+  if (queryOpen) closeQuery();
+  else openQuery();
   return true;
 }
 
-export function initPauseMenue() {
+export function initPauseMenu() {
   const bind = (id, fn) => {
     const el = document.getElementById(id);
     if (el) el.addEventListener('click', fn);
   };
-  bind('btn-pause-weiter', weiter);
-  bind('btn-pause-hauptmenue', oeffneAbfrage);
-  bind('btn-pause-ja', beendeSpielZumHauptmenue);
-  bind('btn-pause-abbrechen', schliesseAbfrage);
+  bind('btn-pause-weiter', resume);
+  bind('btn-pause-hauptmenue', openQuery);
+  bind('btn-pause-ja', endGameToMainMenu);
+  bind('btn-pause-abbrechen', closeQuery);
 }
 
-export function istOnlineModus() {
+export function isOnlineMode() {
   return state.gameMode === 'online' || Boolean(state.network && state.network.isOnline);
 }
 
 // Host = 'p1', Client = 'p2'
-export function meineRolle() {
+export function myRole() {
   return state.network && state.network.isClient ? 'p2' : 'p1';
 }
 
-export function istEigenePause() {
-  return Boolean(state.pausiert && state.pauseVon && state.pauseVon === meineRolle());
+export function isOwnPause() {
+  return Boolean(state.paused && state.pauseFrom && state.pauseFrom === myRole());
 }
 
-export function restzeitSekunden() {
-  if (!state.pauseVon) return 0;
-  return Math.max(0, Math.ceil((state.pauseEndeZeit - Date.now()) / 1000));
+export function remainingTimeSeconds() {
+  if (!state.pauseFrom) return 0;
+  return Math.max(0, Math.ceil((state.pauseEndTime - Date.now()) / 1000));
 }
 
-function formatiereZeit(sekunden) {
-  return Math.floor(sekunden / 60) + ':' + String(sekunden % 60).padStart(2, '0');
+function formatTime(seconds) {
+  return Math.floor(seconds / 60) + ':' + String(seconds % 60).padStart(2, '0');
 }
 
-function spielerName(rolle) {
-  return rolle === 'p2' ? 'Spieler 2' : 'Spieler 1';
+function playerName(roll) {
+  return roll === 'p2' ? 'Spieler 2' : 'Spieler 1';
 }
 
-export function aktualisierePauseAnzeige() {
+export function updatePauseDisplay() {
   const overlay = dom.pauseOverlay;
   if (!overlay) return;
-  if (!state.pausiert) {
+  if (!state.paused) {
     overlay.style.display = 'none';
-    aktualisiereMenue();
+    updateMenu();
     return;
   }
   overlay.style.display = 'block';
-  aktualisiereMenue();
-  const titel = document.getElementById('pause-titel');
+  updateMenu();
+  const title = document.getElementById('pause-titel');
   const info = document.getElementById('pause-info');
-  const hinweis = document.getElementById('pause-hinweis');
-  if (!state.pauseVon) {
+  const hint = document.getElementById('pause-hinweis');
+  if (!state.pauseFrom) {
     // Lokale Pause (Single, Coop, Bot) wie bisher
-    if (titel) titel.textContent = 'PAUSED';
+    if (title) title.textContent = 'PAUSED';
     if (info) info.textContent = '';
-    if (hinweis) hinweis.textContent = '';
+    if (hint) hint.textContent = '';
     return;
   }
-  if (titel) titel.textContent = 'PAUSE - ' + spielerName(state.pauseVon);
+  if (title) title.textContent = 'PAUSE - ' + playerName(state.pauseFrom);
   if (info) {
-    const fortsetzen = istEigenePause()
-      ? 'Mit P fortsetzen'
-      : 'Nur ' + spielerName(state.pauseVon) + ' kann fortsetzen';
-    info.textContent = formatiereZeit(restzeitSekunden()) + ' | ' + fortsetzen;
+    const resumeHint = isOwnPause() ? 'Mit P fortsetzen' : 'Nur ' + playerName(state.pauseFrom) + ' kann fortsetzen';
+    info.textContent = formatTime(remainingTimeSeconds()) + ' | ' + resumeHint;
   }
-  if (hinweis) {
-    hinweis.textContent =
-      Date.now() < hinweisBis ? 'Nur ' + spielerName(state.pauseVon) + ' kann die Pause beenden' : '';
+  if (hint) {
+    hint.textContent = Date.now() < hintUntil ? 'Nur ' + playerName(state.pauseFrom) + ' kann die Pause beenden' : '';
   }
 }
 
-export function startePause(von, dauerMs = PAUSE_MAX_MS) {
-  const dauer = Number.isFinite(dauerMs) ? Math.max(0, Math.min(dauerMs, PAUSE_MAX_MS)) : PAUSE_MAX_MS;
-  state.pausiert = true;
-  state.pauseVon = von === 'p2' ? 'p2' : 'p1';
-  state.pauseEndeZeit = Date.now() + dauer;
-  hinweisBis = 0;
-  aktualisierePauseAnzeige();
+export function startPause(fromEntry, durationMs = PAUSE_MAX_MS) {
+  const duration = Number.isFinite(durationMs) ? Math.max(0, Math.min(durationMs, PAUSE_MAX_MS)) : PAUSE_MAX_MS;
+  state.paused = true;
+  state.pauseFrom = fromEntry === 'p2' ? 'p2' : 'p1';
+  state.pauseEndTime = Date.now() + duration;
+  hintUntil = 0;
+  updatePauseDisplay();
 }
 
 // Mehrfaches Beenden ist unkritisch
-export function beendePause() {
-  state.pausiert = false;
-  state.pauseVon = null;
-  state.pauseEndeZeit = 0;
-  hinweisBis = 0;
-  abfrageOffen = false;
+export function endPause() {
+  state.paused = false;
+  state.pauseFrom = null;
+  state.pauseEndTime = 0;
+  hintUntil = 0;
+  queryOpen = false;
   if (dom.pauseOverlay) dom.pauseOverlay.style.display = 'none';
-  aktualisiereMenue();
+  updateMenu();
 }
 
 // Pro Simulationsschritt waehrend der Pause: Anzeige aktualisieren, bei Ablauf beenden.
 // Der Host meldet das Ende dem Client, der Client beendet bei Ablauf als Fallback lokal.
-export function pruefePause() {
-  if (!state.pausiert || !state.pauseVon) return;
-  if (Date.now() >= state.pauseEndeZeit) {
-    beendePause();
-    if (state.network && state.network.isHost) Network.sendNetworkEvent({ type: 'pause_ende' });
+export function checkPause() {
+  if (!state.paused || !state.pauseFrom) return;
+  if (Date.now() >= state.pauseEndTime) {
+    endPause();
+    if (state.network && state.network.isHost) Network.sendNetworkEvent({ type: 'pauseEnd' });
     return;
   }
-  aktualisierePauseAnzeige();
+  updatePauseDisplay();
 }
 
 // Taste P bzw. Pause-Button
-export function schaltePause(wiederholt = false) {
-  if (!state.spielLaeuft || state.gameOverAktiv) return;
-  if (!istOnlineModus()) {
-    state.pausiert = !state.pausiert;
-    state.pauseVon = null;
-    aktualisierePauseAnzeige();
+export function togglePause(repeated = false) {
+  if (!state.gameRunning || state.gameOverActive) return;
+  if (!isOnlineMode()) {
+    state.paused = !state.paused;
+    state.pauseFrom = null;
+    updatePauseDisplay();
     return;
   }
-  if (wiederholt) return;
-  if (!state.pausiert) {
-    const von = meineRolle();
-    startePause(von);
-    Network.sendNetworkEvent({ type: 'pause_start', von, dauerMs: PAUSE_MAX_MS });
-  } else if (istEigenePause()) {
-    beendePause();
-    Network.sendNetworkEvent({ type: 'pause_ende' });
+  if (repeated) return;
+  if (!state.paused) {
+    const fromEntry = myRole();
+    startPause(fromEntry);
+    Network.sendNetworkEvent({ type: 'pause_start', fromEntry, durationMs: PAUSE_MAX_MS });
+  } else if (isOwnPause()) {
+    endPause();
+    Network.sendNetworkEvent({ type: 'pauseEnd' });
   } else {
-    hinweisBis = Date.now() + HINWEIS_MS;
-    aktualisierePauseAnzeige();
+    hintUntil = Date.now() + HINT_MS;
+    updatePauseDisplay();
   }
 }
 
 // Netzwerk-Events beider Seiten
-export function verarbeitePauseEvent(data) {
+export function processPauseEvent(data) {
   if (data.type === 'pause_start') {
-    if (!state.spielLaeuft || state.gameOverAktiv) return;
+    if (!state.gameRunning || state.gameOverActive) return;
     // Pausieren beide gleichzeitig, gewinnt der Host
-    if (state.pausiert && state.pauseVon && state.network && state.network.isHost) return;
-    startePause(data.von, data.dauerMs);
-  } else if (data.type === 'pause_ende') {
-    beendePause();
+    if (state.paused && state.pauseFrom && state.network && state.network.isHost) return;
+    startPause(data.fromEntry, data.durationMs);
+  } else if (data.type === 'pauseEnd') {
+    endPause();
   }
 }

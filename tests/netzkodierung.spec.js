@@ -1,5 +1,5 @@
 const { test, expect } = require('@playwright/test');
-const { setzeSpielstand, installiereUhr, haltUhrAn } = require('./helfer');
+const { setGameState, installClock, pauseClock } = require('./helfer');
 
 // Netzkodierung im Online-Modus: Delta-Snapshots, Keyframes, Eingaben und Protokollversion
 
@@ -12,36 +12,36 @@ test.beforeEach(async ({ page }) => {
     }),
   );
   await page.route('**/api/turn*', route => route.fulfill({ status: 503, body: '' }));
-  await setzeSpielstand(page);
+  await setGameState(page);
   await page.goto('/');
   await page.waitForFunction(() => window.__game && window.__game.state);
 });
 
 const LISTEN_ARRAYS = [
-  'feinde',
-  'asteroiden',
+  'enemies',
+  'asteroids',
   'bosses',
   'powerups',
   'laserArray',
-  'raketenArray',
-  'bombenArray',
-  'feindLaserArray',
-  'hackProjektilArray',
+  'missileArray',
+  'bombArray',
+  'enemyLaserArray',
+  'hackProjectileArray',
   'bossLaserArray',
-  'bossRaketenArray',
-  'bossBombenArray',
+  'bossMissileArray',
+  'bossBombArray',
 ];
 
 // Host-Spiel im Online-Modus herstellen (ohne echte Verbindung)
-async function alsHost(page) {
+async function asHost(page) {
   await page.evaluate(LISTEN_ARRAYS => {
     const { state, arrays, Utils } = window.__game;
     Utils.setGameMode('online');
-    state.spielLaeuft = true;
-    state.pausiert = false;
-    state.cutsceneAktiv = false;
-    state.gameOverAktiv = false;
-    state.bossWarningAktiv = false;
+    state.gameRunning = true;
+    state.paused = false;
+    state.cutsceneActive = false;
+    state.gameOverActive = false;
+    state.bossWarningActive = false;
     state.network.isOnline = true;
     state.network.isHost = true;
     state.network.isClient = false;
@@ -56,283 +56,283 @@ async function alsHost(page) {
 }
 
 test('Carry-over: Splitter-Zaehler und Phantom-Schildladung kommen beim Online-Client an', async ({ page }) => {
-  await alsHost(page);
+  await asHost(page);
   const r = await page.evaluate(() => {
     const g = window.__game;
     const { state } = g;
     // Host-Zustand
     state.selectedShipModel = 'viper';
     state.p2.selectedShipModel = 'phantom';
-    state.splitterRot = 3;
-    state.splitterWeiss = 7;
-    state.p2.splitterRot = 2;
-    state.p2.splitterWeiss = 5;
-    state.p2.schildStufe = 0;
-    state.p2.phantomSchildRegenTimer = 450;
-    state.p2.phantomSchildRegenMax = 900;
+    state.splitterRed = 3;
+    state.splitterWhite = 7;
+    state.p2.splitterRed = 2;
+    state.p2.splitterWhite = 5;
+    state.p2.shieldTier = 0;
+    state.p2.phantomShieldRegenTimer = 450;
+    state.p2.phantomShieldRegenMax = 900;
     const snapshot = JSON.parse(JSON.stringify(g.Network.serializeGameState()));
 
     // Client-Zustand vor dem Snapshot
-    state.splitterRot = 0;
-    state.splitterWeiss = 0;
-    state.p2.splitterRot = 0;
-    state.p2.splitterWeiss = 0;
-    state.p2.phantomSchildRegenTimer = 0;
+    state.splitterRed = 0;
+    state.splitterWhite = 0;
+    state.p2.splitterRed = 0;
+    state.p2.splitterWhite = 0;
+    state.p2.phantomShieldRegenTimer = 0;
     state.network.isHost = false;
     state.network.isClient = true;
     g.Network.applyGameStateSnapshot(snapshot);
     return {
-      p1: [state.splitterRot, state.splitterWeiss],
-      p2: [state.p2.splitterRot, state.p2.splitterWeiss],
-      regen: state.p2.phantomSchildRegenTimer,
+      p1: [state.splitterRed, state.splitterWhite],
+      p2: [state.p2.splitterRed, state.p2.splitterWhite],
+      regen: state.p2.phantomShieldRegenTimer,
       hudRot: document.getElementById('splitter-rot-count').textContent,
-      hudWeiss: document.getElementById('splitter-weiss-count').textContent,
-      ladeIcon: Boolean(document.querySelector('#aktive-powerups-p2 .pu-recharging-shield')),
+      hudWhite: document.getElementById('splitter-weiss-count').textContent,
+      chargingIcon: Boolean(document.querySelector('#aktive-powerups-p2 .pu-recharging-shield')),
     };
   });
-  expect(r).toEqual({ p1: [3, 7], p2: [2, 5], regen: 450, hudRot: '3', hudWeiss: '7', ladeIcon: true });
+  expect(r).toEqual({ p1: [3, 7], p2: [2, 5], regen: 450, hudRot: '3', hudWhite: '7', chargingIcon: true });
 });
 
 test('Carry-over: Host sendet auch waehrend der Boss-Warnung Snapshots', async ({ page }) => {
-  await alsHost(page);
+  await asHost(page);
   const r = await page.evaluate(async () => {
     const g = window.__game;
     const { state } = g;
-    const { simulationsSchritt } = await import('./js/loop.js');
+    const { simulationStep } = await import('./js/loop.js');
     state.godMode = true;
-    state.frameZaehler = 100;
-    state.bossWarningAktiv = true;
+    state.frameCounter = 100;
+    state.bossWarningActive = true;
     state.bossWarningTimer = 120;
     g.dom.warningOverlay.style.display = 'flex';
-    const vorher = state.network.snapshotPakete || 0;
-    for (let i = 0; i < 119; i++) simulationsSchritt();
-    const waehrend = (state.network.snapshotPakete || 0) - vorher;
-    const nochWarnung = state.bossWarningAktiv;
-    simulationsSchritt();
-    return { waehrend, nochWarnung, danach: state.bossWarningAktiv };
+    const beforehand = state.network.snapshotPackets || 0;
+    for (let i = 0; i < 119; i++) simulationStep();
+    const during = (state.network.snapshotPackets || 0) - beforehand;
+    const stillWarning = state.bossWarningActive;
+    simulationStep();
+    return { during, stillWarning, thereafter: state.bossWarningActive };
   });
-  expect(r.nochWarnung).toBe(true);
-  expect(r.danach).toBe(false);
-  expect(r.waehrend).toBeGreaterThanOrEqual(55);
+  expect(r.stillWarning).toBe(true);
+  expect(r.thereafter).toBe(false);
+  expect(r.during).toBeGreaterThanOrEqual(55);
 });
 
 // Echtes Host-Spiel (Coop mit Bot, Level 6, alle Waffen, Boss-Kampf) ueber simulationsSchritt laufen
 // lassen und jeden 2. Schritt kodieren und dekodieren. verlust: Laufnummern, die nicht ankommen.
-async function laufeSzenario(page, { schritte, verlust }) {
+async function runScenario(page, { steps, loss }) {
   return page.evaluate(
-    async ({ schritte, verlust }) => {
+    async ({ steps, loss }) => {
       const g = window.__game;
       const { state, arrays } = g;
       const NK = await import('./js/netzkodierung.js');
-      const { simulationsSchritt } = await import('./js/loop.js');
+      const { simulationStep } = await import('./js/loop.js');
 
       g.Utils.setGameMode('coop');
       state.p2IsBot = true;
       g.Cutscene.startCutscene();
       state.godMode = true;
       state.level = 6;
-      state.laserStufe = 4;
-      state.raketenStufe = 3;
-      state.bombenStufe = 2;
-      state.p2.laserStufe = 4;
-      state.p2.raketenStufe = 3;
-      state.p2.bombenStufe = 2;
-      state.frameZaehler = 3400; // Boss-Warnung nach 200 Schritten, danach Boss-Kampf
+      state.laserTier = 4;
+      state.missileTier = 3;
+      state.bombTier = 2;
+      state.p2.laserTier = 4;
+      state.p2.missileTier = 3;
+      state.p2.bombTier = 2;
+      state.frameCounter = 3400; // Boss-Warnung nach 200 Schritten, danach Boss-Kampf
 
-      const kodierer = new NK.SnapshotKodierer();
-      const dekodierer = new NK.SnapshotDekodierer();
-      const verloren = new Set(verlust || []);
-      const fehler = [];
+      const encoder = new NK.SnapshotEncoder();
+      const decoder = new NK.SnapshotDecoder();
+      const lost = new Set(loss || []);
+      const error = [];
       const stat = {
-        voll: [],
-        paket: [],
+        full: [],
+        packet: [],
         keyframes: 0,
-        nullNachVerlust: 0,
-        angewendet: 0,
+        nullAfterLoss: 0,
+        applied: 0,
         maxListen: {},
-        geschleppt: 0,
-        bossSchritte: 0,
+        towed: 0,
+        bossSteps: 0,
       };
 
       // x/y in Listen duerfen per Dead Reckoning bis 0,5 px abweichen, alles andere exakt
-      function vergleiche(soll, ist, pfad, inListe) {
-        if (fehler.length > 20) return;
-        if (typeof soll === 'number' && typeof ist === 'number' && inListe && /\.(x|y)$/.test(pfad)) {
-          if (Math.abs(soll - ist) > 0.5 + 1e-9) fehler.push(pfad + ': ' + soll + ' != ' + ist);
+      function compare(should, is, filePath, inList) {
+        if (error.length > 20) return;
+        if (typeof should === 'number' && typeof is === 'number' && inList && /\.(x|y)$/.test(filePath)) {
+          if (Math.abs(should - is) > 0.5 + 1e-9) error.push(filePath + ': ' + should + ' != ' + is);
           return;
         }
-        if (soll === null || ist === null || typeof soll !== 'object' || typeof ist !== 'object') {
-          if (soll !== ist) fehler.push(pfad + ': ' + JSON.stringify(soll) + ' != ' + JSON.stringify(ist));
+        if (should === null || is === null || typeof should !== 'object' || typeof is !== 'object') {
+          if (should !== is) error.push(filePath + ': ' + JSON.stringify(should) + ' != ' + JSON.stringify(is));
           return;
         }
-        if (Array.isArray(soll) !== Array.isArray(ist)) {
-          fehler.push(pfad + ': Typ');
+        if (Array.isArray(should) !== Array.isArray(is)) {
+          error.push(filePath + ': Typ');
           return;
         }
-        const schluessel = new Set([...Object.keys(soll), ...Object.keys(ist)]);
-        for (const k of schluessel) {
-          const liste = inListe || (pfad === '' && NK.LISTEN.includes(k));
-          vergleiche(soll[k], ist[k], pfad + '.' + k, liste);
+        const key = new Set([...Object.keys(should), ...Object.keys(is)]);
+        for (const k of key) {
+          const list = inList || (filePath === '' && NK.LISTEN.includes(k));
+          compare(should[k], is[k], filePath + '.' + k, list);
         }
       }
 
-      let wartetAufKeyframe = false;
-      for (let i = 1; i <= schritte; i++) {
-        const keys = state.tastenGedrueckt;
+      let waitsOnKeyframe = false;
+      for (let i = 1; i <= steps; i++) {
+        const keys = state.keysPressed;
         keys.l = true;
         keys.k = i % 90 < 45;
         keys[' '] = i % 250 === 0;
         keys.a = i % 80 < 40;
         keys.d = !keys.a;
-        if (i % 45 === 0) g.Entities.erzeugeFeind(80 + ((i * 7) % 400), 20, i % 90 === 0 ? 'hacker' : 'normal');
-        if (i % 30 === 0) g.Entities.erzeugeAsteroid();
-        if (i % 70 === 0) g.Entities.erzeugePowerup(state.x, state.y, 'energie', 'p2'); // wird von P1 geschleppt
-        if (i % 110 === 0) g.Entities.erzeugePowerup(200, 40);
+        if (i % 45 === 0) g.Entities.createEnemy(80 + ((i * 7) % 400), 20, i % 90 === 0 ? 'hacker' : 'normal');
+        if (i % 30 === 0) g.Entities.createAsteroid();
+        if (i % 70 === 0) g.Entities.createPowerup(state.x, state.y, 'energy', 'p2'); // wird von P1 geschleppt
+        if (i % 110 === 0) g.Entities.createPowerup(200, 40);
         if (i % 60 === 0) {
-          g.Entities.erzeugeBossRakete(150 + (i % 300), 120, 1);
-          g.Entities.erzeugeBossBombe(250, 100);
+          g.Entities.createBossMissile(150 + (i % 300), 120, 1);
+          g.Entities.createBossBomb(250, 100);
         }
         if (i % 50 === 0) {
-          g.Entities.erzeugeHackProjektil(130, 210, 300, 400);
-          g.Entities.erzeugeBossLaser(140, 220, 2, 6);
-          g.Entities.erzeugeFeindLaser(120, 200, 300, 400);
+          g.Entities.createHackProjectile(130, 210, 300, 400);
+          g.Entities.createBossLaser(140, 220, 2, 6);
+          g.Entities.createEnemyLaser(120, 200, 300, 400);
         }
-        simulationsSchritt();
-        if (arrays.powerups.some(p => p.towedBy)) stat.geschleppt++;
-        if (arrays.bosses.length) stat.bossSchritte++;
+        simulationStep();
+        if (arrays.powerups.some(p => p.towedBy)) stat.towed++;
+        if (arrays.bosses.length) stat.bossSteps++;
 
         if (i % 2 !== 0) continue;
-        const voll = JSON.parse(JSON.stringify(g.Network.serializeGameState()));
-        const paket = kodierer.kodiere(voll, i);
-        const text = JSON.stringify(paket);
-        stat.voll.push(JSON.stringify(voll).length);
-        stat.paket.push(text.length);
-        if (paket.k) stat.keyframes++;
+        const full = JSON.parse(JSON.stringify(g.Network.serializeGameState()));
+        const packet = encoder.encode(full, i);
+        const text = JSON.stringify(packet);
+        stat.full.push(JSON.stringify(full).length);
+        stat.packet.push(text.length);
+        if (packet.k) stat.keyframes++;
         NK.LISTEN.forEach(n => {
-          stat.maxListen[n] = Math.max(stat.maxListen[n] || 0, voll[n].length);
+          stat.maxListen[n] = Math.max(stat.maxListen[n] || 0, full[n].length);
         });
-        if (verloren.has(paket.n)) {
-          wartetAufKeyframe = true;
+        if (lost.has(packet.n)) {
+          waitsOnKeyframe = true;
           continue;
         }
-        const rekon = dekodierer.dekodiere(JSON.parse(text));
-        if (paket.k) wartetAufKeyframe = false;
-        if (wartetAufKeyframe) {
-          if (rekon !== null) fehler.push('Paket ' + paket.n + ' nach Verlust angewendet');
-          stat.nullNachVerlust++;
+        const recon = decoder.decode(JSON.parse(text));
+        if (packet.k) waitsOnKeyframe = false;
+        if (waitsOnKeyframe) {
+          if (recon !== null) error.push('Paket ' + packet.n + ' nach Verlust angewendet');
+          stat.nullAfterLoss++;
           continue;
         }
-        if (!rekon) {
-          fehler.push('Paket ' + paket.n + ' nicht dekodiert');
+        if (!recon) {
+          error.push('Paket ' + packet.n + ' nicht dekodiert');
           continue;
         }
-        stat.angewendet++;
-        vergleiche(NK.rundeSnapshot(voll), rekon, '', false);
+        stat.applied++;
+        compare(NK.roundSnapshot(full), recon, '', false);
       }
-      const summe = a => a.reduce((s, v) => s + v, 0);
+      const sum = a => a.reduce((s, v) => s + v, 0);
       return {
-        fehler,
+        error,
         keyframes: stat.keyframes,
-        angewendet: stat.angewendet,
-        nullNachVerlust: stat.nullNachVerlust,
+        applied: stat.applied,
+        nullAfterLoss: stat.nullAfterLoss,
         maxListen: stat.maxListen,
-        geschleppt: stat.geschleppt,
-        bossSchritte: stat.bossSchritte,
-        vollSchnitt: Math.round(summe(stat.voll) / stat.voll.length),
-        vollMax: Math.max(...stat.voll),
-        paketSchnitt: Math.round(summe(stat.paket) / stat.paket.length),
-        paketMax: Math.max(...stat.paket),
-        pakete: stat.paket.length,
+        towed: stat.towed,
+        bossSteps: stat.bossSteps,
+        fullCut: Math.round(sum(stat.full) / stat.full.length),
+        fullMax: Math.max(...stat.full),
+        packetCut: Math.round(sum(stat.packet) / stat.packet.length),
+        packetMax: Math.max(...stat.packet),
+        packets: stat.packet.length,
       };
     },
-    { schritte, verlust },
+    { steps, loss },
   );
 }
 
 test('Netzkodierung: Rekonstruktion entspricht dem gerundeten vollen Snapshot (600 Schritte, Boss-Kampf)', async ({
   page,
 }) => {
-  const r = await laufeSzenario(page, { schritte: 600 });
+  const r = await runScenario(page, { steps: 600 });
   console.log(
-    `Snapshot voll: Schnitt ${r.vollSchnitt} B, max ${r.vollMax} B | kodiert: Schnitt ${r.paketSchnitt} B, max ${r.paketMax} B | ` +
-      `${Math.round((r.paketSchnitt / r.vollSchnitt) * 100)} % | Pakete ${r.pakete}, Keyframes ${r.keyframes} | max. Listen ${JSON.stringify(r.maxListen)} | ` +
-      `geschleppt ${r.geschleppt} Schritte, Boss ${r.bossSchritte} Schritte`,
+    `Snapshot voll: Schnitt ${r.fullCut} B, max ${r.fullMax} B | kodiert: Schnitt ${r.packetCut} B, max ${r.packetMax} B | ` +
+      `${Math.round((r.packetCut / r.fullCut) * 100)} % | Pakete ${r.packets}, Keyframes ${r.keyframes} | max. Listen ${JSON.stringify(r.maxListen)} | ` +
+      `geschleppt ${r.towed} Schritte, Boss ${r.bossSteps} Schritte`,
   );
-  expect(r.fehler).toEqual([]);
-  expect(r.angewendet).toBe(300);
+  expect(r.error).toEqual([]);
+  expect(r.applied).toBe(300);
   expect(r.keyframes).toBe(10);
   // Szenario deckt die wichtigen Listen ab
-  expect(r.bossSchritte).toBeGreaterThan(100);
-  expect(r.geschleppt).toBeGreaterThan(0);
-  for (const liste of [
-    'feinde',
-    'asteroiden',
+  expect(r.bossSteps).toBeGreaterThan(100);
+  expect(r.towed).toBeGreaterThan(0);
+  for (const list of [
+    'enemies',
+    'asteroids',
     'bosses',
     'laser',
-    'raketen',
-    'bomben',
-    'hackProjektile',
-    'feindLaser',
+    'missiles',
+    'bombs',
+    'hackProjectiles',
+    'enemyLaser',
     'bossLaser',
-    'bossRaketen',
-    'bossBomben',
+    'bossMissiles',
+    'bossBombs',
     'powerups',
   ]) {
-    expect(r.maxListen[liste], liste).toBeGreaterThan(0);
+    expect(r.maxListen[list], list).toBeGreaterThan(0);
   }
   // Groessen-Waechter: kodiert hoechstens 35 % des vollen Snapshots
-  expect(r.paketSchnitt).toBeLessThanOrEqual(r.vollSchnitt * 0.35);
+  expect(r.packetCut).toBeLessThanOrEqual(r.fullCut * 0.35);
 });
 
 test('Netzkodierung: nach Paketverlust wartet der Client auf den naechsten Keyframe und ist dann wieder exakt', async ({
   page,
 }) => {
-  const r = await laufeSzenario(page, { schritte: 300, verlust: [5, 40, 41, 75, 89] });
-  expect(r.fehler).toEqual([]);
+  const r = await runScenario(page, { steps: 300, loss: [5, 40, 41, 75, 89] });
+  expect(r.error).toEqual([]);
   // Verlust bei 5 -> 6..30 verworfen, 31 Keyframe; 40/41 -> 42..60; 75 -> 76..90 (89 verloren) -> 91 Keyframe
   expect(r.keyframes).toBe(5);
-  expect(r.nullNachVerlust).toBe(25 + 19 + 14);
-  expect(r.angewendet).toBe(150 - 5 - 25 - 19 - 14);
+  expect(r.nullAfterLoss).toBe(25 + 19 + 14);
+  expect(r.applied).toBe(150 - 5 - 25 - 19 - 14);
 });
 
 test('Netzkodierung: Ids, Rundung und Dead Reckoning im Detail', async ({ page }) => {
   const r = await page.evaluate(async () => {
     const NK = await import('./js/netzkodierung.js');
-    const leer = {
-      feinde: [],
-      asteroiden: [],
+    const empty = {
+      enemies: [],
+      asteroids: [],
       bosses: [],
       laser: [],
-      raketen: [],
-      bomben: [],
-      hackProjektile: [],
-      feindLaser: [],
+      missiles: [],
+      bombs: [],
+      hackProjectiles: [],
+      enemyLaser: [],
       bossLaser: [],
-      bossRaketen: [],
-      bossBomben: [],
+      bossMissiles: [],
+      bossBombs: [],
       powerups: [],
     };
     const snap = (laser, extra) =>
       Object.assign(
         {},
-        leer,
-        { p1: { x: 1.26, hacks: [] }, p2: null, score: 0, level: 1, bossAktiv: false, laser },
+        empty,
+        { p1: { x: 1.26, hacks: [] }, p2: null, score: 0, level: 1, bossActive: false, laser },
         extra || {},
       );
-    const k = new NK.SnapshotKodierer();
-    const d = new NK.SnapshotDekodierer();
+    const k = new NK.SnapshotEncoder();
+    const d = new NK.SnapshotDecoder();
     const out = {};
-    const rund = (s, t) => {
-      const p = k.kodiere(s, t);
-      return { p, r: d.dekodiere(JSON.parse(JSON.stringify(p))) };
+    const round = (s, t) => {
+      const p = k.encode(s, t);
+      return { p, r: d.decode(JSON.parse(JSON.stringify(p))) };
     };
 
     // Ohne Keyframe nimmt der Dekodierer keine Deltas an
-    const fremd = new NK.SnapshotKodierer();
-    fremd.kodiere(snap([]), 0);
-    out.ohneKeyframe = new NK.SnapshotDekodierer().dekodiere(JSON.parse(JSON.stringify(fremd.kodiere(snap([]), 2))));
+    const foreign = new NK.SnapshotEncoder();
+    foreign.encode(snap([]), 0);
+    out.withoutKeyframe = new NK.SnapshotDecoder().decode(JSON.parse(JSON.stringify(foreign.encode(snap([]), 2))));
 
-    const a = rund(
+    const a = round(
       snap([
         { id: 'l_404', x: 100.04, y: 500.123456, vx: 2, vy: 15, owner: 'p2', color: 'x' },
         { id: 'sonder_7', x: 5, y: 500.1, vx: 0, vy: 15 },
@@ -345,7 +345,7 @@ test('Netzkodierung: Ids, Rundung und Dead Reckoning im Detail', async ({ page }
     out.x = a.r.laser[0].x;
     out.p1x = a.r.p1.x;
     // 4 Schritte spaeter genau auf der vorhergesagten Bahn (Spielerlaser: y -= vy): kein x/y im Paket
-    const b = rund(
+    const b = round(
       snap([
         { id: 'l_404', x: 108, y: 440.1, vx: 2, vy: 15, owner: 'p2', color: 'x' },
         { id: 'sonder_7', x: 5, y: 440.3, vx: 0, vy: 15 },
@@ -353,23 +353,23 @@ test('Netzkodierung: Ids, Rundung und Dead Reckoning im Detail', async ({ page }
       4,
     );
     out.deltaB = b.p.l && b.p.l.laser;
-    out.rekonB = b.r.laser.map(l => [l.x, l.y]);
+    out.reconB = b.r.laser.map(l => [l.x, l.y]);
     // Abgelenkt (vx geaendert, Position weicht ab): x wird gesendet
-    const c = rund(
-      snap([{ id: 'l_404', x: 100, y: 410.1, vx: -3, vy: 15, owner: 'p2', color: 'x' }], { bossWarningAktiv: true }),
+    const c = round(
+      snap([{ id: 'l_404', x: 100, y: 410.1, vx: -3, vy: 15, owner: 'p2', color: 'x' }], { bossWarningActive: true }),
       6,
     );
     out.deltaC = c.p.l.laser;
-    out.obenC = c.p.o;
-    out.rekonC = c.r.laser;
-    out.warnungC = c.r.bossWarningAktiv;
+    out.topC = c.p.o;
+    out.reconC = c.r.laser;
+    out.warningC = c.r.bossWarningActive;
     // Optionales Feld verschwindet wieder
-    const e = rund(snap([], {}), 8);
-    out.obenE = e.p.o;
-    out.warnungE = 'bossWarningAktiv' in e.r;
+    const e = round(snap([], {}), 8);
+    out.topE = e.p.o;
+    out.warningE = 'bossWarningActive' in e.r;
     return out;
   });
-  expect(r.ohneKeyframe).toBeNull();
+  expect(r.withoutKeyframe).toBeNull();
   expect(r.keyframe).toBe(1);
   expect(r.ids).toEqual(['l_404', 'sonder_7']);
   expect(r.idCodes).toEqual([404, 'sonder_7']);
@@ -377,29 +377,29 @@ test('Netzkodierung: Ids, Rundung und Dead Reckoning im Detail', async ({ page }
   expect(r.p1x).toBe(1.3);
   expect(r.deltaB).toBeUndefined();
   // sonder_7 weicht 0,2 px ab und bleibt auf der Vorhersage
-  expect(r.rekonB).toEqual([
+  expect(r.reconB).toEqual([
     [108, 440.1],
     [5, 440.1],
   ]);
   expect(r.deltaC).toEqual({ i: [404], d: [{ x: 100, vx: -3 }] });
-  expect(r.obenC).toEqual({ bossWarningAktiv: true });
-  expect(r.rekonC).toEqual([{ id: 'l_404', x: 100, y: 410.1, vx: -3, vy: 15, owner: 'p2', color: 'x' }]);
-  expect(r.warnungC).toBe(true);
-  expect(r.obenE).toEqual({ _d: ['bossWarningAktiv'] });
-  expect(r.warnungE).toBe(false);
+  expect(r.topC).toEqual({ bossWarningActive: true });
+  expect(r.reconC).toEqual([{ id: 'l_404', x: 100, y: 410.1, vx: -3, vy: 15, owner: 'p2', color: 'x' }]);
+  expect(r.warningC).toBe(true);
+  expect(r.topE).toEqual({ _d: ['bossWarningActive'] });
+  expect(r.warningE).toBe(false);
 });
 
 // Client-Modus herstellen (ohne echte Verbindung)
-async function alsClient(page) {
+async function asClient(page) {
   await page.evaluate(LISTEN_ARRAYS => {
     const { state, arrays, Utils } = window.__game;
     Utils.setGameMode('online');
-    Utils.wendeSpielfeldBreiteAn('online'); // Spielstart: erst jetzt gilt die Online-Breite (600 px)
-    state.spielLaeuft = true;
-    state.pausiert = false;
-    state.cutsceneAktiv = false;
-    state.gameOverAktiv = false;
-    state.bossWarningAktiv = false;
+    Utils.applyPlayfieldWidth('online'); // Spielstart: erst jetzt gilt die Online-Breite (600 px)
+    state.gameRunning = true;
+    state.paused = false;
+    state.cutsceneActive = false;
+    state.gameOverActive = false;
+    state.bossWarningActive = false;
     state.network.isOnline = true;
     state.network.isHost = false;
     state.network.isClient = true;
@@ -413,22 +413,22 @@ async function alsClient(page) {
     window.__snapshot = extra =>
       Object.assign(
         {
-          p1: { x: 200, y: 400, rotate: 0, leben: 3, energie: 50, maxEnergie: 50, isDead: false, hacks: [] },
-          p2: { x: 350, y: 400, rotate: 0, leben: 3, energie: 50, maxEnergie: 50, isDead: false, hacks: [] },
+          p1: { x: 200, y: 400, rotate: 0, lives: 3, energy: 50, maxEnergy: 50, isDead: false, hacks: [] },
+          p2: { x: 350, y: 400, rotate: 0, lives: 3, energy: 50, maxEnergy: 50, isDead: false, hacks: [] },
           score: 0,
           level: 1,
-          bossAktiv: false,
-          feinde: [],
-          asteroiden: [],
+          bossActive: false,
+          enemies: [],
+          asteroids: [],
           bosses: [],
           laser: [],
-          raketen: [],
-          bomben: [],
-          hackProjektile: [],
-          feindLaser: [],
+          missiles: [],
+          bombs: [],
+          hackProjectiles: [],
+          enemyLaser: [],
           bossLaser: [],
-          bossRaketen: [],
-          bossBomben: [],
+          bossMissiles: [],
+          bossBombs: [],
           powerups: [],
         },
         extra || {},
@@ -437,175 +437,175 @@ async function alsClient(page) {
 }
 
 test('Eingaben: gehaltene Raketen- und Bombentaste feuern auf dem Host genau wie bisher', async ({ page }) => {
-  await alsHost(page);
+  await asHost(page);
   const r = await page.evaluate(async () => {
     const g = window.__game;
     const { state, arrays } = g;
     const NK = await import('./js/netzkodierung.js');
-    const { simulationsSchritt } = await import('./js/loop.js');
+    const { simulationStep } = await import('./js/loop.js');
     state.godMode = true;
     // Lange halten, loslassen, kurz tippen (1 Schritt), erneut halten
-    const muster = i => ({
-      rakete: (i >= 10 && i < 400) || i === 470 || (i >= 520 && i < 560),
-      bombe: (i >= 5 && i < 120) || i === 300 || (i >= 400 && i < 410),
+    const pattern = i => ({
+      missile: (i >= 10 && i < 400) || i === 470 || (i >= 520 && i < 560),
+      bomb: (i >= 5 && i < 120) || i === 300 || (i >= 400 && i < 410),
     });
-    function lauf(neu) {
-      ['laserArray', 'raketenArray', 'bombenArray', 'feinde', 'asteroiden'].forEach(n => {
+    function run(fresh) {
+      ['laserArray', 'missileArray', 'bombArray', 'enemies', 'asteroids'].forEach(n => {
         arrays[n].forEach(o => {
           if (o.el) o.el.remove();
         });
         arrays[n].length = 0;
       });
       Object.assign(state.p2, {
-        raketenCooldown: 0,
-        bombenCooldown: 0,
-        networkFireRakete: false,
-        networkFireBombe: false,
-        raketeGehalten: false,
-        bombeGehalten: false,
+        missileCooldown: 0,
+        bombCooldown: 0,
+        networkFireMissile: false,
+        networkFireBomb: false,
+        missileHeld: false,
+        bombHeld: false,
         laserInputRequested: false,
         isDead: false,
-        raketenStufe: 1,
-        bombenStufe: 1,
+        missileTier: 1,
+        bombTier: 1,
         hacks: [],
       });
-      state.frameZaehler = 10;
-      const sender = new NK.EingabeSender();
-      let raketen = 0,
-        bomben = 0,
-        pakete = 0;
+      state.frameCounter = 10;
+      const sender = new NK.InputSender();
+      let missiles = 0,
+        bombs = 0,
+        packets = 0;
       for (let i = 0; i < 700; i++) {
-        const m = muster(i);
-        const eingabe = { x: 370, y: 400, rotate: 0, laser: false, rakete: m.rakete, bombe: m.bombe };
-        if (neu) {
-          const p = sender.naechstes(eingabe);
+        const m = pattern(i);
+        const input = { x: 370, y: 400, rotate: 0, laser: false, missile: m.missile, bomb: m.bomb };
+        if (fresh) {
+          const p = sender.next(input);
           if (p) {
-            pakete++;
-            g.Network.empfangeEingabePaket(JSON.parse(JSON.stringify(p)));
+            packets++;
+            g.Network.receiveInputPacket(JSON.parse(JSON.stringify(p)));
           }
         } else {
           // Bisher: jedes Client-Bild ein volles Paket
-          pakete++;
-          g.Network.applyPlayerInput(eingabe);
+          packets++;
+          g.Network.applyPlayerInput(input);
         }
         state.p2.invulnerableTimer = 1000;
-        const rcd = state.p2.raketenCooldown;
-        const bcd = state.p2.bombenCooldown;
-        simulationsSchritt();
-        if (state.p2.raketenCooldown > rcd) raketen++;
-        if (state.p2.bombenCooldown > bcd) bomben++;
+        const rcd = state.p2.missileCooldown;
+        const bcd = state.p2.bombCooldown;
+        simulationStep();
+        if (state.p2.missileCooldown > rcd) missiles++;
+        if (state.p2.bombCooldown > bcd) bombs++;
         // Kurze Bomben-Abklingzeit, damit Halten mehrfach zaehlt (in beiden Laeufen gleich)
-        if (state.p2.bombenCooldown > 50) state.p2.bombenCooldown = 50;
-        arrays.asteroiden.forEach(o => o.el && o.el.remove());
-        arrays.asteroiden.length = 0;
-        arrays.feinde.forEach(o => o.el && o.el.remove());
-        arrays.feinde.length = 0;
+        if (state.p2.bombCooldown > 50) state.p2.bombCooldown = 50;
+        arrays.asteroids.forEach(o => o.el && o.el.remove());
+        arrays.asteroids.length = 0;
+        arrays.enemies.forEach(o => o.el && o.el.remove());
+        arrays.enemies.length = 0;
       }
-      return { raketen, bomben, pakete };
+      return { missiles, bombs, packets };
     }
-    return { alt: lauf(false), neu: lauf(true), online: state.network.isOnline };
+    return { old: run(false), fresh: run(true), online: state.network.isOnline };
   });
   console.log(
-    `Eingabe-Pakete in 700 Schritten: bisher ${r.alt.pakete}, neu ${r.neu.pakete} | Raketen ${r.alt.raketen}/${r.neu.raketen}, Bomben ${r.alt.bomben}/${r.neu.bomben}`,
+    `Eingabe-Pakete in 700 Schritten: bisher ${r.old.packets}, neu ${r.fresh.packets} | Raketen ${r.old.missiles}/${r.fresh.missiles}, Bomben ${r.old.bombs}/${r.fresh.bombs}`,
   );
   expect(r.online).toBe(true);
-  expect(r.alt.raketen).toBeGreaterThanOrEqual(4);
-  expect(r.alt.bomben).toBeGreaterThanOrEqual(4);
-  expect(r.neu.raketen).toBe(r.alt.raketen);
-  expect(r.neu.bomben).toBe(r.alt.bomben);
-  expect(r.neu.pakete).toBeLessThan(r.alt.pakete / 10);
+  expect(r.old.missiles).toBeGreaterThanOrEqual(4);
+  expect(r.old.bombs).toBeGreaterThanOrEqual(4);
+  expect(r.fresh.missiles).toBe(r.old.missiles);
+  expect(r.fresh.bombs).toBe(r.old.bombs);
+  expect(r.fresh.packets).toBeLessThan(r.old.packets / 10);
 });
 
 test('Eingaben: Client sendet nur bei Tastenwechsel sofort, Bewegung jeden 2. Schritt, sonst Heartbeat', async ({
   page,
 }) => {
-  await alsClient(page);
+  await asClient(page);
   const r = await page.evaluate(async () => {
     const g = window.__game;
     const { state } = g;
-    const { simulationsSchritt } = await import('./js/loop.js');
-    const keys = state.tastenGedrueckt;
+    const { simulationStep } = await import('./js/loop.js');
+    const keys = state.keysPressed;
     Object.keys(keys).forEach(k => {
       keys[k] = false;
     });
-    const zaehle = n => {
-      const vorher = state.network.eingabePakete || 0;
-      for (let i = 0; i < n; i++) simulationsSchritt();
-      return (state.network.eingabePakete || 0) - vorher;
+    const tally = n => {
+      const beforehand = state.network.inputPackets || 0;
+      for (let i = 0; i < n; i++) simulationStep();
+      return (state.network.inputPackets || 0) - beforehand;
     };
     const out = {};
-    zaehle(1);
-    out.ruhe90 = zaehle(90);
+    tally(1);
+    out.rest90 = tally(90);
     keys.k = true;
-    out.druck = zaehle(1);
-    out.druckWert = state.network.lastSentInput.rakete;
-    out.halten = zaehle(10);
+    out.pressure = tally(1);
+    out.pressureValue = state.network.lastSentInput.missile;
+    out.hold = tally(10);
     keys.k = false;
-    out.loslassen = zaehle(1);
-    out.loslassenWert = state.network.lastSentInput.rakete;
+    out.release = tally(1);
+    out.releaseValue = state.network.lastSentInput.missile;
     keys.d = true;
-    out.bewegung20 = zaehle(20);
-    out.xGerundet = state.network.lastSentInput.x === Math.round(state.network.lastSentInput.x * 10) / 10;
-    const { PROTOKOLL_VERSION } = await import('./js/netzkodierung.js');
-    out.versionPasst = state.network.lastSentInput.v === PROTOKOLL_VERSION;
+    out.movement20 = tally(20);
+    out.xRounded = state.network.lastSentInput.x === Math.round(state.network.lastSentInput.x * 10) / 10;
+    const { PROTOCOL_VERSION } = await import('./js/netzkodierung.js');
+    out.versionFits = state.network.lastSentInput.v === PROTOCOL_VERSION;
     keys.d = false;
     return out;
   });
   expect(r).toEqual({
-    ruhe90: 3,
-    druck: 1,
-    druckWert: true,
-    halten: 0,
-    loslassen: 1,
-    loslassenWert: false,
-    bewegung20: 10,
-    xGerundet: true,
-    versionPasst: true,
+    rest90: 3,
+    pressure: 1,
+    pressureValue: true,
+    hold: 0,
+    release: 1,
+    releaseValue: false,
+    movement20: 10,
+    xRounded: true,
+    versionFits: true,
   });
 });
 
 test('Client wendet kodierte Pakete an und fordert nach einer Luecke einen Keyframe an', async ({ page }) => {
-  await alsClient(page);
+  await asClient(page);
   const r = await page.evaluate(async () => {
     const g = window.__game;
     const { state, arrays } = g;
     const NK = await import('./js/netzkodierung.js');
-    const k = new NK.SnapshotKodierer();
-    const feind = (x, hp) => ({
+    const k = new NK.SnapshotEncoder();
+    const enemy = (x, hp) => ({
       id: 'f_7',
       x,
       y: 50,
       hp,
       maxHp: 30,
-      groesse: 30,
+      size: 30,
       typ: 1,
-      muster: 'normal',
-      hatSchild: false,
-      schildHp: 0,
+      pattern: 'normal',
+      hasShield: false,
+      shieldHp: 0,
     });
-    const sende = (snap, t) => JSON.parse(JSON.stringify(k.kodiere(snap, t)));
+    const send = (snap, t) => JSON.parse(JSON.stringify(k.encode(snap, t)));
     const out = {};
-    g.Network.empfangeSnapshotPaket(sende(window.__snapshot({ feinde: [feind(100, 30)], score: 10 }), 0));
-    out.nachKeyframe = [arrays.feinde.length, arrays.feinde[0].x, state.score];
-    g.Network.empfangeSnapshotPaket(sende(window.__snapshot({ feinde: [feind(103.33, 20)], score: 20 }), 2));
-    out.nachDelta = [arrays.feinde[0].x, arrays.feinde[0].hp, state.score];
+    g.Network.receiveSnapshotPacket(send(window.__snapshot({ enemies: [enemy(100, 30)], score: 10 }), 0));
+    out.afterKeyframe = [arrays.enemies.length, arrays.enemies[0].x, state.score];
+    g.Network.receiveSnapshotPacket(send(window.__snapshot({ enemies: [enemy(103.33, 20)], score: 20 }), 2));
+    out.afterDelta = [arrays.enemies[0].x, arrays.enemies[0].hp, state.score];
     state.network.lastSentEvent = null;
-    sende(window.__snapshot({ feinde: [feind(106, 20)], score: 30 }), 4); // geht verloren
-    g.Network.empfangeSnapshotPaket(sende(window.__snapshot({ feinde: [feind(109, 20)], score: 40 }), 6));
-    out.nachLuecke = [arrays.feinde[0].x, state.score];
-    out.anforderung = state.network.lastSentEvent && state.network.lastSentEvent.type;
-    k.erzwingeKeyframe();
-    g.Network.empfangeSnapshotPaket(sende(window.__snapshot({ feinde: [], score: 50 }), 8));
-    out.nachNeuemKeyframe = [arrays.feinde.length, state.score];
+    send(window.__snapshot({ enemies: [enemy(106, 20)], score: 30 }), 4); // geht verloren
+    g.Network.receiveSnapshotPacket(send(window.__snapshot({ enemies: [enemy(109, 20)], score: 40 }), 6));
+    out.afterGap = [arrays.enemies[0].x, state.score];
+    out.request = state.network.lastSentEvent && state.network.lastSentEvent.type;
+    k.forceKeyframe();
+    g.Network.receiveSnapshotPacket(send(window.__snapshot({ enemies: [], score: 50 }), 8));
+    out.afterNewKeyframe = [arrays.enemies.length, state.score];
     out.online = state.network.isOnline;
     return out;
   });
   expect(r).toEqual({
-    nachKeyframe: [1, 100, 10],
-    nachDelta: [103.3, 20, 20],
-    nachLuecke: [103.3, 20],
-    anforderung: 'keyframe_anfordern',
-    nachNeuemKeyframe: [0, 50],
+    afterKeyframe: [1, 100, 10],
+    afterDelta: [103.3, 20, 20],
+    afterGap: [103.3, 20],
+    request: 'keyframe_anfordern',
+    afterNewKeyframe: [0, 50],
     online: true,
   });
 });
@@ -613,80 +613,80 @@ test('Client wendet kodierte Pakete an und fordert nach einer Luecke einen Keyfr
 test('Protokoll: passende Version wird akzeptiert, andere Version beendet die Sitzung mit Hinweis', async ({
   page,
 }) => {
-  await alsHost(page);
+  await asHost(page);
   const r = await page.evaluate(async () => {
     const g = window.__game;
     const { state } = g;
     const NK = await import('./js/netzkodierung.js');
-    g.Network.handleNetworkEvent({ type: 'hallo', protokoll: NK.PROTOKOLL_VERSION, version: '1.7.0' }, 'peer');
-    const passend = { online: state.network.isOnline, ok: state.network.protokollOk };
-    g.Network.handleNetworkEvent({ type: 'hallo', protokoll: NK.PROTOKOLL_VERSION - 1, version: '1.6.60' }, 'peer');
+    g.Network.handleNetworkEvent({ type: 'hallo', protocol: NK.PROTOCOL_VERSION, version: '1.7.0' }, 'peer');
+    const matching = { online: state.network.isOnline, ok: state.network.protocolOk };
+    g.Network.handleNetworkEvent({ type: 'hallo', protocol: NK.PROTOCOL_VERSION - 1, version: '1.6.60' }, 'peer');
     const status = document.getElementById('online-status');
     return {
-      passend,
+      matching,
       online: state.network.isOnline,
       connected: state.network.connected,
-      spiel: state.spielLaeuft,
+      game: state.gameRunning,
       text: status.textContent,
-      sichtbar: status.style.display,
-      farbe: status.style.color,
-      letztesEvent: state.network.lastSentEvent && state.network.lastSentEvent.type,
+      visible: status.style.display,
+      color: status.style.color,
+      lastEvent: state.network.lastSentEvent && state.network.lastSentEvent.type,
     };
   });
   expect(r).toEqual({
-    passend: { online: true, ok: true },
+    matching: { online: true, ok: true },
     online: false,
     connected: false,
-    spiel: false,
+    game: false,
     text: 'Unterschiedliche Spielversionen, bitte Seite neu laden (Strg+F5)',
-    sichtbar: 'block',
-    farbe: 'rgb(231, 76, 60)',
-    letztesEvent: 'peer_left',
+    visible: 'block',
+    color: 'rgb(231, 76, 60)',
+    lastEvent: 'peer_left',
   });
 });
 
 test('Protokoll: Client verwirft alte Snapshots und Host alte Eingaben (Sitzung endet mit Hinweis)', async ({
   page,
 }) => {
-  await alsClient(page);
+  await asClient(page);
   const client = await page.evaluate(() => {
     const g = window.__game;
-    g.Network.empfangeSnapshotPaket(window.__snapshot({ feinde: [{ id: 'f_1', x: 10, y: 10, hp: 1, maxHp: 1 }] }));
+    g.Network.receiveSnapshotPacket(window.__snapshot({ enemies: [{ id: 'f_1', x: 10, y: 10, hp: 1, maxHp: 1 }] }));
     return {
       online: g.state.network.isOnline,
-      feinde: g.arrays.feinde.length,
+      enemies: g.arrays.enemies.length,
       text: document.getElementById('online-status').textContent,
     };
   });
   expect(client).toEqual({
     online: false,
-    feinde: 0,
+    enemies: 0,
     text: 'Unterschiedliche Spielversionen, bitte Seite neu laden (Strg+F5)',
   });
 
-  await alsHost(page);
+  await asHost(page);
   const host = await page.evaluate(() => {
     const g = window.__game;
-    g.Network.empfangeEingabePaket({ x: 100, y: 100, rotate: 0, laser: true, rakete: false, bombe: false });
+    g.Network.receiveInputPacket({ x: 100, y: 100, rotate: 0, laser: true, missile: false, bomb: false });
     return {
       online: g.state.network.isOnline,
-      angewendet: g.state.p2.x === 100,
+      applied: g.state.p2.x === 100,
       text: document.getElementById('online-status').textContent,
     };
   });
   expect(host).toEqual({
     online: false,
-    angewendet: false,
+    applied: false,
     text: 'Unterschiedliche Spielversionen, bitte Seite neu laden (Strg+F5)',
   });
 });
 
 test('Protokoll: ohne hallo vom Mitspieler endet die Sitzung nach dem Timeout', async ({ page }) => {
-  await installiereUhr(page);
+  await installClock(page);
   await page.reload();
   await page.waitForFunction(() => window.__game && window.__game.state);
   // Uhr anhalten: der hallo-Timeout (setTimeout) feuert nur per fastForward, ohne Frame-fuer-Frame-Simulation
-  await haltUhrAn(page);
+  await pauseClock(page);
   await page.evaluate(() => {
     const g = window.__game;
     g.Utils.setGameMode('online');

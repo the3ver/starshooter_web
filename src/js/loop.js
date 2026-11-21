@@ -4,72 +4,72 @@ import * as Cutscene from './cutscene.js';
 import * as Network from './network.js';
 import * as Hack from './hack.js';
 import * as Viper from './viper.js';
-import * as Anzeige from './anzeige.js';
-import { animierenPartikel } from './partikel.js';
-import { aktualisiereEffekte } from './effekte.js';
+import * as Display from './anzeige.js';
+import { animateParticles } from './partikel.js';
+import { updateEffects } from './effekte.js';
 import {
-  verwalteFeindSpawns,
-  aktualisiereAsteroiden,
-  aktualisiereFeinde,
-  aktualisiereFeindLaser,
-  aktualisiereHackProjektile,
+  manageEnemySpawns,
+  updateAsteroids,
+  updateEnemies,
+  updateEnemyLaser,
+  updateHackProjectiles,
 } from './gegner.js';
-import { aktualisiereBosse, aktualisiereBossBomben, aktualisiereBossRaketen } from './boss.js';
-import { aktualisierePowerups } from './powerups.js';
-import { aktualisiereUnverwundbarkeit, bewegeSpieler, aktualisiereEnergie, regeneriereSchild } from './spieler.js';
-import { aktualisiereWaffen } from './waffen.js';
-import { clientSchritt } from './client.js';
-import { pruefePause } from './pause.js';
-import { levelSchritt, starteBoss } from './level.js';
-import { aktualisiereFels } from './fels.js';
-import { aktualisiereSchockwellen } from './schockwelle.js';
+import { updateBosses, updateBossBombs, updateBossMissiles } from './boss.js';
+import { updatePowerups } from './powerups.js';
+import { updateInvulnerability, movePlayer, updateEnergy, regenerateShield } from './spieler.js';
+import { updateWeapons } from './waffen.js';
+import { clientStep } from './client.js';
+import { checkPause } from './pause.js';
+import { levelStep, startBoss } from './level.js';
+import { updateRock } from './fels.js';
+import { updateShockwaves } from './schockwelle.js';
 
 // Bestehende Exporte bleiben ueber loop.js erreichbar
-export { verwalteFeindSpawns, animierenPartikel };
+export { manageEnemySpawns, animateParticles };
 
 // Zaehlt die Schritte, in denen sich die Welt bewegt. Die Netzkodierung sagt damit
 // Projektilpositionen voraus (Dead Reckoning); in der Boss-Warnung steht die Welt still.
-let weltSchritt = 0;
+let worldStep = 0;
 
-function sendeHostSnapshot() {
+function sendHostSnapshot() {
   if (state.network && state.network.isOnline && state.network.isHost && state.network.connected) {
-    Network.sendNetworkState(Network.serializeGameState(), weltSchritt);
+    Network.sendNetworkState(Network.serializeGameState(), worldStep);
   }
 }
 
 // Sterne fallen und erscheinen oben neu (alle Spielphasen, auch auf dem Online-Client)
-export function bewegeSterne() {
-  arrays.sterne.forEach(stern => {
-    stern.y += stern.speed;
-    if (stern.y > config.spielfeldHoehe) {
-      stern.y = -5;
-      stern.x = Math.random() * config.spielfeldBreite;
+export function moveStars() {
+  arrays.stars.forEach(star => {
+    star.y += star.speed;
+    if (star.y > config.playfieldHeight) {
+      star.y = -5;
+      star.x = Math.random() * config.playfieldWidth;
     }
   });
 }
 
 // Ein fester Schritt: erst die Simulation, dann die Anzeige der Welt (anzeige.js)
-export function simulationsSchritt() {
-  simuliere();
-  Anzeige.zeichneWelt();
+export function simulationStep() {
+  simulate();
+  Display.drawWorld();
 }
 
-function simuliere() {
-  if (state.pausiert) {
-    pruefePause();
+function simulate() {
+  if (state.paused) {
+    checkPause();
     return;
   }
 
-  if (state.cutsceneAktiv) {
+  if (state.cutsceneActive) {
     return;
   }
 
-  if (!state.spielLaeuft) {
+  if (!state.gameRunning) {
     const whatsNew = document.getElementById('whats-new-overlay');
-    const steuerungOffen = document.getElementById('steuerung-overlay');
+    const controlsOpen = document.getElementById('steuerung-overlay');
     const isWhatsNewOpen =
-      (whatsNew && whatsNew.style.display !== 'none') || (steuerungOffen && steuerungOffen.style.display !== 'none');
-    const keys = state.tastenGedrueckt;
+      (whatsNew && whatsNew.style.display !== 'none') || (controlsOpen && controlsOpen.style.display !== 'none');
+    const keys = state.keysPressed;
     const startKeyPressed =
       keys.w ||
       keys.a ||
@@ -101,145 +101,145 @@ function simuliere() {
       }
     } else {
       // Vor dem Start bewegen sich nur die Sterne
-      bewegeSterne();
+      moveStars();
       return;
     }
   }
 
-  if (state.bossWarningAktiv) {
+  if (state.bossWarningActive) {
     state.bossWarningTimer--;
     if (state.bossWarningTimer <= 0) {
-      state.bossWarningAktiv = false;
+      state.bossWarningActive = false;
       dom.warningOverlay.style.display = 'none';
-      starteBoss();
+      startBoss();
     }
-    bewegeSterne();
+    moveStars();
     // Auch waehrend der Warnung senden, damit der Client sie sicher sieht (und danach den Boss)
-    if (state.bossWarningTimer % 2 === 0) sendeHostSnapshot();
+    if (state.bossWarningTimer % 2 === 0) sendHostSnapshot();
     return;
   }
-  if (state.gameOverAktiv) {
+  if (state.gameOverActive) {
     // Nur Sterne fliegen weiter
-    bewegeSterne();
+    moveStars();
     return;
   }
 
   // --- ONLINE CLIENT LOKALE STEUERUNG & RENDERING ---
   if (state.network && state.network.isClient && state.network.connected) {
-    clientSchritt();
+    clientStep();
     return;
   }
 
-  weltSchritt++;
+  worldStep++;
 
   // --- I-Frames (Unverwundbarkeit Timer) ---
-  aktualisiereUnverwundbarkeit();
+  updateInvulnerability();
 
   // --- 9.1 SPIELER 1 & 2 BEWEGUNG ---
-  bewegeSpieler();
-  if (state.durchschlagTimer > 0) {
-    state.durchschlagTimer--;
-    if (state.durchschlagTimer <= 0) {
-      state.laserDurchschlag = false;
-      Utils.updateAktivePowerupsUI();
+  movePlayer();
+  if (state.pierceTimer > 0) {
+    state.pierceTimer--;
+    if (state.pierceTimer <= 0) {
+      state.laserPierce = false;
+      Utils.updateActivePowerupsUi();
     }
   }
 
   Hack.tickHacks(state);
   if (state.p2) Hack.tickHacks(state.p2);
-  Hack.zeigeHackStatus();
+  Hack.showHackStatus();
 
   // --- 9.2 STERNE BEWEGUNG & SPARTIKEL ---
-  bewegeSterne();
+  moveStars();
 
   // --- 9.3 SPAWNS & BOSS-WARNUNG nach Levelplan (level.js) ---
-  levelSchritt();
-  aktualisiereFels();
+  levelStep();
+  updateRock();
 
   // --- 9.3 LEVEL TEXT TIMER & SCORE ---
   if (state.levelTextTimer > 0) {
     state.levelTextTimer--;
-    if (state.levelTextTimer === 0) dom.levelAnzeigeMitte.style.display = 'none';
+    if (state.levelTextTimer === 0) dom.levelDisplayMiddle.style.display = 'none';
   }
-  if (state.frameZaehler % 60 === 0) Utils.addScore(5);
+  if (state.frameCounter % 60 === 0) Utils.addScore(5);
 
   // --- 9.4 ENERGIE SPIELER 1 & 2 ---
-  const { laserAktiv, laserAktivP2 } = aktualisiereEnergie();
+  const { laserActive, laserActiveP2 } = updateEnergy();
 
   // --- 9.4b SCHILD REGENERATION (Phantom-NX) ---
-  regeneriereSchild();
+  regenerateShield();
 
   // --- 9.5 POWERUPS ---
-  aktualisierePowerups();
+  updatePowerups();
 
   // --- 9.6 ASTEROIDEN ---
-  aktualisiereAsteroiden();
+  updateAsteroids();
 
   // --- 9.7 FEINDE ---
-  aktualisiereFeinde();
+  updateEnemies();
 
   // --- 9.8 FEIND-LASER ---
-  aktualisiereFeindLaser();
+  updateEnemyLaser();
 
   // --- 9.8b HACK-PROJEKTILE ---
-  aktualisiereHackProjektile();
+  updateHackProjectiles();
 
   // --- BOSS LOGIK ---
-  aktualisiereBosse();
+  updateBosses();
 
   // --- 9.8c BOSS BOMBEN UPDATE ---
-  aktualisiereBossBomben();
+  updateBossBombs();
 
   // --- 9.8d BOSS RAKETEN UPDATE ---
-  aktualisiereBossRaketen();
+  updateBossMissiles();
 
   // --- 9.8e VIPER NEAR-MISS (nach allen Geschoss-Bewegungen und Treffern) ---
-  Viper.pruefeNearMiss();
+  Viper.checkNearMiss();
 
   // --- 9.9 - 9.14 WAFFEN (Autolaser, Hitscan, Laser, Raketen, Bomben) ---
-  aktualisiereWaffen(laserAktiv, laserAktivP2);
+  updateWeapons(laserActive, laserActiveP2);
 
   // --- 9.11 PARTIKEL ANIMIEREN ---
-  animierenPartikel();
-  aktualisiereSchockwellen();
-  aktualisiereEffekte();
+  animateParticles();
+  updateShockwaves();
+  updateEffects();
 
   // Network Syncing in Online Mode (der Client sendet seine Eingaben in clientSchritt)
-  if (state.frameZaehler % 2 === 0) sendeHostSnapshot();
+  if (state.frameCounter % 2 === 0) sendHostSnapshot();
 }
 
 // --- FESTE SIMULATIONSSCHRITTE (60 Hz, unabhaengig von der Monitor-Bildrate) ---
-export const SCHRITT_MS = 1000 / 60;
-export const MAX_SCHRITTE_PRO_FRAME = 5;
+export const STEP_MS = 1000 / 60;
+export const MAX_STEPS_PRO_FRAME = 5;
 
 // Wie viele feste Simulationsschritte fuer die vergangene Zeit faellig sind
-export function berechneSchritte(kontoMs, deltaMs) {
+export function computeSteps(accountMs, deltaMs) {
   const delta = typeof deltaMs === 'number' && deltaMs > 0 ? deltaMs : 0;
-  const konto = typeof kontoMs === 'number' && kontoMs > 0 ? kontoMs : 0;
-  let neuesKonto = konto + delta;
-  const schritte = Math.floor(neuesKonto / SCHRITT_MS);
-  if (schritte > MAX_SCHRITTE_PRO_FRAME) {
+  const account = typeof accountMs === 'number' && accountMs > 0 ? accountMs : 0;
+  let newAccount = account + delta;
+  const steps = Math.floor(newAccount / STEP_MS);
+  if (steps > MAX_STEPS_PRO_FRAME) {
     // Rueckstand (z.B. nach Tab-Wechsel) verwerfen statt vorzuspulen
-    return { schritte: MAX_SCHRITTE_PRO_FRAME, kontoMs: 0 };
+    return { steps: MAX_STEPS_PRO_FRAME, accountMs: 0 };
   }
-  neuesKonto -= schritte * SCHRITT_MS;
-  return { schritte, kontoMs: neuesKonto };
+  newAccount -= steps * STEP_MS;
+  return { steps, accountMs: newAccount };
 }
 
-let letzterZeitstempel = null;
-let zeitKontoMs = 0;
+let lastTimestamp = null;
+let timeAccountMs = 0;
 
-export function gameLoop(zeitstempel) {
-  if (letzterZeitstempel === null || typeof zeitstempel !== 'number') {
+export function gameLoop(timestamp) {
+  if (lastTimestamp === null || typeof timestamp !== 'number') {
     // Erster Aufruf: genau ein Schritt
-    simulationsSchritt();
+    simulationStep();
   } else {
-    const ergebnis = berechneSchritte(zeitKontoMs, zeitstempel - letzterZeitstempel);
-    zeitKontoMs = ergebnis.kontoMs;
-    for (let i = 0; i < ergebnis.schritte; i++) {
-      simulationsSchritt();
+    const result = computeSteps(timeAccountMs, timestamp - lastTimestamp);
+    timeAccountMs = result.accountMs;
+    for (let i = 0; i < result.steps; i++) {
+      simulationStep();
     }
   }
-  if (typeof zeitstempel === 'number') letzterZeitstempel = zeitstempel;
+  if (typeof timestamp === 'number') lastTimestamp = timestamp;
   requestAnimationFrame(gameLoop);
 }

@@ -1,5 +1,5 @@
 const { test, expect } = require('@playwright/test');
-const { setzeSpielstand } = require('./helfer');
+const { setGameState } = require('./helfer');
 
 test.beforeEach(async ({ page }) => {
   await page.route('**/api/highscores*', route =>
@@ -9,26 +9,26 @@ test.beforeEach(async ({ page }) => {
       body: JSON.stringify({ success: true, mode: 'single', highscores: [] }),
     }),
   );
-  await setzeSpielstand(page);
+  await setGameState(page);
   await page.goto('/');
 });
 
 test('berechneSchritte liefert 60 Schritte pro Sekunde bei 144, 60 und 30 Hz', async ({ page }) => {
   const r = await page.evaluate(async () => {
-    const { berechneSchritte } = await import('./js/loop.js');
-    const ergebnisse = {};
+    const { computeSteps } = await import('./js/loop.js');
+    const results = {};
     for (const hz of [144, 60, 30]) {
       const delta = 1000 / hz;
-      let konto = 0;
-      let summe = 0;
+      let account = 0;
+      let sum = 0;
       for (let i = 0; i < hz; i++) {
-        const e = berechneSchritte(konto, delta);
-        konto = e.kontoMs;
-        summe += e.schritte;
+        const e = computeSteps(account, delta);
+        account = e.accountMs;
+        sum += e.steps;
       }
-      ergebnisse[hz] = summe;
+      results[hz] = sum;
     }
-    return ergebnisse;
+    return results;
   });
   for (const hz of [144, 60, 30]) {
     expect(Math.abs(r[hz] - 60)).toBeLessThanOrEqual(1);
@@ -37,45 +37,45 @@ test('berechneSchritte liefert 60 Schritte pro Sekunde bei 144, 60 und 30 Hz', a
 
 test('berechneSchritte begrenzt grosse Deltas und ignoriert negative', async ({ page }) => {
   const r = await page.evaluate(async () => {
-    const { berechneSchritte, MAX_SCHRITTE_PRO_FRAME } = await import('./js/loop.js');
+    const { computeSteps, MAX_STEPS_PRO_FRAME } = await import('./js/loop.js');
     return {
-      max: MAX_SCHRITTE_PRO_FRAME,
-      gross: berechneSchritte(0, 5000),
-      negativ: berechneSchritte(0, -100),
-      nan: berechneSchritte(0, NaN),
+      max: MAX_STEPS_PRO_FRAME,
+      big: computeSteps(0, 5000),
+      negative: computeSteps(0, -100),
+      nan: computeSteps(0, NaN),
     };
   });
-  expect(r.gross.schritte).toBe(r.max);
-  expect(r.gross.kontoMs).toBe(0);
-  expect(r.negativ.schritte).toBe(0);
-  expect(r.nan.schritte).toBe(0);
+  expect(r.big.steps).toBe(r.max);
+  expect(r.big.accountMs).toBe(0);
+  expect(r.negative.steps).toBe(0);
+  expect(r.nan.steps).toBe(0);
 });
 
 test('simulationsSchritt plant keinen Animation-Frame ein', async ({ page }) => {
-  const anzahl = await page.evaluate(async () => {
-    const { simulationsSchritt } = await import('./js/loop.js');
+  const count = await page.evaluate(async () => {
+    const { simulationStep } = await import('./js/loop.js');
     const { state } = await import('./js/state.js');
     const original = window.requestAnimationFrame;
-    let zaehler = 0;
+    let counter = 0;
     window.requestAnimationFrame = cb => {
-      zaehler++;
+      counter++;
       return original(cb);
     };
     try {
       // Startbildschirm (Frueh-Return-Zweig)
-      for (let i = 0; i < 3; i++) simulationsSchritt();
+      for (let i = 0; i < 3; i++) simulationStep();
       // Laufendes Spiel (kompletter Schritt bis zum Ende)
-      state.spielLaeuft = true;
+      state.gameRunning = true;
       state.godMode = true;
-      for (let i = 0; i < 3; i++) simulationsSchritt();
+      for (let i = 0; i < 3; i++) simulationStep();
       // Pause
-      state.pausiert = true;
-      simulationsSchritt();
-      state.pausiert = false;
+      state.paused = true;
+      simulationStep();
+      state.paused = false;
     } finally {
       window.requestAnimationFrame = original;
     }
-    return zaehler;
+    return counter;
   });
-  expect(anzahl).toBe(0);
+  expect(count).toBe(0);
 });

@@ -4,84 +4,84 @@
 const { test } = require('@playwright/test');
 const fs = require('fs');
 const path = require('path');
-const { messe, bereiteMessungVor } = require('./messung');
+const { measure, prepareMeasurement } = require('./messung');
 
-const SCHIFFE = ['viper', 'phantom', 'gleve', 'sniper'];
+const SHIPS = ['viper', 'phantom', 'gleve', 'sniper'];
 const SEEDS = [1, 2, 3, 4, 5];
-const SZENARIEN = [
-  { id: 'A_welle', name: 'Welle (8 Feinde, Lvl 1)', maxSchritte: 3600 },
-  { id: 'B_boss1', name: 'Boss Level 1', maxSchritte: 5400 },
-  { id: 'C_boss2', name: 'Boss Level 2', maxSchritte: 5400 },
+const SCENARIOS = [
+  { id: 'A_welle', name: 'Welle (8 Feinde, Lvl 1)', maxSteps: 3600 },
+  { id: 'B_boss1', name: 'Boss Level 1', maxSteps: 5400 },
+  { id: 'C_boss2', name: 'Boss Level 2', maxSteps: 5400 },
 ];
 
-const ergebnisse = [];
+const results = [];
 
-for (const schiff of SCHIFFE) {
-  for (const sz of SZENARIEN) {
+for (const ship of SHIPS) {
+  for (const sz of SCENARIOS) {
     for (const seed of SEEDS) {
-      test(`${schiff} / ${sz.id} / Seed ${seed}`, async ({ page }) => {
-        await bereiteMessungVor(page, schiff);
-        const r = await messe(page, { schiff, szenario: sz.id, seed, maxSchritte: sz.maxSchritte });
-        ergebnisse.push({ schiff, szenario: sz.id, seed, ...r });
-        console.log(`${schiff} ${sz.id} seed ${seed}: ${JSON.stringify(r)}`);
+      test(`${ship} / ${sz.id} / Seed ${seed}`, async ({ page }) => {
+        await prepareMeasurement(page, ship);
+        const r = await measure(page, { ship, scenario: sz.id, seed, maxSteps: sz.maxSteps });
+        results.push({ ship, scenario: sz.id, seed, ...r });
+        console.log(`${ship} ${sz.id} seed ${seed}: ${JSON.stringify(r)}`);
       });
     }
   }
 }
 
-function median(werte) {
-  const s = [...werte].sort((a, b) => a - b);
+function median(values) {
+  const s = [...values].sort((a, b) => a - b);
   const m = Math.floor(s.length / 2);
   return s.length % 2 ? s[m] : (s[m - 1] + s[m]) / 2;
 }
 
 test.afterAll(() => {
-  const zusammenfassung = [];
-  for (const sz of SZENARIEN) {
-    for (const schiff of SCHIFFE) {
-      const l = ergebnisse.filter(e => e.schiff === schiff && e.szenario === sz.id);
+  const summary = [];
+  for (const sz of SCENARIOS) {
+    for (const ship of SHIPS) {
+      const l = results.filter(e => e.ship === ship && e.scenario === sz.id);
       if (!l.length) continue;
-      const st = l.map(e => e.schritte);
-      const tr = l.map(e => e.treffer);
-      zusammenfassung.push({
-        szenario: sz.id,
-        schiff,
-        laeufe: l.length,
-        siege: l.filter(e => e.sieg).length,
-        schritteMedian: median(st),
-        schritteMin: Math.min(...st),
-        schritteMax: Math.max(...st),
-        trefferMedian: median(tr),
-        trefferMin: Math.min(...tr),
-        trefferMax: Math.max(...tr),
+      const st = l.map(e => e.steps);
+      const tr = l.map(e => e.hit);
+      summary.push({
+        scenario: sz.id,
+        ship,
+        runs: l.length,
+        victories: l.filter(e => e.victory).length,
+        stepsMedian: median(st),
+        stepsMin: Math.min(...st),
+        stepsMax: Math.max(...st),
+        hitMedian: median(tr),
+        hitMin: Math.min(...tr),
+        hitMax: Math.max(...tr),
         killsMedian: median(l.map(e => e.kills)),
-        entkommenMedian: median(l.map(e => e.entkommen)),
+        escapedMedian: median(l.map(e => e.escaped)),
       });
     }
   }
-  const zeilen = [
+  const lines = [
     '',
     'Szenario  Schiff   Siege  Schritte med (min-max)   Treffer med (min-max)  Kills med  Entkommen med',
   ];
-  for (const z of zusammenfassung) {
-    zeilen.push(
+  for (const z of summary) {
+    lines.push(
       [
-        z.szenario.padEnd(9),
-        z.schiff.padEnd(8),
-        `${z.siege}/${z.laeufe}`.padEnd(6),
-        `${z.schritteMedian} (${z.schritteMin}-${z.schritteMax})`.padEnd(24),
-        `${z.trefferMedian} (${z.trefferMin}-${z.trefferMax})`.padEnd(22),
+        z.scenario.padEnd(9),
+        z.ship.padEnd(8),
+        `${z.victories}/${z.runs}`.padEnd(6),
+        `${z.stepsMedian} (${z.stepsMin}-${z.stepsMax})`.padEnd(24),
+        `${z.hitMedian} (${z.hitMin}-${z.hitMax})`.padEnd(22),
         String(z.killsMedian).padEnd(10),
-        String(z.entkommenMedian),
+        String(z.escapedMedian),
       ].join(' '),
     );
   }
-  console.log(zeilen.join('\n'));
-  const ordner = path.join(__dirname, 'ergebnisse');
-  fs.mkdirSync(ordner, { recursive: true });
-  const stempel = new Date().toISOString().replace(/[:.]/g, '-');
+  console.log(lines.join('\n'));
+  const folder = path.join(__dirname, 'ergebnisse');
+  fs.mkdirSync(folder, { recursive: true });
+  const stamp = new Date().toISOString().replace(/[:.]/g, '-');
   fs.writeFileSync(
-    path.join(ordner, `${stempel}.json`),
-    JSON.stringify({ zeit: new Date().toISOString(), seeds: SEEDS, zusammenfassung, laeufe: ergebnisse }, null, 2),
+    path.join(folder, `${stamp}.json`),
+    JSON.stringify({ time: new Date().toISOString(), seeds: SEEDS, summary, runs: results }, null, 2),
   );
 });
