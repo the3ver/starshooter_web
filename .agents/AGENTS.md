@@ -24,7 +24,7 @@ Browser-Space-Shooter ohne HTML5-Canvas: Weltobjekte sind DOM-Elemente (`positio
 - Nur das Backend (`anzeige-dom.js`, Elementbau in `anzeige-dom-objekte.js`) schreibt Position, Drehung, Deckkraft und Zustandsklassen ins DOM. Neue Weltlisten bekommen einen Eintrag in `ZEICHNER` (`anzeige-dom.js`).
 - Spielerschiffe zeichnet `Anzeige.zeichneSpieler()` aus `state`/`state.p2`; Partikel nur ueber `erzeugePartikel({...})` (`partikel.js`); Effekte mit Lebensdauer ueber `erzeugeEffekt` (`effekte.js`).
 - HUD, Menues, Hangar, Cutszene, Lobby und mobile Steuerung bleiben bewusst HTML.
-- Waechtertests in `tests/anzeige.spec.js` pruefen die Trennung je Modul.
+- Waechtertests in `tests/anzeige-regeln.spec.js` (nur Quelltext, ohne Seite) pruefen die Trennung je Modul.
 
 ## Multiplayer (vor jeder Aenderung an `network.js`, `netzkodierung.js`, `client.js` oder am Snapshot lesen: [docs/multiplayer.md](../docs/multiplayer.md))
 - Host ist autoritativ (Gegner, Bosse, Kollisionen, Powerups); der Client sagt nur das eigene Schiff voraus und sendet Eingaben.
