@@ -5740,8 +5740,8 @@ test.describe('Bot-Partner', () => {
       mod.Utils.renderHighscores('online');
     });
 
-    const initialText = await page.locator('#highscore-body').innerText();
-    expect(initialText).toContain('OLD+OLD');
+    // renderHighscores laedt asynchron: wartende Assertion statt Sofort-Lesen
+    await expect(page.locator('#highscore-body')).toContainText('OLD+OLD');
 
     // 2. Client empfängt highscore_committed Event vom Host
     await page.evaluate(() => {
@@ -5751,12 +5751,9 @@ test.describe('Bot-Partner', () => {
       });
     });
 
-    await page.waitForTimeout(300);
-
     // 3. Client Bestenliste muss jetzt NEW+WIN anzeigen
-    const updatedText = await page.locator('#highscore-body').innerText();
-    expect(updatedText).toContain('NEW+WIN');
-    expect(updatedText).toContain('9999');
+    await expect(page.locator('#highscore-body')).toContainText('NEW+WIN');
+    await expect(page.locator('#highscore-body')).toContainText('9999');
   });
 
   test('Online-Multiplayer Issue 4: Nur L, K, Space (und WASD) steuern Aktionen; ö und ä sind im Online-Modus deaktiviert', async ({
