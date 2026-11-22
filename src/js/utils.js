@@ -25,6 +25,7 @@ export function addScore(points, factor = 1) {
 }
 // Sets HTML and removes lost symbols (.pu-anim-lost) after the animation
 function showWithLossAnimation(container, html, lostHtml) {
+  // eslint-disable-next-line no-unsanitized/property -- powerup HUD built from internal state
   container.innerHTML = html + lostHtml;
 
   if (lostHtml) {
@@ -1059,6 +1060,7 @@ export function renderHighscoresTable(currentMode, hsList) {
       lineHtml += `<tr><td>${rankBadge}</td><td>${escapeHtml(entry.name)}${locDisplay}</td><td>${escapeHtml(entry.score)}</td><td><span class="hs-ship-badge ${info.cls}">${info.label}</span></td></tr>`;
     }
   });
+  // eslint-disable-next-line no-unsanitized/property -- highscore rows, API strings escaped with escapeHtml
   tbody.innerHTML = lineHtml;
 }
 
@@ -1500,6 +1502,7 @@ export function updatePlayerShipVisuals() {
   // Update the hangar preview on the start screen
   const previewSvg = document.getElementById('hangar-preview-svg');
   if (previewSvg) {
+    // eslint-disable-next-line no-unsanitized/property -- ship SVG via the shipColors lookup
     previewSvg.innerHTML = getShipSvgContent(activeHangarModel, activeHangarColor);
     if (previewSvg.parentElement)
       previewSvg.parentElement.classList.toggle('schiff-gleve', activeHangarModel === 'gleve');
@@ -1514,6 +1517,7 @@ export function updatePlayerShipVisuals() {
   const perksContainer = document.getElementById('hangar-ship-perks');
   if (perksContainer && shipData && shipData.perks && perksContainer.dataset.model !== activeHangarModel) {
     perksContainer.dataset.model = activeHangarModel;
+    // eslint-disable-next-line no-unsanitized/property -- perks from shipModels
     perksContainer.innerHTML = shipData.perks
       .map(
         (p, i) =>

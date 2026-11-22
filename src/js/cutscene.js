@@ -203,6 +203,7 @@ export function startCutscene(callback) {
       flameHtml = `<div class="ship-flame" style="position:absolute; left:-6px; top:8px; transform:rotate(-90deg);"></div>`;
     }
 
+    // eslint-disable-next-line no-unsanitized/property -- internal ship SVG templates
     el.innerHTML = `
           <svg viewBox="0 0 ${w} ${h}" style="position:absolute; width:100%; height:100%; z-index:2; ${isPlayer ? 'transform:rotate(90deg);' : ''}">
             ${svgContent}
@@ -559,6 +560,7 @@ function showAlienSpeechBubble(avatar, sender, text, duration) {
 
   const bubble = document.createElement('div');
   bubble.className = 'alien-speech-bubble';
+  // eslint-disable-next-line no-unsanitized/property -- internal alien glyphs
   bubble.innerHTML = `
       <div class="alien-bubble-header">
         <span class="alien-avatar">${avatar}</span>

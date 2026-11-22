@@ -327,6 +327,7 @@ function drawLook(s, el) {
   if (el.dataset.look === key) return;
   el.dataset.look = key;
   const svg = el.querySelector('svg');
+  // eslint-disable-next-line no-unsanitized/property -- ship SVG via the shipColors lookup
   if (svg) svg.innerHTML = getShipSvgContent(model, color);
   el.classList.toggle('schiff-gleve', model === 'gleve');
 }

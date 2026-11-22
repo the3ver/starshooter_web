@@ -317,6 +317,7 @@ function setupPowerupVisuals(el, type, owner, color) {
   if (owner) {
     innerHtml += `<span class="pu-owner-tag tag-${owner}">${owner.toUpperCase()}</span>`;
   }
+  // eslint-disable-next-line no-unsanitized/property -- owner is 'p1'/'p2'/null (checked in applyGameStateSnapshot), type gives one character
   el.innerHTML = innerHtml;
 }
 
@@ -325,6 +326,7 @@ function enemyElement(f) {
   el.classList.add('feind-schiff');
   el.style.width = f.size + 'px';
   el.style.height = f.size + 'px';
+  // eslint-disable-next-line no-unsanitized/property -- fixed enemy SVG templates, pattern is only compared
   el.innerHTML = getEnemySvgHtml(f.pattern, f.hasShield, f.size);
   if (['chain', 'spikeChain', 'ballChain'].includes(f.pattern)) {
     // Pulse phase from the id: consecutive links pulse offset (wave), the same on host and client
@@ -389,6 +391,7 @@ function asteroidElement(a) {
     `radial-gradient(circle at 30% 28%, ${a.color}, ${a.color2})`;
   el.dataset.baseColor = a.color;
   el.style.clipPath = `polygon(${a.form.map(([px, py]) => `${px.toFixed(1)}% ${py.toFixed(1)}%`).join(', ')})`;
+  // eslint-disable-next-line no-unsanitized/method -- asteroid texture contains numbers only
   el.insertAdjacentHTML('beforeend', asteroidTexture(a));
   a.crackEl = null;
   if (!a.isIndestructible) {
@@ -407,6 +410,7 @@ function bossElement(b) {
   el.classList.add('boss-schiff');
   // Eyes of the island boss sit fixed on the skeleton (no hover animation)
   if (b.bossType === 'eye') el.classList.add('boss-auge');
+  // eslint-disable-next-line no-unsanitized/property -- boss SVG with a locally computed color
   el.innerHTML = getBossSVGHtml(b.bossType, b.glowColor);
   el.style.filter = `drop-shadow(0 10px 20px rgba(0,0,0,0.9)) drop-shadow(0 0 15px ${b.glowColor})`;
   el.style.width = b.size + 'px';
@@ -455,6 +459,7 @@ function bombElement(b) {
   if (b.isMini) el.classList.add('bombe-mini');
   if (b.owner === 'p2') el.classList.add('bombe-p2');
   const lights = b.isMini ? [3, 8, 13] : [4, 13, 22];
+  // eslint-disable-next-line no-unsanitized/property -- internal bomb lights
   el.innerHTML = `
     <div class="bombe-aura"></div>
     <div class="bombe-body"></div>
@@ -471,6 +476,7 @@ function classesElement(cls, html = '') {
   return () => {
     const el = document.createElement('div');
     el.classList.add(cls);
+    // eslint-disable-next-line no-unsanitized/property -- internal HTML constants
     el.innerHTML = html;
     return el;
   };
@@ -683,6 +689,7 @@ function secureRockDefs() {
   svg.setAttribute('width', '0');
   svg.setAttribute('height', '0');
   svg.style.position = 'absolute';
+  // eslint-disable-next-line no-unsanitized/property -- constant rock pattern definitions
   svg.innerHTML = `<defs>
     <pattern id="fels-steine" width="${ROCK_PATTERN_WIDTH}" height="40" patternUnits="userSpaceOnUse">
       <rect width="${ROCK_PATTERN_WIDTH}" height="40" fill="#2a2740"/>${plates}
@@ -804,6 +811,7 @@ function rockElement(s) {
   el.className = 'fels-segment';
   el.style.width = b + 'px';
   el.style.height = h + 'px';
+  // eslint-disable-next-line no-unsanitized/property -- rock segment SVG from profile numbers
   el.innerHTML = `<svg width="${b}" height="${h}" viewBox="0 0 ${b} ${h}">${svg}${decor}</svg>`;
   return el;
 }

@@ -34,8 +34,8 @@ Zeit vergeht nur ueber `simulationStep()` oder die Fake-Uhr, Zufall ist geseedet
 Beleg: Flakes 2026-11-21 (`bc98602`, `1631b00`, `182b259`, `c11fa53`).
 
 ## R9 Externe Strings escapen
-Werte aus API oder Netz gehen nur escaped in `innerHTML`.
-Beleg: Review-Funde `257e4f8`.
+Werte aus API, Netz (Snapshot, Ereignisse des Mitspielers) oder Speicher gehen nur ueber `escapeHtml` in HTML, oder der Client prueft sie vorher gegen eine feste Werteliste. ESLint (`no-unsanitized`) meldet jede HTML-Senke; jede Ausnahme traegt einen Kommentar mit der Datenherkunft. Der Reviewer prueft, ob neue oder geaenderte Begruendungen stimmen, vor allem bei Werten aus `applyGameStateSnapshot` und Netz-Ereignissen.
+Beleg: Review-Funde `257e4f8`; Powerup-Besitzer aus dem Snapshot (`95fae0a`).
 
 ## R10 Version und Changelog
 Eine Aenderung an Spiel-Logik oder UI hat einen Versionssprung (`npm run release`) und Highlights auf Deutsch fuer Spieler, ohne interne Details; eine Protokollaenderung nennt das Highlight (gemeinsames Spielen nur mit gleicher Version).

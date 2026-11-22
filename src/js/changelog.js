@@ -892,6 +892,7 @@ export function showWhatsNewModal(version = GAME_VERSION) {
   if (titleEl) titleEl.innerText = `WAS GIBT'S NEUES`;
   if (introEl) introEl.innerText = data.intro;
   if (listEl) {
+    // eslint-disable-next-line no-unsanitized/property -- internal changelogData
     listEl.innerHTML = data.highlights.map(item => `<li>${item}</li>`).join('');
   }
 

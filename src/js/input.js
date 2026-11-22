@@ -82,6 +82,7 @@ export function setupInput() {
           }
           resetAllCooldowns();
           let overlay = document.getElementById('warning-overlay');
+          // eslint-disable-next-line no-unsanitized/property -- cheat overlay with a level number
           overlay.innerHTML = `IDKFL${lvl}<br>Warping to Level ${lvl}!`;
           overlay.style.display = 'block';
           overlay.style.color = '#f1c40f';
@@ -102,6 +103,7 @@ export function setupInput() {
           resetAllCooldowns();
           Utils.updateActivePowerupsUi();
           let overlay = document.getElementById('warning-overlay');
+          // eslint-disable-next-line no-unsanitized/property -- cheat overlay with a level number
           overlay.innerHTML = `IDKF${lvl}<br>Weapons Level ${lvl}!`;
           overlay.style.display = 'block';
           overlay.style.color = '#f1c40f';
@@ -137,6 +139,7 @@ export function setupInput() {
           state.godMode = !state.godMode;
           resetAllCooldowns();
           let overlay = document.getElementById('warning-overlay');
+          // eslint-disable-next-line no-unsanitized/property -- constant cheat overlay text
           overlay.innerHTML = state.godMode ? 'IDGOD<br>Degreelessness Mode On' : 'IDGOD<br>Degreelessness Mode Off';
           overlay.style.display = 'block';
           overlay.style.color = '#f1c40f';
