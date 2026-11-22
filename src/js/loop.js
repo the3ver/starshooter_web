@@ -210,7 +210,7 @@ function simulate() {
 
 // --- FIXED SIMULATION STEPS (60 Hz, independent of the monitor frame rate) ---
 export const STEP_MS = 1000 / 60;
-export const MAX_STEPS_PRO_FRAME = 5;
+export const MAX_STEPS_PER_FRAME = 5;
 
 // How many fixed simulation steps are due for the elapsed time
 export function computeSteps(accountMs, deltaMs) {
@@ -218,9 +218,9 @@ export function computeSteps(accountMs, deltaMs) {
   const account = typeof accountMs === 'number' && accountMs > 0 ? accountMs : 0;
   let newAccount = account + delta;
   const steps = Math.floor(newAccount / STEP_MS);
-  if (steps > MAX_STEPS_PRO_FRAME) {
+  if (steps > MAX_STEPS_PER_FRAME) {
     // Drop a backlog (e.g. after a tab switch) instead of fast-forwarding
-    return { steps: MAX_STEPS_PRO_FRAME, accountMs: 0 };
+    return { steps: MAX_STEPS_PER_FRAME, accountMs: 0 };
   }
   newAccount -= steps * STEP_MS;
   return { steps, accountMs: newAccount };

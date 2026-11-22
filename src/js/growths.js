@@ -22,7 +22,7 @@ export const TUBE_CADENCE = 150;
 export const TUBE_CADENCE_ENRAGE = 90;
 export const MAX_LARVAE = 8;
 export const LARVA_SPEED = 1.4;
-export const TOO_DURATION = 100;
+export const CLOSED_DURATION = 100;
 export const OPEN_DURATION = 80;
 export const SPORE_PER_OPENING = 3;
 export const FUNNEL_CADENCE = 110;
@@ -93,7 +93,7 @@ export function createGrowth(kind, segment, side = null) {
     pattern: kind,
     phase: kind === 'bloom' ? 'closed' : 'open',
     open: kind !== 'bloom',
-    phaseTimer: kind === 'bloom' ? TOO_DURATION : Math.floor(Math.random() * FUNNEL_CADENCE),
+    phaseTimer: kind === 'bloom' ? CLOSED_DURATION : Math.floor(Math.random() * FUNNEL_CADENCE),
     cadence: kind === 'tube' ? TUBE_CADENCE : FUNNEL_CADENCE,
     segment,
     side: spot,
@@ -206,7 +206,7 @@ export function update(f) {
   }
   if (f.phaseTimer <= 0) {
     f.phase = f.phase === 'closed' ? 'open' : 'closed';
-    f.phaseTimer = f.phase === 'closed' ? TOO_DURATION : OPEN_DURATION;
+    f.phaseTimer = f.phase === 'closed' ? CLOSED_DURATION : OPEN_DURATION;
   }
   f.open = f.phase === 'open';
   f.isIndestructible = !f.open;

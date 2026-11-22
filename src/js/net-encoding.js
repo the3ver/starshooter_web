@@ -17,7 +17,7 @@ export const KEYFRAME_INTERVAL = 30; // every 30th packet is a keyframe (~1 s)
 export const DR_TOLERANCE = 0.5; // px, from this deviation on x/y is sent along
 
 // Id prefix per list (see Entities.newId); other ids go as text
-const LISTEN_PREFIX = {
+const LIST_PREFIX = {
   enemies: 'f',
   asteroids: 'a',
   bosses: 'boss',
@@ -35,7 +35,7 @@ const LISTEN_PREFIX = {
   sniperMines: 'sm',
   rock: 'fe',
 };
-export const LISTEN = Object.keys(LISTEN_PREFIX);
+export const LISTS = Object.keys(LIST_PREFIX);
 
 // Movement rule as on the host and in client.js: x += vx, y += direction * vy per step.
 // Player lasers fly with y -= vy. Lists without a sent velocity are missing here.
@@ -166,7 +166,7 @@ function applyObjectDelta(target, delta) {
 }
 
 function encodeId(list, id) {
-  const prefix = LISTEN_PREFIX[list] + '_';
+  const prefix = LIST_PREFIX[list] + '_';
   if (id.startsWith(prefix)) {
     const rest = id.slice(prefix.length);
     if (/^[1-9]\d{0,14}$/.test(rest)) return Number(rest);
@@ -175,7 +175,7 @@ function encodeId(list, id) {
 }
 
 function decodeId(list, code) {
-  return typeof code === 'number' ? LISTEN_PREFIX[list] + '_' + code : code;
+  return typeof code === 'number' ? LIST_PREFIX[list] + '_' + code : code;
 }
 
 // Is the list trackable by id? Otherwise it goes as a normal field (whole) via 'o'.
@@ -241,7 +241,7 @@ export class SnapshotDecoder {
     const listen = {};
     const names = new Set([...Object.keys(old.listen), ...Object.keys(listenPacket)]);
     for (const name of names) {
-      if (!LISTEN_PREFIX[name]) throw new Error('unknown list ' + name);
+      if (!LIST_PREFIX[name]) throw new Error('unknown list ' + name);
       const entry = listenPacket[name];
       if (entry === null) continue; // List is no longer tracked
       const beforehand = old.listen[name];
@@ -316,7 +316,7 @@ export class SnapshotEncoder {
     const top = {};
     const listen = {};
     for (const k of Object.keys(rounded)) {
-      if (LISTEN_PREFIX[k] && isTrackable(rounded[k])) listen[k] = rounded[k];
+      if (LIST_PREFIX[k] && isTrackable(rounded[k])) listen[k] = rounded[k];
       else top[k] = rounded[k];
     }
     const o = objectDelta(oldTop, top, null);

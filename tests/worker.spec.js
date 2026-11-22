@@ -214,7 +214,7 @@ test('TURN route: 200 returns filtered iceServers, CORS origin and no-store', as
 });
 
 test('TURN route: rate limit returns 429 after too many requests from the same IP', async () => {
-  const { handleTurnRequest, TURN_MAX_REQUESTS_PRO_HOUR } = await chargingTurn();
+  const { handleTurnRequest, TURN_MAX_REQUESTS_PER_HOUR } = await chargingTurn();
   const storage = new Map();
   const cache = {
     match: async req => {
@@ -228,7 +228,7 @@ test('TURN route: rate limit returns 429 after too many requests from the same I
   const fetchFn = withUsage(
     async () => new Response(JSON.stringify({ iceServers: [{ urls: ['stun:a:3478'] }] }), { status: 201 }),
   );
-  for (let i = 0; i < TURN_MAX_REQUESTS_PRO_HOUR; i++) {
+  for (let i = 0; i < TURN_MAX_REQUESTS_PER_HOUR; i++) {
     const r = await handleTurnRequest(turnRequest('https://the3ver.github.io'), TURN_ENV, fetchFn, cache);
     expect(r.status).toBe(200);
   }

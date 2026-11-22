@@ -1,7 +1,7 @@
 // Pure TURN logic for the worker (without the Cloudflare runtime, therefore testable)
 
 export const TURN_TTL_SECONDS = 7200; // 2 hours: limits the overrun after the monthly limit is reached
-export const TURN_MAX_REQUESTS_PRO_HOUR = 20;
+export const TURN_MAX_REQUESTS_PER_HOUR = 20;
 // Cost brake: 1,000 GB egress per month are free; no new credentials from this usage on
 export const TURN_MONTHLY_LIMIT_GB_STANDARD = 800;
 export const TURN_USAGE_CACHE_SECONDS = 600;
@@ -61,7 +61,7 @@ async function checkRateLimit(request, cache) {
   const key = new Request(`https://turn-limit.invalid/${ipHash}`);
   const hit = await cache.match(key);
   const count = hit ? parseInt(await hit.text(), 10) || 0 : 0;
-  if (count >= TURN_MAX_REQUESTS_PRO_HOUR) return false;
+  if (count >= TURN_MAX_REQUESTS_PER_HOUR) return false;
   await cache.put(
     key,
     new Response(String(count + 1), {

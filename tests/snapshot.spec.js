@@ -14,7 +14,7 @@ test.beforeEach(async ({ page }) => {
 });
 
 // Shared setup: the host creates objects in all lists, the client is simulated
-const LISTEN = {
+const LISTS = {
   enemies: 'enemies',
   asteroids: 'asteroids',
   bosses: 'bosses',
@@ -30,13 +30,13 @@ const LISTEN = {
 };
 
 async function prepareHostAndClient(page) {
-  return page.evaluate(LISTEN => {
+  return page.evaluate(LISTS => {
     const g = window.__game;
     const { state, arrays, dom } = g;
     state.paused = true;
 
     // Clear the playfield and lists
-    Object.values(LISTEN).forEach(name => {
+    Object.values(LISTS).forEach(name => {
       arrays[name].forEach(o => {
         if (o.el) o.el.remove();
       });
@@ -94,7 +94,7 @@ async function prepareHostAndClient(page) {
 
     // Host snapshot 1, then move everything a bit, snapshot 2
     const snap1 = JSON.parse(JSON.stringify(g.Network.serializeGameState()));
-    Object.values(LISTEN).forEach(name =>
+    Object.values(LISTS).forEach(name =>
       arrays[name].forEach(o => {
         o.x += 5;
         o.y += 7;
@@ -103,7 +103,7 @@ async function prepareHostAndClient(page) {
     const snap2 = JSON.parse(JSON.stringify(g.Network.serializeGameState()));
 
     // Remove the host world, simulate the client
-    Object.values(LISTEN).forEach(name => {
+    Object.values(LISTS).forEach(name => {
       arrays[name].forEach(o => {
         if (o.el) o.el.remove();
       });
@@ -114,16 +114,16 @@ async function prepareHostAndClient(page) {
 
     window.__snaps = { snap1, snap2 };
     return {
-      ids1: Object.fromEntries(Object.keys(LISTEN).map(k => [k, snap1[k].map(o => o.id)])),
-      ids2: Object.fromEntries(Object.keys(LISTEN).map(k => [k, snap2[k].map(o => o.id)])),
-      count: Object.fromEntries(Object.keys(LISTEN).map(k => [k, snap1[k].length])),
+      ids1: Object.fromEntries(Object.keys(LISTS).map(k => [k, snap1[k].map(o => o.id)])),
+      ids2: Object.fromEntries(Object.keys(LISTS).map(k => [k, snap2[k].map(o => o.id)])),
+      count: Object.fromEntries(Object.keys(LISTS).map(k => [k, snap1[k].length])),
     };
-  }, LISTEN);
+  }, LISTS);
 }
 
 test('Host assigns stable ids: ids stay the same between snapshots and are unique', async ({ page }) => {
   const r = await prepareHostAndClient(page);
-  for (const k of Object.keys(LISTEN)) {
+  for (const k of Object.keys(LISTS)) {
     expect(r.count[k], `list ${k} has objects`).toBeGreaterThan(0);
     expect(
       r.ids1[k].every(id => typeof id === 'string' && id.length > 0),
@@ -138,14 +138,14 @@ test('Client reuses DOM elements, creates no new nodes on the second snapshot an
   page,
 }) => {
   await prepareHostAndClient(page);
-  const r = await page.evaluate(LISTEN => {
+  const r = await page.evaluate(LISTS => {
     const g = window.__game;
     const { arrays, dom } = g;
     const { snap1, snap2 } = window.__snaps;
 
     g.Network.applyGameStateSnapshot(snap1);
     const beforehand = {};
-    Object.entries(LISTEN).forEach(([k, name]) => {
+    Object.entries(LISTS).forEach(([k, name]) => {
       beforehand[k] = arrays[name].map(o => o.el);
     });
 
@@ -161,7 +161,7 @@ test('Client reuses DOM elements, creates no new nodes on the second snapshot an
     obs.disconnect();
 
     const out = { added, listen: {} };
-    Object.entries(LISTEN).forEach(([k, name]) => {
+    Object.entries(LISTS).forEach(([k, name]) => {
       const afterwards = arrays[name];
       out.listen[k] = {
         count: afterwards.length,
@@ -181,10 +181,10 @@ test('Client reuses DOM elements, creates no new nodes on the second snapshot an
       };
     });
     return out;
-  }, LISTEN);
+  }, LISTS);
 
   expect(r.added).toEqual([]);
-  for (const k of Object.keys(LISTEN)) {
+  for (const k of Object.keys(LISTS)) {
     const l = r.listen[k];
     expect(l.count, `${k} count`).toBe(l.expected);
     expect(l.sameElements, `${k} elements reused`).toBe(true);
@@ -231,7 +231,7 @@ test('Client updates the rotation of missiles and boss missiles and the angle of
 
 test('Client removes vanished objects from DOM and array and creates new ones', async ({ page }) => {
   await prepareHostAndClient(page);
-  const r = await page.evaluate(LISTEN => {
+  const r = await page.evaluate(LISTS => {
     const g = window.__game;
     const { arrays } = g;
     const { snap1, snap2 } = window.__snaps;
@@ -251,7 +251,7 @@ test('Client removes vanished objects from DOM and array and creates new ones', 
     const removed = {};
     const fresh = {};
     projectileListen.forEach(k => {
-      const oldEl = arrays[LISTEN[k]][0].el;
+      const oldEl = arrays[LISTS[k]][0].el;
       removed[k] = { id: s3[k][0].id, el: oldEl };
       const copy = Object.assign({}, s3[k][0], { id: 'new_' + k, x: 11, y: 22 });
       s3[k] = [copy];
@@ -261,7 +261,7 @@ test('Client removes vanished objects from DOM and array and creates new ones', 
 
     const out = {};
     projectileListen.forEach(k => {
-      const list = arrays[LISTEN[k]];
+      const list = arrays[LISTS[k]];
       out[k] = {
         length: list.length,
         oldIdGone: !list.some(o => o.id === removed[k].id),
@@ -272,7 +272,7 @@ test('Client removes vanished objects from DOM and array and creates new ones', 
       };
     });
     return out;
-  }, LISTEN);
+  }, LISTS);
   for (const k of Object.keys(r)) {
     expect(r[k], k).toEqual({
       length: 1,

@@ -37,9 +37,9 @@ test('computeSteps yields 60 steps per second at 144, 60 and 30 Hz', async ({ pa
 
 test('computeSteps clamps large deltas and ignores negative ones', async ({ page }) => {
   const r = await page.evaluate(async () => {
-    const { computeSteps, MAX_STEPS_PRO_FRAME } = await import('./js/loop.js');
+    const { computeSteps, MAX_STEPS_PER_FRAME } = await import('./js/loop.js');
     return {
-      max: MAX_STEPS_PRO_FRAME,
+      max: MAX_STEPS_PER_FRAME,
       big: computeSteps(0, 5000),
       negative: computeSteps(0, -100),
       nan: computeSteps(0, NaN),

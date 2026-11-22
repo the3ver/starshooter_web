@@ -171,7 +171,7 @@ async function runScenario(page, { steps, loss }) {
         }
         const key = new Set([...Object.keys(should), ...Object.keys(is)]);
         for (const k of key) {
-          const list = inList || (filePath === '' && NK.LISTEN.includes(k));
+          const list = inList || (filePath === '' && NK.LISTS.includes(k));
           compare(should[k], is[k], filePath + '.' + k, list);
         }
       }
@@ -208,7 +208,7 @@ async function runScenario(page, { steps, loss }) {
         stat.full.push(JSON.stringify(full).length);
         stat.packet.push(text.length);
         if (packet.k) stat.keyframes++;
-        NK.LISTEN.forEach(n => {
+        NK.LISTS.forEach(n => {
           stat.maxListen[n] = Math.max(stat.maxListen[n] || 0, full[n].length);
         });
         if (lost.has(packet.n)) {

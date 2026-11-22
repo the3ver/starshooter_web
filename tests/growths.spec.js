@@ -92,7 +92,7 @@ test('Bloom: closed and armored, then open with three spores across the corridor
     s.y = 200;
     const f = G.createGrowth('bloom', s, 'l');
     const history = [];
-    for (let i = 0; i < G.TOO_DURATION + G.OPEN_DURATION + 2; i++) {
+    for (let i = 0; i < G.CLOSED_DURATION + G.OPEN_DURATION + 2; i++) {
       s.y = 200; // Keep the segment fixed (rock does not scroll here)
       Loop.simulationStep();
       history.push({ open: f.open, armor: f.isIndestructible });
@@ -100,7 +100,7 @@ test('Bloom: closed and armored, then open with three spores across the corridor
     const spores = arrays.enemyLaserArray.filter(l => l.spore);
     return {
       tooStart: history[0],
-      openAfterClosed: history[G.TOO_DURATION],
+      openAfterClosed: history[G.CLOSED_DURATION],
       closedAgain: history.at(-1),
       spores: spores.length,
       speed: spores.map(l => [l.vx, l.vy, l.width]),
