@@ -1340,7 +1340,7 @@ export function applyGameStateSnapshot(snapshot) {
       let existing = arrays.asteroids.find(a => a.id === aData.id);
       if (!existing) {
         // Fill missing look data (older snapshots in tests) with the base colors
-        const reason = aData.isMagma ? config.magmaBasisColors[0] : { a: config.asteroidsBasisColors[0], b: '#2c3e50' };
+        const base = aData.isMagma ? config.magmaBasisColors[0] : { a: config.asteroidsBasisColors[0], b: '#2c3e50' };
         existing = Display.create(
           {
             id: aData.id,
@@ -1350,8 +1350,8 @@ export function applyGameStateSnapshot(snapshot) {
             isMagma: aData.isMagma,
             isIndestructible: aData.isIndestructible,
             carriesPowerup: aData.carriesPowerup,
-            color: aData.color || reason.a,
-            color2: aData.color2 || reason.b,
+            color: aData.color || base.a,
+            color2: aData.color2 || base.b,
             form: aData.form ? Entities.formFromText(aData.form) : Entities.generateAsteroidForm(),
             crack: aData.crack || 0,
             hp: aData.hp,
