@@ -1692,7 +1692,8 @@ export function applyGameStateSnapshot(snapshot) {
             size: 24,
             type: pData.type,
             color: Entities.powerupColor(pData.type),
-            owner: pData.owner,
+            // Only 'p1' / 'p2': the display builds the owner tag as HTML (a manipulated host must not inject markup)
+            owner: pData.owner === 'p1' || pData.owner === 'p2' ? pData.owner : null,
             towedBy: null,
           },
           'powerup',

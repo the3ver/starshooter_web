@@ -1,6 +1,13 @@
-export const GAME_VERSION = '1.15.21';
+export const GAME_VERSION = '1.15.22';
 
 export const changelogData = {
+  '1.15.22': {
+    version: '1.15.22',
+    intro: 'Hey, es ist jetzt Version 1.15.22 rausgekommen, folgendes wurde aktualisiert:',
+    highlights: [
+      'Online-Spiele sind sicherer: Ein manipulierter Host kann beim Mitspieler keine fremden Inhalte mehr ins Spiel einschleusen.',
+    ],
+  },
   '1.15.21': {
     version: '1.15.21',
     intro: 'Hey, es ist jetzt Version 1.15.21 rausgekommen, folgendes wurde aktualisiert:',

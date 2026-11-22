@@ -86,3 +86,39 @@ test('Leaderboard: API strings are escaped, title attribute stays intact', async
   expect(r.title2).toBe("O'<b>, US");
   expect(r.score1).toBe('1234');
 });
+
+// A manipulated host must not inject HTML into the client: the client builds the powerup owner tag
+// from the snapshot (display-dom-objects.js powerupElement), so it accepts only 'p1' / 'p2' as owner.
+test('Online client: a powerup owner from the snapshot cannot inject HTML', async ({ page }) => {
+  const r = await page.evaluate(() => {
+    const { state, arrays, Network } = window.__game;
+    state.gameMode = 'online';
+    state.gameRunning = true;
+    state.network.isOnline = true;
+    state.network.isHost = false;
+    state.network.isClient = true;
+    arrays.powerups.forEach(p => p.el && p.el.remove());
+    arrays.powerups.length = 0;
+    window.__xss = false;
+    const evil = '<img src=x onerror="window.__xss = true">';
+    Network.applyGameStateSnapshot({
+      p1: { x: 200, y: 400, rotate: 0, lives: 3, energy: 50, maxEnergy: 50, isDead: false },
+      p2: { x: 350, y: 400, rotate: 0, lives: 3, energy: 50, maxEnergy: 50, isDead: false },
+      score: 0,
+      level: 1,
+      powerups: [
+        { id: 'pu_1', x: 100, y: 100, type: 'energy', owner: evil },
+        { id: 'pu_2', x: 150, y: 100, type: 'energy', owner: 'p2' },
+      ],
+    });
+    const playfield = document.getElementById('spielfeld');
+    return {
+      images: playfield.querySelectorAll('.powerup img').length,
+      owners: arrays.powerups.map(p => p.owner),
+      p2Tag: !!playfield.querySelector('.powerup .tag-p2'),
+    };
+  });
+  expect(r.images).toBe(0);
+  expect(r.owners).toEqual([null, 'p2']);
+  expect(r.p2Tag).toBe(true);
+});
