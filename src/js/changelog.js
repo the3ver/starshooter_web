@@ -1,6 +1,13 @@
-export const GAME_VERSION = '1.15.33';
+export const GAME_VERSION = '1.15.34';
 
 export const changelogData = {
+  '1.15.34': {
+    version: '1.15.34',
+    intro: 'Hey, es ist jetzt Version 1.15.34 rausgekommen, folgendes wurde aktualisiert:',
+    highlights: [
+      'Der Steuerungs-Dialog bricht keinen Eintrag mehr um, nennt ESC als Pause-Taste und erklärt die Sondertasten deines Schiffs (im Co-op beider Schiffe) sowie das Superwaffen-Powerup S.',
+    ],
+  },
   '1.15.33': {
     version: '1.15.33',
     intro: 'Hey, es ist jetzt Version 1.15.33 rausgekommen, folgendes wurde aktualisiert:',

@@ -165,35 +165,44 @@
               <div class="whats-new-title">STEUERUNG</div>
               <div id="steuerung-info-single" class="steuerung-info">
                 <div class="steuerung-titel">Steuerung (PC)</div>
-                <b>W A S D</b> &nbsp;&rarr; Bewegen &nbsp;|&nbsp; <b>L</b> &rarr; Laser<br />
-                <b>K</b> &rarr; Raketen &nbsp;|&nbsp; <b>LEER</b> &rarr; Bomben &nbsp;|&nbsp; <b>P</b> &rarr; Pause
-                &nbsp;|&nbsp; <b>M</b> &rarr; Sound
+                <span class="steuerung-eintrag"><b>W A S D</b> &rarr; Bewegen</span>
+                <span class="steuerung-eintrag"><b>L</b> &rarr; Laser</span>
+                <span class="steuerung-eintrag"><b>K</b> &rarr; Raketen</span>
+                <span class="steuerung-eintrag"><b>LEER</b> &rarr; Bomben</span>
+                <span class="steuerung-eintrag"><b>P / ESC</b> &rarr; Pause</span>
+                <span class="steuerung-eintrag"><b>M</b> &rarr; Sound</span>
               </div>
               <div id="steuerung-info-online" class="steuerung-info" style="display: none">
                 <div class="steuerung-titel">Steuerung (Online Co-op)</div>
-                <b>W A S D</b> &nbsp;&rarr; Bewegen &nbsp;|&nbsp; <b>L</b> &rarr; Laser<br />
-                <b>K</b> &rarr; Raketen &nbsp;|&nbsp; <b>LEER</b> &rarr; Bomben &nbsp;|&nbsp; <b>P</b> &rarr; Pause
-                &nbsp;|&nbsp; <b>M</b> &rarr; Sound
+                <span class="steuerung-eintrag"><b>W A S D</b> &rarr; Bewegen</span>
+                <span class="steuerung-eintrag"><b>L</b> &rarr; Laser</span>
+                <span class="steuerung-eintrag"><b>K</b> &rarr; Raketen</span>
+                <span class="steuerung-eintrag"><b>LEER</b> &rarr; Bomben</span>
+                <span class="steuerung-eintrag"><b>P / ESC</b> &rarr; Pause</span>
+                <span class="steuerung-eintrag"><b>M</b> &rarr; Sound</span>
               </div>
               <div id="steuerung-info-coop" class="steuerung-info" style="display: none">
                 <div class="steuerung-titel">Steuerung 2-Spieler (PC)</div>
                 <div class="steuerung-coop-grid">
                   <div class="steuerung-col">
                     <strong style="color: #e74c3c">SPIELER 1</strong>
-                    <div class="steuerung-zeile"><b>W A S D</b><span>&rarr; Bewegen</span></div>
-                    <div class="steuerung-zeile"><b>B</b><span>&rarr; Laser</span></div>
-                    <div class="steuerung-zeile"><b>V</b><span>&rarr; Raketen</span></div>
-                    <div class="steuerung-zeile"><b>C</b><span>&rarr; Bombe</span></div>
+                    <div class="steuerung-zeile steuerung-eintrag"><b>W A S D</b><span>&rarr; Bewegen</span></div>
+                    <div class="steuerung-zeile steuerung-eintrag"><b>B</b><span>&rarr; Laser</span></div>
+                    <div class="steuerung-zeile steuerung-eintrag"><b>V</b><span>&rarr; Raketen</span></div>
+                    <div class="steuerung-zeile steuerung-eintrag"><b>C</b><span>&rarr; Bombe</span></div>
                   </div>
                   <div class="steuerung-col">
                     <strong style="color: #3498db">SPIELER 2</strong>
-                    <div class="steuerung-zeile"><b>&uarr; &larr; &darr; &rarr;</b><span>&rarr; Bewegen</span></div>
-                    <div class="steuerung-zeile"><b>Ä</b><span>&rarr; Laser</span></div>
-                    <div class="steuerung-zeile"><b>Ö</b><span>&rarr; Raketen</span></div>
-                    <div class="steuerung-zeile"><b>L</b><span>&rarr; Bombe</span></div>
+                    <div class="steuerung-zeile steuerung-eintrag">
+                      <b>&uarr; &larr; &darr; &rarr;</b><span>&rarr; Bewegen</span>
+                    </div>
+                    <div class="steuerung-zeile steuerung-eintrag"><b>Ä</b><span>&rarr; Laser</span></div>
+                    <div class="steuerung-zeile steuerung-eintrag"><b>Ö</b><span>&rarr; Raketen</span></div>
+                    <div class="steuerung-zeile steuerung-eintrag"><b>L</b><span>&rarr; Bombe</span></div>
                   </div>
                 </div>
               </div>
+              <div id="steuerung-schiff" class="steuerung-info"></div>
               <div class="steuerung-touch">
                 Touch: Joystick links, Waffen-Tasten rechts, oberer Bildschirmrand = Pause.
                 <button type="button" class="pause-btn touch-umschalter" id="btn-touch-steuerung">
@@ -451,7 +460,7 @@
           <div id="viper-kombo-hud" class="viper-kombo-hud" style="display: none"></div>
           <div id="viper-kombo-hud-p2" class="viper-kombo-hud viper-kombo-hud-p2" style="display: none"></div>
           <div id="level-anzeige">LEVEL 1</div>
-          <div id="version-anzeige">V 1.15.33</div>
+          <div id="version-anzeige">V 1.15.34</div>
 
           <div id="boss-hp-container">
             <div id="boss-hp-balken"></div>

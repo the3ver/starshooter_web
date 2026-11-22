@@ -1485,7 +1485,50 @@ export function setGameMode(mode) {
   }
 }
 
+// Special abilities per ship for the controls dialog (issue #32); keys by role, since P1 and P2 differ
+const SHIP_ABILITIES = {
+  viper: ['Doppeltipp links/rechts → Ausweichrolle', 'Knapp ausweichen lädt den Overdrive'],
+  phantom: ['Keine Sondertasten, das Schild lädt sich selbst auf'],
+  gleve: ['Laser-Taste halten → Sweep (pariert Geschosse)', 'Raketen-Taste → Dash'],
+  sniper: [
+    'Laser-Taste halten → laden, loslassen → Schuss',
+    'Raketen-Taste tippen → Granate und EMP',
+    'Raketen-Taste halten → Minen legen',
+  ],
+};
+
+// Section "Dein Schiff" in the controls dialog: abilities of the chosen ship(s) and the superweapon powerup
+function updateShipControls() {
+  const section = document.getElementById('steuerung-schiff');
+  if (!section) return;
+  const ships =
+    state.gameMode === 'coop'
+      ? [
+          ['SPIELER 1', state.selectedShipModel || 'viper'],
+          ['SPIELER 2', (state.p2 && state.p2.selectedShipModel) || 'phantom'],
+        ]
+      : [['DEIN SCHIFF', localShipModel()]];
+  const nodes = [];
+  const add = (cls, text) => {
+    const el = document.createElement('div');
+    el.className = cls;
+    el.textContent = text;
+    nodes.push(el);
+  };
+  for (const [who, model] of ships) {
+    const name = (shipModels[model] && shipModels[model].shortName) || model.toUpperCase();
+    add('steuerung-titel', `${who}: ${name}`);
+    for (const line of SHIP_ABILITIES[model] || []) add('steuerung-eintrag steuerung-faehigkeit', line);
+  }
+  add(
+    'steuerung-eintrag steuerung-faehigkeit steuerung-superwaffe',
+    'Powerup S → Superwaffe: alle Waffen eine Stufe höher',
+  );
+  section.replaceChildren(...nodes);
+}
+
 export function updateControlsInfo() {
+  updateShipControls();
   const short = document.getElementById('steuerung-kurz');
   if (short) {
     if (state.gameMode === 'coop') {
@@ -1501,8 +1544,12 @@ export function updateControlsInfo() {
     if (state.p2IsBot) {
       infoCoop.innerHTML = `
         <div class="steuerung-titel">Steuerung (Co-op mit Bot)</div>
-        <b>W A S D</b> &nbsp;&rarr; Bewegen &nbsp;|&nbsp; <b>L / B</b> &rarr; Laser<br>
-        <b>K / V</b> &rarr; Raketen &nbsp;|&nbsp; <b>LEER / C</b> &rarr; Bomben &nbsp;|&nbsp; <b>P</b> &rarr; Pause
+        <span class="steuerung-eintrag"><b>W A S D</b> &rarr; Bewegen</span>
+        <span class="steuerung-eintrag"><b>L / B</b> &rarr; Laser</span>
+        <span class="steuerung-eintrag"><b>K / V</b> &rarr; Raketen</span>
+        <span class="steuerung-eintrag"><b>LEER / C</b> &rarr; Bomben</span>
+        <span class="steuerung-eintrag"><b>P / ESC</b> &rarr; Pause</span>
+        <span class="steuerung-eintrag"><b>M</b> &rarr; Sound</span>
       `;
     } else {
       infoCoop.innerHTML = `
@@ -1510,17 +1557,17 @@ export function updateControlsInfo() {
         <div class="steuerung-coop-grid">
             <div class="steuerung-col">
                 <strong style="color: #e74c3c;">SPIELER 1</strong>
-                <div class="steuerung-zeile"><b>W A S D</b><span>&rarr; Bewegen</span></div>
-                <div class="steuerung-zeile"><b>B</b><span>&rarr; Laser</span></div>
-                <div class="steuerung-zeile"><b>V</b><span>&rarr; Raketen</span></div>
-                <div class="steuerung-zeile"><b>C</b><span>&rarr; Bombe</span></div>
+                <div class="steuerung-zeile steuerung-eintrag"><b>W A S D</b><span>&rarr; Bewegen</span></div>
+                <div class="steuerung-zeile steuerung-eintrag"><b>B</b><span>&rarr; Laser</span></div>
+                <div class="steuerung-zeile steuerung-eintrag"><b>V</b><span>&rarr; Raketen</span></div>
+                <div class="steuerung-zeile steuerung-eintrag"><b>C</b><span>&rarr; Bombe</span></div>
             </div>
             <div class="steuerung-col">
                 <strong style="color: #3498db;">SPIELER 2</strong>
-                <div class="steuerung-zeile"><b>&uarr; &larr; &darr; &rarr;</b><span>&rarr; Bewegen</span></div>
-                <div class="steuerung-zeile"><b>Ä</b><span>&rarr; Laser</span></div>
-                <div class="steuerung-zeile"><b>Ö</b><span>&rarr; Raketen</span></div>
-                <div class="steuerung-zeile"><b>L</b><span>&rarr; Bombe</span></div>
+                <div class="steuerung-zeile steuerung-eintrag"><b>&uarr; &larr; &darr; &rarr;</b><span>&rarr; Bewegen</span></div>
+                <div class="steuerung-zeile steuerung-eintrag"><b>Ä</b><span>&rarr; Laser</span></div>
+                <div class="steuerung-zeile steuerung-eintrag"><b>Ö</b><span>&rarr; Raketen</span></div>
+                <div class="steuerung-zeile steuerung-eintrag"><b>L</b><span>&rarr; Bombe</span></div>
             </div>
         </div>
       `;

@@ -3360,12 +3360,31 @@ body {
 
 .steuerung-overlay-content {
   max-width: 380px;
+  max-height: 100%;
+  overflow-y: auto;
   font-size: 12px;
   line-height: 1.7;
 }
 
 .steuerung-overlay-content .steuerung-info {
   margin: 0 0 12px 0;
+}
+
+/* One controls entry never breaks across lines (issue #32): entries wrap as whole blocks */
+.steuerung-info > .steuerung-eintrag:not(.steuerung-zeile) {
+  display: inline-block;
+  margin: 0 6px;
+}
+
+.steuerung-info > .steuerung-faehigkeit {
+  display: block;
+  margin: 0;
+}
+
+/* Applies to every ship, so set apart from the last ship block */
+.steuerung-info > .steuerung-superwaffe {
+  margin-top: 8px;
+  color: #f1c40f;
 }
 
 .steuerung-touch {
