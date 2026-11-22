@@ -122,3 +122,49 @@ test('Online client: a powerup owner from the snapshot cannot inject HTML', asyn
   expect(r.owners).toEqual([null, 'p2']);
   expect(r.p2Tag).toBe(true);
 });
+
+// The powerup HUD builds HTML from the weapon tiers (utils.js drawActivePowerups), so the client takes
+// tiers from the snapshot only as integers 0..5.
+test('Online client: weapon and shield tiers from the snapshot arrive as integers 0..5', async ({ page }) => {
+  const r = await page.evaluate(() => {
+    const { state, Network } = window.__game;
+    state.gameMode = 'online';
+    state.gameRunning = true;
+    state.network.isOnline = true;
+    state.network.isHost = false;
+    state.network.isClient = true;
+    const evil = '<img src=x onerror="window.__xss = true">';
+    Network.applyGameStateSnapshot({
+      p1: {
+        x: 200,
+        y: 400,
+        rotate: 0,
+        lives: 3,
+        energy: 50,
+        maxEnergy: 50,
+        isDead: false,
+        laserTier: '3',
+        missileTier: evil,
+        bombTier: 9,
+        shieldTier: evil,
+      },
+      p2: {
+        x: 350,
+        y: 400,
+        rotate: 0,
+        lives: 3,
+        energy: 50,
+        maxEnergy: 50,
+        isDead: false,
+        laserTier: 2.6,
+        shieldTier: '2',
+      },
+      score: 0,
+      level: 1,
+      powerups: [],
+    });
+    const p = state.p2;
+    return [state.laserTier, state.missileTier, state.bombTier, state.shieldTier, p.laserTier, p.shieldTier];
+  });
+  expect(r).toEqual([3, 0, 5, 0, 3, 2]);
+});

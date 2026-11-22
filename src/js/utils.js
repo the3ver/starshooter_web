@@ -25,7 +25,7 @@ export function addScore(points, factor = 1) {
 }
 // Sets HTML and removes lost symbols (.pu-anim-lost) after the animation
 function showWithLossAnimation(container, html, lostHtml) {
-  // eslint-disable-next-line no-unsanitized/property -- powerup HUD built from internal state
+  // eslint-disable-next-line no-unsanitized/property -- powerup HUD from tiers; on the online client tierFromSnapshot (network.js) makes them integers
   container.innerHTML = html + lostHtml;
 
   if (lostHtml) {

@@ -1072,10 +1072,16 @@ function fuseThreshold(s) {
 }
 
 // Apply a player's weapon tiers and HUD flags from the snapshot (missing tiers stay)
+// A tier from the snapshot as an integer 0..5: the powerup HUD builds HTML from the tiers (utils.js)
+export function tierFromSnapshot(value) {
+  const n = Math.round(Number(value));
+  return Number.isFinite(n) ? Math.max(0, Math.min(5, n)) : 0;
+}
+
 function applyWeaponTiers(target, payload) {
-  if (payload.laserTier !== undefined) target.laserTier = payload.laserTier;
-  if (payload.missileTier !== undefined) target.missileTier = payload.missileTier;
-  if (payload.bombTier !== undefined) target.bombTier = payload.bombTier;
+  if (payload.laserTier !== undefined) target.laserTier = tierFromSnapshot(payload.laserTier);
+  if (payload.missileTier !== undefined) target.missileTier = tierFromSnapshot(payload.missileTier);
+  if (payload.bombTier !== undefined) target.bombTier = tierFromSnapshot(payload.bombTier);
   target.laserPierce = Boolean(payload.laserPierce);
   target.autolaserActive = Boolean(payload.autolaserActive);
   // Viper splitters and Phantom shield charge (missing values stay)
@@ -1125,7 +1131,7 @@ export function applyGameStateSnapshot(snapshot) {
     state.lives = snapshot.p1.lives;
     state.energy = snapshot.p1.energy;
     state.maxEnergy = snapshot.p1.maxEnergy || state.maxEnergy;
-    state.shieldTier = snapshot.p1.shieldTier || 0;
+    state.shieldTier = tierFromSnapshot(snapshot.p1.shieldTier);
     applyWeaponTiers(state, snapshot.p1);
     state.isDead = snapshot.p1.isDead || false;
     state.hacks = snapshot.p1.hacks || [];
@@ -1194,7 +1200,7 @@ export function applyGameStateSnapshot(snapshot) {
     state.p2.hacks = snapshot.p2.hacks || [];
     state.p2.energy = snapshot.p2.energy;
     state.p2.maxEnergy = snapshot.p2.maxEnergy || state.p2.maxEnergy;
-    state.p2.shieldTier = snapshot.p2.shieldTier || 0;
+    state.p2.shieldTier = tierFromSnapshot(snapshot.p2.shieldTier);
     applyWeaponTiers(state.p2, snapshot.p2);
     state.p2.isDead = snapshot.p2.isDead || false;
     // Own Gleve: client.js predicts the dash, bounce and sweep come from the host
