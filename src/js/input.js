@@ -4,7 +4,7 @@ import * as Audio from './audio.js';
 import * as Cutscene from './cutscene.js';
 import * as Network from './network.js';
 import * as Sniper from './sniper.js';
-import { togglePause, handleEscape, initPauseMenu } from './pause.js';
+import { togglePause, handleEscape, initPauseMenu, startNextRound } from './pause.js';
 import * as Display from './display.js';
 
 // Time after the game over during which the highscore name field ignores keys
@@ -200,12 +200,7 @@ export function setupInput() {
   }
 
   // NEUSTART: next round in the same mode with the same ship; HAUPTMENÜ: back to the menu (issue #25)
-  document.getElementById('btn-restart').addEventListener('click', () => {
-    Utils.restartGame();
-    const startScreen = document.getElementById('start-screen');
-    if (startScreen) startScreen.style.display = 'none';
-    Cutscene.startCutscene();
-  });
+  document.getElementById('btn-restart').addEventListener('click', startNextRound);
   document.getElementById('btn-game-over-menu').addEventListener('click', Utils.restartGame);
 
   // --- MOBILE TOUCH CONTROLS (VIRTUAL JOYSTICK & TAP) ---

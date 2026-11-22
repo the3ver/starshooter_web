@@ -98,7 +98,7 @@ const MODULE_STATUS = {
     ],
     reason: 'connection and sync have their own lifetime (join/leave room)',
   },
-  'pause.js': { lets: ['hintUntil', 'queryOpen'], reason: 'pause display, every pause sets it again' },
+  'pause.js': { lets: ['hintUntil', 'pendingQuery'], reason: 'pause display, every pause sets it again' },
   'sniper.js': { lets: ['grenadeId', 'mineId'], reason: 'IDs stay unique across the session' },
   'utils.js': {
     lets: ['prevLives', 'prevPuState', 'prevLivesP2', 'prevPuStateP2', 'prevLauncherStatesP1', 'prevLauncherStatesP2'],

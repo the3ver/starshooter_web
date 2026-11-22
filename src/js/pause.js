@@ -1,6 +1,7 @@
 import { state, dom } from './state.js';
 import * as Network from './network.js';
 import * as Utils from './utils.js';
+import * as Cutscene from './cutscene.js';
 
 // Shared pause in online mode: whoever pauses owns it and alone can resume.
 // The pause ends automatically after PAUSE_MAX_MS at the latest. Outside online mode
@@ -9,7 +10,8 @@ import * as Utils from './utils.js';
 export const PAUSE_MAX_MS = 60000;
 const HINT_MS = 2500;
 let hintUntil = 0;
-let queryOpen = false;
+// Confirmation shown in the local pause menu: null, 'menu' (end the game) or 'restart'
+let pendingQuery = null;
 
 function showEl(id, visible) {
   const el = document.getElementById(id);
@@ -19,25 +21,25 @@ function showEl(id, visible) {
 // Buttons only for a local pause (single, co-op, bot); online it stays with the text
 function updateMenu() {
   const local = state.paused && !state.pauseFrom && !isOnlineMode();
-  if (!local) queryOpen = false;
+  if (!local) pendingQuery = null;
   showEl('pause-menue', local);
-  showEl('pause-knoepfe', local && !queryOpen);
-  showEl('pause-abfrage', local && queryOpen);
-  showEl('pause-abfrage-text', local && queryOpen);
+  showEl('pause-knoepfe', local && !pendingQuery);
+  showEl('pause-abfrage', local && Boolean(pendingQuery));
+  showEl('pause-abfrage-text', local && Boolean(pendingQuery));
 }
 
 export function isQueryOpen() {
-  return queryOpen;
+  return Boolean(pendingQuery);
 }
 
 export function openQuery() {
   if (!state.paused || state.pauseFrom || isOnlineMode()) return;
-  queryOpen = true;
+  pendingQuery = 'menu';
   updateMenu();
 }
 
 export function closeQuery() {
-  queryOpen = false;
+  pendingQuery = null;
   updateMenu();
 }
 
@@ -49,15 +51,23 @@ export function resume() {
 // Discard the running game and return to the start screen (no highscore, no game over)
 export function endGameToMainMenu() {
   if (!state.paused || state.pauseFrom || isOnlineMode()) return;
-  queryOpen = false;
+  pendingQuery = null;
   Utils.restartGame();
   updateMenu();
+}
+
+// Next round in the same mode with the same ship (game over screen)
+export function startNextRound() {
+  Utils.restartGame();
+  const startScreen = document.getElementById('start-screen');
+  if (startScreen) startScreen.style.display = 'none';
+  Cutscene.startCutscene();
 }
 
 // ESC during the pause: open or cancel the query. true = key consumed.
 export function handleEscape() {
   if (!state.paused || state.pauseFrom || isOnlineMode()) return false;
-  if (queryOpen) closeQuery();
+  if (pendingQuery) closeQuery();
   else openQuery();
   return true;
 }
@@ -144,7 +154,7 @@ export function endPause() {
   state.pauseFrom = null;
   state.pauseEndTime = 0;
   hintUntil = 0;
-  queryOpen = false;
+  pendingQuery = null;
   if (dom.pauseOverlay) dom.pauseOverlay.style.display = 'none';
   updateMenu();
 }
