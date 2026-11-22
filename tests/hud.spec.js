@@ -1,7 +1,7 @@
 // The game HUD (hearts, weapon bars, score, level, P2 HUD) is visible only while a game runs or on the
 // game over screen; the start menu and the intro cutscene hide it (issues #28, #27, #24).
 const { test, expect } = require('@playwright/test');
-const { setGameState, startGame } = require('./helpers');
+const { setGameState, startGame, installClock, pauseClock, windUntil } = require('./helpers');
 
 const HUD = ['#ui-container', '#ui-container-p2', '#score-anzeige', '#level-anzeige'];
 
@@ -17,6 +17,19 @@ async function hudVisible(page) {
       ),
     HUD,
   );
+}
+
+// Starts the intro cutscene with a paused fake clock: page time passes only by winding, so the cutscene
+// cannot end or animate on its own while the test measures
+async function startCutsceneWithClock(page) {
+  await setGameState(page, { skipCutscene: false });
+  await installClock(page);
+  await page.goto('/');
+  await page.waitForFunction(() => window.__game && window.__game.state);
+  await pauseClock(page);
+  await page.keyboard.down('w');
+  await windUntil(page, () => page.evaluate(() => window.__game.state.cutsceneActive), 1000, 50);
+  await page.keyboard.up('w');
 }
 
 test.beforeEach(async ({ page }) => {
@@ -43,11 +56,7 @@ test('start menu hides the game HUD, a running game shows it (#28)', async ({ pa
 });
 
 test('the intro cutscene hides the score under the skip hint (#27)', async ({ page }) => {
-  await setGameState(page, { skipCutscene: false });
-  await page.goto('/');
-  await page.waitForFunction(() => window.__game && window.__game.state);
-  await startGame(page, 'KeyW');
-  await page.waitForFunction(() => window.__game.state.cutsceneActive);
+  await startCutsceneWithClock(page);
   await page.evaluate(async () => (await import('./js/loop.js')).simulationStep());
   const cutscene = await hudVisible(page);
   expect(cutscene['#score-anzeige']).toBe(false);
@@ -75,11 +84,7 @@ test('co-op back to the main menu hides the P2 HUD (#24)', async ({ page }) => {
 });
 
 test('the sound button stays clickable during the intro cutscene (#27)', async ({ page }) => {
-  await setGameState(page, { skipCutscene: false });
-  await page.goto('/');
-  await page.waitForFunction(() => window.__game && window.__game.state);
-  await startGame(page, 'KeyW');
-  await page.waitForFunction(() => window.__game.state.cutsceneActive);
+  await startCutsceneWithClock(page);
   const onTop = await page.evaluate(() => {
     const b = document.getElementById('btn-sound-toggle');
     const r = b.getBoundingClientRect();
@@ -87,4 +92,21 @@ test('the sound button stays clickable during the intro cutscene (#27)', async (
     return b === top || b.contains(top);
   });
   expect(onTop).toBe(true);
+});
+
+test('the game over screen keeps the HUD visible (final hearts and score)', async ({ page }) => {
+  await setGameState(page);
+  await page.goto('/');
+  await page.waitForFunction(() => window.__game && window.__game.state);
+  await startGame(page, 'KeyW');
+  await page.waitForFunction(() => window.__game.state.gameRunning);
+  await page.evaluate(async () => {
+    const Utils = await import('./js/utils.js');
+    Utils.triggerGameOver();
+    (await import('./js/loop.js')).simulationStep();
+  });
+  expect(await page.evaluate(() => window.__game.state.gameOverActive)).toBe(true);
+  const over = await hudVisible(page);
+  expect(over['#ui-container']).toBe(true);
+  expect(over['#score-anzeige']).toBe(true);
 });

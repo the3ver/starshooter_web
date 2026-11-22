@@ -524,10 +524,10 @@ function drawBeams() {
 }
 
 export function drawWorld() {
-  // The game HUD shows only in a running game and on the game over screen; the start menu and the intro
-  // cutscene hide it (issues #28, #27, #24). Derived from the state every step, so every way back to the
-  // menu is covered.
-  const hudHidden = (!state.gameRunning && !state.gameOverActive) || state.cutsceneActive;
+  // The game HUD shows only in a running game (including the game over screen, gameRunning stays true until
+  // restartGame); the start menu and the intro cutscene hide it (issues #28, #27, #24). Derived from the state
+  // every step, so every way back to the menu is covered.
+  const hudHidden = !state.gameRunning || state.cutsceneActive;
   dom.playfield.classList.toggle('hud-verborgen', hudHidden);
   drawPlayer();
   for (const name in DRAWER) {
