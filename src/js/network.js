@@ -319,13 +319,18 @@ export function hostStartGame() {
   startOnlineGame();
 }
 
-export function leaveOnlineRoom() {
+// Closes a hosted or joined room without changing the game mode (tells a connected teammate first)
+export function closeOnlineRoom() {
   if (state.network.connected) {
     sendNetworkEvent({ type: 'peer_left' });
   }
   disconnectNetwork();
   updateOnlineStatus('RAUM VERLASSEN');
   updateOnlineLobbyUI();
+}
+
+export function leaveOnlineRoom() {
+  closeOnlineRoom();
   if (Utils && Utils.setGameMode) {
     Utils.setGameMode('online');
   }
