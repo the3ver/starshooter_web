@@ -8,6 +8,7 @@ Browser-Space-Shooter ohne HTML5-Canvas: Weltobjekte sind DOM-Elemente (`positio
 
 ## Pruefen und Release
 - **Pruefen:** `npm run check` (Prettier, ESLint, `tsc --checkJs`, alle Tests; gruen eine Zeile). Der Stop-Hook und ein Hook vor jedem `git commit` rufen ihn bei geaenderten Dateien auf (Commit bei Rot blockiert), ein Edit-Hook laesst ESLint `--fix` und Prettier auf jede geaenderte Datei laufen; `npm run fmt` formatiert alles. Vor jedem Push gruen. Typfehler mit JSDoc-Casts beheben, Browser-Erweiterungen in `types/globals.d.ts`.
+- **Review:** vor jedem Push den Subagenten `reviewer` mit dem Commit-Bereich aufrufen (Regeln in `docs/review.md`) und seine Befunde beheben oder begruenden.
 - **Version:** bei Aenderungen an Spiel-Logik/UI `npm run release -- X.Y.Z` (setzt alle Versionsstellen und ein Changelog-Geruest), danach die Highlights statt `TODO` in `src/js/changelog.js` eintragen. `tests/version.spec.js` prueft alle Stellen.
 - **Tests sind deterministisch:** Zeit vergeht ueber `simulationStep()` in einem `page.evaluate` oder ueber die Fake-Uhr aus `tests/helpers.js` (`installClock`, `advanceClock`). `tests/rules.spec.js` laesst die Zahl der Echtzeit-Wartezeiten je Datei nur sinken.
 - **Testhelfer:** `setGameState(page)` aus `tests/helpers.js` vor `page.goto`; Versions-, Changelog- und Protokollwerte im Test aus dem Spielcode lesen (`GAME_VERSION`, `changelogData`, `PROTOCOL_VERSION`).
