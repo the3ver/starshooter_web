@@ -1,6 +1,11 @@
-export const GAME_VERSION = '1.15.30';
+export const GAME_VERSION = '1.15.31';
 
 export const changelogData = {
+  '1.15.31': {
+    version: '1.15.31',
+    intro: 'Hey, es ist jetzt Version 1.15.31 rausgekommen, folgendes wurde aktualisiert:',
+    highlights: ['Im Menü zeigt der 1-Spieler-Bereich deine Bestleistung aus der lokalen Bestenliste.'],
+  },
   '1.15.30': {
     version: '1.15.30',
     intro: 'Hey, es ist jetzt Version 1.15.30 rausgekommen, folgendes wurde aktualisiert:',

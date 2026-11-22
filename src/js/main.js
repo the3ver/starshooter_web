@@ -284,6 +284,7 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   Utils.updateControlsInfo();
+  Utils.updateSingleBest();
 
   // Controls overlay (button in the menu, ESC and CLOSE close it)
   const controlsOverlay = document.getElementById('steuerung-overlay');

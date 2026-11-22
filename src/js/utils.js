@@ -856,6 +856,7 @@ export function restartGame() {
   let startScreen = document.getElementById('start-screen');
   if (startScreen) startScreen.style.display = 'block';
   applyPlayfieldWidth('menu');
+  updateSingleBest();
   updatePlayerShipVisuals();
   updateMobileControlsVisibility();
   if (state.gameMode === 'online') {
@@ -892,6 +893,17 @@ export function normalizeHighscoreMode(mode = state.gameMode || 'single') {
   if (mode === 'coop_bot') return 'coop_bot';
   if (mode === 'coop') return 'coop_bot';
   return 'single';
+}
+
+// Personal best in the 1 player area of the menu: top entry of the local solo list (issue #33)
+export function updateSingleBest() {
+  const el = document.getElementById('bestleistung-single');
+  if (!el) return;
+  let best = null;
+  try {
+    best = getHighscores('single')[0] || null;
+  } catch (e) {}
+  el.textContent = best ? `BESTLEISTUNG: ${best.score}` : 'NOCH KEINE BESTLEISTUNG';
 }
 
 export function getHighscores(mode = state.gameMode || 'single') {
@@ -1388,6 +1400,7 @@ export function setGameMode(mode) {
 
   const onlineLobby = document.getElementById('online-lobby-container');
   if (onlineLobby) onlineLobby.style.display = isOnline ? 'block' : 'none';
+  updateSingleBest();
 
   const hangarTabs = document.getElementById('hangar-player-tabs');
   if (hangarTabs) hangarTabs.style.display = isCoop ? 'flex' : 'none';

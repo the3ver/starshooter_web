@@ -3486,6 +3486,13 @@ body {
   text-align: center;
 }
 
+.bestleistung-single {
+  margin-top: 8px;
+  font-size: 13px;
+  letter-spacing: 1px;
+  color: #f1c40f;
+}
+
 .modus-optionen-coop {
   text-align: center;
 }

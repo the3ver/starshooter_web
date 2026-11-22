@@ -417,3 +417,37 @@ test('switching from online to 1 player closes a waiting room and restores the s
     mode: 'single',
   });
 });
+
+// Issue #33: the 1 player area shows the personal best (local solo list) and a short mode hint
+test('1 player area shows the local best score, updates on return to the menu, keeps its height', async ({ page }) => {
+  await page.setViewportSize({ width: 1280, height: 800 });
+  await page.addInitScript(() => {
+    localStorage.setItem(
+      'spaceShooterHighscores',
+      JSON.stringify([
+        { name: 'ABC', score: 4321 },
+        { name: 'XYZ', score: 1200 },
+      ]),
+    );
+  });
+  await page.goto('/');
+  await page.waitForFunction(() => window.__game && window.__game.state);
+  const area = page.locator('#modus-optionen-single');
+  await expect(area).toContainText('ALLEIN GEGEN DIE FLOTTE');
+  await expect(area).toContainText('4321');
+  const height = await page.evaluate(() => document.getElementById('modus-optionen').getBoundingClientRect().height);
+  await page.evaluate(() => {
+    localStorage.setItem('spaceShooterHighscores', JSON.stringify([{ name: 'NEW', score: 9000 }]));
+    window.__game.Utils.restartGame();
+  });
+  await expect(area).toContainText('9000');
+  expect(await page.evaluate(() => document.getElementById('modus-optionen').getBoundingClientRect().height)).toBe(
+    height,
+  );
+});
+
+test('1 player area without a local score shows no number', async ({ page }) => {
+  await page.goto('/');
+  await page.waitForFunction(() => window.__game && window.__game.state);
+  await expect(page.locator('#modus-optionen-single')).toContainText('NOCH KEINE BESTLEISTUNG');
+});
