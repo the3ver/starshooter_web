@@ -512,6 +512,14 @@ body {
   margin-top: 0;
 }
 
+/* Game HUD hidden in the start menu and during the intro cutscene (display-dom.js drawWorld) */
+#spielfeld.hud-verborgen #ui-container,
+#spielfeld.hud-verborgen #ui-container-p2,
+#spielfeld.hud-verborgen #score-anzeige,
+#spielfeld.hud-verborgen #level-anzeige {
+  visibility: hidden;
+}
+
 #ui-container {
   position: absolute;
   top: 10px;
@@ -942,7 +950,7 @@ body {
   color: #ecf0f1;
   font-size: 14px;
   cursor: pointer;
-  z-index: 50;
+  z-index: 60; /* above the intro cutscene (z-index 50), issue #27 */
   padding: 3px 6px;
   line-height: 1;
   display: flex;

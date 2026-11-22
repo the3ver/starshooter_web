@@ -66,6 +66,8 @@ test('restartGame restores the classes of body and #spielfeld to the loaded stat
     simulationStep();
     const inGame = classes();
     Utils.restartGame();
+    // one frame after the restart, as in the game: the display derives the HUD class per step (#28)
+    simulationStep();
     return { loaded, inGame, afterRestart: classes() };
   });
   expect(r.inGame, 'Test setup: the rock level must set a class').not.toEqual(r.loaded);

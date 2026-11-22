@@ -1,6 +1,13 @@
-export const GAME_VERSION = '1.15.25';
+export const GAME_VERSION = '1.15.26';
 
 export const changelogData = {
+  '1.15.26': {
+    version: '1.15.26',
+    intro: 'Hey, es ist jetzt Version 1.15.26 rausgekommen, folgendes wurde aktualisiert:',
+    highlights: [
+      'Im Startmenü und in der Intro-Cutszene ist das Spiel-HUD ausgeblendet, der Sound-Button bleibt in der Cutszene bedienbar.',
+    ],
+  },
   '1.15.25': {
     version: '1.15.25',
     intro: 'Hey, es ist jetzt Version 1.15.25 rausgekommen, folgendes wurde aktualisiert:',

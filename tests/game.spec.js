@@ -56,7 +56,9 @@ test.describe('Space Shooter', () => {
     await expect(startText).toContainText('TAP OR PRESS ANY KEY TO START');
   });
 
-  test('The lives display is visible at the start and shows 3 hearts', async ({ page }) => {
+  test('The lives display is visible at game start and shows 3 hearts', async ({ page }) => {
+    // the start menu hides the game HUD (#28), so start a game first
+    await startGame(page, 'KeyW');
     const livesDisplay = page.locator('#leben-anzeige');
     await expect(livesDisplay).toBeVisible();
     const hearts = page.locator('#leben-anzeige .leben-herz');
@@ -67,6 +69,7 @@ test.describe('Space Shooter', () => {
   });
 
   test('Energy and cooldown bars show circular powerup letters E, R and B', async ({ page }) => {
+    await startGame(page, 'KeyW');
     const energyLetter = page.locator('#energie-cd-container .cooldown-letter-e');
     await expect(energyLetter).toBeVisible();
     await expect(energyLetter).toHaveText('E');
