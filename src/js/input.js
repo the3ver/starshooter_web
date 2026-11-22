@@ -27,7 +27,7 @@ export function setupInput() {
         Cutscene.skipCutscene();
         return;
       }
-      if (handleEscape()) {
+      if (handleEscape(e.repeat)) {
         e.preventDefault();
         return;
       }

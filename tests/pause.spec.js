@@ -303,3 +303,63 @@ test('Pause menu online (client, other side paused): no buttons', async ({ page 
   expect(await visible(page, 'btn-pause-weiter')).toBe(false);
   expect(await visible(page, 'btn-pause-hauptmenue')).toBe(false);
 });
+
+// --- Issue #30: ESC pauses like P, NEUSTART in the local pause menu ---
+
+test('ESC in a running game pauses, ESC in the pause opens the query, P resumes', async ({ page }) => {
+  await startGame(page);
+  await page.waitForFunction(() => window.__game.state.gameRunning);
+  await page.keyboard.press('Escape');
+  expect(await page.evaluate(() => window.__game.state.paused)).toBe(true);
+  expect(await visible(page, 'btn-pause-weiter')).toBe(true);
+  await page.keyboard.press('Escape');
+  expect(await visible(page, 'btn-pause-ja')).toBe(true);
+  await page.keyboard.press('Escape');
+  await page.keyboard.press('KeyP');
+  expect(await page.evaluate(() => window.__game.state.paused)).toBe(false);
+});
+
+test('ESC in the start menu does not start or pause anything', async ({ page }) => {
+  await page.keyboard.press('Escape');
+  const r = await page.evaluate(() => ({ paused: window.__game.state.paused, runs: window.__game.state.gameRunning }));
+  expect(r).toEqual({ paused: false, runs: false });
+});
+
+test('online: ESC pauses like P and sends pause_start', async ({ page }) => {
+  await online(page, 'host');
+  await page.keyboard.press('Escape');
+  const r = await page.evaluate(() => ({
+    paused: window.__game.state.paused,
+    fromEntry: window.__game.state.pauseFrom,
+    sent: window.__game.state.network.lastSentEvent && window.__game.state.network.lastSentEvent.type,
+  }));
+  expect(r).toEqual({ paused: true, fromEntry: 'p1', sent: 'pause_start' });
+});
+
+for (const mode of ['single', 'coop']) {
+  test(`pause menu (${mode}): NEUSTART asks, CANCEL keeps the game, YES starts a new round`, async ({ page }) => {
+    await startPaused(page, mode);
+    expect(await visible(page, 'btn-pause-neustart')).toBe(true);
+    await page.click('#btn-pause-neustart');
+    expect(await page.locator('#pause-abfrage-text').textContent()).toContain('neu starten');
+    await page.click('#btn-pause-abbrechen');
+    expect(await page.evaluate(() => window.__game.state.score)).toBe(1234);
+    await page.click('#btn-pause-neustart');
+    await page.click('#btn-pause-ja');
+    await page.waitForFunction(() => window.__game.state.gameRunning);
+    const r = await page.evaluate(() => ({
+      paused: window.__game.state.paused,
+      mode: window.__game.state.gameMode,
+      score: window.__game.state.score,
+      enemies: window.__game.arrays.enemies.length,
+      start: document.getElementById('start-screen').style.display,
+    }));
+    expect(r).toEqual({ paused: false, mode, score: 0, enemies: 0, start: 'none' });
+  });
+}
+
+test('pause menu: the main menu query keeps its own text', async ({ page }) => {
+  await startPaused(page, 'single');
+  await page.click('#btn-pause-hauptmenue');
+  expect(await page.locator('#pause-abfrage-text').textContent()).toContain('beenden');
+});

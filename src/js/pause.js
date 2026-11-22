@@ -10,7 +10,7 @@ import * as Cutscene from './cutscene.js';
 export const PAUSE_MAX_MS = 60000;
 const HINT_MS = 2500;
 let hintUntil = 0;
-// Confirmation shown in the local pause menu: null, 'menu' (end the game) or 'restart'
+// Confirmation shown in the local pause menu: null, 'menu' (end the game) or 'restart' (new round)
 let pendingQuery = null;
 
 function showEl(id, visible) {
@@ -32,9 +32,27 @@ export function isQueryOpen() {
   return Boolean(pendingQuery);
 }
 
-export function openQuery() {
+const QUERY_TEXT = { menu: 'Laufendes Spiel beenden?', restart: 'Laufendes Spiel neu starten?' };
+
+export function openQuery(action = 'menu') {
   if (!state.paused || state.pauseFrom || isOnlineMode()) return;
-  pendingQuery = 'menu';
+  pendingQuery = action === 'restart' ? 'restart' : 'menu';
+  const text = document.getElementById('pause-abfrage-text');
+  if (text) text.textContent = QUERY_TEXT[pendingQuery];
+  updateMenu();
+}
+
+// YES in the query: end the game to the menu or start a new round (issue #30)
+function confirmQuery() {
+  if (pendingQuery === 'restart') restartFromPause();
+  else endGameToMainMenu();
+}
+
+// Discard the running game and start the next round in the same mode with the same ship
+export function restartFromPause() {
+  if (!state.paused || state.pauseFrom || isOnlineMode()) return;
+  pendingQuery = null;
+  startNextRound();
   updateMenu();
 }
 
@@ -64,9 +82,15 @@ export function startNextRound() {
   Cutscene.startCutscene();
 }
 
-// ESC during the pause: open or cancel the query. true = key consumed.
-export function handleEscape() {
-  if (!state.paused || state.pauseFrom || isOnlineMode()) return false;
+// ESC: in a running game it pauses like P (issue #30); during a local pause it opens or cancels the
+// query. true = key consumed.
+export function handleEscape(repeated = false) {
+  if (!state.paused) {
+    if (!state.gameRunning || state.gameOverActive) return false;
+    togglePause(repeated);
+    return true;
+  }
+  if (state.pauseFrom || isOnlineMode()) return false;
   if (pendingQuery) closeQuery();
   else openQuery();
   return true;
@@ -78,8 +102,9 @@ export function initPauseMenu() {
     if (el) el.addEventListener('click', fn);
   };
   bind('btn-pause-weiter', resume);
-  bind('btn-pause-hauptmenue', openQuery);
-  bind('btn-pause-ja', endGameToMainMenu);
+  bind('btn-pause-neustart', () => openQuery('restart'));
+  bind('btn-pause-hauptmenue', () => openQuery('menu'));
+  bind('btn-pause-ja', confirmQuery);
   bind('btn-pause-abbrechen', closeQuery);
 }
 

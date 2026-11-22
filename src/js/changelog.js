@@ -1,6 +1,13 @@
-export const GAME_VERSION = '1.15.28';
+export const GAME_VERSION = '1.15.29';
 
 export const changelogData = {
+  '1.15.29': {
+    version: '1.15.29',
+    intro: 'Hey, es ist jetzt Version 1.15.29 rausgekommen, folgendes wurde aktualisiert:',
+    highlights: [
+      'ESC pausiert jetzt das laufende Spiel wie P. Das Pause-Menü bietet NEUSTART für eine neue Runde mit gleichem Modus und Schiff (nicht online).',
+    ],
+  },
   '1.15.28': {
     version: '1.15.28',
     intro: 'Hey, es ist jetzt Version 1.15.28 rausgekommen, folgendes wurde aktualisiert:',
