@@ -4,7 +4,7 @@ Regeln fuer den Review-Subagenten (`.claude/agents/reviewer.md`). Er liest den D
 
 ## R1 Code auf Englisch
 Bezeichner, Dateinamen, Kommentare, Testtitel, `expect`-Meldungen, Konsolen-, Fehler-, Skript- und Hook-Ausgaben sind englisch, ebenso Datenwerte, die nur als String vorkommen (Phasen, Ereignistypen, Sound-Namen, Partikelsorten).
-Deutsch bleiben: Spieltexte (UI, Changelog-Highlights), DOM-IDs und CSS-Klassen samt ihrer Selektoren, localStorage-Schluessel, Fehlertexte und Felder der Worker-API/D1 samt ihren Test-Mocks, Cloudflare-Variablen (`TURN_MONATSLIMIT_GB` u. a.), das Handschlag-Ereignis `'hallo'`, die Doku in `docs/` und `AGENTS.md`.
+Deutsch bleiben: Spieltexte (UI, Changelog-Highlights), DOM-IDs und CSS-Klassen samt ihrer Selektoren, localStorage-Schluessel, Fehlertexte und Felder der Worker-API/D1 samt ihren Test-Mocks, Cloudflare-Variablen (`TURN_MONATSLIMIT_GB` u. a.), das Handschlag-Ereignis `'hallo'`, die Doku in `docs/`, `AGENTS.md` und die Agent-Definitionen in `.claude/agents/`.
 Beleg: Umstellung 2026-11-21 (`b2d8808`, `81928a8`, `bddfd05`, `134d294`).
 
 ## R2 Anzeige-Schicht
