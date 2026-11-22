@@ -271,8 +271,9 @@ test.describe('Space Shooter', () => {
     const hsInput = page.locator('#highscore-name');
     await expect(hsInput).toBeFocused();
 
-    // Typing works once the guard after the game over has passed (issue #25), then save with Enter
-    await page.waitForFunction(() => performance.now() - window.__game.state.gameOverAt >= 500);
+    // The name guard right after the game over (issue #25) has its own tests in game-over.spec.js;
+    // backdate the game over so typing works at once, then save with Enter
+    await page.evaluate(() => (window.__game.state.gameOverAt = -Infinity));
     await page.keyboard.type('XYZ');
     await page.keyboard.press('Enter');
 

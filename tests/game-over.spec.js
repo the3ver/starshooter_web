@@ -14,6 +14,8 @@ async function gameOver(page, mode) {
   await page.goto('/');
   await page.waitForFunction(() => window.__game && window.__game.state);
   if (mode) await page.click(`#gamemode-btn-${mode}`);
+  // a ship other than the default, so a restart that falls back to the default ship shows
+  await page.evaluate(() => (window.__game.state.selectedShipModel = 'gleve'));
   await startGame(page, 'KeyW');
   await page.waitForFunction(() => window.__game.state.gameRunning);
   await page.evaluate(() => window.__game.Utils.triggerGameOver());
@@ -29,6 +31,7 @@ test('NEUSTART starts the next round in the same mode with the same ship', async
     ship: window.__game.state.selectedShipModel,
     startScreen: getComputedStyle(document.getElementById('start-screen')).display,
   }));
+  expect(ship).toBe('gleve');
   expect(r).toEqual({ mode: 'coop', ship, startScreen: 'none' });
 });
 
@@ -65,7 +68,10 @@ test('keys right after the game over and auto-repeat do not type into the name f
   await field.focus();
   await page.keyboard.press('w');
   expect(await field.inputValue()).toBe('');
-  await advanceClock(page, 600);
+  await advanceClock(page, 450, 50);
+  await page.keyboard.press('w');
+  expect(await field.inputValue(), 'still inside the 500 ms guard').toBe('');
+  await advanceClock(page, 100, 50);
   await page.keyboard.down('d');
   await page.keyboard.down('d'); // held key: auto-repeat
   await page.keyboard.up('d');
