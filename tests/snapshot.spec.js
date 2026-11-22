@@ -188,7 +188,7 @@ test('Client reuses DOM elements, creates no new nodes on the second snapshot an
     const l = r.lists[k];
     expect(l.count, `${k} count`).toBe(l.expected);
     expect(l.sameElements, `${k} elements reused`).toBe(true);
-    expect(l.inDom, `${k} im DOM`).toBe(true);
+    expect(l.inDom, `${k} in DOM`).toBe(true);
     expect(l.positions, `${k} positions`).toBe(true);
     expect(l.idsReceived, `${k} Ids`).toBe(true);
   }

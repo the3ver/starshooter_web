@@ -1071,13 +1071,13 @@ function fuseThreshold(s) {
   return Gleve.isGleve(s) ? Gleve.sweepCost(s) : s.minFuseEnergy || 15;
 }
 
-// Apply a player's weapon tiers and HUD flags from the snapshot (missing tiers stay)
 // A tier from the snapshot as an integer 0..5: the powerup HUD builds HTML from the tiers (utils.js)
 export function tierFromSnapshot(value) {
   const n = Math.round(Number(value));
   return Number.isFinite(n) ? Math.max(0, Math.min(5, n)) : 0;
 }
 
+// Apply a player's weapon tiers and HUD flags from the snapshot (missing tiers stay)
 function applyWeaponTiers(target, payload) {
   if (payload.laserTier !== undefined) target.laserTier = tierFromSnapshot(payload.laserTier);
   if (payload.missileTier !== undefined) target.missileTier = tierFromSnapshot(payload.missileTier);

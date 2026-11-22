@@ -157,6 +157,7 @@ test('Online client: weapon and shield tiers from the snapshot arrive as integer
         maxEnergy: 50,
         isDead: false,
         laserTier: 2.6,
+        missileTier: -1,
         shieldTier: '2',
       },
       score: 0,
@@ -164,7 +165,15 @@ test('Online client: weapon and shield tiers from the snapshot arrive as integer
       powerups: [],
     });
     const p = state.p2;
-    return [state.laserTier, state.missileTier, state.bombTier, state.shieldTier, p.laserTier, p.shieldTier];
+    return [
+      state.laserTier,
+      state.missileTier,
+      state.bombTier,
+      state.shieldTier,
+      p.laserTier,
+      p.missileTier,
+      p.shieldTier,
+    ];
   });
-  expect(r).toEqual([3, 0, 5, 0, 3, 2]);
+  expect(r).toEqual([3, 0, 5, 0, 3, 0, 2]);
 });

@@ -4,7 +4,9 @@ export const changelogData = {
   '1.15.23': {
     version: '1.15.23',
     intro: 'Hey, es ist jetzt Version 1.15.23 rausgekommen, folgendes wurde aktualisiert:',
-    highlights: ['Online-Spiele: Der Mitspieler prüft die Waffenstufen aus dem Spiel des Hosts jetzt zusätzlich.'],
+    highlights: [
+      'Online-Spiele: Der Mitspieler prüft die Waffen- und Schildstufen aus dem Spiel des Hosts jetzt zusätzlich.',
+    ],
   },
   '1.15.22': {
     version: '1.15.22',
