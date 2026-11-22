@@ -512,7 +512,7 @@ function waveElement(w) {
 }
 
 const PARTICLE_CLASS = {
-  spark: 'particles',
+  spark: 'partikel',
   gleveFlash: 'gleve-blitz',
   gleveAfterimage: 'gleve-nachbild',
   viperAfterimage: 'viper-nachbild',

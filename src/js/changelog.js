@@ -1,6 +1,13 @@
-export const GAME_VERSION = '1.15.23';
+export const GAME_VERSION = '1.15.24';
 
 export const changelogData = {
+  '1.15.24': {
+    version: '1.15.24',
+    intro: 'Hey, es ist jetzt Version 1.15.24 rausgekommen, folgendes wurde aktualisiert:',
+    highlights: [
+      'Explosionen zeigen wieder Funken: Seit 1.15.21 waren die Partikel beim Zerstören von Asteroiden und Gegnern unsichtbar.',
+    ],
+  },
   '1.15.23': {
     version: '1.15.23',
     intro: 'Hey, es ist jetzt Version 1.15.23 rausgekommen, folgendes wurde aktualisiert:',
