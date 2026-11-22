@@ -595,7 +595,6 @@ body {
   user-select: none;
 }
 
-/* Lange Beschriftung (Gleve: SWEEP / DASH) als Pille statt Kreis */
 .cooldown-letter-e {
   border: 1.5px solid #f1c40f;
   color: #f1c40f;
