@@ -203,15 +203,21 @@ function drawConnection() {
   let step = `${number}/${CONNECTION_STEPS} ${connectionText}`;
   const seconds = number === 3 ? Math.max(0, Math.floor((Date.now() - connectionStart) / 1000)) : -1;
   if (seconds >= 0) step += ` (${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, '0')})`;
-  line('vp-schritt', step);
-  const bar = document.createElement('div');
+  // Step and progress bar share one line so the status fits the fixed lobby area (issue #26)
+  const row = document.createElement('div');
+  row.className = 'vp-zeile';
+  const stepEl = document.createElement('span');
+  stepEl.className = 'vp-schritt';
+  stepEl.textContent = step;
+  const bar = document.createElement('span');
   bar.className = 'vp-balken';
   for (let i = 1; i <= CONNECTION_STEPS; i++) {
     const segment = document.createElement('span');
     if (i <= number) segment.className = 'aktiv';
     bar.appendChild(segment);
   }
-  statusEl.appendChild(bar);
+  row.append(stepEl, bar);
+  statusEl.appendChild(row);
   if (net.connectionDetail) line('vp-detail', net.connectionDetail);
   if (number === 3) {
     if (!net.isHost && seconds >= HINT_ROOM_CODE_AFTER_S) line('vp-detail', HINT_ROOM_CODE);
@@ -299,6 +305,13 @@ export function updateOnlineLobbyUI() {
     if (initialActions) initialActions.style.display = 'flex';
     if (connectedControls) connectedControls.style.display = 'none';
     if (btnStart) btnStart.style.display = 'none';
+    // While a room waits or connects, the host button closes it again (issue #26)
+    const btnHost = document.getElementById('btn-online-host');
+    const waiting = Boolean(state.network && state.network.isOnline);
+    if (btnHost) {
+      btnHost.textContent = waiting ? 'ABBRECHEN' : 'RAUM ERSTELLEN';
+      btnHost.classList.toggle('online-abbrechen', waiting);
+    }
     if (startText) {
       startText.textContent = 'RAUM ERSTELLEN ODER BEITRETEN ZUM START';
       startText.style.color = '#1abc9c';
@@ -398,6 +411,10 @@ export async function hostRoom(customCode = null) {
   state.network.connected = false;
   state.network.protocolOk = false;
   resetNetEncoding();
+  // An old code in the join field belongs to another room (issue #26)
+  const codeInput = /** @type {HTMLInputElement} */ (document.getElementById('online-room-input'));
+  if (codeInput) codeInput.value = '';
+  updateOnlineLobbyUI();
 
   setConnectionPhase(1, 'VERBINDUNGSDATEN HOLEN');
   const turnConfig = await getTurnConfig();
@@ -414,7 +431,8 @@ export async function hostRoom(customCode = null) {
   }
 
   room = joinRoomFn({ appId: 'starshooter-p2p', ...(turnConfig ? { turnConfig } : {}) }, 'star_' + code);
-  setConnectionPhase(3, `RAUM ${code} GEÖFFNET, WARTE AUF MITSPIELER`);
+  // the room code stands in the head line, the step stays one short line (issue #26)
+  setConnectionPhase(3, 'WARTE AUF MITSPIELER');
 
   sendStateAction = setupAction(room, 'state', (data, peerId) => {
     onStateCallbacks.forEach(cb => cb(data, peerId));
@@ -493,6 +511,7 @@ export async function joinOnlineRoom(code) {
   state.network.connected = false;
   state.network.protocolOk = false;
   resetNetEncoding();
+  updateOnlineLobbyUI();
 
   setConnectionPhase(1, 'VERBINDUNGSDATEN HOLEN');
   const turnConfig = await getTurnConfig();

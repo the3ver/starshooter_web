@@ -3289,24 +3289,34 @@ body {
 .online-status .vp-kopf {
   letter-spacing: 1px;
 }
-.online-status .vp-schritt {
-  margin-top: 4px;
+/* RAUM ERSTELLEN becomes ABBRECHEN while a room waits (issue #26) */
+.online-action-btn.online-abbrechen {
+  background: rgba(231, 76, 60, 0.2);
+  border-color: #e74c3c;
+  color: #e74c3c;
+}
+
+.online-status .vp-zeile {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  margin-top: 2px;
 }
 .online-status .vp-detail {
-  margin-top: 4px;
+  margin-top: 2px;
   font-size: 10px;
   font-weight: normal;
   opacity: 0.85;
 }
 .online-status .vp-balken {
   display: flex;
-  gap: 3px;
-  max-width: 240px;
-  margin: 6px auto 0;
+  flex: 0 0 70px;
+  gap: 2px;
 }
 .online-status .vp-balken span {
   flex: 1;
-  height: 6px;
+  height: 5px;
   border-radius: 3px;
   background: rgba(255, 255, 255, 0.15);
 }
@@ -3520,6 +3530,8 @@ body {
 
 #start-screen .modus-optionen .online-status {
   margin-top: 4px;
+  padding: 3px 6px;
+  line-height: 1.3;
 }
 
 /* Lobby fuellt den festen Bereich; bei sehr langen Hinweisen scrollt nur die Lobby, nie das Menue */

@@ -107,7 +107,7 @@ test('Host: phases 1 to 5 appear in order, room code stays visible in step 3', a
   moduleGate.openUp();
   await waitOnPhase(page, 3);
   const text3 = await statusText(page);
-  expect(text3).toContain('3/5 RAUM ABCDE GEÖFFNET, WARTE AUF MITSPIELER (0:00)');
+  expect(text3).toContain('3/5 WARTE AUF MITSPIELER (0:00)');
   expect(text3).toContain('RAUM-CODE: ABCDE');
 
   await page.evaluate(() => window.__peerJoin('peer1'));

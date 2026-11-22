@@ -153,7 +153,9 @@ document.addEventListener('DOMContentLoaded', () => {
   if (btnOnlineHost) {
     btnOnlineHost.addEventListener('click', e => {
       e.stopPropagation();
-      Network.hostRoom();
+      // The same button reads ABBRECHEN while a room waits or connects (issue #26)
+      if (state.network.isOnline) Network.closeOnlineRoom();
+      else Network.hostRoom();
     });
   }
 

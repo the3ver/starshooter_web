@@ -1,6 +1,13 @@
-export const GAME_VERSION = '1.15.31';
+export const GAME_VERSION = '1.15.32';
 
 export const changelogData = {
+  '1.15.32': {
+    version: '1.15.32',
+    intro: 'Hey, es ist jetzt Version 1.15.32 rausgekommen, folgendes wurde aktualisiert:',
+    highlights: [
+      'Online-Lobby: Der Verbindungsstatus passt ohne Abschneiden in die Lobby, ABBRECHEN schließt einen wartenden Raum, und ein alter Code im Beitreten-Feld wird beim Erstellen geleert.',
+    ],
+  },
   '1.15.31': {
     version: '1.15.31',
     intro: 'Hey, es ist jetzt Version 1.15.31 rausgekommen, folgendes wurde aktualisiert:',

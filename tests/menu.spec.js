@@ -463,3 +463,48 @@ test('1 player area without a local score shows no number', async ({ page }) => 
   await page.waitForFunction(() => window.__game && window.__game.state);
   await expect(page.locator('#modus-optionen-single')).toContainText('NOCH KEINE BESTLEISTUNG');
 });
+
+// Issue #26: while a room waits, the lobby fits its fixed area (no clipped status line) and offers ABBRECHEN;
+// creating a room clears an old code in the join field
+test.describe('online lobby while waiting', () => {
+  test.beforeEach(async ({ page }) => {
+    await page.route('https://cdn.jsdelivr.net/npm/@trystero-p2p/**', route =>
+      route.fulfill({
+        status: 200,
+        contentType: 'application/javascript',
+        headers: { 'access-control-allow-origin': '*' },
+        body: `export function joinRoom() {
+  return { makeAction: () => [() => {}, () => {}], onPeerJoin: () => {}, onPeerLeave: () => {}, leave: () => {} };
+}`,
+      }),
+    );
+    await page.setViewportSize({ width: 1280, height: 800 });
+    await page.goto('/');
+    await page.waitForFunction(() => window.__game && window.__game.state);
+    await page.click('#gamemode-btn-online');
+  });
+
+  test('the status fits the lobby, ABBRECHEN closes the room, the code field is cleared', async ({ page }) => {
+    await page.fill('#online-room-input', 'OLD12');
+    await page.click('#btn-online-host');
+    await expect(page.locator('#online-status')).toContainText('WARTE AUF MITSPIELER');
+    await expect(page.locator('#online-status')).toContainText('ohne TURN');
+    expect(await page.inputValue('#online-room-input')).toBe('');
+    const fit = await page.evaluate(() => {
+      const lobby = document.getElementById('online-lobby-container');
+      const area = document.getElementById('modus-optionen').getBoundingClientRect();
+      const last = document.querySelector('#online-status > :last-child').getBoundingClientRect();
+      return { scrolls: lobby.scrollHeight > lobby.clientHeight + 1, lastInside: last.bottom <= area.bottom + 0.5 };
+    });
+    expect(fit).toEqual({ scrolls: false, lastInside: true });
+    const host = page.locator('#btn-online-host');
+    await expect(host).toHaveText('ABBRECHEN');
+    await host.click();
+    const net = await page.evaluate(() => ({
+      online: window.__game.state.network.isOnline,
+      host: window.__game.state.network.isHost,
+    }));
+    expect(net).toEqual({ online: false, host: false });
+    await expect(host).toHaveText('RAUM ERSTELLEN');
+  });
+});
