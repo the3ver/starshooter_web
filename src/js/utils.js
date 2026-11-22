@@ -1559,16 +1559,17 @@ export function updatePlayerShipVisuals() {
 
 // HUD labels per ship: the Gleve uses the energy bar for the laser sweep
 // and the missile cooldown for the dash. Otherwise the original texts (E / R).
+// One-letter round badges like E/R/B (issue #29); the title names the ability on hover
 const HUD_LABELS = {
-  standard: { energy: 'E', missile: 'R', mobileMissile: 'R' },
-  gleve: { energy: 'SWEEP', missile: 'DASH', mobileMissile: 'D', lang: true },
-  sniper: { energy: 'E', missile: 'GRANATE', mobileMissile: 'G', lang: true },
+  standard: { energy: 'E', missile: 'R', mobileMissile: 'R', energyTitle: 'Energie', missileTitle: 'Raketen' },
+  gleve: { energy: 'S', missile: 'D', mobileMissile: 'D', energyTitle: 'Sweep', missileTitle: 'Dash' },
+  sniper: { energy: 'E', missile: 'G', mobileMissile: 'G', energyTitle: 'Energie', missileTitle: 'Granate' },
 };
 
-function setHudLabel(el, text, lang) {
+function setHudLabel(el, text, title) {
   if (!el) return;
   if (el.textContent !== text) el.textContent = text;
-  el.classList.toggle('cooldown-letter-lang', lang);
+  el.title = title;
 }
 
 export function updateShipHudLabels() {
@@ -1579,14 +1580,22 @@ export function updateShipHudLabels() {
   const labelsP1 = HUD_LABELS[modelP1] || HUD_LABELS.standard;
   const labelsP2 = HUD_LABELS[modelP2] || HUD_LABELS.standard;
 
-  setHudLabel(document.querySelector('#energie-cd-container .cooldown-letter'), labelsP1.energy, modelP1 === 'gleve');
-  setHudLabel(document.querySelector('#raketen-cd-container .cooldown-letter'), labelsP1.missile, !!labelsP1.lang);
+  setHudLabel(document.querySelector('#energie-cd-container .cooldown-letter'), labelsP1.energy, labelsP1.energyTitle);
+  setHudLabel(
+    document.querySelector('#raketen-cd-container .cooldown-letter'),
+    labelsP1.missile,
+    labelsP1.missileTitle,
+  );
   setHudLabel(
     document.querySelector('#energie-cd-container-p2 .cooldown-letter'),
     labelsP2.energy,
-    modelP2 === 'gleve',
+    labelsP2.energyTitle,
   );
-  setHudLabel(document.querySelector('#raketen-cd-container-p2 .cooldown-letter'), labelsP2.missile, !!labelsP2.lang);
+  setHudLabel(
+    document.querySelector('#raketen-cd-container-p2 .cooldown-letter'),
+    labelsP2.missile,
+    labelsP2.missileTitle,
+  );
 
   // Charge dots only for the Gleve (dash) and the Sniper (grenades); Gleve.showChargesHud maintains the content
   for (const [id, model] of [

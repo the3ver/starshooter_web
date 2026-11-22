@@ -110,3 +110,36 @@ test('the game over screen keeps the HUD visible (final hearts and score)', asyn
   expect(over['#ui-container']).toBe(true);
   expect(over['#score-anzeige']).toBe(true);
 });
+
+// Issue #29: special ships use round one-letter badges like E/R/B (Gleve S/D, Spectre G)
+for (const [ship, energy, missile] of [
+  ['gleve', 'S', 'D'],
+  ['sniper', 'E', 'G'],
+]) {
+  test(`${ship}: HUD badges ${energy}/${missile} are round like E/R/B (#29)`, async ({ page }) => {
+    await setGameState(page);
+    await page.goto('/');
+    await page.waitForFunction(() => window.__game && window.__game.state);
+    await page.evaluate(s => {
+      window.__game.state.selectedShipModel = s;
+      window.__game.Utils.updateShipHudLabels();
+    }, ship);
+    await startGame(page, 'KeyW');
+    await page.waitForFunction(() => window.__game.state.gameRunning);
+    const r = await page.evaluate(() => {
+      const box = sel => {
+        const el = document.querySelector(sel);
+        const b = el.getBoundingClientRect();
+        return { text: el.textContent.trim(), w: Math.round(b.width), h: Math.round(b.height) };
+      };
+      return {
+        energy: box('#energie-cd-container .cooldown-letter'),
+        missile: box('#raketen-cd-container .cooldown-letter'),
+        bomb: box('#bomben-cd-container .cooldown-letter'),
+      };
+    });
+    expect(r.energy.text).toBe(energy);
+    expect(r.missile.text).toBe(missile);
+    for (const b of [r.energy, r.missile]) expect({ w: b.w, h: b.h }).toEqual({ w: r.bomb.w, h: r.bomb.h });
+  });
+}

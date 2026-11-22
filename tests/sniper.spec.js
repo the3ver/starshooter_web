@@ -22,7 +22,7 @@ async function startPerKey(page) {
   await page.keyboard.up('KeyW');
 }
 
-test('Spectre-SR: selectable in the hangar, name and perks from shipModels, railgun SVG, launcher pods off, HUD GRANATE', async ({
+test('Spectre-SR: selectable in the hangar, name and perks from shipModels, railgun SVG, launcher pods off, HUD badge G', async ({
   page,
 }) => {
   const btn = page.locator('.hangar-model-btn[data-model="sniper"]');
@@ -57,7 +57,7 @@ test('Spectre-SR: selectable in the hangar, name and perks from shipModels, rail
 
   expect(await page.locator('#spieler svg').evaluate(el => el.innerHTML)).toContain('Railgun');
   await expect(page.locator('#energie-cd-container .cooldown-letter')).toHaveText('E');
-  await expect(page.locator('#raketen-cd-container .cooldown-letter')).toHaveText('GRANATE');
+  await expect(page.locator('#raketen-cd-container .cooldown-letter')).toHaveText('G');
   await expect(page.locator('#btn-rakete span')).toHaveText('G');
 
   // Pods stay off even at a high missile tier, without a drop effect
@@ -93,7 +93,7 @@ test('Spectre-SR: selectable for player 2 in co-op, P2 HUD, highscore badge', as
     p2: window.__game.state.p2.selectedShipModel,
   }));
   expect(models).toEqual({ p1: 'viper', p2: 'sniper' });
-  await expect(page.locator('#raketen-cd-container-p2 .cooldown-letter')).toHaveText('GRANATE');
+  await expect(page.locator('#raketen-cd-container-p2 .cooldown-letter')).toHaveText('G');
   await expect(page.locator('#energie-cd-container-p2 .cooldown-letter')).toHaveText('E');
   await expect(page.locator('#raketen-cd-container .cooldown-letter')).toHaveText('R');
   expect(await page.locator('#spieler-2 svg').evaluate(el => el.innerHTML)).toContain('Railgun');

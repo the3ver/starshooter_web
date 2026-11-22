@@ -13,7 +13,7 @@ test.beforeEach(async ({ page }) => {
   await page.goto('/');
 });
 
-test('Gleve-MR: selectable in the hangar, perks, manta SVG, no launcher pods, HUD SWEEP/DASH', async ({ page }) => {
+test('Gleve-MR: selectable in the hangar, perks, manta SVG, no launcher pods, HUD badges S/D', async ({ page }) => {
   const gleveBtn = page.locator('.hangar-model-btn[data-model="gleve"]');
   await expect(gleveBtn).toBeVisible();
   await gleveBtn.click();
@@ -48,8 +48,8 @@ test('Gleve-MR: selectable in the hangar, perks, manta SVG, no launcher pods, HU
   expect(await page.locator('#spieler svg path').count()).toBeGreaterThanOrEqual(5);
 
   // HUD labels: energy = sweep, missile cooldown = dash
-  await expect(page.locator('#energie-cd-container .cooldown-letter')).toHaveText('SWEEP');
-  await expect(page.locator('#raketen-cd-container .cooldown-letter')).toHaveText('DASH');
+  await expect(page.locator('#energie-cd-container .cooldown-letter')).toHaveText('S');
+  await expect(page.locator('#raketen-cd-container .cooldown-letter')).toHaveText('D');
 
   // Launcher pods hidden even at missile tier 5, without a drop effect
   await expect(page.locator('#spieler .werfer-links')).toBeHidden();
@@ -1427,8 +1427,8 @@ test('Gleve-MR: selectable for player 2 in co-op, P2 HUD and highscore badge G',
   });
   expect(models.p1).toBe('viper');
   expect(models.p2).toBe('gleve');
-  await expect(page.locator('#energie-cd-container-p2 .cooldown-letter')).toHaveText('SWEEP');
-  await expect(page.locator('#raketen-cd-container-p2 .cooldown-letter')).toHaveText('DASH');
+  await expect(page.locator('#energie-cd-container-p2 .cooldown-letter')).toHaveText('S');
+  await expect(page.locator('#raketen-cd-container-p2 .cooldown-letter')).toHaveText('D');
   await expect(page.locator('#energie-cd-container .cooldown-letter')).toHaveText('E');
   const p2Svg = await page.locator('#spieler-2 svg').evaluate(el => el.innerHTML);
   expect(p2Svg).toContain('Gleve-MR');

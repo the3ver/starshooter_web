@@ -1,6 +1,13 @@
-export const GAME_VERSION = '1.15.29';
+export const GAME_VERSION = '1.15.30';
 
 export const changelogData = {
+  '1.15.30': {
+    version: '1.15.30',
+    intro: 'Hey, es ist jetzt Version 1.15.30 rausgekommen, folgendes wurde aktualisiert:',
+    highlights: [
+      'Gleve und Spectre zeigen im HUD runde Ein-Buchstaben-Badges wie die anderen Schiffe: S (Sweep), D (Dash), G (Granate).',
+    ],
+  },
   '1.15.29': {
     version: '1.15.29',
     intro: 'Hey, es ist jetzt Version 1.15.29 rausgekommen, folgendes wurde aktualisiert:',
