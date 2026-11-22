@@ -516,7 +516,8 @@ body {
 #spielfeld.hud-verborgen #ui-container,
 #spielfeld.hud-verborgen #ui-container-p2,
 #spielfeld.hud-verborgen #score-anzeige,
-#spielfeld.hud-verborgen #level-anzeige {
+#spielfeld.hud-verborgen #level-anzeige,
+#spielfeld.hud-verborgen #btn-pause {
   visibility: hidden;
 }
 
@@ -950,6 +951,21 @@ body {
     background-color 0.2s,
     border-color 0.2s,
     transform 0.1s;
+}
+
+/* Pause button right of the sound button (issue #31) */
+.sound-toggle-btn.pause-toggle-btn {
+  left: 48px;
+}
+
+.steuerung-touch .pause-btn.touch-umschalter {
+  display: block;
+  margin: 8px auto 0;
+  min-width: 0;
+  width: auto;
+  padding: 5px 12px;
+  font-size: 11px;
+  letter-spacing: 1px;
 }
 
 .sound-toggle-btn:hover {

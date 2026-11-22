@@ -1,6 +1,13 @@
-export const GAME_VERSION = '1.15.32';
+export const GAME_VERSION = '1.15.33';
 
 export const changelogData = {
+  '1.15.33': {
+    version: '1.15.33',
+    intro: 'Hey, es ist jetzt Version 1.15.33 rausgekommen, folgendes wurde aktualisiert:',
+    highlights: [
+      'Neuer Pause-Button neben dem Sound-Button, per Tippen oder Klick. Im Steuerungs-Dialog lässt sich die Touch-Steuerung auf AUTO, AN oder AUS stellen, die Wahl bleibt gespeichert.',
+    ],
+  },
   '1.15.32': {
     version: '1.15.32',
     intro: 'Hey, es ist jetzt Version 1.15.32 rausgekommen, folgendes wurde aktualisiert:',

@@ -201,6 +201,11 @@ export function setupInput() {
 
   // NEUSTART: next round in the same mode with the same ship; HAUPTMENÜ: back to the menu (issue #25)
   document.getElementById('btn-restart').addEventListener('click', startNextRound);
+  // Visible pause button for touch and mouse (issue #31)
+  document.getElementById('btn-pause').addEventListener('click', e => {
+    e.stopPropagation();
+    togglePause();
+  });
   document.getElementById('btn-game-over-menu').addEventListener('click', Utils.restartGame);
 
   // --- MOBILE TOUCH CONTROLS (VIRTUAL JOYSTICK & TAP) ---
@@ -250,7 +255,7 @@ export function setupInput() {
       // Ignore clicks on all UI elements / overlays
       if (
         /** @type {Element} */ (e.target).closest(
-          'button, input, select, textarea, a, .gamemode-selector, #online-lobby-container, #hangar-container, #whats-new-overlay, #steuerung-overlay, #btn-open-steuerung, #btn-open-whats-new, #btn-sound-toggle, #game-over-screen, .highscore-tab, .credits',
+          'button, input, select, textarea, a, .gamemode-selector, #online-lobby-container, #hangar-container, #whats-new-overlay, #steuerung-overlay, #btn-open-steuerung, #btn-open-whats-new, #btn-sound-toggle, #btn-pause, #game-over-screen, .highscore-tab, .credits',
         )
       )
         return;

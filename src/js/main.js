@@ -286,6 +286,14 @@ document.addEventListener('DOMContentLoaded', () => {
 
   Utils.updateControlsInfo();
   Utils.updateSingleBest();
+  Utils.updateTouchSettingLabel();
+  const btnTouchSetting = document.getElementById('btn-touch-steuerung');
+  if (btnTouchSetting) {
+    btnTouchSetting.addEventListener('click', e => {
+      e.stopPropagation();
+      Utils.cycleTouchSetting();
+    });
+  }
 
   // Controls overlay (button in the menu, ESC and CLOSE close it)
   const controlsOverlay = document.getElementById('steuerung-overlay');

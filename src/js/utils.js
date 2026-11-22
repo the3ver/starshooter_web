@@ -667,8 +667,38 @@ function hitAmPlayer(collisionObject, exploded, targetPlayer) {
     }
   }
 }
+// Touch controls setting from the controls dialog (issue #31): 'auto' (device detection), 'on' or 'off'
+const TOUCH_SETTING_KEY = 'starshooter_touch_controls';
+const TOUCH_SETTING_LABEL = { auto: 'AUTO', on: 'AN', off: 'AUS' };
+
+export function touchSetting() {
+  let value = null;
+  try {
+    value = localStorage.getItem(TOUCH_SETTING_KEY);
+  } catch (e) {}
+  return value === 'on' || value === 'off' ? value : 'auto';
+}
+
+export function updateTouchSettingLabel() {
+  const btn = document.getElementById('btn-touch-steuerung');
+  if (btn) btn.textContent = 'TOUCH-STEUERUNG: ' + TOUCH_SETTING_LABEL[touchSetting()];
+}
+
+// AUTO -> AN -> AUS -> AUTO, stored in the browser
+export function cycleTouchSetting() {
+  const next = { auto: 'on', on: 'off', off: 'auto' }[touchSetting()];
+  try {
+    if (next === 'auto') localStorage.removeItem(TOUCH_SETTING_KEY);
+    else localStorage.setItem(TOUCH_SETTING_KEY, next);
+  } catch (e) {}
+  updateTouchSettingLabel();
+  updateMobileControlsVisibility();
+}
+
 // Whether the on-screen touch controls (joystick, weapon buttons) are shown during a game
 export function touchControlsEnabled() {
+  const setting = touchSetting();
+  if (setting !== 'auto') return setting === 'on';
   return 'ontouchstart' in window || navigator.maxTouchPoints > 0;
 }
 
