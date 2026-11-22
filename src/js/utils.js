@@ -416,6 +416,7 @@ function removeGleveEffects() {
 export function triggerGameOver(finalScoreFromHost = null) {
   Audio.playGameOver();
   state.gameOverActive = true;
+  state.gameOverAt = performance.now();
   removeGleveEffects();
   state.finalScore = finalScoreFromHost !== null ? finalScoreFromHost : state.cheatUsed ? 0 : state.score;
 
@@ -430,6 +431,9 @@ export function triggerGameOver(finalScoreFromHost = null) {
   if (gameOverScreen) gameOverScreen.style.display = 'flex';
 
   const isOnline = state.gameMode === 'online' || (state.network && state.network.isOnline);
+  // Online a new round needs host and client, so only the way back to the menu is offered
+  const btnRestart = document.getElementById('btn-restart');
+  if (btnRestart) btnRestart.style.display = isOnline ? 'none' : '';
   const isCoop = state.gameMode === 'coop';
   const currentMode = isOnline ? 'online' : isCoop ? 'coop_bot' : 'single';
 

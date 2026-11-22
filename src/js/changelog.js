@@ -1,6 +1,13 @@
-export const GAME_VERSION = '1.15.27';
+export const GAME_VERSION = '1.15.28';
 
 export const changelogData = {
+  '1.15.28': {
+    version: '1.15.28',
+    intro: 'Hey, es ist jetzt Version 1.15.28 rausgekommen, folgendes wurde aktualisiert:',
+    highlights: [
+      'Game Over: NEUSTART startet sofort die nächste Runde mit gleichem Modus und Schiff, HAUPTMENÜ führt ins Menü. Noch gedrückte Spieltasten landen nicht mehr im Namensfeld.',
+    ],
+  },
   '1.15.27': {
     version: '1.15.27',
     intro: 'Hey, es ist jetzt Version 1.15.27 rausgekommen, folgendes wurde aktualisiert:',

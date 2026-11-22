@@ -7,6 +7,9 @@ import * as Sniper from './sniper.js';
 import { togglePause, handleEscape, initPauseMenu } from './pause.js';
 import * as Display from './display.js';
 
+// Time after the game over during which the highscore name field ignores keys
+const NAME_INPUT_DELAY_MS = 500;
+
 export function setupInput() {
   initPauseMenu();
   window.addEventListener('keydown', e => {
@@ -163,6 +166,11 @@ export function setupInput() {
   if (hsInput) {
     hsInput.addEventListener('keydown', e => {
       e.stopPropagation();
+      // Game keys still held or hit right after the game over must not end up in the name (issue #25)
+      if (e.repeat || performance.now() - state.gameOverAt < NAME_INPUT_DELAY_MS) {
+        e.preventDefault();
+        return;
+      }
       if (e.key === 'Enter') {
         document.getElementById('btn-save-score').click();
       }
@@ -191,7 +199,14 @@ export function setupInput() {
     });
   }
 
-  document.getElementById('btn-restart').addEventListener('click', Utils.restartGame);
+  // NEUSTART: next round in the same mode with the same ship; HAUPTMENÜ: back to the menu (issue #25)
+  document.getElementById('btn-restart').addEventListener('click', () => {
+    Utils.restartGame();
+    const startScreen = document.getElementById('start-screen');
+    if (startScreen) startScreen.style.display = 'none';
+    Cutscene.startCutscene();
+  });
+  document.getElementById('btn-game-over-menu').addEventListener('click', Utils.restartGame);
 
   // --- MOBILE TOUCH CONTROLS (VIRTUAL JOYSTICK & TAP) ---
   const playfieldContainer = document.getElementById('game-wrapper');

@@ -271,7 +271,8 @@ test.describe('Space Shooter', () => {
     const hsInput = page.locator('#highscore-name');
     await expect(hsInput).toBeFocused();
 
-    // Type right away and save with Enter
+    // Typing works once the guard after the game over has passed (issue #25), then save with Enter
+    await page.waitForFunction(() => performance.now() - window.__game.state.gameOverAt >= 500);
     await page.keyboard.type('XYZ');
     await page.keyboard.press('Enter');
 
@@ -4444,11 +4445,11 @@ test.describe('Bot-Partner', () => {
     });
 
     // Game over screen visible
-    const btnRestart = page.locator('#btn-restart');
-    await expect(btnRestart).toBeVisible();
+    const btnMenu = page.locator('#btn-game-over-menu');
+    await expect(btnMenu).toBeVisible();
 
-    // Click restart
-    await btnRestart.click();
+    // Back to the menu
+    await btnMenu.click();
 
     // Start round 2
     await startGame(page);

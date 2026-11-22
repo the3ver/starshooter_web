@@ -281,6 +281,7 @@ export const state = {
   bossWarningActive: false,
   bossWarningTimer: 0,
   gameOverActive: false,
+  gameOverAt: 0, // performance.now() of the last game over (name field guard, issue #25)
   playerShotCooldown: 0,
   finalScore: 0,
   cheatUsed: false,
