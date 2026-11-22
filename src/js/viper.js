@@ -229,9 +229,9 @@ function tallyNearMiss(p) {
 // Once per simulation step (loop.js, after all projectile movements and hits); host or solo only.
 // Central instead of in opponents.js/boss.js: one place for all four lists, hits have already removed the projectile.
 export function checkNearMiss() {
-  const listen = [arrays.enemyLaserArray, arrays.bossLaserArray, arrays.hackProjectileArray, arrays.bossMissileArray];
-  if (isViper(state) && !state.isDead) nearMissFor(state, 'nearMissP1', listen);
-  if (isCoopMode() && state.p2 && isViper(state.p2) && !state.p2.isDead) nearMissFor(state.p2, 'nearMissP2', listen);
+  const lists = [arrays.enemyLaserArray, arrays.bossLaserArray, arrays.hackProjectileArray, arrays.bossMissileArray];
+  if (isViper(state) && !state.isDead) nearMissFor(state, 'nearMissP1', lists);
+  if (isCoopMode() && state.p2 && isViper(state.p2) && !state.p2.isDead) nearMissFor(state.p2, 'nearMissP2', lists);
 }
 
 // Small plus at the ship (sparse: one character, rises briefly)

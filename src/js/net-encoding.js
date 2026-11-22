@@ -218,7 +218,7 @@ export class SnapshotDecoder {
     if (!isObject(packet) || packet.v !== PROTOCOL_VERSION || !Number.isInteger(packet.n)) return null;
     let z = this.status;
     if (packet.k) {
-      z = { n: packet.n, t: packet.t, top: {}, listen: {} };
+      z = { n: packet.n, t: packet.t, top: {}, lists: {} };
     } else if (!z || packet.n !== z.n + 1) {
       this.status = null;
       return null;
@@ -237,14 +237,14 @@ export class SnapshotDecoder {
     const dt = Number.isFinite(packet.t) && Number.isFinite(old.t) ? packet.t - old.t : 0;
     const top = packet.k ? {} : copy(old.top);
     if (packet.o) applyObjectDelta(top, packet.o);
-    const listenPacket = packet.l || {};
-    const listen = {};
-    const names = new Set([...Object.keys(old.listen), ...Object.keys(listenPacket)]);
+    const listsPacket = packet.l || {};
+    const lists = {};
+    const names = new Set([...Object.keys(old.lists), ...Object.keys(listsPacket)]);
     for (const name of names) {
       if (!LIST_PREFIX[name]) throw new Error('unknown list ' + name);
-      const entry = listenPacket[name];
+      const entry = listsPacket[name];
       if (entry === null) continue; // List is no longer tracked
-      const beforehand = old.listen[name];
+      const beforehand = old.lists[name];
       const ids = entry && entry.i ? entry.i.map(c => decodeId(name, c)) : beforehand ? beforehand.ids : [];
       const objects = new Map();
       ids.forEach((id, idx) => {
@@ -262,9 +262,9 @@ export class SnapshotDecoder {
         }
         objects.set(id, obj);
       });
-      listen[name] = { ids, objects };
+      lists[name] = { ids, objects };
     }
-    return { n: packet.n, t: packet.t, top, listen };
+    return { n: packet.n, t: packet.t, top, lists };
   }
 
   // Full snapshot as a fresh copy (applyGameStateSnapshot may keep it)
@@ -272,8 +272,8 @@ export class SnapshotDecoder {
     const z = this.status;
     if (!z) return null;
     const s = copy(z.top);
-    for (const name of Object.keys(z.listen)) {
-      const l = z.listen[name];
+    for (const name of Object.keys(z.lists)) {
+      const l = z.lists[name];
       s[name] = l.ids.map(id => copy(l.objects.get(id)));
     }
     return s;
@@ -309,25 +309,25 @@ export class SnapshotEncoder {
     if (keyframe) packet.k = 1;
 
     const oldTop = keyframe ? {} : basis.top;
-    const oldListen = keyframe ? {} : basis.listen;
+    const oldLists = keyframe ? {} : basis.lists;
     const dt = keyframe ? 0 : t - basis.t;
 
     // Fields outside the tracked lists (including non-trackable lists)
     const top = {};
-    const listen = {};
+    const lists = {};
     for (const k of Object.keys(rounded)) {
-      if (LIST_PREFIX[k] && isTrackable(rounded[k])) listen[k] = rounded[k];
+      if (LIST_PREFIX[k] && isTrackable(rounded[k])) lists[k] = rounded[k];
       else top[k] = rounded[k];
     }
     const o = objectDelta(oldTop, top, null);
     if (o) packet.o = o;
 
     const l = {};
-    for (const name of Object.keys(oldListen)) {
-      if (!listen[name]) l[name] = null;
+    for (const name of Object.keys(oldLists)) {
+      if (!lists[name]) l[name] = null;
     }
-    for (const name of Object.keys(listen)) {
-      const entry = this._listenEntry(name, listen[name], oldListen[name], dt);
+    for (const name of Object.keys(lists)) {
+      const entry = this._listEntry(name, lists[name], oldLists[name], dt);
       if (entry) l[name] = entry;
     }
     if (Object.keys(l).length) packet.l = l;
@@ -339,7 +339,7 @@ export class SnapshotEncoder {
     return packet;
   }
 
-  _listenEntry(name, newList, beforehand, dt) {
+  _listEntry(name, newList, beforehand, dt) {
     const ids = newList.map(o => o.id);
     const idsEqual =
       beforehand && beforehand.ids.length === ids.length && beforehand.ids.every((id, i) => id === ids[i]);

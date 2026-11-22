@@ -661,8 +661,8 @@ function rewardSweepKill(pState, z) {
 // Parry: enemy, hack and boss projectiles touched by the beam are flung away or thrown back
 function sweepParry(pState, pKey, o, angleA, angleB, length) {
   const tier = pState.laserTier || 1;
-  const listen = [arrays.enemyLaserArray, arrays.hackProjectileArray, arrays.bossLaserArray];
-  for (const list of listen) {
+  const lists = [arrays.enemyLaserArray, arrays.hackProjectileArray, arrays.bossLaserArray];
+  for (const list of lists) {
     for (let i = list.length - 1; i >= 0; i--) {
       const p = list[i];
       if (p.harmless || !inSweep(o, targetBox(p), angleA, angleB, length)) continue;

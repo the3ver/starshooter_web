@@ -149,7 +149,7 @@ async function runScenario(page, { steps, loss }) {
         keyframes: 0,
         nullAfterLoss: 0,
         applied: 0,
-        maxListen: {},
+        maxLists: {},
         towed: 0,
         bossSteps: 0,
       };
@@ -209,7 +209,7 @@ async function runScenario(page, { steps, loss }) {
         stat.packet.push(text.length);
         if (packet.k) stat.keyframes++;
         NK.LISTS.forEach(n => {
-          stat.maxListen[n] = Math.max(stat.maxListen[n] || 0, full[n].length);
+          stat.maxLists[n] = Math.max(stat.maxLists[n] || 0, full[n].length);
         });
         if (lost.has(packet.n)) {
           waitsOnKeyframe = true;
@@ -235,7 +235,7 @@ async function runScenario(page, { steps, loss }) {
         keyframes: stat.keyframes,
         applied: stat.applied,
         nullAfterLoss: stat.nullAfterLoss,
-        maxListen: stat.maxListen,
+        maxLists: stat.maxLists,
         towed: stat.towed,
         bossSteps: stat.bossSteps,
         fullCut: Math.round(sum(stat.full) / stat.full.length),
@@ -252,9 +252,9 @@ async function runScenario(page, { steps, loss }) {
 test('Net encoding: the reconstruction matches the rounded full snapshot (600 steps, boss fight)', async ({ page }) => {
   const r = await runScenario(page, { steps: 600 });
   console.log(
-    `Snapshot voll: Schnitt ${r.fullCut} B, max ${r.fullMax} B | kodiert: Schnitt ${r.packetCut} B, max ${r.packetMax} B | ` +
-      `${Math.round((r.packetCut / r.fullCut) * 100)} % | Pakete ${r.packets}, Keyframes ${r.keyframes} | max. Listen ${JSON.stringify(r.maxListen)} | ` +
-      `geschleppt ${r.towed} Schritte, Boss ${r.bossSteps} Schritte`,
+    `full snapshot: avg ${r.fullCut} B, max ${r.fullMax} B | encoded: avg ${r.packetCut} B, max ${r.packetMax} B | ` +
+      `${Math.round((r.packetCut / r.fullCut) * 100)} % | packets ${r.packets}, keyframes ${r.keyframes} | max. lists ${JSON.stringify(r.maxLists)} | ` +
+      `towed ${r.towed} steps, boss ${r.bossSteps} steps`,
   );
   expect(r.error).toEqual([]);
   expect(r.applied).toBe(300);
@@ -276,7 +276,7 @@ test('Net encoding: the reconstruction matches the rounded full snapshot (600 st
     'bossBombs',
     'powerups',
   ]) {
-    expect(r.maxListen[list], list).toBeGreaterThan(0);
+    expect(r.maxLists[list], list).toBeGreaterThan(0);
   }
   // Size guard: encodes at most 35 % of the full snapshot
   expect(r.packetCut).toBeLessThanOrEqual(r.fullCut * 0.35);

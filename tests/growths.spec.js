@@ -99,7 +99,7 @@ test('Bloom: closed and armored, then open with three spores across the corridor
     }
     const spores = arrays.enemyLaserArray.filter(l => l.spore);
     return {
-      tooStart: history[0],
+      closedStart: history[0],
       openAfterClosed: history[G.CLOSED_DURATION],
       closedAgain: history.at(-1),
       spores: spores.length,
@@ -107,7 +107,7 @@ test('Bloom: closed and armored, then open with three spores across the corridor
       cls: spores[0] && spores[0].el.className,
     };
   });
-  expect(r.tooStart).toEqual({ open: false, armor: true });
+  expect(r.closedStart).toEqual({ open: false, armor: true });
   expect(r.openAfterClosed).toEqual({ open: true, armor: false });
   expect(r.closedAgain).toEqual({ open: false, armor: true });
   expect(r.spores).toBe(3);

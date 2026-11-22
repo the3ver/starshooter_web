@@ -34,17 +34,17 @@ test('restartGame empties every list in arrays (new list without cleanup = red)'
     });
     try {
       state.gameMode = 'coop';
-      const listen = Object.keys(arrays).filter(k => !remain.includes(k));
-      for (const k of listen) {
+      const lists = Object.keys(arrays).filter(k => !remain.includes(k));
+      for (const k of lists) {
         for (const pKey of ['p1', 'p2']) arrays[k].push({ id: `${k}_${pKey}`, pKey, owner: pKey, x: 0, y: 0 });
       }
       Utils.restartGame();
-      return { listen, left: listen.filter(k => arrays[k].length > 0) };
+      return { lists, left: lists.filter(k => arrays[k].length > 0) };
     } finally {
       Display.setBackend(domBackend);
     }
   }, REMAIN);
-  expect(r.listen.length).toBeGreaterThan(10);
+  expect(r.lists.length).toBeGreaterThan(10);
   expect(r.left, 'restartGame (utils.js) must empty these lists').toEqual([]);
 });
 

@@ -160,10 +160,10 @@ test('Client reuses DOM elements, creates no new nodes on the second snapshot an
     );
     obs.disconnect();
 
-    const out = { added, listen: {} };
+    const out = { added, lists: {} };
     Object.entries(LISTS).forEach(([k, name]) => {
       const afterwards = arrays[name];
-      out.listen[k] = {
+      out.lists[k] = {
         count: afterwards.length,
         expected: snap2[k].length,
         sameElements:
@@ -185,7 +185,7 @@ test('Client reuses DOM elements, creates no new nodes on the second snapshot an
 
   expect(r.added).toEqual([]);
   for (const k of Object.keys(LISTS)) {
-    const l = r.listen[k];
+    const l = r.lists[k];
     expect(l.count, `${k} count`).toBe(l.expected);
     expect(l.sameElements, `${k} elements reused`).toBe(true);
     expect(l.inDom, `${k} im DOM`).toBe(true);
@@ -237,7 +237,7 @@ test('Client removes vanished objects from DOM and array and creates new ones', 
     const { snap1, snap2 } = window.__snaps;
     g.Network.applyGameStateSnapshot(snap1);
 
-    const projectileListen = [
+    const projectileLists = [
       'laser',
       'missiles',
       'bombs',
@@ -250,7 +250,7 @@ test('Client removes vanished objects from DOM and array and creates new ones', 
     const s3 = JSON.parse(JSON.stringify(snap2));
     const removed = {};
     const fresh = {};
-    projectileListen.forEach(k => {
+    projectileLists.forEach(k => {
       const oldEl = arrays[LISTS[k]][0].el;
       removed[k] = { id: s3[k][0].id, el: oldEl };
       const copy = Object.assign({}, s3[k][0], { id: 'new_' + k, x: 11, y: 22 });
@@ -260,7 +260,7 @@ test('Client removes vanished objects from DOM and array and creates new ones', 
     g.Network.applyGameStateSnapshot(s3);
 
     const out = {};
-    projectileListen.forEach(k => {
+    projectileLists.forEach(k => {
       const list = arrays[LISTS[k]];
       out[k] = {
         length: list.length,
