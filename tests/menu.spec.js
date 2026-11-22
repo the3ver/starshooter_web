@@ -419,7 +419,9 @@ test('switching from online to 1 player closes a waiting room and restores the s
 });
 
 // Issue #33: the 1 player area shows the personal best (local solo list) and a short mode hint
-test('1 player area shows the local best score, updates on return to the menu, keeps its height', async ({ page }) => {
+test('1 player area shows the local best score, updates on menu return and mode switch, fits its area', async ({
+  page,
+}) => {
   await page.setViewportSize({ width: 1280, height: 800 });
   await page.addInitScript(() => {
     localStorage.setItem(
@@ -435,15 +437,25 @@ test('1 player area shows the local best score, updates on return to the menu, k
   const area = page.locator('#modus-optionen-single');
   await expect(area).toContainText('ALLEIN GEGEN DIE FLOTTE');
   await expect(area).toContainText('4321');
-  const height = await page.evaluate(() => document.getElementById('modus-optionen').getBoundingClientRect().height);
   await page.evaluate(() => {
     localStorage.setItem('spaceShooterHighscores', JSON.stringify([{ name: 'NEW', score: 9000 }]));
     window.__game.Utils.restartGame();
   });
   await expect(area).toContainText('9000');
-  expect(await page.evaluate(() => document.getElementById('modus-optionen').getBoundingClientRect().height)).toBe(
-    height,
+  // the best score line fits the fixed options area (no overflow into the hangar)
+  const fits = await page.evaluate(() => {
+    const area = document.getElementById('modus-optionen');
+    const best = document.getElementById('bestleistung-single').getBoundingClientRect();
+    return area.scrollHeight <= area.clientHeight && best.bottom <= area.getBoundingClientRect().bottom;
+  });
+  expect(fits).toBe(true);
+  // switching the mode back to 1 player reads the list again
+  await page.evaluate(() =>
+    localStorage.setItem('spaceShooterHighscores', JSON.stringify([{ name: 'TOP', score: 12000 }])),
   );
+  await page.click('#gamemode-btn-coop');
+  await page.click('#gamemode-btn-single');
+  await expect(area).toContainText('12000');
 });
 
 test('1 player area without a local score shows no number', async ({ page }) => {
