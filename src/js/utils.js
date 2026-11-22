@@ -667,11 +667,15 @@ function hitAmPlayer(collisionObject, exploded, targetPlayer) {
     }
   }
 }
+// Whether the on-screen touch controls (joystick, weapon buttons) are shown during a game
+export function touchControlsEnabled() {
+  return 'ontouchstart' in window || navigator.maxTouchPoints > 0;
+}
+
 export function updateMobileControlsVisibility() {
-  const isTouchDevice = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
   const mobileControls = document.getElementById('mobile-controls');
   if (mobileControls) {
-    if (state.gameRunning && !state.gameOverActive && isTouchDevice) {
+    if (state.gameRunning && !state.gameOverActive && touchControlsEnabled()) {
       mobileControls.style.display = 'flex';
     } else {
       mobileControls.style.display = 'none';

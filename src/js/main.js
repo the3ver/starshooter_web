@@ -78,10 +78,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // Responsive Skalierung
   function resizeGame() {
-    const isTouch = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
     const mobileControls = document.getElementById('mobile-controls');
     const controlsVisible = mobileControls && mobileControls.style.display !== 'none';
-    let controlsHeight = isTouch && controlsVisible ? 80 : 0;
+    let controlsHeight = controlsVisible ? 80 : 0;
     let availableHeight = window.innerHeight * 0.95 - controlsHeight;
     let scale = availableHeight / 600;
 
