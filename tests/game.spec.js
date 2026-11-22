@@ -916,7 +916,7 @@ test.describe('What is new modal (changelog)', () => {
   });
 });
 
-test.describe('Mobile UI Positionierung - Handy (Pixel)', () => {
+test.describe('Mobile UI positioning - phone (Pixel)', () => {
   test.use({ hasTouch: true, isMobile: true, viewport: { width: 412, height: 915 } });
 
   test('Buttons are placed correctly relative to the playfield and do not stick into it awkwardly', async ({
@@ -1298,7 +1298,7 @@ test.describe('Late game difficulty & opponent mechanics', () => {
     expect(r.bombY).toBeLessThan(r.maxY);
     // Several hits needed: HP dropped step by step
     expect(r.hpTiers).toBeGreaterThan(2);
-    // Abschuss-Belohnung statt Detonation
+    // Kill reward instead of detonation
     expect(r.scoreDiff).toBe(150);
     expect(r.shockwaves).toBe(0);
     expect(r.livesDiff).toBe(0);
@@ -1395,7 +1395,7 @@ test.describe('Late game difficulty & opponent mechanics', () => {
 
       hit();
       const afterFirst = state.lives;
-      hit(); // innerhalb des Fensters: ignoriert
+      hit(); // within the window: ignored
       const afterSecond = state.lives;
 
       // Measure the window
@@ -1596,7 +1596,7 @@ test.describe('Late game difficulty & opponent mechanics', () => {
   }) => {
     await startGame(page, 'KeyW');
 
-    // 1. Powerup einsammeln testen
+    // 1. Test the powerup pickup
     await page.evaluate(async () => {
       const audioMod = await import('./js/audio.js');
       const stateMod = await import('./js/state.js');
@@ -1913,7 +1913,7 @@ test.describe('Story intro cutscene', () => {
     const blueBtn = page.locator('.hangar-color-btn[data-color="blue"]');
     await blueBtn.click();
 
-    // Starten via Tastendruck
+    // Start via key press
     await startGame(page);
 
     // The start screen is gone
@@ -2797,7 +2797,7 @@ test.describe('Two-player mode (co-op)', () => {
       state.level = 2;
       Entities.createBoss();
       const boss = arrays.bosses[arrays.bosses.length - 1];
-      boss.phase = 'fight'; // Sofort in den Kampfmodus
+      boss.phase = 'fight'; // Straight into fight mode
       boss.x = 200;
 
       // Player 1 dies at position x=50
@@ -3313,7 +3313,7 @@ test.describe('Two-player mode (co-op)', () => {
           }
         }
         function step() {
-          state.frameCounter = 1; // verhindert zeitgesteuerte Spawns
+          state.frameCounter = 1; // prevents timed spawns
           Loop.simulationStep();
         }
         // Missile directly before phase 3 (age 18), the same fields as fireMissileForPlayer
@@ -3395,7 +3395,7 @@ test.describe('Two-player mode (co-op)', () => {
     expect(coop.targetBRemained).toBe(true);
     expect(solo.targetBRemained).toBe(true);
 
-    // (a) Maximale Fluggeschwindigkeit: Co-op 15, Solo 13
+    // (a) Maximum flight speed: co-op 15, solo 13
     expect(coop.maxVy).toBeCloseTo(15, 5);
     expect(solo.maxVy).toBeCloseTo(13, 5);
 
@@ -3891,7 +3891,7 @@ test.describe('Two-player mode (co-op)', () => {
         p2HudDisplay: dom.splitterHudP2 ? dom.splitterHudP2.style.display : null,
       };
 
-      // P1 sammelt roten Splitter
+      // P1 collects a red splitter
       state.x = 100;
       state.y = 200;
       createPowerup(100, 200, 'splitterRed', 'p1');
@@ -4296,7 +4296,7 @@ test.describe('Bot-Partner', () => {
     expect(bombFired).toBe(true);
   });
 
-  test('Bot-Schwierigkeitsgrade (Easy vs Hard) beeinflussen Ausweichradius', async ({ page }) => {
+  test('Bot difficulty levels (easy vs hard) affect the dodge radius', async ({ page }) => {
     // Activate co-op mode + activate the bot
     await page.click('#gamemode-btn-coop');
     await page.click('.hangar-player-tab[data-player="p2"]');
@@ -4456,7 +4456,7 @@ test.describe('Bot-Partner', () => {
       { timeout: 5000 },
     );
 
-    // Startposition von P1 erfassen
+    // Record the start position of P1
     const startX = await page.evaluate(() => window.__game.state.x);
 
     // Press key D to move to the right
@@ -4652,7 +4652,7 @@ test.describe('Bot-Partner', () => {
     expect(Array.isArray(snapshot.asteroids)).toBe(true);
     expect(snapshot.asteroids.length).toBeGreaterThan(0);
 
-    // 2. Client-Snapshot-Anwendung testen
+    // 2. Test the client snapshot application
     await page.evaluate(() => {
       const mod = window.__game;
       // Simulate client mode
@@ -5000,7 +5000,7 @@ test.describe('Bot-Partner', () => {
       mod.state.cheatUsed = false;
     });
 
-    // Versuch Cheat 'idkfa' einzugeben
+    // Try to enter the cheat 'idkfa'
     await page.keyboard.type('idkfa');
 
     const stateAfterCheat = await page.evaluate(() => ({
@@ -5015,7 +5015,7 @@ test.describe('Bot-Partner', () => {
     expect(stateAfterCheat.shieldTier).toBe(0);
     expect(stateAfterCheat.cheatUsed).toBe(false);
 
-    // Versuch Cheat 'idgod' einzugeben
+    // Try to enter the cheat 'idgod'
     await page.keyboard.type('idgod');
 
     const stateAfterGod = await page.evaluate(() => ({
@@ -5327,7 +5327,7 @@ test.describe('Bot-Partner', () => {
     expect(capturedRequest.level).toBe(4);
     expect(capturedRequest.shipP1).toBe('viper');
     expect(typeof capturedRequest.timestamp).toBe('number');
-    expect(capturedRequest.hash).toMatch(/^[a-f0-9]{64}$/); // Valider 64-stelliger SHA-256 Hex Hash
+    expect(capturedRequest.hash).toMatch(/^[a-f0-9]{64}$/); // Valid 64-digit SHA-256 hex hash
   });
 
   test('Global leaderboard: the offline fallback switches to local highscores on a server error', async ({ page }) => {

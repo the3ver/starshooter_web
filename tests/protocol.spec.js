@@ -1,6 +1,6 @@
 // Protocol consistency: the field shape of serializeGameState() is pinned per PROTOCOL_VERSION
 // (tests/fixtures/protocol.json), and the online client reads every field that is sent.
-// Belege: wiederholte Online-Sync-Fixes (b024ce4, 1def39a, 3e326cc, f108641).
+// Evidence: repeated online sync fixes (b024ce4, 1def39a, 3e326cc, f108641).
 // After an intended format change: raise PROTOCOL_VERSION, then
 //   PROTOCOL_FIXTURE=1 npx playwright test tests/protocol.spec.js
 const { test, expect } = require('@playwright/test');
@@ -13,17 +13,17 @@ const FIXTURE = path.join(__dirname, 'fixtures', 'protocol.json');
 // Fields the host sends but the client deliberately does not read from the snapshot.
 // A new entry needs a reason; a field no client needs is better not sent.
 const ONLY_SENT = {
-  '.p2.x': 'Client sagt das eigene Schiff voraus',
-  '.p2.y': 'Client sagt das eigene Schiff voraus',
-  '.p2.rotate': 'Client berechnet die eigene Neigung',
-  '.p2.gleveDashTimer': 'Client sagt den eigenen Dash voraus',
-  '.p2.viperRollDirection': 'Client sagt die eigene Rolle voraus',
-  '.p1.laserShoots': 'ungenutzt, Kandidat zum Entfernen',
-  '.p2.laserShoots': 'ungenutzt, Kandidat zum Entfernen',
-  '.bossActive': 'ungenutzt, Kandidat zum Entfernen',
-  '.sniperMines[].fuse': 'ungenutzt, Kandidat zum Entfernen',
-  '.bossLaser[].width': 'ungenutzt, Kandidat zum Entfernen',
-  '.bossLaser[].height': 'ungenutzt, Kandidat zum Entfernen',
+  '.p2.x': 'the client predicts its own ship',
+  '.p2.y': 'the client predicts its own ship',
+  '.p2.rotate': 'the client computes its own tilt',
+  '.p2.gleveDashTimer': 'the client predicts its own dash',
+  '.p2.viperRollDirection': 'the client predicts its own roll',
+  '.p1.laserShoots': 'unused, candidate for removal',
+  '.p2.laserShoots': 'unused, candidate for removal',
+  '.bossActive': 'unused, candidate for removal',
+  '.sniperMines[].fuse': 'unused, candidate for removal',
+  '.bossLaser[].width': 'unused, candidate for removal',
+  '.bossLaser[].height': 'unused, candidate for removal',
 };
 
 // Every ship kind once as P1 and as P2, so all ship-specific fields appear

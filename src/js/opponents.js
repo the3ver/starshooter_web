@@ -19,7 +19,7 @@ export function manageEnemySpawns() {
   let pCross = state.level >= 1 ? Math.min(0.2, 0.05 + (state.level - 1) * 0.05) : 0;
   let pSwoop = state.level >= 1 ? Math.min(0.2, 0.05 + (state.level - 1) * 0.05) : 0;
   let pClingOn = state.level >= 1 ? Math.min(0.2, 0.05 + (state.level - 1) * 0.05) : 0;
-  let pChain = state.level >= 3 ? Math.min(0.1, 0.05 + (state.level - 3) * 0.05) : 0; // klein: hohe Level behalten Einzeljaeger
+  let pChain = state.level >= 3 ? Math.min(0.1, 0.05 + (state.level - 3) * 0.05) : 0; // small: high levels keep single fighters
 
   let r = Math.random();
 

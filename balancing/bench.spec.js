@@ -61,7 +61,7 @@ test.afterAll(() => {
   }
   const lines = [
     '',
-    'Szenario  Schiff   Siege  Schritte med (min-max)   Treffer med (min-max)  Kills med  Entkommen med',
+    'Scenario  Ship     Wins   Steps med (min-max)      Hits med (min-max)     Kills med  Escaped med',
   ];
   for (const z of summary) {
     lines.push(

@@ -62,7 +62,7 @@ test('simulationStep does not schedule an animation frame', async ({ page }) => 
       return original(cb);
     };
     try {
-      // Startbildschirm (Frueh-Return-Zweig)
+      // Start screen (early return branch)
       for (let i = 0; i < 3; i++) simulationStep();
       // Running game (complete step to the end)
       state.gameRunning = true;

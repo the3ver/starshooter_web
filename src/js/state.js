@@ -34,7 +34,7 @@ export const config = {
   speed: 5,
   bossColors: ['#c0392b', '#8e44ad', '#2980b9', '#d35400', '#27ae60'],
   asteroidsBasisColors: ['#7f8c8d', '#95a5a6', '#bdc3c7', '#34495e'],
-  // Gestein: Lichtseite a, Schattenseite b (Grau, Schiefer, Ocker, Rost, Sand, Basalt)
+  // Rock: light side a, shadow side b (gray, slate, ocher, rust, sand, basalt)
   asteroidsPalettes: [
     { a: '#9aa3a8', b: '#3a4248' },
     { a: '#7f8c8d', b: '#2c3e50' },

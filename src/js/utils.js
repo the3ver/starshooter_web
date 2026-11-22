@@ -1497,7 +1497,7 @@ export function updatePlayerShipVisuals() {
   // The display draws ships in the game (SVG by model/color, launcher pods) from the state
   Display.drawPlayer();
 
-  // Hangar Preview im Startscreen aktualisieren
+  // Update the hangar preview on the start screen
   const previewSvg = document.getElementById('hangar-preview-svg');
   if (previewSvg) {
     previewSvg.innerHTML = getShipSvgContent(activeHangarModel, activeHangarColor);

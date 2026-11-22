@@ -166,7 +166,7 @@ test('TURN route: 502 on an upstream error without leaking details', async () =>
   const errorStatus = await handleTurnRequest(
     turnRequest('https://the3ver.github.io'),
     TURN_ENV,
-    withUsage(async () => new Response('interner Fehler secret', { status: 500 })),
+    withUsage(async () => new Response('internal error secret', { status: 500 })),
   );
   expect(errorStatus.status).toBe(502);
   expect(await errorStatus.text()).not.toContain('secret');

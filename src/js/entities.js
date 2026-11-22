@@ -257,7 +257,7 @@ export function createClingOnEnemy() {
   let size = Math.random() * 20 + 30; // 30-50
   // Create a guaranteed destructible (gray) asteroid
   createAsteroid(undefined, undefined, size, undefined, undefined, 0, true);
-  let ast = arrays.asteroids[arrays.asteroids.length - 1]; // Zuletzt erstellter Asteroid
+  let ast = arrays.asteroids[arrays.asteroids.length - 1]; // Most recently created asteroid
 
   // Create the enemy at the asteroid's position
   createEnemy(ast.x, ast.y, 'clingOn', 0);
@@ -321,7 +321,7 @@ export function createEnemyLaser(fx, fy, targetX = null, targetY = null) {
   );
 }
 
-// --- BOSS SKALIERUNG & OPTIK ---
+// --- BOSS SCALING & LOOK ---
 export function getBossColor(level = 1) {
   return config.bossColors[(level - 1) % config.bossColors.length];
 }

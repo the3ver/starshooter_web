@@ -76,7 +76,7 @@ test('getTurnConfig returns null on 503', async ({ page }) => {
 });
 
 test('getTurnConfig returns null on invalid JSON', async ({ page }) => {
-  await page.route('**/api/turn*', turnResponse(200, 'das ist kein json'));
+  await page.route('**/api/turn*', turnResponse(200, 'this is not json'));
   expect(await getConfig(page)).toBeNull();
 });
 

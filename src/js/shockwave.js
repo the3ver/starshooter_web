@@ -13,7 +13,7 @@ import { createEffect } from './effects.js';
 export const WAVE_DURATION = 36;
 
 // Bonus drop (chain bonus, egg capsule): a shockwave with SHOCKWAVE_CHANCE, at most one per level and
-// nie im Bosskampf; sonst null (zufaelliges Powerup)
+// never during the boss fight; otherwise null (random powerup)
 export const SHOCKWAVE_CHANCE = 0.35;
 export function bonusType() {
   if (state.bossActive || state.shockwaveLevel === state.level) return null;

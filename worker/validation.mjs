@@ -18,7 +18,7 @@ export const FORBIDDEN_WORDS = [
   'SHI',
 ];
 
-// Bereinigt einen Spielernamen: trimmen, Grossbuchstaben, max. 10 Zeichen, Zeichen pruefen, Profanity-Filter
+// Cleans a player name: trim, uppercase, max. 10 characters, check characters, profanity filter
 export function cleanName(name) {
   name = (name || '').trim().toUpperCase().slice(0, 10);
   if (!name || !/^[A-Z0-9+_-]{1,10}$/.test(name)) {

@@ -120,7 +120,7 @@ test.describe('Viper-X Ausweichrolle', () => {
       const T = window.__viperTest;
       const el = document.getElementById('spieler');
       T.empty();
-      T.steps(1); // Ausgangszustand setzen lassen
+      T.steps(1); // let the initial state settle
       const t = state.keysPressed;
       t.d = true;
       T.steps(1);
@@ -505,7 +505,7 @@ test.describe('Viper-X Ausweichrolle', () => {
         p1dx: state.x - p1x0,
         p1cd: state.viperRollCooldown,
       };
-      // P1: A doppelt (P1-Cooldown unabhaengig)
+      // P1: A twice (P1 cooldown independent)
       T.empty();
       state.p2IsBot = false;
       state.x = 200;
@@ -1264,7 +1264,7 @@ test.describe('Viper-X near miss and overdrive: online', () => {
       out.classP2 = document.getElementById('spieler-2').classList.contains('viper-overdrive');
       out.stripClientP2 = state.p2.viperOverdriveStrip;
       out.tickAudio = g.Audio.audioHistory.filter(a => a.name === 'nearMiss').length;
-      // eigener Overdrive startet
+      // own overdrive starts
       const copy = JSON.parse(JSON.stringify(recon));
       copy.p2.viperOverdriveStrip = 100;
       copy.p2.viperOverdriveTimer = 300;

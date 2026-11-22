@@ -36,7 +36,7 @@ const AUTO_AIM_SPEED = [0, 0, 0, 6, 10]; // px per step, 0 = no auto aim
 export const GRENADE_FLIGHT = 30; // Steps until the explosion
 const GRENADE_ARC = 70; // px arc height in the middle of the flight
 const PUSH_STEPS = 10; // The push glides over this many steps
-const WAVE_STEPS = 14; // Wachstum des Druckwellen-Rings
+const WAVE_STEPS = 14; // growth of the blast wave ring
 const GRENADE_RADIUS = [70, 80, 90, 100, 110];
 const GRENADE_PUSH = [60, 70, 80, 90, 100];
 const GRENADE_STUN = [60, 72, 90, 90, 120];
@@ -383,7 +383,7 @@ function attempts(pState, pKey, charge) {
 // Grenades in flight: arrays.sniperGrenades, { id, pKey, x, y (center), startX, startY, targetX, targetY, rest, rot, values }
 // (client: only id, pKey, x, y, rest, rot from the snapshot)
 let grenadeId = 0;
-const pushes = []; // { z, vx, vy, rest, pKey } laufendes Wegstossen
+const pushes = []; // { z, vx, vy, rest, pKey } running push
 
 // Throw to the crosshair (position at the throw), flight in GRENADE_FLIGHT steps in an arc; the tier values apply from the throw.
 export function throwGrenade(pState, pKey) {

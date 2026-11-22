@@ -372,7 +372,7 @@ test('Hits report a flash to the display without element access from the logic',
 });
 
 // Bugfix: the snapshot sent state.rotate, which was never set (the tilt lived only in the DOM), the
-// Online-Client sah P1 daher nie geneigt
+// so the online client never saw P1 tilted
 test('Snapshot carries the displayed tilt of P1', async ({ page }) => {
   const rotate = await page.evaluate(async () => {
     const { state } = await import('./js/state.js');

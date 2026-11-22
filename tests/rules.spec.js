@@ -32,10 +32,10 @@ test('no new real-time waits in tests (waitForTimeout, setTimeout promise)', () 
 // before that afd5d90, 5522e68, b6a55cb). Every module variable (top-level let) is listed here with its reset
 // or the reason why it may survive a restart.
 const MODULE_STATUS = {
-  'display.js': { lets: ['backend'], reason: 'Anzeige-Backend gilt fuer die ganze Sitzung' },
+  'display.js': { lets: ['backend'], reason: 'the display backend applies for the whole session' },
   'audio.js': {
     lets: ['audioCtx', 'masterGain', 'isMuted', 'sharedNoiseBuffer'],
-    reason: 'Audio-Kontext und Stummschaltung gelten fuer die ganze Sitzung',
+    reason: 'audio context and mute apply for the whole session',
   },
   'bot.js': {
     lets: [
@@ -51,7 +51,7 @@ const MODULE_STATUS = {
     ],
     reason: 'Bot.resetBot() in restartGame',
   },
-  'client.js': { lets: ['stepsSinceSnapshot'], reason: 'jeder Snapshot setzt ihn auf 0' },
+  'client.js': { lets: ['stepsSinceSnapshot'], reason: 'every snapshot sets it to 0' },
   'cutscene.js': {
     lets: [
       'cutsceneContainer',
@@ -62,18 +62,18 @@ const MODULE_STATUS = {
       'cutsceneActive',
       'onCompleteCallback',
     ],
-    reason: 'eigene Lebensdauer: startCutscene/Ende der Cutszene raeumen auf',
+    reason: 'own lifetime: startCutscene/end of the cutscene clean up',
   },
   'entities.js': {
     lets: ['idCounter', 'nextCoopLootOwner'],
-    reason: 'IDs bleiben ueber die Sitzung eindeutig; Beute-Wechsel im Co-op, Startwert egal',
+    reason: 'IDs stay unique across the session; loot alternation in co-op, start value irrelevant',
   },
-  'rock.js': { lets: ['last', 'queue', 'speed'], reason: 'Fels.setzeZurueck() in restartGame' },
-  'island-boss.js': { lets: ['boss'], reason: 'Inselboss.setzeZurueck() in restartGame' },
+  'rock.js': { lets: ['last', 'queue', 'speed'], reason: 'Rock.reset() in restartGame' },
+  'island-boss.js': { lets: ['boss'], reason: 'IslandBoss.reset() in restartGame' },
   'level.js': { lets: ['currentTheme'], reason: 'Level.setzeThemaZurueck() in restartGame' },
   'loop.js': {
     lets: ['worldStep', 'lastTimestamp', 'timeAccountMs'],
-    reason: 'Taktgeber der Spielschleife, laeuft ueber Neustarts weiter',
+    reason: 'clock of the game loop, keeps running across restarts',
   },
   'network.js': {
     lets: [
@@ -96,13 +96,13 @@ const MODULE_STATUS = {
       'lastSplitterSignatureP1',
       'lastSplitterSignatureP2',
     ],
-    reason: 'Verbindung und Sync haben eigene Lebensdauer (Raum betreten/verlassen)',
+    reason: 'connection and sync have their own lifetime (join/leave room)',
   },
-  'pause.js': { lets: ['hintUntil', 'queryOpen'], reason: 'Pause-Anzeige, jede Pause setzt sie neu' },
-  'sniper.js': { lets: ['grenadeId', 'mineId'], reason: 'IDs bleiben ueber die Sitzung eindeutig' },
+  'pause.js': { lets: ['hintUntil', 'queryOpen'], reason: 'pause display, every pause sets it again' },
+  'sniper.js': { lets: ['grenadeId', 'mineId'], reason: 'IDs stay unique across the session' },
   'utils.js': {
     lets: ['prevLives', 'prevPuState', 'prevLivesP2', 'prevPuStateP2', 'prevLauncherStatesP1', 'prevLauncherStatesP2'],
-    reason: 'HUD-Vergleichswerte, die naechste Anzeige gleicht sie an',
+    reason: 'HUD comparison values, the next display syncs them',
   },
 };
 

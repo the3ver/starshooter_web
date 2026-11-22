@@ -539,7 +539,7 @@ export function updateWeapons(laserActive, laserActiveP2) {
         l.vx = (Math.random() < 0.5 ? -1 : 1) * (2 + Math.random() * 6); // vx slightly to the side (2 to 8)
 
         l.isDeflected = true;
-        l.ignoreTarget = hitTarget; // Verhindert endloses Kollidieren im selben Frame
+        l.ignoreTarget = hitTarget; // Prevents endless colliding in the same frame
         l.damage = Math.max(1, l.damage / 2); // Damage is halved
         l.color = '#e67e22'; // Tint orange/reddish
       }

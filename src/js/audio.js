@@ -186,7 +186,7 @@ export function playMissile() {
     }
   } catch (e) {}
 
-  // 2. Aufsteigender Pfeifton ("Wiiieeeep")
+  // 2. Rising whistle ("Wiiieeeep")
   const whistleOsc = ctx.createOscillator();
   const whistleGain = ctx.createGain();
   whistleOsc.type = 'sine';
@@ -254,7 +254,7 @@ export function playMissileExplosion() {
     }
   } catch (e) {}
 
-  // 2. Knallender Mid-Bass Druckimpuls ("Paff/Bum")
+  // 2. Banging mid-bass pressure pulse ("Paff/Bum")
   const popOsc = ctx.createOscillator();
   const popGain = ctx.createGain();
   popOsc.type = 'triangle';
@@ -935,7 +935,7 @@ export function playMineExplosion() {
   osc.stop(now + 0.26);
 }
 
-// Sniper-EMP: elektrisches Knistern (Saegezahn faellt ab, Sinus steigt)
+// Sniper EMP: electric crackle (sawtooth falls, sine rises)
 // Spore: soft pop
 export function playSpore() {
   recordSound('spore');
@@ -1074,7 +1074,7 @@ export function playRoll() {
   osc.stop(now + duration);
 }
 
-// Viper Near-Miss: sehr kurzes, leises Zisch-Ticken
+// Viper near miss: very short, quiet hiss tick
 export function playNearMiss() {
   recordSound('nearMiss');
   if (isMuted) return;
@@ -1123,7 +1123,7 @@ export function playCombo(tier = 1) {
   });
 }
 
-// Viper-Overdrive startet: aufsteigender Dreiklang
+// Viper overdrive starts: rising triad
 export function playOverdrive() {
   recordSound('overdrive');
   if (isMuted) return;

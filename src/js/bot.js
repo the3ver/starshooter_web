@@ -701,7 +701,7 @@ export function dodgeRock(p2) {
   return 0;
 }
 
-// --- Haupt-Update-Funktion (1x pro Frame) ---
+// --- Main update function (once per frame) ---
 export function updateBot() {
   const p2 = state.p2;
   if (!p2 || p2.isDead) return;

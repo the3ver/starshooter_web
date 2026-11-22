@@ -218,7 +218,7 @@ async function runScenario(page, { steps, loss }) {
         const recon = decoder.decode(JSON.parse(text));
         if (packet.k) waitsOnKeyframe = false;
         if (waitsOnKeyframe) {
-          if (recon !== null) error.push('Paket ' + packet.n + ' nach Verlust angewendet');
+          if (recon !== null) error.push('Paket ' + packet.n + ' applied after loss');
           stat.nullAfterLoss++;
           continue;
         }

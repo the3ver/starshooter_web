@@ -16,7 +16,7 @@ export const MIN_PASSAGE = 75; // narrowest gap beside an island (2.5 ship width
 export const NARROW_CORRIDOR = 100; // Passage of a narrows (a good 3 ship widths)
 
 const EMPTY = { l: 0, r: 0, inner: 0, ib: 0 };
-let last = null; // oberster erzeugter Profilpunkt
+let last = null; // topmost created profile point
 let queue = []; // next profile points (one section)
 let speed = ROCK_SPEED; // Scroll speed (the island boss stops the rock)
 

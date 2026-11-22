@@ -27,7 +27,7 @@ export const BONE_COLOR = '#e8dcb8';
 // vertebra widths) and arm pairs (arms: reach of both arms as a share of the maximum width). An arm pair is a
 // profile point where the island reaches out to the arm tips on both sides; the neighboring points are vertebrae, so
 // pointed bone spurs appear. Eyes sit at the bottom tip and at the tips of the first arm pair,
-// im Coop zusaetzlich am zweiten Armpaar.
+// in co-op also at the second arm pair.
 // All parts lie in the lower seven vertebrae: in the fight the body stands still, no segments appear above it.
 const SKELETON = [
   { vortex: 0.6, eyes: ['bottom'] },
