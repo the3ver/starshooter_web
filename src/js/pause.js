@@ -87,9 +87,11 @@ export function startNextRound() {
 export function handleEscape(repeated = false) {
   if (!state.paused) {
     if (!state.gameRunning || state.gameOverActive) return false;
-    togglePause(repeated);
+    if (!repeated) togglePause();
     return true;
   }
+  // A held ESC must not flip the query open and shut with every auto-repeat
+  if (repeated) return !state.pauseFrom && !isOnlineMode();
   if (state.pauseFrom || isOnlineMode()) return false;
   if (pendingQuery) closeQuery();
   else openQuery();

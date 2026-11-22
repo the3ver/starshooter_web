@@ -315,6 +315,7 @@ test('ESC in a running game pauses, ESC in the pause opens the query, P resumes'
   await page.keyboard.press('Escape');
   expect(await visible(page, 'btn-pause-ja')).toBe(true);
   await page.keyboard.press('Escape');
+  expect(await visible(page, 'btn-pause-ja')).toBe(false);
   await page.keyboard.press('KeyP');
   expect(await page.evaluate(() => window.__game.state.paused)).toBe(false);
 });
@@ -362,4 +363,14 @@ test('pause menu: the main menu query keeps its own text', async ({ page }) => {
   await startPaused(page, 'single');
   await page.click('#btn-pause-hauptmenue');
   expect(await page.locator('#pause-abfrage-text').textContent()).toContain('beenden');
+});
+
+test('a held ESC pauses once and does not flip the query with auto-repeat', async ({ page }) => {
+  await startGame(page);
+  await page.waitForFunction(() => window.__game.state.gameRunning);
+  await page.keyboard.down('Escape');
+  await page.keyboard.down('Escape'); // auto-repeat (an odd count would flip the query open)
+  await page.keyboard.up('Escape');
+  expect(await page.evaluate(() => window.__game.state.paused)).toBe(true);
+  expect(await visible(page, 'btn-pause-ja')).toBe(false);
 });
