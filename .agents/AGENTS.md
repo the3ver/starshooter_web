@@ -36,6 +36,3 @@ Browser-Space-Shooter ohne HTML5-Canvas: Weltobjekte sind DOM-Elemente (`positio
 - Waffen leveln getrennt bis Stufe 5: Laser (L/B, Energie, Stufe 5 Hitscan), Raketen (K/V), Bombe (Leertaste/C, einzige Waffe gegen Magma), Superwaffe (S).
 - Schiffe: `viper` (Viper-X, Rolle/Overdrive/Kill-Kombo, `viper.js`), `phantom` (Phantom-NX), `gleve` (Gleve-MR, Sweep und Dash, `gleve.js`), `sniper` (Spectre-SR, Fadenkreuz, Granaten, Minen, `sniper.js`). Sonderschiffe belegen dieselben Tasten und Stufen mit eigenen Waffen.
 - Jede Schiffsfunktion braucht Bot-Logik (`bot.js`), Online-Sync (Snapshot + Client-Darstellung) und Tests fuer beide.
-
-## Agent Bridge
-Wenn der Sandboxed-Modus aktiv ist und `run_command` an Berechtigungen scheitert, laeuft die Kommunikation ueber `.agents/cmd_request.json` (`{"id": <increment>, "command": "..."}`) und `.agents/cmd_response.json`: Befehl schreiben, kurz warten, Antwort lesen.
