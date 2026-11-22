@@ -1360,6 +1360,9 @@ export function applyPlayfieldWidth(mode = state.gameMode) {
 }
 
 export function setGameMode(mode) {
+  // Leaving online mode closes a waiting or connected room; otherwise the connection ticker keeps the
+  // lobby and its start hint on screen (issue #23)
+  if (mode !== 'online' && state.network && state.network.isOnline) Network.closeOnlineRoom();
   state.gameMode = mode;
   const isCoop = mode === 'coop';
   const isOnline = mode === 'online';

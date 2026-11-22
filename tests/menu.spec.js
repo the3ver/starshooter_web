@@ -382,3 +382,38 @@ test.describe('Menu tidied up: controls overlay and perk chips', () => {
     }
   });
 });
+
+// Issue #23: switching away from online mode while hosting a room closed nothing; the connection ticker
+// (updateOnlineLobbyUI) kept the lobby and its start hint on screen.
+test('switching from online to 1 player closes a waiting room and restores the start hint', async ({ page }) => {
+  await page.setViewportSize({ width: 1280, height: 800 });
+  await page.goto('/');
+  await page.waitForFunction(() => window.__game && window.__game.state);
+  await page.click('#gamemode-btn-online');
+  await page.evaluate(() => {
+    const { state, Network } = window.__game;
+    state.network.isOnline = true;
+    state.network.isHost = true;
+    state.network.roomCode = 'ABCDE';
+    Network.updateOnlineLobbyUI();
+  });
+  await page.click('#gamemode-btn-single');
+  const r = await page.evaluate(() => {
+    const { state, Network } = window.__game;
+    Network.updateOnlineLobbyUI(); // what the connection ticker does every second
+    return {
+      lobby: getComputedStyle(document.getElementById('online-lobby-container')).display,
+      startText: document.getElementById('start-text').textContent.trim(),
+      online: state.network.isOnline,
+      host: state.network.isHost,
+      mode: state.gameMode,
+    };
+  });
+  expect(r).toEqual({
+    lobby: 'none',
+    startText: 'TAP OR PRESS ANY KEY TO START',
+    online: false,
+    host: false,
+    mode: 'single',
+  });
+});

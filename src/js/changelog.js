@@ -1,6 +1,13 @@
-export const GAME_VERSION = '1.15.26';
+export const GAME_VERSION = '1.15.27';
 
 export const changelogData = {
+  '1.15.27': {
+    version: '1.15.27',
+    intro: 'Hey, es ist jetzt Version 1.15.27 rausgekommen, folgendes wurde aktualisiert:',
+    highlights: [
+      'Wer vom Online-Modus zurück auf 1 Spieler oder Co-op wechselt, schließt einen offenen Raum, Lobby und Start-Hinweis verschwinden.',
+    ],
+  },
   '1.15.26': {
     version: '1.15.26',
     intro: 'Hey, es ist jetzt Version 1.15.26 rausgekommen, folgendes wurde aktualisiert:',
