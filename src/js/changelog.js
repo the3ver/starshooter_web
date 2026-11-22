@@ -1,6 +1,11 @@
-export const GAME_VERSION = '1.15.24';
+export const GAME_VERSION = '1.15.25';
 
 export const changelogData = {
+  '1.15.25': {
+    version: '1.15.25',
+    intro: 'Hey, es ist jetzt Version 1.15.25 rausgekommen, folgendes wurde aktualisiert:',
+    highlights: ['Der Browser-Tab zeigt jetzt den Namen des Spiels.'],
+  },
   '1.15.24': {
     version: '1.15.24',
     intro: 'Hey, es ist jetzt Version 1.15.24 rausgekommen, folgendes wurde aktualisiert:',

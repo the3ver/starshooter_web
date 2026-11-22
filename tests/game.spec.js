@@ -46,6 +46,10 @@ test.beforeEach(async ({ page }) => {
 });
 
 test.describe('Space Shooter', () => {
+  test('The browser tab shows the game name (issue #34)', async ({ page }) => {
+    await expect(page).toHaveTitle('Star Shooter');
+  });
+
   test('The game loads and the start text is shown', async ({ page }) => {
     const startText = page.locator('#start-text');
     await expect(startText).toBeVisible();
